@@ -12,6 +12,7 @@ final class ModuleRegistry
         'links' => LinksModule::class,
         'map' => MapModule::class,
         'handbook' => HandbookModule::class,
+        'programs' => ProgramsModule::class,
     ];
 
     /** @return class-string<ModuleInterface> */
