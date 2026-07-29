@@ -3,5 +3,13 @@
 {% block highlight %}news{% endblock %}
 
 {% block content %}
-
+	<h1>Novinky</h1>
+	{% for item in items %}
+		<div class="news">
+			<h3>{{ item.datetime }}</h3>
+			<p>{{ item.text }}</p>
+		</div>
+	{% else %}
+		<p>Zatím žádné novinky.</p>
+	{% endfor %}
 {% endblock %}

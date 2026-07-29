@@ -80,14 +80,6 @@ final class Kernel
 
     private static function registerModules(App $app, ContainerInterface $container, EventConfig $event): void
     {
-        // Task 4 replaces this guard with the real module registration loop:
-        // foreach ($event->features as $feature) { ... $container->get(Module\ModuleRegistry::classFor($feature)) ... }
-        if (!class_exists(Module\ModuleRegistry::class)) {
-            $container->get(Twig::class)->getEnvironment()->addGlobal('menu', []);
-
-            return;
-        }
-
         $menu = [];
         foreach ($event->features as $feature) {
             $module = $container->get(Module\ModuleRegistry::classFor($feature));

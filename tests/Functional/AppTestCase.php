@@ -18,9 +18,12 @@ abstract class AppTestCase extends TestCase
         $_SESSION = [];
     }
 
-    protected function createApp(string $slug = 'obrok19', array $overrides = []): App
+    protected function createApp(string $slug = 'obrok19', array $overrides = [], bool $fixtureEvent = false): App
     {
-        $event = EventConfig::load($this->eventsDir(), $slug);
+        $dir = $fixtureEvent
+            ? dirname(__DIR__) . '/fixtures/events'
+            : $this->eventsDir();
+        $event = EventConfig::load($dir, $slug);
 
         return Kernel::create($event, $overrides);
     }
