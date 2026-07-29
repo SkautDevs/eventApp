@@ -3,7 +3,15 @@
 // Konfigurace akce Obrok 2019 (referenční akce — vzor pro nové akce)
 return [
     'name' => 'Obrok 2019',
-    'features' => ['map', 'programs', 'handbook', 'harmonogram', 'news', 'links'],
+    'features' => [
+        'news',
+        // TODO: re-enable as modules land (Tasks 5-9)
+        // 'map',
+        // 'programs',
+        // 'handbook',
+        // 'harmonogram',
+        // 'links',
+    ],
 
     // Paleta — hodnoty z www/style.css :root
     'colors' => [
