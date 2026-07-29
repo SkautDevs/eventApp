@@ -33,7 +33,12 @@ final class Kernel
         $builder->addDefinitions([
             EventConfig::class => $event,
             \App\Program\ProgramProviderInterface::class => fn (): \App\Program\ProgramProviderInterface => new \App\Program\StubProgramProvider($event->dir . '/fixtures'),
-            // Session::class => \DI\create(Session::class), // Task 8 restores this
+            Session::class => \DI\create(Session::class),
+            Auth\Authenticator::class => \DI\autowire(),
+            Auth\SkautisGatewayInterface::class => fn (): Auth\SkautisGatewayInterface => new Auth\SkautisGateway(
+                appId: $_ENV['SKAUTIS_APP_ID'] ?? '',
+                testMode: (bool) ($_ENV['SKAUTIS_TEST_MODE'] ?? false),
+            ),
             Twig::class => function () use ($root, $event): Twig {
                 $twig = Twig::create($root . '/templates', ['cache' => false]);
                 $env = $twig->getEnvironment();
@@ -77,6 +82,21 @@ final class Kernel
                 'links' => $this->get(EventConfig::class)->content('links'),
             ]);
         })->setName('homepage');
+
+        $app->post('/', function ($request, $response) {
+            $body = (array) $request->getParsedBody();
+            $auth = $this->get(Auth\Authenticator::class);
+
+            if (!empty($body['skautIS_Token'])) {
+                $auth->store($this->get(Auth\SkautisGatewayInterface::class)->loginFromPost($body));
+            } elseif (!empty($body['skautIS_Logout'])) {
+                $auth->logout();
+            }
+
+            $returnUrl = $request->getQueryParams()['ReturnUrl'] ?? '/';
+
+            return $response->withHeader('Location', $returnUrl)->withStatus(302);
+        });
     }
 
     private static function registerModules(App $app, ContainerInterface $container, EventConfig $event): void
