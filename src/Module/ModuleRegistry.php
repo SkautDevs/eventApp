@@ -9,6 +9,8 @@ final class ModuleRegistry
     /** @var array<string, class-string<ModuleInterface>> */
     private const MODULES = [
         'news' => NewsModule::class,
+        'links' => LinksModule::class,
+        'map' => MapModule::class,
     ];
 
     /** @return class-string<ModuleInterface> */

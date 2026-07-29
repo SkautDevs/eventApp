@@ -4,3 +4,4 @@ logs/
 var/*
 !var/.gitkeep
 .idea/
+.phpunit.result.cache
