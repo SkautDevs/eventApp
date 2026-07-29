@@ -11,6 +11,7 @@ final class ModuleRegistry
         'news' => NewsModule::class,
         'links' => LinksModule::class,
         'map' => MapModule::class,
+        'handbook' => HandbookModule::class,
     ];
 
     /** @return class-string<ModuleInterface> */

@@ -1,0 +1,12 @@
+{% extends "_layout.twig" %}
+
+{% block highlight %}handbook{% endblock %}
+
+{% block content %}
+	<h1>Handbook</h1>
+	<a href="{{ url_for('handbook-download') }}">
+		<button class="button-primary pure-button pure-button-primary">
+			Stáhnout PDF
+		</button>
+	</a>
+{% endblock %}

@@ -7,9 +7,9 @@ return [
         'news',
         'map',
         'links',
+        'handbook',
         // TODO: re-enable as modules land (Tasks 5-9)
         // 'programs',
-        // 'handbook',
         // 'harmonogram',
     ],
 
