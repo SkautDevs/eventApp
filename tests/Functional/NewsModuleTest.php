@@ -23,11 +23,14 @@ final class NewsModuleTest extends AppTestCase
 
     public function testDisabledFeatureIs404(): void
     {
-        $app = $this->createApp('minimal', fixtureEvent: true);
+        $obrok19 = $this->createApp();
+        $minimal = $this->createApp('minimal', fixtureEvent: true);
 
-        // minimal has only news → homepage works, but /mapa does not exist
-        self::assertSame(200, $this->request($app, 'GET', '/novinky')->getStatusCode());
-        // Task 5 re-adds the enabled-event assertion for obrok19 /mapa when MapModule lands
-        self::assertSame(404, $this->request($app, 'GET', '/mapa')->getStatusCode());
+        // minimal has only news → /novinky works
+        self::assertSame(200, $this->request($minimal, 'GET', '/novinky')->getStatusCode());
+        // minimal has only news → /mapa does not exist
+        self::assertSame(404, $this->request($minimal, 'GET', '/mapa')->getStatusCode());
+        // obrok19 has map → /mapa works
+        self::assertSame(200, $this->request($obrok19, 'GET', '/mapa')->getStatusCode());
     }
 }
