@@ -1,0 +1,46 @@
+[
+    {
+        "id": 5,
+        "name": "Ukázková vycházka",
+        "section": {"id": 10},
+        "start": {"date": "2019-05-30 08:00:00"},
+        "end": {"date": "2019-05-30 12:00:00"},
+        "lector": "Jana Testová",
+        "location": "Sraz u brány",
+        "perex": "Testovací program sekce Putování.",
+        "tools": "Pevné boty"
+    },
+    {
+        "id": 9,
+        "name": "Večerní koncert kapely",
+        "section": {"id": 12},
+        "start": {"date": "2019-05-30 19:30:00"},
+        "end": {"date": "2019-05-31 22:00:00"},
+        "lector": null,
+        "location": "Hlavní stage",
+        "perex": "Vícedenní testovací záznam (multiday).",
+        "tools": null
+    },
+    {
+        "id": 11,
+        "name": "Osobní volno",
+        "section": {"id": 13},
+        "start": {"date": "2019-05-30 13:00:00"},
+        "end": {"date": "2019-05-30 14:00:00"},
+        "lector": null,
+        "location": null,
+        "perex": "Tenhle program se nesmí zobrazit (hiddenNames).",
+        "tools": null
+    },
+    {
+        "id": 14,
+        "name": "Služba v kuchyni",
+        "section": {"id": 1},
+        "start": {"date": "2019-05-30 15:00:00"},
+        "end": {"date": "2019-05-30 18:00:00"},
+        "lector": null,
+        "location": "Kuchyň",
+        "perex": "Testovací program sekce Služba.",
+        "tools": null
+    }
+]

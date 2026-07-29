@@ -32,6 +32,7 @@ final class Kernel
         $builder = new ContainerBuilder();
         $builder->addDefinitions([
             EventConfig::class => $event,
+            \App\Program\ProgramProviderInterface::class => fn (): \App\Program\ProgramProviderInterface => new \App\Program\StubProgramProvider($event->dir . '/fixtures'),
             // Session::class => \DI\create(Session::class), // Task 8 restores this
             Twig::class => function () use ($root, $event): Twig {
                 $twig = Twig::create($root . '/templates', ['cache' => false]);

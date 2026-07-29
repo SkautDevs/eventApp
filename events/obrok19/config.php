@@ -8,8 +8,8 @@ return [
         'map',
         'links',
         'handbook',
-        // TODO: re-enable as modules land (Tasks 5-9)
-        // 'programs',
+        'programs',
+        // TODO: re-enable as modules land (Task 9)
         // 'harmonogram',
     ],
 
