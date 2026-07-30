@@ -1,15 +1,14 @@
-Official support app for scout event Obrok 2019 - https://obrok19.cz/
+Modulární podpůrná aplikace pro skautské akce (Obrok). Každá akce je konfigurace
+v `events/<slug>/` + veřejné assety v `www/events/<slug>/`.
 
+## Vývoj
 
-## Run app for dev
+1. `composer install`
+2. `cp .env.example .env`, nastavit `EVENT=obrok19` (referenční akce) a `APP_DEBUG=1`
+3. `composer start` → http://localhost:8080 (nebo `docker-compose up`)
+4. `composer test`
 
-0) get docker + docker-compose somewhere
-1) run `docker-compose up`
-2) visit `localhost:8080`
+Programová data jdou přes `ProgramProviderInterface` — v dev/testech ze souborů
+`events/<slug>/fixtures/*.json`, v produkci z kissj (`PROGRAM_PROVIDER=kissj`).
 
-## Explanations
-
-### Cluttery in www directory
-
- - JS must be there for scope
- - .ico mut be there because of compatibility of browsers
+Nasazení: viz `docs/deployment.md`.
