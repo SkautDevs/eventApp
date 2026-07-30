@@ -26,6 +26,6 @@ final class ThemingTest extends AppTestCase
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
         // odstranit :root blok nesmí být potřeba — paleta se injektuje z layoutu
-        self::assertDoesNotMatchRegularExpression('/#[0-9a-fA-F]{3,6}\b/', $css);
+        self::assertDoesNotMatchRegularExpression('/#[0-9a-fA-F]{3,6}\b|rgba?\(|\b(?:white|black)\b/i', $css);
     }
 }
