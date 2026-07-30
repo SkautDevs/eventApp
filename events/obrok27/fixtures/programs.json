@@ -1,0 +1,13 @@
+[
+    {
+        "id": 1,
+        "name": "Zahajovací ceremoniál",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-02 19:00:00"},
+        "end": {"date": "2027-06-02 19:30:00"},
+        "lector": null,
+        "location": "Hlavní stage",
+        "perex": "Slavnostní zahájení Obroku 2027.",
+        "tools": null
+    }
+]
