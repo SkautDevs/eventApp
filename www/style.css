@@ -63,7 +63,7 @@
 
 .highlight {
 	background-color: var(--color-base);
-	color: var(--text-invert);
+	color: var(--color-text-invert);
 	padding: 8px 16px;
 	border-radius: 8px;
 	text-decoration: none;
@@ -71,7 +71,7 @@
 
 body {
 	font-family: themix, sans-serif;
-	color: var(--text-base);
+	color: var(--color-text);
 	text-align: center;
 	width: 100%;
 	height: 100%;
@@ -91,7 +91,7 @@ main {
 
 footer {
 	background-color: var(--color-base);
-	color: var(--text-invert);
+	color: var(--color-text-invert);
 	margin-top: 8px;
 	padding: 8px 0;
 }
@@ -113,7 +113,7 @@ div.menu {
 
 img.menu-link, a.menu-link {
 	border-radius: 8px;
-	color: var(--text-invert);
+	color: var(--color-text-invert);
 }
 
 a.menu-link:hover {
@@ -121,7 +121,7 @@ a.menu-link:hover {
 }
 
 footer a, footer a:visited {
-	color: var(--text-invert);
+	color: var(--color-text-invert);
 }
 
 div.map, div.handbook {
@@ -188,7 +188,7 @@ h2 {
 
 h2.sectionName {
 	background-color: var(--color-base);
-	color: var(--text-invert);
+	color: var(--color-text-invert);
 	padding: 8px 0;
 	border-radius: 8px;
 }
@@ -224,7 +224,7 @@ b {
 
 .button-primary {
 	background-color: var(--color-primary);
-	color: var(--text-invert);
+	color: var(--color-text-invert);
 	border-radius: 8px;
 }
 
@@ -254,7 +254,7 @@ div.border-table {
 
 .button-success,
 .button-primary {
-	color: white;
+	color: var(--color-text-invert);
 	border-radius: 4px;
 }
 
