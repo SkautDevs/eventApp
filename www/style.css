@@ -60,13 +60,6 @@
 	font-style: normal;
 }
 
-:root {
-	--color-base: #2a9272;
-	--color-darker: #1e6650;
-	--color-primary: #96201f;
-	--text-base: #444343;
-	--text-invert: #FFFFFF;
-}
 
 .highlight {
 	background-color: var(--color-base);
@@ -180,7 +173,7 @@ h1 {
 	font-family: skautbold, sans-serif;
 	font-weight: normal;
 	font-size: 10vmin;
-	color: #1e6650;
+	color: var(--color-darker);
 }
 
 h1.underPicture {
@@ -190,7 +183,7 @@ h1.underPicture {
 h2 {
 	font-weight: 700;
 	font-size: 7vmin;
-	color: #1e6650;
+	color: var(--color-darker);
 }
 
 h2.sectionName {
@@ -260,26 +253,11 @@ div.border-table {
 
 
 .button-success,
-.button-error,
-.button-warning,
-.button-secondary {
+.button-primary {
 	color: white;
 	border-radius: 4px;
-	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .button-success {
-	background: rgb(28, 184, 65); /* this is a green */
-}
-
-.button-error {
-	background: rgb(202, 60, 60); /* this is a maroon */
-}
-
-.button-warning {
-	background: rgb(223, 117, 20); /* this is an orange */
-}
-
-.button-secondary {
-	background: rgb(66, 184, 221); /* this is a light blue */
+	background: var(--color-base);
 }
