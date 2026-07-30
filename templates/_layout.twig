@@ -5,6 +5,11 @@
 	<meta charset="utf-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="manifest" href="events/{{ event.slug }}/site.webmanifest">
+	<link rel="apple-touch-icon" sizes="180x180" href="events/{{ event.slug }}/apple-touch-icon.png">
+	<link rel="icon" type="image/png" sizes="32x32" href="events/{{ event.slug }}/favicon-32x32.png">
+	<link rel="icon" type="image/png" sizes="16x16" href="events/{{ event.slug }}/favicon-16x16.png">
+	<link rel="mask-icon" href="events/{{ event.slug }}/safari-pinned-tab.svg" color="{{ event.colors.base }}">
+	<meta name="theme-color" content="{{ event.colors.base }}">
 	<link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
 	<style>
 		:root {
