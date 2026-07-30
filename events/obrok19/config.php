@@ -4,13 +4,12 @@
 return [
     'name' => 'Obrok 2019',
     'features' => [
-        'news',
         'map',
-        'links',
-        'handbook',
         'programs',
-        // TODO: re-enable as modules land (Task 9)
-        // 'harmonogram',
+        'handbook',
+        'harmonogram',
+        'news',
+        'links',
     ],
 
     // Paleta — hodnoty z www/style.css :root
