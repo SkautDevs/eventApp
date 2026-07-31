@@ -37,6 +37,10 @@ final class HarmonogramModule implements ModuleInterface
                 }
             }
 
+            $session = $this->get(\App\Session::class);
+            $tieError = $session->get('tieError');
+            $session->delete('tieError');
+
             return $this->get(Twig::class)->render($response, 'harmonogram.twig', [
                 'schedule' => $this->get(EventConfig::class)->content('schedule'),
                 'isLogged' => $auth->isLogged(),
@@ -44,7 +48,32 @@ final class HarmonogramModule implements ModuleInterface
                 'loginUrl' => $gateway->getLoginUrl('/harmonogram'),
                 'logoutUrl' => $gateway->getLogoutUrl('/harmonogram'),
                 'registeredPrograms' => $registered,
+                'tieError' => $tieError,
             ]);
         })->setName('harmonogram');
+
+        $app->post('/harmonogram/tie', function ($request, $response) {
+            $code = strtoupper(trim((string) (((array) $request->getParsedBody())['tieCode'] ?? '')));
+            $session = $this->get(\App\Session::class);
+
+            if ($code !== '') {
+                $identity = new \App\Auth\Identity(type: 'tie', displayName: 'TIE ' . $code, tieCode: $code);
+                try {
+                    $this->get(\App\Program\ProgramProviderInterface::class)->getProgramsForIdentity($identity);
+                    $this->get(\App\Auth\Authenticator::class)->store($identity);
+                    $session->delete('tieError');
+                } catch (\App\Auth\UnknownParticipantException) {
+                    $session->set('tieError', 'Neplatný TIE kód.');
+                }
+            }
+
+            return $response->withHeader('Location', '/harmonogram')->withStatus(302);
+        })->setName('tie-login');
+
+        $app->post('/harmonogram/tie-logout', function ($request, $response) {
+            $this->get(\App\Auth\Authenticator::class)->logout();
+
+            return $response->withHeader('Location', '/harmonogram')->withStatus(302);
+        })->setName('tie-logout');
     }
 }

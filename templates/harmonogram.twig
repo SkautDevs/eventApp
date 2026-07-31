@@ -11,10 +11,24 @@
 
 	{% if isLogged %}
 		Zvýrazňuje se program pro <strong>{{ identity }}</strong><br />
-		<a href="{{ logoutUrl }}">Odhlásit se</a>
+		{% if identity starts with 'TIE ' %}
+			<form method="post" action="{{ url_for('tie-logout') }}" style="display:inline">
+				<button type="submit" class="pure-button">Odhlásit TIE kód</button>
+			</form>
+		{% else %}
+			<a href="{{ logoutUrl }}">Odhlásit se</a>
+		{% endif %}
 	{% else %}
 		Chcete zvýraznit váš zaregistrovaný program?<br />
 		<a href="{{ loginUrl }}">Přihlaste se přes SkautIs</a>
+		&nbsp;nebo&nbsp;
+		<form method="post" action="{{ url_for('tie-login') }}" class="pure-form" style="display:inline">
+			<input type="text" name="tieCode" placeholder="TIE kód" required>
+			<button type="submit" class="pure-button button-primary">Přihlásit</button>
+		</form>
+		{% if tieError %}
+			<p class="highlight">{{ tieError }}</p>
+		{% endif %}
 	{% endif %}
 
 	<div class="pure-g">
