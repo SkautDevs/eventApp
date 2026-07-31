@@ -32,7 +32,21 @@ final class Kernel
         $builder = new ContainerBuilder();
         $builder->addDefinitions([
             EventConfig::class => $event,
-            \App\Program\ProgramProviderInterface::class => fn (): \App\Program\ProgramProviderInterface => new \App\Program\StubProgramProvider($event->dir . '/fixtures'),
+            \App\Program\ProgramProviderInterface::class => function () use ($event): \App\Program\ProgramProviderInterface {
+                if (($_ENV['PROGRAM_PROVIDER'] ?? 'stub') === 'kissj') {
+                    $baseUrl = $_ENV['KISSJ_BASE_URL'] ?? '';
+                    if ($baseUrl === '') {
+                        throw new \RuntimeException('PROGRAM_PROVIDER=kissj vyžaduje KISSJ_BASE_URL');
+                    }
+
+                    return new \App\Program\KissjProgramProvider(
+                        http: new \GuzzleHttp\Client(['base_uri' => rtrim($baseUrl, '/') . '/', 'timeout' => 10]),
+                        eventSlug: $event->get('kissj')['eventSlug'] ?? $event->slug,
+                    );
+                }
+
+                return new \App\Program\StubProgramProvider($event->dir . '/fixtures');
+            },
             Session::class => \DI\create(Session::class),
             Auth\Authenticator::class => \DI\autowire(),
             Auth\SkautisGatewayInterface::class => fn (): Auth\SkautisGatewayInterface => new Auth\SkautisGateway(
