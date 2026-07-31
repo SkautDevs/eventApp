@@ -9,6 +9,14 @@
 {% block content %}
 	<img class="logo mainLogo" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
 
+	{% if 'push' in event.features and vapidPublicKey %}
+		<p class="push-enable">
+			<button class="button-primary pure-button pure-button-primary" onclick="enablePush()">
+				Aktivuj si notifikace o akci!
+			</button>
+		</p>
+	{% endif %}
+
 	{% for link in links %}
 		<p><a {% if link.highlight ?? false %}class="highlight" {% endif %}href="{{ link.href }}">{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
 	{% endfor %}

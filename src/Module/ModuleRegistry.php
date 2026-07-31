@@ -14,6 +14,7 @@ final class ModuleRegistry
         'handbook' => HandbookModule::class,
         'programs' => ProgramsModule::class,
         'harmonogram' => HarmonogramModule::class,
+        'push' => PushModule::class,
     ];
 
     /** @return class-string<ModuleInterface> */
