@@ -4,7 +4,7 @@
 // vyměnit až bude vizuální identita 2027 (viz úkol v README akce).
 return [
     'name' => 'Obrok 2027',
-    'features' => ['map', 'programs', 'harmonogram', 'news', 'links', 'push'],
+    'features' => ['map', 'programs', 'handbook', 'harmonogram', 'news', 'links', 'push'],
 
     'colors' => [
         'base' => '#2a9272',
@@ -30,6 +30,12 @@ return [
     'map' => [
         // TODO organizátoři: URL Google My Maps mapy areálu 2027
         'embedUrl' => 'https://www.google.com/maps/d/embed?mid=REPLACE-ME',
+    ],
+
+    'handbook' => [
+        // TODO organizátoři: nahrát handbook 2027 do www/events/obrok27/
+        'file' => 'events/obrok27/obrok27_handbook.pdf',
+        'downloadName' => 'Obrok27_handbook.pdf',
     ],
 
     'programs' => [
