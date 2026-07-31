@@ -47,6 +47,12 @@ final class Kernel
 
                 return new \App\Push\SubscriptionRepository($path);
             },
+            \App\Push\PushSenderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
+                repository: $c->get(\App\Push\SubscriptionRepository::class),
+                vapidPublicKey: $_ENV['VAPID_PUBLIC_KEY'] ?? '',
+                vapidPrivateKey: $_ENV['VAPID_PRIVATE_KEY'] ?? '',
+                vapidSubject: $_ENV['VAPID_SUBJECT'] ?? '',
+            ),
             Twig::class => function () use ($root, $event): Twig {
                 $twig = Twig::create($root . '/templates', ['cache' => false]);
                 $env = $twig->getEnvironment();

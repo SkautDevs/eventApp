@@ -1,0 +1,20 @@
+{% extends "_layout.twig" %}
+
+{% block highlight %}admin{% endblock %}
+
+{% block content %}
+	<h1>Odeslat notifikaci</h1>
+
+	{% if result %}
+		<p><strong>Odesláno: {{ result.sent }}</strong>, odstraněno neplatných odběrů: {{ result.removed }}</p>
+	{% endif %}
+
+	<form method="post" action="{{ url_for('admin-notify') }}" class="pure-form pure-form-stacked">
+		<input type="hidden" name="token" value="{{ token }}">
+		<label for="title">Titulek</label>
+		<input type="text" id="title" name="title" required>
+		<label for="body">Zpráva</label>
+		<textarea id="body" name="body" rows="3" required></textarea>
+		<button type="submit" class="button-primary pure-button pure-button-primary">Odeslat všem</button>
+	</form>
+{% endblock %}
