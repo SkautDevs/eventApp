@@ -51,6 +51,23 @@ final class ProviderFailureTest extends AppTestCase
         self::assertStringContainsString('TIE ABC123', $html);
     }
 
+    public function testTieLoginDegradesGracefullyOnProviderOutage(): void
+    {
+        $provider = new ThrowingProgramProvider(
+            identityException: new ConnectException('down', new Request('GET', 'x')),
+        );
+        $app = $this->createApp(overrides: [
+            ProgramProviderInterface::class => $provider,
+            SkautisGatewayInterface::class => new FakeSkautisGateway(),
+        ]);
+
+        $login = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
+        self::assertSame(302, $login->getStatusCode());
+
+        $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
+        self::assertStringContainsString('Přihlášení se teď nedaří', $html);
+    }
+
     public function testHarmonogramLogsOutOnUnknownParticipantAfterInitialLogin(): void
     {
         $provider = new ThrowingProgramProvider(
@@ -84,6 +101,7 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
     public function __construct(
         private readonly ?\Throwable $programsException = null,
         private readonly ?\Throwable $identityExceptionAfterFirstCall = null,
+        private readonly ?\Throwable $identityException = null,
     ) {
     }
 
@@ -99,6 +117,10 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
     public function getProgramsForIdentity(Identity $identity): array
     {
         $this->identityCalls++;
+
+        if ($this->identityException !== null) {
+            throw $this->identityException;
+        }
 
         if ($this->identityCalls > 1 && $this->identityExceptionAfterFirstCall !== null) {
             throw $this->identityExceptionAfterFirstCall;

@@ -73,6 +73,8 @@ final class HarmonogramModule implements ModuleInterface
                     $session->delete('tieError');
                 } catch (\App\Auth\UnknownParticipantException) {
                     $session->set('tieError', 'Neplatný TIE kód.');
+                } catch (\GuzzleHttp\Exception\TransferException) {
+                    $session->set('tieError', 'Přihlášení se teď nedaří, zkuste to prosím později.');
                 }
             }
 
