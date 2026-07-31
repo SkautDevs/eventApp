@@ -39,10 +39,19 @@ final class Kernel
                 appId: $_ENV['SKAUTIS_APP_ID'] ?? '',
                 testMode: (bool) ($_ENV['SKAUTIS_TEST_MODE'] ?? false),
             ),
+            \App\Push\SubscriptionRepository::class => function () use ($root): \App\Push\SubscriptionRepository {
+                $path = $_ENV['PUSH_DB_PATH'] ?? 'var/push.sqlite';
+                if (!str_starts_with($path, '/')) {
+                    $path = $root . '/' . $path;
+                }
+
+                return new \App\Push\SubscriptionRepository($path);
+            },
             Twig::class => function () use ($root, $event): Twig {
                 $twig = Twig::create($root . '/templates', ['cache' => false]);
                 $env = $twig->getEnvironment();
                 $env->addGlobal('event', $event->raw + ['slug' => $event->slug]);
+                $env->addGlobal('vapidPublicKey', $_ENV['VAPID_PUBLIC_KEY'] ?? '');
                 $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
                     $day = (new \DateTime($datetimeArray['date']))->format('D');
 

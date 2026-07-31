@@ -19,6 +19,9 @@
 		}
 	</style>
 	<link rel="stylesheet" href="style.css?v=4">
+	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
+	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
+	<script src="push.js" defer></script>
 	<title>{{ event.name }}</title>
 	{% block header %}{% endblock %}
 </head>

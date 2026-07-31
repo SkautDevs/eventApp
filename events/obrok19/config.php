@@ -10,6 +10,7 @@ return [
         'harmonogram',
         'news',
         'links',
+        'push',
     ],
 
     // Paleta — hodnoty z www/style.css :root

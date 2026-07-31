@@ -4,7 +4,7 @@
 // vyměnit až bude vizuální identita 2027 (viz úkol v README akce).
 return [
     'name' => 'Obrok 2027',
-    'features' => ['map', 'programs', 'harmonogram', 'news', 'links'],
+    'features' => ['map', 'programs', 'harmonogram', 'news', 'links', 'push'],
 
     'colors' => [
         'base' => '#2a9272',
