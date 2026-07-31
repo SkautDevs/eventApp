@@ -13,6 +13,7 @@
 		<p class="highlight">{{ notice }}</p>
 	{% endif %}
 
+	<div class="login-box">
 	{% if isLogged %}
 		Zvýrazňuje se program pro <strong>{{ identity }}</strong><br />
 		{% if identity starts with 'TIE ' %}
@@ -34,6 +35,7 @@
 			<p class="highlight">{{ tieError }}</p>
 		{% endif %}
 	{% endif %}
+	</div>
 
 	<div class="pure-g">
 		{% for day in schedule %}

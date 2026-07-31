@@ -261,3 +261,8 @@ div.border-table {
 .button-success {
 	background: var(--color-base);
 }
+/* přihlášení na harmonogramu a aktivace notifikací — na střed */
+p.push-enable,
+div.login-box {
+	text-align: center;
+}
