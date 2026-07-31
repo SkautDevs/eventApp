@@ -27,21 +27,27 @@ final class ProgramsModule implements ModuleInterface
             $event = $this->get(EventConfig::class);
             $hidden = $event->get('programs')['hiddenNames'] ?? [];
             $sections = $event->sections;
+            $notice = null;
 
-            foreach ($this->get(ProgramProviderInterface::class)->getPrograms() as $program) {
-                if (in_array($program['name'], $hidden, true)) {
-                    continue;
+            try {
+                foreach ($this->get(ProgramProviderInterface::class)->getPrograms() as $program) {
+                    if (in_array($program['name'], $hidden, true)) {
+                        continue;
+                    }
+                    $sectionId = $program['section']['id'];
+                    if (!isset($sections[$sectionId])) {
+                        continue; // program v sekci, kterou akce nezná — ignorovat
+                    }
+                    $program['multiday'] = date('Y-m-d', strtotime($program['start']['date']))
+                        !== date('Y-m-d', strtotime($program['end']['date']));
+                    $sections[$sectionId]['programs'][] = $program;
                 }
-                $sectionId = $program['section']['id'];
-                if (!isset($sections[$sectionId])) {
-                    continue; // program v sekci, kterou akce nezná — ignorovat
-                }
-                $program['multiday'] = date('Y-m-d', strtotime($program['start']['date']))
-                    !== date('Y-m-d', strtotime($program['end']['date']));
-                $sections[$sectionId]['programs'][] = $program;
+            } catch (\GuzzleHttp\Exception\TransferException) {
+                $sections = $event->sections;
+                $notice = 'Programy se nepodařilo načíst, zkuste to prosím později.';
             }
 
-            return $this->get(Twig::class)->render($response, 'programs.twig', ['sections' => $sections]);
+            return $this->get(Twig::class)->render($response, 'programs.twig', ['sections' => $sections, 'notice' => $notice]);
         })->setName('programs');
     }
 }

@@ -38,6 +38,9 @@
 
 {% block content %}
 	<h1>Programy</h1>
+	{% if notice %}
+		<p class="highlight">{{ notice }}</p>
+	{% endif %}
 	{% for s in sections %}
 		{% if (s['programs']) %}
 		<div class="section">

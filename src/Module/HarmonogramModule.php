@@ -30,10 +30,18 @@ final class HarmonogramModule implements ModuleInterface
             $gateway = $this->get(SkautisGatewayInterface::class);
 
             $registered = [];
+            $notice = null;
             if ($auth->isLogged()) {
-                foreach ($this->get(ProgramProviderInterface::class)->getProgramsForIdentity($auth->identity()) as $program) {
-                    $time = (new \DateTime($program['start']['date']))->format('H:i');
-                    $registered[$program['section']['id']][$time] = $program;
+                try {
+                    foreach ($this->get(ProgramProviderInterface::class)->getProgramsForIdentity($auth->identity()) as $program) {
+                        $time = (new \DateTime($program['start']['date']))->format('H:i');
+                        $registered[$program['section']['id']][$time] = $program;
+                    }
+                } catch (\App\Auth\UnknownParticipantException) {
+                    $auth->logout();
+                    $notice = 'Váš TIE kód už není platný, byli jste odhlášeni.';
+                } catch (\GuzzleHttp\Exception\TransferException) {
+                    $notice = 'Osobní program se nepodařilo načíst.';
                 }
             }
 
@@ -49,6 +57,7 @@ final class HarmonogramModule implements ModuleInterface
                 'logoutUrl' => $gateway->getLogoutUrl('/harmonogram'),
                 'registeredPrograms' => $registered,
                 'tieError' => $tieError,
+                'notice' => $notice,
             ]);
         })->setName('harmonogram');
 

@@ -9,6 +9,10 @@
 {% block content %}
 	<h1>Harmonogram</h1>
 
+	{% if notice %}
+		<p class="highlight">{{ notice }}</p>
+	{% endif %}
+
 	{% if isLogged %}
 		Zvýrazňuje se program pro <strong>{{ identity }}</strong><br />
 		{% if identity starts with 'TIE ' %}
