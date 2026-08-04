@@ -72,6 +72,16 @@
 	--app-width: 480px;
 	--appbar-height: 52px;
 	--tabbar-height: 58px;
+	--app-height: 100vh;
+	/* the space a screen actually gets between the two bars */
+	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px));
+}
+
+/* dvh excludes the mobile browser's collapsing toolbars, which vh does not */
+@supports (height: 100dvh) {
+	:root {
+		--app-height: 100dvh;
+	}
 }
 
 *, *::before, *::after {
@@ -84,7 +94,7 @@ body {
 	color: var(--color-text);
 	text-align: center;
 	margin: 0;
-	min-height: 100vh;
+	min-height: var(--app-height);
 	overflow-x: hidden;
 }
 
@@ -280,6 +290,7 @@ a, a:visited {
 	font-size: 14px;
 }
 
+/* the field sits on the page ground, so it needs its own surface to read as a field */
 input[type=text], textarea {
 	font-family: inherit;
 	font-size: 16px;
@@ -287,7 +298,7 @@ input[type=text], textarea {
 	padding: 10px 12px;
 	border: 2px solid var(--color-base);
 	border-radius: 8px;
-	background-color: var(--color-background);
+	background-color: var(--color-text-invert);
 	color: var(--color-text);
 }
 
@@ -351,12 +362,35 @@ img.logo {
 	height: auto;
 }
 
-img.mainLogo {
-	margin-top: 8px;
+/* The home screen is a single screenful, not a document: it fills the space
+   between the two bars and the two logos are capped in viewport units so the
+   whole thing still fits on a short phone instead of scrolling. */
+body.screen-homepage main {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-evenly;
+	align-items: center;
+	gap: 8px;
+	min-height: var(--screen-height);
+	padding-top: 0;
 }
 
-.colophon {
-	margin-top: 32px;
+body.screen-homepage main > * {
+	margin: 0;
+}
+
+img.mainLogo {
+	max-height: 38vh;
+	width: auto;
+}
+
+.colophon img.logo {
+	max-height: 11vh;
+	max-width: 60%;
+}
+
+.colophon p {
+	margin: 4px 0;
 }
 
 .credit {
@@ -375,8 +409,25 @@ div.login-box {
 	margin: 8px 0;
 }
 
+/* the map is the screen — it runs edge to edge between the two bars */
+body.screen-map main {
+	padding: 0;
+}
+
 div.map {
-	height: calc(100vh - var(--appbar-height) - var(--tabbar-height) - 32px);
+	height: var(--screen-height);
+}
+
+div.map iframe {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.empty {
+	padding: 32px 24px;
+	opacity: 0.8;
 }
 
 div.section {

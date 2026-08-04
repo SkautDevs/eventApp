@@ -26,10 +26,11 @@ final class TieLoginTest extends AppTestCase
         self::assertStringContainsString('TIE ABC123', $profile);
         self::assertStringContainsString('Odhlásit TIE', $profile);
 
-        // registered.json: tie:ABC123 → program 5 (Ukázková vycházka, section 10, 08:00).
-        // The schedule screen names who the highlighting applies to.
-        $schedule = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
-        self::assertStringContainsString('TIE ABC123', $schedule);
+        // registered.json: tie:ABC123 → program 5 (Ukázková vycházka), which the
+        // programme screen then marks as theirs
+        $programs = (string) $this->request($app, 'GET', '/programy')->getBody();
+        self::assertStringContainsString('TIE ABC123', $programs);
+        self::assertStringContainsString('is-registered', $programs);
     }
 
     public function testTheAppBarShowsWhoIsLoggedIn(): void

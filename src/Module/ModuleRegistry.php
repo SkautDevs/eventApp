@@ -13,7 +13,6 @@ final class ModuleRegistry
         'map' => MapModule::class,
         'handbook' => HandbookModule::class,
         'programs' => ProgramsModule::class,
-        'harmonogram' => HarmonogramModule::class,
         'push' => PushModule::class,
     ];
 

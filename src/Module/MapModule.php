@@ -23,9 +23,15 @@ final class MapModule implements ModuleInterface
     public function registerRoutes(App $app): void
     {
         $app->get('/mapa', function ($request, $response) {
-            return $this->get(Twig::class)->render($response, 'map.twig', [
-                'embedUrl' => $this->get(EventConfig::class)->get('map')['embedUrl'] ?? null,
-            ]);
+            $embedUrl = $this->get(EventConfig::class)->get('map')['embedUrl'] ?? null;
+
+            // A config still carrying the REPLACE-ME placeholder would embed a Google 404.
+            // Say so instead — the organisers have not published the map yet.
+            if ($embedUrl === null || $embedUrl === '' || str_contains($embedUrl, 'REPLACE-ME')) {
+                $embedUrl = null;
+            }
+
+            return $this->get(Twig::class)->render($response, 'map.twig', ['embedUrl' => $embedUrl]);
         })->setName('map');
     }
 }
