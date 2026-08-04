@@ -39,15 +39,15 @@ final class ProviderFailureTest extends AppTestCase
             SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
-        // první volání (přihlášení TIE kódem) proběhne v pořádku
+        // the first call (TIE code login) goes through fine
         $login = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $login->getStatusCode());
 
-        // druhé volání (na GET /harmonogram) už kissj neodpoví
+        // on the second call (during GET /harmonogram) kissj no longer answers
         $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
 
         self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
-        // uživatel zůstává přihlášen, jen bez zvýrazněného programu
+        // the user stays logged in, just without a highlighted program
         self::assertStringContainsString('TIE ABC123', $html);
     }
 
@@ -71,18 +71,18 @@ final class ProviderFailureTest extends AppTestCase
     public function testHarmonogramLogsOutOnUnknownParticipantAfterInitialLogin(): void
     {
         $provider = new ThrowingProgramProvider(
-            identityExceptionAfterFirstCall: new UnknownParticipantException('Neznámý TIE kód: ABC123'),
+            identityExceptionAfterFirstCall: new UnknownParticipantException('Unknown TIE code: ABC123'),
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
             SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
-        // první volání (přihlášení TIE kódem) proběhne v pořádku
+        // the first call (TIE code login) goes through fine
         $login = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $login->getStatusCode());
 
-        // účastník mezitím zmizel (kissj vrací 404) → uživatel je při dalším načtení odhlášen
+        // the participant vanished in the meantime (kissj returns 404) → the user is logged out on the next load
         $response = $this->request($app, 'GET', '/harmonogram');
         $html = (string) $response->getBody();
 
@@ -93,7 +93,7 @@ final class ProviderFailureTest extends AppTestCase
     }
 }
 
-/** Testovací poskytovatel programů, který umí druhé a další volání getProgramsForIdentity() shodit chybou. */
+/** Test program provider that can fail the second and later getProgramsForIdentity() calls. */
 final class ThrowingProgramProvider implements ProgramProviderInterface
 {
     private int $identityCalls = 0;

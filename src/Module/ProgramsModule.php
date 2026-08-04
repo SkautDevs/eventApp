@@ -36,7 +36,7 @@ final class ProgramsModule implements ModuleInterface
                     }
                     $sectionId = $program['section']['id'];
                     if (!isset($sections[$sectionId])) {
-                        continue; // program v sekci, kterou akce nezná — ignorovat
+                        continue; // a program in a section this event does not know — ignore it
                     }
                     $program['multiday'] = date('Y-m-d', strtotime($program['start']['date']))
                         !== date('Y-m-d', strtotime($program['end']['date']));

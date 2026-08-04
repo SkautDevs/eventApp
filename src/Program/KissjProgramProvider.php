@@ -35,10 +35,10 @@ final class KissjProgramProvider implements ProgramProviderInterface
         } catch (RequestException $e) {
             if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
                 if ($identity->type === 'tie') {
-                    throw new UnknownParticipantException(sprintf('Neznámý TIE kód: %s', $identity->tieCode), previous: $e);
+                    throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode), previous: $e);
                 }
 
-                return []; // přihlášený SkautIS uživatel bez registrace na akci není chyba
+                return []; // a logged-in SkautIS user with no registration for the event is not an error
             }
             throw $e;
         }
@@ -53,7 +53,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return json_decode((string) $response->getBody(), true) ?? [];
     }
 
-    /** Převod kissj tvaru na interní tvar programu — viz docs/kissj-contract.md */
+    /** Maps the kissj shape onto our internal program shape — see docs/kissj-contract.md */
     private function normalize(array $kissj): array
     {
         return [

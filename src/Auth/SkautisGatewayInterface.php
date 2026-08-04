@@ -10,6 +10,6 @@ interface SkautisGatewayInterface
 
     public function getLogoutUrl(string $returnUrl): string;
 
-    /** Ověří POST data ze SkautISu a vrátí identitu přihlášeného uživatele */
+    /** Verifies the POST data from SkautIS and returns the logged-in user's identity */
     public function loginFromPost(array $postData): Identity;
 }

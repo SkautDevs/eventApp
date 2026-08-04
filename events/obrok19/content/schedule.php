@@ -1,6 +1,6 @@
 <?php
 
-// Harmonogram Obrok 2019 — přepis z původního harmonogram.twig
+// Obrok 2019 schedule — transcribed from the original harmonogram.twig
 return [
     ['day' => 'Středa', 'columns' => [
         ['title' => 'Hlavní program', 'slots' => [

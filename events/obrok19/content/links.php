@@ -1,6 +1,6 @@
 <?php
 
-// Kontakty a odkazy — sdílené homepage a stránkou Odkazy
+// Contacts and links — shared by the homepage and the Odkazy page
 return [
     ['label' => 'Krizový telefon', 'suffix' => '797 859 598', 'href' => 'tel:797859598', 'icon' => 'fas fa-mobile-alt', 'highlight' => true],
     ['label' => 'obrok19.cz', 'href' => 'https://obrok19.cz/', 'icon' => 'fas fa-globe-africa'],

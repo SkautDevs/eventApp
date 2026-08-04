@@ -9,12 +9,12 @@ use App\Auth\UnknownParticipantException;
 
 interface ProgramProviderInterface
 {
-    /** @return list<array> programy v interním tvaru */
+    /** @return list<array> programs in the internal shape */
     public function getPrograms(): array;
 
     /**
      * @return list<array>
-     * @throws UnknownParticipantException pokud účastník neexistuje
+     * @throws UnknownParticipantException when the participant does not exist
      */
     public function getProgramsForIdentity(Identity $identity): array;
 }
