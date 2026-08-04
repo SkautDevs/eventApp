@@ -1,71 +1,46 @@
 {% extends "_layout.twig" %}
 
-{% block header %}
-	<link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/grids-responsive-min.css">
-{% endblock %}
-
-{% block highlight %}harmonogram{% endblock %}
+{% set pageTitle = 'Harmonogram' %}
+{% set activeTab = 'programs' %}
 
 {% block content %}
-	<h1>Harmonogram</h1>
+	{% include '_program-switch.twig' with {'current': 'harmonogram'} %}
 
 	{% if notice %}
 		<p class="highlight">{{ notice }}</p>
 	{% endif %}
 
-	<div class="login-box">
 	{% if isLogged %}
-		Zvýrazňuje se program pro <strong>{{ identity }}</strong><br />
-		{% if identity starts with 'TIE ' %}
-			<form method="post" action="{{ url_for('tie-logout') }}" style="display:inline">
-				<button type="submit" class="pure-button">Odhlásit TIE kód</button>
-			</form>
-		{% else %}
-			<a href="{{ logoutUrl }}">Odhlásit se</a>
-		{% endif %}
+		<p class="login-hint">Zvýrazňuje se program pro <strong>{{ identity }}</strong></p>
 	{% else %}
-		Chcete zvýraznit váš zaregistrovaný program?<br />
-		<a href="{{ loginUrl }}">Přihlaste se přes SkautIs</a>
-		&nbsp;nebo&nbsp;
-		<form method="post" action="{{ url_for('tie-login') }}" class="pure-form" style="display:inline">
-			<input type="text" name="tieCode" placeholder="TIE kód" required>
-			<button type="submit" class="pure-button button-primary">Přihlásit</button>
-		</form>
-		{% if tieError %}
-			<p class="highlight">{{ tieError }}</p>
-		{% endif %}
+		<p class="login-hint"><a href="{{ url_for('profile') }}">Přihlaste se</a> a zvýrazní se vám váš program.</p>
 	{% endif %}
-	</div>
 
-	<div class="pure-g">
-		{% for day in schedule %}
-			<h2 class="pure-u-1">{{ day.day }}</h2>
-			{% for column in day.columns %}
-				<div class="pure-u-1 pure-u-sm-1-2">
-					<h3>{{ column.title }}</h3>
-					<div class="border-table">
-						<table class="harmonogram pure-table pure-table-bordered" width="100%">
-							{% for slot in column.slots %}
-								<tr>
-									<td>
-										{{ slot.time }}<br/>
-										<strong>{{ slot.title }}</strong>
-										{% if slot.sectionId is defined and registeredPrograms[slot.sectionId][slot.lookupTime] is defined %}
-											{% set program = registeredPrograms[slot.sectionId][slot.lookupTime] %}
-											<br />
-											<a href="{{ url_for('programs') }}#section-{{ slot.sectionId }}-program-{{ program.id }}" class="button-success pure-button">
-												<small>Váš program:</small><br />
-												{{ program.name }}<br />
-												<small>{{ program.lector }}</small>
-											</a>
-										{% endif %}
-									</td>
-								</tr>
-							{% endfor %}
-						</table>
-					</div>
-				</div>
-			{% endfor %}
+	{% for day in schedule %}
+		<h2>{{ day.day }}</h2>
+		{% for column in day.columns %}
+			<h3>{{ column.title }}</h3>
+			<div class="border-table">
+				<table class="harmonogram">
+					{% for slot in column.slots %}
+						<tr>
+							<td>
+								{{ slot.time }}<br/>
+								<strong>{{ slot.title }}</strong>
+								{% if slot.sectionId is defined and registeredPrograms[slot.sectionId][slot.lookupTime] is defined %}
+									{% set program = registeredPrograms[slot.sectionId][slot.lookupTime] %}
+									<br />
+									<a href="{{ url_for('programs') }}#section-{{ slot.sectionId }}-program-{{ program.id }}" class="btn btn-success">
+										<small>Váš program:</small><br />
+										{{ program.name }}<br />
+										<small>{{ program.lector }}</small>
+									</a>
+								{% endif %}
+							</td>
+						</tr>
+					{% endfor %}
+				</table>
+			</div>
 		{% endfor %}
-	</div>
+	{% endfor %}
 {% endblock %}

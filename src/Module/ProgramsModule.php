@@ -18,7 +18,7 @@ final class ProgramsModule implements ModuleInterface
 
     public function menuItem(): ?array
     {
-        return ['label' => 'Programy', 'route' => 'programs'];
+        return ['label' => 'Program', 'route' => 'programs', 'icon' => 'far fa-calendar-alt', 'order' => 10];
     }
 
     public function registerRoutes(App $app): void

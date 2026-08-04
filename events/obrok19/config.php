@@ -3,6 +3,8 @@
 // Obrok 2019 event config (the reference event — template for new ones)
 return [
     'name' => 'Obrok 2019',
+    // fits the home tab; keep it in step with short_name in www/events/obrok19/site.webmanifest
+    'shortName' => 'Obrok 19',
     'features' => [
         'map',
         'programs',

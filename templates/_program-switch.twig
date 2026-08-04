@@ -1,0 +1,8 @@
+{# Temporary bridge: the Program tab covers two screens until they are merged into
+   one API-driven timeline. Drop this file together with the merge. #}
+{% if 'programs' in event.features and 'harmonogram' in event.features %}
+	<div class="segmented">
+		<a class="segment{{ current == 'harmonogram' ? ' is-active' }}" href="{{ url_for('harmonogram') }}">Harmonogram</a>
+		<a class="segment{{ current == 'programs' ? ' is-active' }}" href="{{ url_for('programs') }}">Programy</a>
+	</div>
+{% endif %}

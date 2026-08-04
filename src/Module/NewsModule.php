@@ -17,7 +17,7 @@ final class NewsModule implements ModuleInterface
 
     public function menuItem(): ?array
     {
-        return ['label' => 'Novinky', 'route' => 'news'];
+        return ['label' => 'Novinky', 'route' => 'news', 'icon' => 'far fa-newspaper', 'order' => 30];
     }
 
     public function registerRoutes(App $app): void

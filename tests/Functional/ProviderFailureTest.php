@@ -40,7 +40,7 @@ final class ProviderFailureTest extends AppTestCase
         ]);
 
         // the first call (TIE code login) goes through fine
-        $login = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
+        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $login->getStatusCode());
 
         // on the second call (during GET /harmonogram) kissj no longer answers
@@ -61,10 +61,11 @@ final class ProviderFailureTest extends AppTestCase
             SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
-        $login = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
+        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $login->getStatusCode());
 
-        $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
+        // the TIE error belongs to the login screen, which now lives at /profil
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Přihlášení se teď nedaří', $html);
     }
 
@@ -79,7 +80,7 @@ final class ProviderFailureTest extends AppTestCase
         ]);
 
         // the first call (TIE code login) goes through fine
-        $login = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
+        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $login->getStatusCode());
 
         // the participant vanished in the meantime (kissj returns 404) → the user is logged out on the next load
@@ -89,7 +90,7 @@ final class ProviderFailureTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Váš TIE kód už není platný, byli jste odhlášeni.', $html);
         self::assertStringNotContainsString('TIE ABC123', $html);
-        self::assertStringContainsString('Přihlaste se přes SkautIs', $html);
+        self::assertStringContainsString('Přihlaste se', $html);
     }
 }
 

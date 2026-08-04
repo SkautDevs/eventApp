@@ -1,28 +1,28 @@
 {% extends "_layout.twig" %}
 
-{% block header %}
-	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
-{% endblock %}
-
-{% block highlight %}homepage{% endblock %}
+{% set activeTab = 'homepage' %}
 
 {% block content %}
 	<img class="logo mainLogo" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
 
 	{% if 'push' in event.features and vapidPublicKey %}
 		<p class="push-enable">
-			<button class="button-primary pure-button pure-button-primary" onclick="enablePush()">
+			<button class="btn btn-primary" onclick="enablePush()">
 				Aktivuj si notifikace o akci!
 			</button>
 		</p>
 	{% endif %}
 
-	{% for link in links %}
-		<p><a {% if link.highlight ?? false %}class="highlight" {% endif %}href="{{ link.href }}">{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
+	{# only the urgent ones — the full list lives on the Odkazy screen #}
+	{% for link in links|filter(link => link.highlight ?? false) %}
+		<p><a class="highlight" href="{{ link.href }}">{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
 	{% endfor %}
 
-	{% if event.homepage.footerLogo ?? false %}
-		<p><img class="logo" src="{{ event.homepage.footerLogo }}" alt=""></p>
-	{% endif %}
-	<p>{{ event.homepage.footerText }} <a href="{{ event.homepage.footerLinkHref }}">{{ event.homepage.footerLinkLabel }}</a></p>
+	<div class="colophon">
+		{% if event.homepage.footerLogo ?? false %}
+			<p><img class="logo" src="{{ event.homepage.footerLogo }}" alt=""></p>
+		{% endif %}
+		<p>{{ event.homepage.footerText }} <a href="{{ event.homepage.footerLinkHref }}">{{ event.homepage.footerLinkLabel }}</a></p>
+		<p class="credit"><a href="https://devs.skauting.cz/" target="_blank">S ❤ vybrousil Lung</a></p>
+	</div>
 {% endblock %}

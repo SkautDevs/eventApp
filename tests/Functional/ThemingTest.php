@@ -25,8 +25,9 @@ final class ThemingTest extends AppTestCase
     public function testCoreStylesheetHasNoColorLiterals(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
-        // dropping the :root block must never be necessary — the palette is injected by the layout
-        self::assertDoesNotMatchRegularExpression('/#[0-9a-fA-F]{3,6}\b|rgba?\(|\b(?:white|black)\b/i', $css);
+        // dropping the :root block must never be necessary — the palette is injected by the layout.
+        // (?!-) keeps the property name "white-space" from reading as the colour keyword.
+        self::assertDoesNotMatchRegularExpression('/#[0-9a-fA-F]{3,6}\b|rgba?\(|\b(?:white|black)\b(?!-)/i', $css);
     }
 
     public function testPageBackgroundComesFromPalette(): void
@@ -43,16 +44,21 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('var(--color-link)', $css);
     }
 
-    /**
-     * The stripe is opt-in per event and carries padding/margins, so it must not
-     * reach an event that did not ask for it — obrok19 is live and its headings
-     * have to keep their original geometry.
-     */
-    public function testHeadingStripeIsOptIn(): void
+    public function testAppBarCarriesThePageTitle(): void
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/novinky')->getBody();
 
-        self::assertStringContainsString('class="heading-plain"', $html);
-        self::assertStringNotContainsString('heading-stripe', $html);
+        self::assertStringContainsString('<span class="appbar-title">Novinky</span>', $html);
+        self::assertStringContainsString('Novinky · Obrok 2019', $html);
+    }
+
+    /** The bar is built from the event's features, not from a hardcoded list of five. */
+    public function testTabBarOnlyShowsEnabledFeatures(): void
+    {
+        $html = (string) $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/novinky')->getBody();
+
+        self::assertStringContainsString('Novinky', $html);
+        self::assertStringNotContainsString('Odkazy', $html);
+        self::assertStringNotContainsString('Mapa', $html);
     }
 }

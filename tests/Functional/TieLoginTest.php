@@ -19,25 +19,37 @@ final class TieLoginTest extends AppTestCase
     {
         $app = $this->app();
 
-        $response = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
+        $response = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $response->getStatusCode());
 
-        $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
-        self::assertStringContainsString('TIE ABC123', $html);
-        // registered.json: tie:ABC123 → program 5 (Ukázková vycházka, section 10, 08:00)
-        // note: the highlight only shows if the schedule has a section 10 slot at 08:00 —
-        // here we at least verify the login and the logout form
-        self::assertStringContainsString('Odhlásit TIE', $html);
+        $profile = (string) $this->request($app, 'GET', '/profil')->getBody();
+        self::assertStringContainsString('TIE ABC123', $profile);
+        self::assertStringContainsString('Odhlásit TIE', $profile);
+
+        // registered.json: tie:ABC123 → program 5 (Ukázková vycházka, section 10, 08:00).
+        // The schedule screen names who the highlighting applies to.
+        $schedule = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
+        self::assertStringContainsString('TIE ABC123', $schedule);
+    }
+
+    public function testTheAppBarShowsWhoIsLoggedIn(): void
+    {
+        $app = $this->app();
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+
+        // the identity is a global, so it has to reach a screen that knows nothing about auth
+        $html = (string) $this->request($app, 'GET', '/novinky')->getBody();
+        self::assertStringContainsString('<span class="appbar-who">TIE ABC123</span>', $html);
     }
 
     public function testInvalidTieCodeShowsError(): void
     {
         $app = $this->app();
 
-        $response = $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'NEZNAMY']);
+        $response = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NEZNAMY']);
         self::assertSame(302, $response->getStatusCode());
 
-        $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Neplatný TIE kód', $html);
         self::assertStringNotContainsString('Odhlásit TIE', $html);
     }
@@ -45,11 +57,11 @@ final class TieLoginTest extends AppTestCase
     public function testTieLogout(): void
     {
         $app = $this->app();
-        $this->request($app, 'POST', '/harmonogram/tie', ['tieCode' => 'ABC123']);
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
 
-        $this->request($app, 'POST', '/harmonogram/tie-logout');
+        $this->request($app, 'POST', '/profil/tie-logout');
 
-        $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringNotContainsString('TIE ABC123', $html);
     }
 }

@@ -1,16 +1,19 @@
+{# pageTitle / activeTab are set by the extending template before this renders #}
+{% set pageTitle = pageTitle|default(event.name) %}
+{% set activeTab = activeTab|default('') %}
 <!DOCTYPE html>
 <html lang="cs">
 <head>
 	<base href="/" />
 	<meta charset="utf-8"/>
-	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<link rel="manifest" href="events/{{ event.slug }}/site.webmanifest">
 	<link rel="apple-touch-icon" sizes="180x180" href="events/{{ event.slug }}/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="events/{{ event.slug }}/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="events/{{ event.slug }}/favicon-16x16.png">
 	<link rel="mask-icon" href="events/{{ event.slug }}/safari-pinned-tab.svg" color="{{ event.colors.base }}">
 	<meta name="theme-color" content="{{ event.colors.base }}">
-	<link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
 	<style>
 		:root {
 		{% for name, value in event.colors %}
@@ -18,35 +21,47 @@
 		{% endfor %}
 		}
 	</style>
-	<link rel="stylesheet" href="style.css?v=5">
+	<link rel="stylesheet" href="style.css?v=6">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<script src="push.js" defer></script>
-	<title>{{ event.name }}</title>
+	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}
 </head>
-<body class="heading-{{ event.headingStyle|default('plain') }}">
-<header>
-	<div class="menu pure-menu pure-menu-horizontal pure-menu-scrollable" id="{% block highlight %}{% endblock %}">
-		<ul class="pure-menu-list">
-			<li class="pure-menu-item">
-				<a href="{{ url_for('homepage') }}" class="menu-item-homepage menu-link pure-menu-link">
-					<img class="menulogo" src="{{ event.assets.menuLogo }}" alt="{{ event.name }}">
-				</a>
-			</li>
-			{% for item in menu %}
-				<li class="pure-menu-item">
-					<a href="{{ url_for(item.route) }}" class="menu-item-{{ item.key }} menu-link pure-menu-link">{{ item.label }}</a>
-				</li>
-			{% endfor %}
-		</ul>
-	</div>
+<body>
+<header class="appbar">
+	<a class="appbar-brand" href="{{ url_for('homepage') }}">
+		{% if event.assets.menuLogo %}
+			<img class="appbar-logo" src="{{ event.assets.menuLogo }}" alt="">
+		{% endif %}
+		<span class="appbar-title">{{ pageTitle }}</span>
+	</a>
+	<a class="appbar-profile" href="{{ url_for('profile') }}" aria-label="Přihlášení">
+		{% set who = auth_identity() %}
+		{% if who %}<span class="appbar-who">{{ who }}</span>{% endif %}
+		<i class="fas fa-user-circle" aria-hidden="true"></i>
+	</a>
 </header>
+
 <main>
 	{% block content %}{% endblock %}
 </main>
-<footer>
-	<a href="https://devs.skauting.cz/" target="_blank">S ❤ vybrousil Lung</a>
-</footer>
+
+<nav class="tabbar" aria-label="Hlavní menu">
+	<a class="tab{{ activeTab == 'homepage' ? ' is-active' }}" href="{{ url_for('homepage') }}">
+		{% if event.assets.menuLogo %}
+			<img class="tab-logo" src="{{ event.assets.menuLogo }}" alt="">
+		{% else %}
+			<i class="fas fa-home" aria-hidden="true"></i>
+		{% endif %}
+		<span>{{ event.shortName|default(event.name) }}</span>
+	</a>
+	{% for item in menu %}
+		<a class="tab{{ activeTab == item.key ? ' is-active' }}" href="{{ url_for(item.route) }}">
+			<i class="{{ item.icon }}" aria-hidden="true"></i>
+			<span>{{ item.label }}</span>
+		</a>
+	{% endfor %}
+</nav>
 </body>
 </html>

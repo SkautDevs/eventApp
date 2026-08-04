@@ -1,6 +1,7 @@
 {% extends "_layout.twig" %}
 
-{% block highlight %}programs{% endblock %}
+{% set pageTitle = 'Programy' %}
+{% set activeTab = 'programs' %}
 
 {% block header %}
 	<script type="text/javascript">
@@ -37,7 +38,7 @@
 {% endblock %}
 
 {% block content %}
-	<h1>Programy</h1>
+	{% include '_program-switch.twig' with {'current': 'programs'} %}
 	{% if notice %}
 		<p class="highlight">{{ notice }}</p>
 	{% endif %}
