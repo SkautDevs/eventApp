@@ -43,8 +43,10 @@ return [
     ],
 
     'map' => [
-        // TODO organisers: the Google My Maps URL for the 2027 site map
-        'embedUrl' => 'https://www.google.com/maps/d/embed?mid=REPLACE-ME',
+        // TODO organisers: replace with the Google My Maps URL for the 2027 site.
+        // This is the 2019 Konopiště map, standing in so the tab shows a working
+        // map instead of a placeholder — the pins are NOT the 2027 site.
+        'embedUrl' => 'https://www.google.com/maps/d/u/1/embed?mid=1-c6E-PUffBQyiivt-tSURDBIwABH9X-I',
     ],
 
     'handbook' => [
