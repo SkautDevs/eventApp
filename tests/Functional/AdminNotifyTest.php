@@ -46,7 +46,7 @@ final class AdminNotifyTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
         self::assertStringContainsString('Odeslat notifikaci', $html);
-        // token se přenáší do formuláře skrytým polem
+        // the token is carried into the form by a hidden field
         self::assertStringContainsString('name="token" value="tajny-token"', $html);
     }
 

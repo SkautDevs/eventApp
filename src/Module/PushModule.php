@@ -34,7 +34,7 @@ final class PushModule implements ModuleInterface
             return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
         })->setName('push-subscribe');
 
-        // Sdílitelný admin odkaz: /admin/notify?token=<ADMIN_TOKEN> (drž odkaz = máš přístup)
+        // Shareable admin link: /admin/notify?token=<ADMIN_TOKEN> (holding the link is the access)
         $tokenValid = static function ($request): bool {
             $expected = $_ENV['ADMIN_TOKEN'] ?? '';
             $given = (string) ($request->getQueryParams()['token']

@@ -21,6 +21,6 @@ final class ModuleRegistry
     public static function classFor(string $feature): string
     {
         return self::MODULES[$feature]
-            ?? throw new \RuntimeException(sprintf('Neznámý modul: "%s"', $feature));
+            ?? throw new \RuntimeException(sprintf('Unknown module: "%s"', $feature));
     }
 }

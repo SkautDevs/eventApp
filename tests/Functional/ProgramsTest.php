@@ -14,9 +14,9 @@ final class ProgramsTest extends AppTestCase
         $html = (string) $response->getBody();
         self::assertStringContainsString('Putování', $html);
         self::assertStringContainsString('Ukázková vycházka', $html);
-        self::assertStringNotContainsString('map-vzlet.png', $html); // sekce Vzlet nemá program → nevykreslí se
+        self::assertStringNotContainsString('map-vzlet.png', $html); // the Vzlet section has no program → not rendered
         self::assertStringNotContainsString('Osobní volno', $html);
-        // sekce bez programů se nevykreslují
+        // sections with no programs are not rendered
         self::assertStringNotContainsString('EXPO', $html);
     }
 }

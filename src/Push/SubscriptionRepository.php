@@ -25,7 +25,7 @@ final class SubscriptionRepository
     public function save(array $subscription): void
     {
         if (!isset($subscription['endpoint'], $subscription['keys']['p256dh'], $subscription['keys']['auth'])) {
-            throw new \InvalidArgumentException('Neplatný tvar push odběru');
+            throw new \InvalidArgumentException('Invalid push subscription shape');
         }
 
         $statement = $this->pdo->prepare(

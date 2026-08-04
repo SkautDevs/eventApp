@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.3). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime via the `EVENT` env var. UI text, comments, and commit messages in the codebase (templates, per-event content) are in Czech; commit messages for this repo's own history are in English without AI-authorship trailers.
+Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.3). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime via the `EVENT` env var. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices and flash messages, and the weekday names in `Kernel`. Commit messages and `docs/` are in English without AI-authorship trailers (the existing `docs/deployment.md` and `docs/kissj-contract.md` predate this and are still Czech).
 
 ## Commands
 

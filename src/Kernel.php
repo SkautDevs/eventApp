@@ -24,7 +24,7 @@ final class Kernel
             }
             $slug = $_ENV['EVENT'] ?? getenv('EVENT');
             if (!is_string($slug) || $slug === '') {
-                throw new \RuntimeException('Chybí proměnná prostředí EVENT (viz .env.example)');
+                throw new \RuntimeException('Missing EVENT environment variable (see .env.example)');
             }
             $event = EventConfig::load($root . '/events', $slug);
         }
@@ -36,7 +36,7 @@ final class Kernel
                 if (($_ENV['PROGRAM_PROVIDER'] ?? 'stub') === 'kissj') {
                     $baseUrl = $_ENV['KISSJ_BASE_URL'] ?? '';
                     if ($baseUrl === '') {
-                        throw new \RuntimeException('PROGRAM_PROVIDER=kissj vyžaduje KISSJ_BASE_URL');
+                        throw new \RuntimeException('PROGRAM_PROVIDER=kissj requires KISSJ_BASE_URL');
                     }
 
                     return new \App\Program\KissjProgramProvider(

@@ -28,8 +28,8 @@ final class HarmonogramTest extends AppTestCase
         $app = $this->createApp(overrides: [
             SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
-        // FakeSkautisGateway přihlásí uživatele skautis:123,
-        // registered.json mu dává program id 14 (Služba v kuchyni, sekce 1, 15:00)
+        // FakeSkautisGateway logs in the user skautis:123,
+        // registered.json gives them program id 14 (Služba v kuchyni, section 1, 15:00)
         $this->request($app, 'POST', '/', ['skautIS_Token' => 'abc']);
 
         $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();

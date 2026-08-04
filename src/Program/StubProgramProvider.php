@@ -27,7 +27,7 @@ final class StubProgramProvider implements ProgramProviderInterface
 
         if (!isset($map[$key])) {
             if ($identity->type === 'tie') {
-                throw new UnknownParticipantException(sprintf('Neznámý TIE kód: %s', $identity->tieCode));
+                throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode));
             }
 
             return [];

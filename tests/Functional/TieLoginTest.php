@@ -24,9 +24,9 @@ final class TieLoginTest extends AppTestCase
 
         $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
         self::assertStringContainsString('TIE ABC123', $html);
-        // registered.json: tie:ABC123 → program 5 (Ukázková vycházka, sekce 10, 08:00)
-        // pozn.: zvýraznění se ukáže jen pokud harmonogram má slot sekce 10 v 08:00 —
-        // ověřujeme aspoň přihlášení a odhlašovací formulář
+        // registered.json: tie:ABC123 → program 5 (Ukázková vycházka, section 10, 08:00)
+        // note: the highlight only shows if the schedule has a section 10 slot at 08:00 —
+        // here we at least verify the login and the logout form
         self::assertStringContainsString('Odhlásit TIE', $html);
     }
 
