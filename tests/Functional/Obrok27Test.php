@@ -26,9 +26,37 @@ final class Obrok27Test extends AppTestCase
         }
     }
 
+    public function testVisualIdentityIsLimeBlackAndPurple(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        self::assertStringContainsString('--color-background: #c2ea3a', $html); // lime
+        self::assertStringContainsString('--color-base: #101010', $html);       // black stripes
+        self::assertStringContainsString('--color-primary: #6122eb', $html);    // purple accent
+    }
+
+    public function testPageHeadingIsWhiteOnBlackStripe(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/novinky')->getBody();
+
+        // the stripe itself is drawn by body.heading-stripe h1 in the shared stylesheet
+        self::assertStringContainsString('class="heading-stripe"', $html);
+    }
+
+    public function testLogoIsTheGhost(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+        self::assertStringContainsString('events/obrok27/ghost.png', $html);
+
+        // the ghost is drawn in lime for the menu so it shows on the black bar
+        foreach (['ghost.png', 'ghost-lime.png'] as $file) {
+            self::assertFileExists(dirname(__DIR__, 2) . '/www/events/obrok27/' . $file);
+        }
+    }
+
     public function testHandbookDownloadMissingFileIs404(): void
     {
-        // PDF handbooku 2027 ještě není nahraný → stránka funguje, stažení 404
+        // the 2027 handbook PDF is not uploaded yet → page works, download 404s
         self::assertSame(404, $this->request($this->createApp('obrok27'), 'GET', '/handbook/download')->getStatusCode());
     }
 }

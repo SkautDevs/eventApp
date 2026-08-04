@@ -71,6 +71,7 @@
 
 body {
 	font-family: themix, sans-serif;
+	background-color: var(--color-background);
 	color: var(--color-text);
 	text-align: center;
 	width: 100%;
@@ -118,6 +119,11 @@ img.menu-link, a.menu-link {
 
 a.menu-link:hover {
 	background-color: var(--color-darker);
+}
+
+/* without this rule links keep the browser's default blue */
+a, a:visited {
+	color: var(--color-link);
 }
 
 footer a, footer a:visited {
@@ -174,6 +180,17 @@ h1 {
 	font-weight: normal;
 	font-size: 10vmin;
 	color: var(--color-darker);
+}
+
+/* opt-in stripe behind the heading (events/<slug>/config.php: headingStyle) —
+   the box lives here, not on h1, so events without it keep their original layout */
+body.heading-stripe h1 {
+	background-color: var(--color-base);
+	color: var(--color-text-invert);
+	padding: 4px 16px;
+	border-radius: 8px;
+	margin-left: 8px;
+	margin-right: 8px;
 }
 
 h1.underPicture {
@@ -261,7 +278,7 @@ div.border-table {
 .button-success {
 	background: var(--color-base);
 }
-/* přihlášení na harmonogramu a aktivace notifikací — na střed */
+/* schedule login and the notification opt-in — centred */
 p.push-enable,
 div.login-box {
 	text-align: center;

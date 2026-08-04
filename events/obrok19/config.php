@@ -1,6 +1,6 @@
 <?php
 
-// Konfigurace akce Obrok 2019 (referenční akce — vzor pro nové akce)
+// Obrok 2019 event config (the reference event — template for new ones)
 return [
     'name' => 'Obrok 2019',
     'features' => [
@@ -13,8 +13,13 @@ return [
         'push',
     ],
 
-    // Paleta — hodnoty z www/style.css :root
+    // Palette — values taken from the old www/style.css :root
     'colors' => [
+        'background' => '#ffffff',
+        // The browser default blue, so unvisited links look exactly as they did in 2019.
+        // Visited links used to be #551a8b and are now this same blue — deliberate, so a
+        // link doesn't change colour under the reader mid-event.
+        'link' => '#0000ee',
         'base' => '#2a9272',
         'darker' => '#1e6650',
         'primary' => '#96201f',
@@ -48,8 +53,8 @@ return [
         'hiddenNames' => ['Osobní volno'],
     ],
 
-    // Sekce programu — dříve HttpService::getSectionsLocal().
-    // 'image'/'attachment' nahrazují natvrdo zadrátované mapy v programs.twig.
+    // Program sections — formerly HttpService::getSectionsLocal().
+    // 'image'/'attachment' replace the maps that used to be hardcoded in programs.twig.
     'sections' => [
         10 => ['id' => 10, 'title' => 'Putování'],
         12 => ['id' => 12, 'title' => 'Večerní programy'],

@@ -18,14 +18,14 @@
 		{% endfor %}
 		}
 	</style>
-	<link rel="stylesheet" href="style.css?v=4">
+	<link rel="stylesheet" href="style.css?v=5">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<script src="push.js" defer></script>
 	<title>{{ event.name }}</title>
 	{% block header %}{% endblock %}
 </head>
-<body>
+<body class="heading-{{ event.headingStyle|default('plain') }}">
 <header>
 	<div class="menu pure-menu pure-menu-horizontal pure-menu-scrollable" id="{% block highlight %}{% endblock %}">
 		<ul class="pure-menu-list">
