@@ -6,12 +6,20 @@ namespace Tests\Functional;
 
 final class HandbookTest extends AppTestCase
 {
-    public function testHandbookPage(): void
+    /** The handbook has no screen of its own — it is an entry on Odkazy pointing at the PDF. */
+    public function testHandbookIsOfferedOnTheLinksScreen(): void
     {
-        $response = $this->request($this->createApp(), 'GET', '/handbook');
+        $response = $this->request($this->createApp(), 'GET', '/odkazy');
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('Stáhnout PDF', (string) $response->getBody());
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('Handbook (PDF)', $html);
+        self::assertStringContainsString('href="/handbook/download"', $html);
+    }
+
+    public function testHandbookPageIsGone(): void
+    {
+        self::assertSame(404, $this->request($this->createApp(), 'GET', '/handbook')->getStatusCode());
     }
 
     public function testDownloadHeaders(): void

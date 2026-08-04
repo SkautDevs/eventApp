@@ -20,7 +20,7 @@ final class HarmonogramTest extends AppTestCase
         $html = (string) $response->getBody();
         self::assertStringContainsString('Středa', $html);
         self::assertStringContainsString('Zahajovací ceremoniál', $html);
-        self::assertStringContainsString('Přihlaste se přes SkautIs', $html);
+        self::assertStringContainsString('Přihlaste se', $html);
     }
 
     public function testLoggedUserSeesRegisteredProgram(): void

@@ -1,13 +1,13 @@
 {% extends "_layout.twig" %}
 
-{% block header %}
-	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
-{% endblock %}
-
-{% block highlight %}links{% endblock %}
+{% set pageTitle = 'Odkazy' %}
+{% set activeTab = 'links' %}
 
 {% block content %}
-	<h1>Odkazy</h1>
+	{% if 'handbook' in event.features %}
+		<p><a class="highlight" href="{{ url_for('handbook-download') }}">Handbook (PDF) <i class="fas fa-book"></i></a></p>
+	{% endif %}
+
 	{% for link in links %}
 		<p><a {% if link.highlight ?? false %}class="highlight" {% endif %}href="{{ link.href }}">{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
 	{% endfor %}

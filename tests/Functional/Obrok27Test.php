@@ -21,7 +21,7 @@ final class Obrok27Test extends AppTestCase
         $app = $this->createApp('obrok27', overrides: [
             SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
-        foreach (['/novinky', '/mapa', '/odkazy', '/programy', '/harmonogram', '/handbook'] as $uri) {
+        foreach (['/novinky', '/mapa', '/odkazy', '/programy', '/harmonogram', '/profil'] as $uri) {
             self::assertSame(200, $this->request($app, 'GET', $uri)->getStatusCode(), $uri);
         }
     }
@@ -31,16 +31,27 @@ final class Obrok27Test extends AppTestCase
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
         self::assertStringContainsString('--color-background: #c2ea3a', $html); // lime
-        self::assertStringContainsString('--color-base: #101010', $html);       // black stripes
+        self::assertStringContainsString('--color-base: #101010', $html);       // dark bars
         self::assertStringContainsString('--color-primary: #6122eb', $html);    // purple accent
     }
 
-    public function testPageHeadingIsWhiteOnBlackStripe(): void
+    /**
+     * The purple accent measures 2.7:1 on the dark tab bar, so the active tab uses
+     * lime instead — an event-specific override of the default inverted text colour.
+     */
+    public function testActiveTabUsesTheLimeOverride(): void
     {
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/novinky')->getBody();
 
-        // the stripe itself is drawn by body.heading-stripe h1 in the shared stylesheet
-        self::assertStringContainsString('class="heading-stripe"', $html);
+        self::assertStringContainsString('--color-nav-active: #c2ea3a', $html);
+        self::assertStringContainsString('class="tab is-active" href="/novinky"', $html);
+    }
+
+    public function testHomeTabUsesTheShortEventName(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        self::assertStringContainsString('<span>Obrok 27</span>', $html);
     }
 
     public function testLogoIsTheGhost(): void

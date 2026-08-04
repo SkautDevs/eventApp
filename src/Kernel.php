@@ -67,11 +67,18 @@ final class Kernel
                 vapidPrivateKey: $_ENV['VAPID_PRIVATE_KEY'] ?? '',
                 vapidSubject: $_ENV['VAPID_SUBJECT'] ?? '',
             ),
-            Twig::class => function () use ($root, $event): Twig {
+            Twig::class => function (ContainerInterface $c) use ($root, $event): Twig {
                 $twig = Twig::create($root . '/templates', ['cache' => false]);
                 $env = $twig->getEnvironment();
                 $env->addGlobal('event', $event->raw + ['slug' => $event->slug]);
                 $env->addGlobal('vapidPublicKey', $_ENV['VAPID_PUBLIC_KEY'] ?? '');
+                // the app bar shows who is logged in. It has to be a function, not a global:
+                // a handler may log the user out (expired TIE code) during the very request
+                // whose response then renders the bar.
+                $env->addFunction(new \Twig\TwigFunction(
+                    'auth_identity',
+                    fn (): ?string => $c->get(Auth\Authenticator::class)->identity()?->displayName,
+                ));
                 $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
                     $day = (new \DateTime($datetimeArray['date']))->format('D');
 
@@ -126,6 +133,48 @@ final class Kernel
 
             return $response->withHeader('Location', $returnUrl)->withStatus(302);
         });
+
+        $app->get('/profil', function ($request, $response) {
+            $auth = $this->get(Auth\Authenticator::class);
+            $gateway = $this->get(Auth\SkautisGatewayInterface::class);
+            $session = $this->get(Session::class);
+            $tieError = $session->get('tieError');
+            $session->delete('tieError');
+
+            return $this->get(Twig::class)->render($response, 'profile.twig', [
+                'isLogged' => $auth->isLogged(),
+                'identity' => $auth->identity()?->displayName,
+                'loginUrl' => $gateway->getLoginUrl('/profil'),
+                'logoutUrl' => $gateway->getLogoutUrl('/profil'),
+                'tieError' => $tieError,
+            ]);
+        })->setName('profile');
+
+        $app->post('/profil/tie', function ($request, $response) {
+            $code = strtoupper(trim((string) (((array) $request->getParsedBody())['tieCode'] ?? '')));
+            $session = $this->get(Session::class);
+
+            if ($code !== '') {
+                $identity = new Auth\Identity(type: 'tie', displayName: 'TIE ' . $code, tieCode: $code);
+                try {
+                    $this->get(\App\Program\ProgramProviderInterface::class)->getProgramsForIdentity($identity);
+                    $this->get(Auth\Authenticator::class)->store($identity);
+                    $session->delete('tieError');
+                } catch (Auth\UnknownParticipantException) {
+                    $session->set('tieError', 'Neplatný TIE kód.');
+                } catch (\GuzzleHttp\Exception\TransferException) {
+                    $session->set('tieError', 'Přihlášení se teď nedaří, zkuste to prosím později.');
+                }
+            }
+
+            return $response->withHeader('Location', '/profil')->withStatus(302);
+        })->setName('tie-login');
+
+        $app->post('/profil/tie-logout', function ($request, $response) {
+            $this->get(Auth\Authenticator::class)->logout();
+
+            return $response->withHeader('Location', '/profil')->withStatus(302);
+        })->setName('tie-logout');
     }
 
     private static function registerModules(App $app, ContainerInterface $container, EventConfig $event): void
@@ -138,6 +187,8 @@ final class Kernel
                 $menu[] = $item + ['key' => $feature];
             }
         }
+        // the tab bar reads left to right in its own order, not in the order features are listed
+        usort($menu, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
         $container->get(Twig::class)->getEnvironment()->addGlobal('menu', $menu);
     }
 }

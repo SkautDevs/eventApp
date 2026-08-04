@@ -17,7 +17,7 @@ final class MapModule implements ModuleInterface
 
     public function menuItem(): ?array
     {
-        return ['label' => 'Mapa', 'route' => 'map'];
+        return ['label' => 'Mapa', 'route' => 'map', 'icon' => 'fas fa-map-marked-alt', 'order' => 20];
     }
 
     public function registerRoutes(App $app): void

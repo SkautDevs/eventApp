@@ -17,7 +17,7 @@ final class LinksModule implements ModuleInterface
 
     public function menuItem(): ?array
     {
-        return ['label' => 'Odkazy', 'route' => 'links'];
+        return ['label' => 'Odkazy', 'route' => 'links', 'icon' => 'fas fa-link', 'order' => 40];
     }
 
     public function registerRoutes(App $app): void

@@ -7,7 +7,6 @@ namespace App\Module;
 use App\EventConfig;
 use Slim\App;
 use Slim\Psr7\Stream;
-use Slim\Views\Twig;
 
 final class HandbookModule implements ModuleInterface
 {
@@ -18,15 +17,12 @@ final class HandbookModule implements ModuleInterface
 
     public function menuItem(): ?array
     {
-        return ['label' => 'Handbook', 'route' => 'handbook'];
+        // no tab of its own — the handbook is the first entry on the Odkazy screen
+        return null;
     }
 
     public function registerRoutes(App $app): void
     {
-        $app->get('/handbook', function ($request, $response) {
-            return $this->get(Twig::class)->render($response, 'handbook.twig');
-        })->setName('handbook');
-
         $app->get('/handbook/download', function ($request, $response) {
             $handbook = $this->get(EventConfig::class)->get('handbook');
             $file = dirname(__DIR__, 2) . '/www/' . $handbook['file'];

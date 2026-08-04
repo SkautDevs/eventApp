@@ -6,6 +6,8 @@
 // shows a 2019 icon on a lime splash screen — swap them when the icon set is ready.
 return [
     'name' => 'Obrok 2027',
+    // fits the home tab; keep it in step with short_name in www/events/obrok27/site.webmanifest
+    'shortName' => 'Obrok 27',
     'features' => ['map', 'programs', 'handbook', 'harmonogram', 'news', 'links', 'push'],
 
     // 2027 visual identity: lime ground, black notched stripes, purple accent
@@ -19,11 +21,10 @@ return [
         'primary' => '#6122eb',    // purple — active menu item, primary buttons
         'text' => '#101010',
         'text-invert' => '#ffffff',
+        // active tab in the bottom bar — lime reads 13.7:1 on the dark bar,
+        // where the purple accent would only manage 2.7:1
+        'nav-active' => '#c2ea3a',
     ],
-
-    // Page headings sit on a black stripe, like the headline in the design.
-    // Uses base + text-invert; 'plain' (the default) leaves h1 as plain lettering.
-    'headingStyle' => 'stripe',
 
     // The ghost is generated from the 2027 design photo by docs/generate_obrok27_assets.py
     // in the kissj repo, commit f2cec173 (that commit is not on any branch there — preserve
