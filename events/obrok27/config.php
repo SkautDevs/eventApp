@@ -1,23 +1,37 @@
 <?php
 
-// Obrok 2027 — POZOR: barvy a loga jsou zatím převzaté z 2019,
-// vyměnit až bude vizuální identita 2027 (viz úkol v README akce).
+// Obrok 2027 — NOTE: the colours and the ghost are the real 2027 identity, but the
+// favicons, apple-touch-icon, android-chrome-*.png and safari-pinned-tab.svg under
+// www/events/obrok27/ are still the green 2019 shields. An installed PWA therefore
+// shows a 2019 icon on a lime splash screen — swap them when the icon set is ready.
 return [
     'name' => 'Obrok 2027',
     'features' => ['map', 'programs', 'handbook', 'harmonogram', 'news', 'links', 'push'],
 
+    // 2027 visual identity: lime ground, black notched stripes, purple accent
+    // (the ghost's outline and the exclamation mark). Same palette as the badges
+    // in kissj — public/eventSpecificCss/badgeObrok27.css.
     'colors' => [
-        'base' => '#2a9272',
-        'darker' => '#1e6650',
-        'primary' => '#96201f',
-        'text' => '#444343',
+        'background' => '#c2ea3a', // lime — the ground for the whole page
+        'link' => '#6122eb',       // purple — no browser blue, same as in kissj
+        'base' => '#101010',       // black — menu, footer, borders, section headers
+        'darker' => '#4a19b5',     // deep purple — menu hover, h2 headings
+        'primary' => '#6122eb',    // purple — active menu item, primary buttons
+        'text' => '#101010',
         'text-invert' => '#ffffff',
     ],
 
+    // Page headings sit on a black stripe, like the headline in the design.
+    // Uses base + text-invert; 'plain' (the default) leaves h1 as plain lettering.
+    'headingStyle' => 'stripe',
+
+    // The ghost is generated from the 2027 design photo by docs/generate_obrok27_assets.py
+    // in the kissj repo, commit f2cec173 (that commit is not on any branch there — preserve
+    // it before regenerating). Lime in the menu so it shows on the black bar; purple elsewhere.
     'assets' => [
-        'menuLogo' => 'events/obrok27/logo-menu.png',
-        'mainLogo' => 'events/obrok27/logo-main.png',
-        'notificationIcon' => 'events/obrok27/logo-mini.png',
+        'menuLogo' => 'events/obrok27/ghost-lime.png',
+        'mainLogo' => 'events/obrok27/ghost.png',
+        'notificationIcon' => 'events/obrok27/ghost.png',
     ],
 
     'homepage' => [
@@ -28,12 +42,12 @@ return [
     ],
 
     'map' => [
-        // TODO organizátoři: URL Google My Maps mapy areálu 2027
+        // TODO organisers: the Google My Maps URL for the 2027 site map
         'embedUrl' => 'https://www.google.com/maps/d/embed?mid=REPLACE-ME',
     ],
 
     'handbook' => [
-        // TODO organizátoři: nahrát handbook 2027 do www/events/obrok27/
+        // TODO organisers: upload the 2027 handbook to www/events/obrok27/
         'file' => 'events/obrok27/obrok27_handbook.pdf',
         'downloadName' => 'Obrok27_handbook.pdf',
     ],
@@ -42,7 +56,7 @@ return [
         'hiddenNames' => ['Osobní volno'],
     ],
 
-    // Sekce doplní programový tým, až je kissj bude znát. Id musí sedět na kissj.
+    // The program team fills these in once kissj knows them. Ids must match kissj.
     'sections' => [
         1 => ['id' => 1, 'title' => 'Hlavní program'],
         2 => ['id' => 2, 'title' => 'Doprovodný program'],

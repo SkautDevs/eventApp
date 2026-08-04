@@ -41,6 +41,36 @@ final class EventConfigTest extends TestCase
         EventConfig::load($this->eventsDir, '../etc');
     }
 
+    public function testIncompletePaletteThrows(): void
+    {
+        $dir = sys_get_temp_dir() . '/eventconfig-' . uniqid();
+        mkdir($dir . '/broken', 0o777, true);
+        file_put_contents($dir . '/broken/config.php', '<?php return ' . var_export([
+            'name' => 'Broken',
+            'features' => [],
+            'colors' => ['base' => '#000000'], // the rest of the palette is missing
+        ], true) . ';');
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('is missing the colour');
+            EventConfig::load($dir, 'broken');
+        } finally {
+            unlink($dir . '/broken/config.php');
+            rmdir($dir . '/broken');
+            rmdir($dir);
+        }
+    }
+
+    public function testEveryRealEventLoads(): void
+    {
+        // the palette check runs at boot, so this is what stops a half-themed event shipping
+        foreach (glob($this->eventsDir . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            self::assertSame($slug, EventConfig::load($this->eventsDir, $slug)->slug);
+        }
+    }
+
     public function testContentLoadsFileAndDefaultsToEmpty(): void
     {
         $config = EventConfig::load($this->eventsDir, 'obrok19');
