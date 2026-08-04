@@ -29,7 +29,7 @@ final class ProviderFailureTest extends AppTestCase
         );
     }
 
-    public function testHarmonogramDegradesUnpersonalizedOnProviderOutage(): void
+    public function testProgramsDegradeUnpersonalizedOnProviderOutage(): void
     {
         $provider = new ThrowingProgramProvider(
             identityExceptionAfterFirstCall: new ConnectException('down', new Request('GET', 'x')),
@@ -43,8 +43,8 @@ final class ProviderFailureTest extends AppTestCase
         $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         self::assertSame(302, $login->getStatusCode());
 
-        // on the second call (during GET /harmonogram) kissj no longer answers
-        $html = (string) $this->request($app, 'GET', '/harmonogram')->getBody();
+        // on the second call (during GET /programy) kissj no longer answers
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
         self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
         // the user stays logged in, just without a highlighted program
@@ -69,7 +69,7 @@ final class ProviderFailureTest extends AppTestCase
         self::assertStringContainsString('Přihlášení se teď nedaří', $html);
     }
 
-    public function testHarmonogramLogsOutOnUnknownParticipantAfterInitialLogin(): void
+    public function testProgramsLogOutOnUnknownParticipantAfterInitialLogin(): void
     {
         $provider = new ThrowingProgramProvider(
             identityExceptionAfterFirstCall: new UnknownParticipantException('Unknown TIE code: ABC123'),
@@ -84,7 +84,7 @@ final class ProviderFailureTest extends AppTestCase
         self::assertSame(302, $login->getStatusCode());
 
         // the participant vanished in the meantime (kissj returns 404) → the user is logged out on the next load
-        $response = $this->request($app, 'GET', '/harmonogram');
+        $response = $this->request($app, 'GET', '/programy');
         $html = (string) $response->getBody();
 
         self::assertSame(200, $response->getStatusCode());

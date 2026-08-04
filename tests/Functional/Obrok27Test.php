@@ -21,7 +21,7 @@ final class Obrok27Test extends AppTestCase
         $app = $this->createApp('obrok27', overrides: [
             SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
-        foreach (['/novinky', '/mapa', '/odkazy', '/programy', '/harmonogram', '/profil'] as $uri) {
+        foreach (['/novinky', '/mapa', '/odkazy', '/programy', '/profil'] as $uri) {
             self::assertSame(200, $this->request($app, 'GET', $uri)->getStatusCode(), $uri);
         }
     }

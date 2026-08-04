@@ -38,9 +38,14 @@
 {% endblock %}
 
 {% block content %}
-	{% include '_program-switch.twig' with {'current': 'programs'} %}
 	{% if notice %}
 		<p class="highlight">{{ notice }}</p>
+	{% endif %}
+
+	{% if isLogged %}
+		<p class="login-hint">Váš program je označený hvězdičkou — <strong>{{ identity }}</strong></p>
+	{% else %}
+		<p class="login-hint"><a href="{{ url_for('profile') }}">Přihlaste se</a> a označí se vám váš program.</p>
 	{% endif %}
 	{% for s in sections %}
 		{% if (s['programs']) %}
@@ -50,8 +55,8 @@
 			</h2>
 			<div id="section-{{ s['id'] }}" style="display: none">
 				{% for p in s['programs'] %}
-					<div class="program" id="program-detail-{{ p['id'] }}" onclick="toggle_visibility('program-{{ p['id'] }}')">
-						<h3 class="programName">{{ p['name'] }}</h3>
+					<div class="program{{ p['registered'] ?? false ? ' is-registered' }}" id="program-detail-{{ p['id'] }}" onclick="toggle_visibility('program-{{ p['id'] }}')">
+						<h3 class="programName">{% if p['registered'] ?? false %}<i class="fas fa-star" aria-label="Váš program"></i> {% endif %}{{ p['name'] }}</h3>
 						<div id="program-{{ p['id'] }}" style="display: none">
 							{% if (p['lector']) %}<p><b>{{ p['lector'] }}</b></p>{% endif %}
 							<p>

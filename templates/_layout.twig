@@ -28,7 +28,7 @@
 	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}
 </head>
-<body>
+<body class="screen-{{ activeTab != '' ? activeTab : 'other' }}">
 <header class="appbar">
 	<a class="appbar-brand" href="{{ url_for('homepage') }}">
 		{% if event.assets.menuLogo %}

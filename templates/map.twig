@@ -4,8 +4,11 @@
 {% set activeTab = 'map' %}
 
 {% block content %}
-	<div class="map">
-		<iframe src="{{ embedUrl }}"
-				width="100%" height="100%" frameborder="0" style="border:0" allowfullscreen></iframe>
-	</div>
+	{% if embedUrl %}
+		<div class="map">
+			<iframe src="{{ embedUrl }}" title="Mapa areálu" allowfullscreen></iframe>
+		</div>
+	{% else %}
+		<p class="empty">Mapa areálu se tu objeví, jakmile ji pořadatelé zveřejní.</p>
+	{% endif %}
 {% endblock %}

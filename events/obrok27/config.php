@@ -8,7 +8,7 @@ return [
     'name' => 'Obrok 2027',
     // fits the home tab; keep it in step with short_name in www/events/obrok27/site.webmanifest
     'shortName' => 'Obrok 27',
-    'features' => ['map', 'programs', 'handbook', 'harmonogram', 'news', 'links', 'push'],
+    'features' => ['map', 'programs', 'handbook', 'news', 'links', 'push'],
 
     // 2027 visual identity: lime ground, black notched stripes, purple accent
     // (the ghost's outline and the exclamation mark). Same palette as the badges

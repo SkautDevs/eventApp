@@ -9,7 +9,6 @@ return [
         'map',
         'programs',
         'handbook',
-        'harmonogram',
         'news',
         'links',
         'push',
