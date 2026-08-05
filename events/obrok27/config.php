@@ -102,8 +102,8 @@ return [
             'on-tonal' => '#6122eb',
 
             // 10b — state. The lime is 1.25:1 on white and can never be ink here;
-            // as a filled chip under near-black ink it is 13.14:1, which is what
-            // the active tab wears in both modes.
+            // as a fill under near-black ink it is 13.14:1, which is what the app
+            // bar and the active tab wear in both modes.
             'state' => '#c2ea3a',
             'on-state' => '#14160f',
 
@@ -174,8 +174,8 @@ return [
             'tonal' => '#2a2249',
             'on-tonal' => '#b39cff',
 
-            // 10b — the lime is a chip here too, small and under dark ink, so it
-            // never becomes a glaring filled area at night
+            // 10b — the lime is a small fill here too, under dark ink, so it never
+            // becomes a glaring lit area at night
             'state' => '#c2ea3a',
             'on-state' => '#12140e',
 
@@ -228,11 +228,19 @@ return [
         // The bars follow the mode now, so the drawing on them has to as well: the
         // purple ghost on the white bars of light mode (6.65:1) and the lime one on
         // the near-black bars at night, where the purple is about 2.5:1.
-        'menuLogo' => 'events/obrok27/ghost.png',
-        'menuLogoDark' => 'events/obrok27/ghost-lime.png',
-        // and on the active tab's lime chip, in either mode, the purple one again:
-        // the dark-mode drawing is lime, which is the colour the chip is filled with
-        'menuLogoOnState' => 'events/obrok27/ghost.png',
+        //
+        // The -160 files are the same two drawings at 123x160 instead of 620x804.
+        // The bars draw them at 26px and the tabs at 20px, so the full-size pair was
+        // 136 KB of PNG for a mark rendered 20 pixels wide — and both were fetched on
+        // every load, because the mode swap is a CSS one and each mode's twin is in
+        // the document either way. 160px on the long edge still has headroom on a 3x
+        // display. The 620px originals stay for the homepage below, where the drawing
+        // genuinely renders at 256x332.
+        'menuLogo' => 'events/obrok27/ghost-160.png',
+        'menuLogoDark' => 'events/obrok27/ghost-lime-160.png',
+        // and on the active tab's lime fill, in either mode, the purple one again:
+        // the dark-mode drawing is lime, which is the colour the tab is filled with
+        'menuLogoOnState' => 'events/obrok27/ghost-160.png',
         'mainLogo' => 'events/obrok27/ghost.png',
         // the purple ghost measures about 2.5:1 on the dark ground; the lime one,
         // drawn for the black menu bar, is what carries the homepage at night

@@ -16,11 +16,15 @@ final class Authenticator
 
     public function store(Identity $identity): void
     {
+        // the identity changes here, so the ID that carries it has to change too —
+        // otherwise an ID planted before login is the logged-in session afterwards
+        $this->session->regenerateId();
         $this->session->set(self::SESSION_KEY, $identity->toArray());
     }
 
     public function logout(): void
     {
+        $this->session->regenerateId();
         $this->session->delete(self::SESSION_KEY);
     }
 

@@ -1,0 +1,57 @@
+[
+    {
+        "id": 1,
+        "name": "<img src=x onerror=alert(1)>",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 09:00:00"},
+        "end": {"date": "2027-06-03 10:00:00"},
+        "lector": "<script>alert(2)</script>",
+        "location": "Louka",
+        "perex": "<b>Nebezpecny perex</b>",
+        "tools": null
+    },
+    {
+        "id": 2,
+        "name": "Hodny program",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 11:00:00"},
+        "end": {"date": "2027-06-03 12:00:00"},
+        "lector": null,
+        "location": "Louka",
+        "perex": null,
+        "tools": null
+    },
+    {
+        "id": 2,
+        "name": "Duplicitni id",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 13:00:00"},
+        "end": {"date": "2027-06-03 14:00:00"},
+        "lector": null,
+        "location": "Louka",
+        "perex": null,
+        "tools": null
+    },
+    {
+        "id": 3,
+        "name": "Bez zacatku",
+        "section": {"id": 1},
+        "start": {"date": ""},
+        "end": {"date": "2027-06-03 15:00:00"},
+        "lector": null,
+        "location": "Louka",
+        "perex": null,
+        "tools": null
+    },
+    {
+        "id": 4,
+        "name": "Bez konce",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 16:00:00"},
+        "end": null,
+        "lector": null,
+        "location": "Louka",
+        "perex": null,
+        "tools": null
+    }
+]

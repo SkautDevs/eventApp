@@ -1,4 +1,85 @@
+# Front controller. Anything that is not a real file or directory goes to index.php.
 RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ index.php [QSA,L]
+RewriteRule ^ index.php [QSA,L,E=PHP_ROUTED:1]
+
+# There is no index file under www/events/ or www/events/<slug>/, so with Apache's
+# default listing left on both directories enumerate themselves — which is how an
+# unannounced event or an embargoed handbook PDF gets found before it is published.
+Options -Indexes
+
+# Belt and braces to the same headers set by the PHP middleware: a host that ignores
+# .htaccess still gets them from PHP, and a response that never reaches PHP (a static
+# asset, a directory refusal, an Apache-level error page) still gets them here.
+#
+# The values must stay identical to Kernel::addSecurityHeadersMiddleware. mod_headers
+# runs its fixup before PHP generates the response, so PHP's header does not replace
+# Apache's — it is appended next to it, and two X-Frame-Options with different values
+# is a header a browser is entitled to discard. Hence the env guard: the RewriteRule
+# above tags everything it hands to the front controller, and an internal redirect
+# renames that tag to REDIRECT_PHP_ROUTED. Should the guard ever miss on some host,
+# matching values mean the duplicate is merely redundant rather than contradictory.
+<IfModule mod_headers.c>
+	Header always set X-Content-Type-Options "nosniff" env=!REDIRECT_PHP_ROUTED
+	Header always set Referrer-Policy "same-origin" env=!REDIRECT_PHP_ROUTED
+	Header always set X-Frame-Options "DENY" env=!REDIRECT_PHP_ROUTED
+	Header always set Permissions-Policy "geolocation=(), camera=(), microphone=(), payment=()" env=!REDIRECT_PHP_ROUTED
+
+	# The service worker must always be revalidated. A stale sw.js is a stale push
+	# handler for every returning visitor, and browsers cap but do not ignore the
+	# lifetime we hand them here.
+	<FilesMatch "^sw\.js$">
+		Header always set Cache-Control "no-cache"
+	</FilesMatch>
+</IfModule>
+
+# The assets are hand-versioned in templates/_layout.twig (style.css?v=13, app.js?v=3,
+# programs.js?v=3, push.js?v=1), which is the precondition for an immutable lifetime:
+# a changed asset gets a new URL. Bump the query when you change one, or a returning
+# visitor keeps last year's copy.
+# Anything served from here that is NOT versioned — an event logo replaced in place,
+# for instance — will not reach a returning visitor. Give it a new filename instead.
+<IfModule mod_expires.c>
+	ExpiresActive On
+	ExpiresByType text/css "access plus 1 year"
+	ExpiresByType application/javascript "access plus 1 year"
+	ExpiresByType text/javascript "access plus 1 year"
+	ExpiresByType font/woff2 "access plus 1 year"
+	ExpiresByType image/png "access plus 1 year"
+	ExpiresByType image/jpeg "access plus 1 year"
+	ExpiresByType image/svg+xml "access plus 1 year"
+	ExpiresByType image/webp "access plus 1 year"
+	ExpiresByType image/x-icon "access plus 1 year"
+	ExpiresByType image/vnd.microsoft.icon "access plus 1 year"
+
+	# The one script that must not get that lifetime: the service worker is fetched by
+	# its bare name, so a new one can only be found by asking. Switching mod_expires
+	# off for it is what leaves the Cache-Control above to mod_headers alone — merely
+	# setting a second value there would emit two Cache-Control headers.
+	<FilesMatch "^sw\.js$">
+		ExpiresActive Off
+	</FilesMatch>
+
+	# immutable additionally stops the revalidation an explicit reload would still do.
+	# It is appended to the value mod_expires just wrote, so it stays one header; the
+	# lookahead keeps the service worker out, where it would land next to its own
+	# Cache-Control instead and contradict it.
+	<IfModule mod_headers.c>
+		<FilesMatch "^(?!sw\.js$).*\.(css|js|woff2|png|jpg|jpeg|svg|webp|ico)$">
+			Header append Cache-Control "immutable"
+		</FilesMatch>
+	</IfModule>
+</IfModule>
+
+# Compression is otherwise whatever the host happens to default to. Measured on
+# /programy: 95.6 KB uncompressed, 12.4 KB with this on.
+<IfModule mod_deflate.c>
+	AddOutputFilterByType DEFLATE text/html text/plain text/css text/xml
+	AddOutputFilterByType DEFLATE application/javascript text/javascript
+	AddOutputFilterByType DEFLATE application/json application/manifest+json
+	AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# The HTTP -> HTTPS redirect deliberately does NOT live here: enabling it on a domain
+# whose certificate is not issued yet is a redirect loop. See docs/deployment.md.

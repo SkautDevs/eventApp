@@ -34,14 +34,18 @@ final class ThemingTest extends AppTestCase
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
 
-        self::assertStringContainsString('var(--color-background)', $css);
+        // the page itself, not merely somewhere in the file — and the role it reads
+        // resolves to the palette key for an event that declares no role of its own
+        self::assertStringContainsString('background-color: var(--ground);', self::declarationsFor($css, 'body'));
+        self::assertStringContainsString('--ground: var(--role-ground, var(--color-background));', $css);
     }
 
     public function testLinksAreThemedNotBrowserDefaultBlue(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
 
-        self::assertStringContainsString('var(--color-link)', $css);
+        self::assertStringContainsString('color: var(--action-link);', self::declarationsFor($css, 'a'));
+        self::assertStringContainsString('--action-link: var(--role-action-link, var(--color-link));', $css);
     }
 
     public function testAppBarCarriesThePageTitle(): void
@@ -93,7 +97,7 @@ final class ThemingTest extends AppTestCase
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
-        self::assertStringContainsString('background-color: var(--ground);', $css);
+        self::assertStringContainsString('background-color: var(--ground);', self::declarationsFor($css, 'body'));
         self::assertStringContainsString('--ground: var(--role-ground, var(--color-background));', $css);
         // a near-white carrying only a trace of the hue, not the identity colour itself
         self::assertStringContainsString('--role-ground: #f6f7f3', $html);
@@ -262,6 +266,7 @@ final class ThemingTest extends AppTestCase
         $script = strpos($html, "localStorage.getItem('obrokColorMode')");
         $sheet = strpos($html, 'href="style.css');
         self::assertIsInt($script, 'the mode script is missing');
+        self::assertIsInt($sheet, 'the stylesheet is not linked at all');
         self::assertLessThan($sheet, $script, 'the mode is set after the stylesheet is linked');
         self::assertStringNotContainsString('defer', substr($html, $script - 400, 400));
     }
@@ -328,12 +333,29 @@ final class ThemingTest extends AppTestCase
      * it, in both modes — the only shape an identity colour survives in light mode,
      * where obrok27's lime is 1.25:1 as ink on white. So the chip's ink owes AA on
      * the chip in every event that declares one.
+     *
+     * Measured against the active tab's OWN declarations. The two strings this used to
+     * look for anywhere in the stylesheet are also in .appbar, which fills with the same
+     * role — so the test went green straight through the round in which the tab carried
+     * a fill with no ink of its own and the declarations that gave it one sat commented
+     * out. Comments are stripped before the rules are read, for exactly that reason.
      */
     public function testTheActiveTabChipCarriesItsGlyphAtAA(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
-        self::assertStringContainsString('background-color: var(--state);', $css);
-        self::assertStringContainsString('color: var(--on-state);', $css);
+        $chip = self::declarationsFor($css, '.tab.is-active');
+
+        self::assertNotSame('', $chip, 'the active tab has no rule of its own');
+        self::assertMatchesRegularExpression(
+            '/(?<![-a-z])background(-color)?:\s*var\(--state[,)]/',
+            $chip,
+            'the active tab is not filled with the event colour',
+        );
+        self::assertMatchesRegularExpression(
+            '/(?<![-a-z])color:\s*var\(--on-state[,)]/',
+            $chip,
+            'the active tab carries the chip fill but not the ink that owes AA on it',
+        );
 
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
@@ -377,7 +399,9 @@ final class ThemingTest extends AppTestCase
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
 
         self::assertStringContainsString('--signature: var(--role-signature, var(--structure));', $css);
-        self::assertStringContainsString('background-color: var(--signature);', $css);
+        // the ruler by name, not "some rule in the file" — the count below says how many
+        // surfaces wear it, this says which one
+        self::assertStringContainsString('background-color: var(--signature);', self::declarationsFor($css, '.tl-ruler'));
         // the role definition reads --role-signature, so every var(--signature) in
         // the file is a rule painting with it — and there is to be exactly one
         self::assertSame(
@@ -496,6 +520,51 @@ final class ThemingTest extends AppTestCase
         self::assertGreaterThan(0, $checked, 'no event declares a role pair to measure');
         // obrok19 hand-authors a set of its own now, so it is measured like any other
         self::assertSame(['obrok19', 'obrok27'], array_keys($events));
+    }
+
+    /**
+     * Every declaration of every rule whose selector list names $selector — the rule
+     * itself, its pseudo-class variants and its descendants — with comments stripped.
+     *
+     * A theming guarantee is about a component, and a substring search over the whole
+     * stylesheet answers for any component at all, including a commented-out one. This
+     * is a reader, not a parser: it splits on braces, which is enough for a hand-written
+     * flat stylesheet and unwraps one level of at-rule around a rule.
+     */
+    private static function declarationsFor(string $css, string $selector): string
+    {
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', $css);
+        $found = '';
+        foreach (explode('}', $css) as $block) {
+            $open = strrpos($block, '{');
+            if ($open === false) {
+                continue;
+            }
+
+            $selectors = substr($block, 0, $open);
+            $wrapper = strrpos($selectors, '{'); // an @media opener before the rule's own list
+            if ($wrapper !== false) {
+                $selectors = substr($selectors, $wrapper + 1);
+            }
+            if (self::selectorListNames($selectors, $selector)) {
+                $found .= substr($block, $open + 1) . "\n";
+            }
+        }
+
+        return $found;
+    }
+
+    /** True when one of the comma-separated selectors is $selector, or is scoped by it. */
+    private static function selectorListNames(string $selectors, string $selector): bool
+    {
+        foreach (explode(',', $selectors) as $one) {
+            $one = trim((string) preg_replace('/\s+/', ' ', $one));
+            if ($one === $selector || str_starts_with($one, $selector . ' ') || str_starts_with($one, $selector . ':')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** WCAG 2.1 relative-luminance contrast ratio between two #rrggbb values. */

@@ -70,4 +70,63 @@ final class ProgramsTest extends AppTestCase
         );
         self::assertSame(substr_count($html, 'class="tl-tick"'), substr_count($html, 'class="tl-tick-label"'));
     }
+
+    /**
+     * Everything on this screen is provider data rendered into the document, and the
+     * whole client side — the morph's keyed matching, the deep link, the sheet — rests
+     * on that document being what the server said it was. Twig autoescapes, and this is
+     * the guard that keeps it that way: a programme name is text, never markup.
+     */
+    public function testAProgrammeNameIsRenderedAsTextAndNeverAsMarkup(): void
+    {
+        $html = (string) $this->request($this->createApp('programs', fixtureEvent: true), 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('&lt;img src=x onerror=alert(1)&gt;', $html);
+        self::assertStringNotContainsString('<img src=x', $html);
+        // the sheet carries the same data through a second set of fields
+        self::assertStringNotContainsString('<script>alert(2)</script>', $html);
+        self::assertStringNotContainsString('<b>Nebezpecny perex</b>', $html);
+    }
+
+    /**
+     * A record whose start does not parse used to become 1970-01-01 — its own page,
+     * sorted first, and the page the screen opened on, because the event is not today.
+     * The good records still render and the screen opens on their day.
+     */
+    public function testARecordWithAnUnusableDateNeitherRendersNorMovesTheScreen(): void
+    {
+        $html = (string) $this->request($this->createApp('programs', fixtureEvent: true), 'GET', '/programy')->getBody();
+
+        self::assertStringNotContainsString('page-1970', $html);
+        self::assertStringNotContainsString('Bez zacatku', $html);
+        self::assertStringNotContainsString('Bez konce', $html);
+        self::assertStringContainsString('Hodny program', $html);
+        self::assertStringContainsString('<section class="tl-page is-active" data-morph-keep="class" data-pg-panel="timeline" data-key="page-20270603-1"', $html);
+    }
+
+    /**
+     * The screen opens on today, and between midnight and 02:00 in summer "today" is a
+     * different date in UTC than it is in Prague — which is exactly when a camper checks
+     * what is on tomorrow. Booting the app pins the zone, so date() answers the event's
+     * calendar rather than the server's. Nothing else in the suite can see this: every
+     * other use of time reads and formats in the same zone and is shifted alike.
+     */
+    public function testBootingTheAppPinsTheEventsTimezone(): void
+    {
+        date_default_timezone_set('UTC');
+
+        $this->createApp();
+
+        self::assertSame('Europe/Prague', date_default_timezone_get());
+    }
+
+    /** Two records sharing an id are one programme on the screen, not two cards and one sheet. */
+    public function testADuplicateIdIsDrawnOnce(): void
+    {
+        $html = (string) $this->request($this->createApp('programs', fixtureEvent: true), 'GET', '/programy')->getBody();
+
+        self::assertSame(1, substr_count($html, 'data-pg-open="2"'));
+        self::assertSame(1, substr_count($html, 'data-pg-detail="2"'));
+        self::assertStringNotContainsString('Duplicitni id', $html);
+    }
 }

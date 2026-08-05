@@ -1,7 +1,18 @@
 self.addEventListener('push', event => {
-	const data = event.data ? event.data.json() : {title: 'Novinka', body: ''};
-	event.waitUntil(self.registration.showNotification(data.title, {
-		body: data.body,
+	// json() throws synchronously on a payload that is not JSON — before waitUntil,
+	// so the push would be dropped rather than shown. Anything unparseable is still
+	// worth telling the reader about, as plain text under the default title.
+	let data = {title: 'Novinka', body: ''};
+	if (event.data) {
+		try {
+			const parsed = event.data.json();
+			data = parsed && typeof parsed === 'object' ? parsed : {title: 'Novinka', body: event.data.text()};
+		} catch (e) {
+			data = {title: 'Novinka', body: event.data.text()};
+		}
+	}
+	event.waitUntil(self.registration.showNotification(data.title || 'Novinka', {
+		body: data.body || '',
 		icon: data.icon || undefined,
 	}));
 });

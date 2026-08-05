@@ -6,9 +6,13 @@
    as they are for _layout.twig — the two parents read the same two variables. #}
 {% set pageTitle = pageTitle|default(event.name) %}
 {% set activeTab = activeTab|default('') %}
+{# aria-label makes the section a named landmark, and the <h1> is the heading the app
+   has never had — the app bar draws the same title but it lives inside a link, which
+   cannot carry one. Both are the screen's own name, so they stay in step with it. #}
 <section class="screen"
+	aria-label="{{ pageTitle }}"
 	data-screen="{{ screenPath }}"
 	data-title="{{ pageTitle }}"
 	data-doc-title="{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}"
 	data-tab="{{ activeTab }}"
-	tabindex="-1">{% block content %}{% endblock %}</section>
+	tabindex="-1"><h1 class="sr-only">{{ pageTitle }}</h1>{% block content %}{% endblock %}</section>

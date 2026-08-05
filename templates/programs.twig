@@ -107,9 +107,15 @@
 						   inside the scroll rather than in the strip alone #}
 						<h2 class="pl-head">{{ day.label }}</h2>
 						{% for item in day.items %}
-							<article class="pl-item" data-key="{{ item.id }}" data-pg-open="{{ item.id }}" role="button" tabindex="0">
+							{# The card is not itself a control: as role="button" it collapsed its four
+							   lines into one accessible name a hundred characters long. The name is the
+							   control, and the card keeps data-pg-open so a press anywhere on it still
+							   opens the sheet — the handler matches the nearest one. tabindex="-1"
+							   rather than "0": no longer a tab stop, still focusable, which is what
+							   closing the sheet needs to hand focus back to the card it came from. #}
+							<article class="pl-item" data-key="{{ item.id }}" data-pg-open="{{ item.id }}" tabindex="-1">
 								<p class="pl-time">{{ item.time }}</p>
-								<h3 class="pl-name">{{ item.name }}</h3>
+								<h3 class="pl-name"><button type="button" class="pl-open" data-pg-open="{{ item.id }}">{{ item.name }}</button></h3>
 								{% if item.location %}<p class="pl-loc">{{ item.location }}</p>{% endif %}
 								{% if item.perex %}<p class="pl-perex">{{ item.perex }}</p>{% endif %}
 							</article>
