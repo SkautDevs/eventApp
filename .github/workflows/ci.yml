@@ -16,3 +16,17 @@ jobs:
           extensions: pdo_sqlite, soap, gmp
       - run: composer install --no-progress --prefer-dist
       - run: vendor/bin/phpunit
+
+  # Its own job so an advisory shows up as a distinct failed check rather than
+  # being lost at the tail of a test run. No `|| true` and no continue-on-error:
+  # composer audit exits non-zero on a known-vulnerable package and that must fail
+  # the build. Runs against composer.lock, so no vendor install is needed.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_sqlite, soap, gmp
+      - run: composer audit --locked --no-interaction

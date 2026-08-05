@@ -7,6 +7,7 @@ namespace Tests\Functional;
 use App\Auth\Identity;
 use App\Auth\SkautisGatewayInterface;
 use App\Auth\UnknownParticipantException;
+use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
@@ -91,6 +92,52 @@ final class ProviderFailureTest extends AppTestCase
         self::assertStringContainsString('Váš TIE kód už není platný, byli jste odhlášeni.', $html);
         self::assertStringNotContainsString('TIE ABC123', $html);
         self::assertStringContainsString('Přihlaste se', $html);
+    }
+
+    /**
+     * The normal case when kissj is down is that BOTH calls fail in the same request.
+     * The first one signs the participant out, and its explanation used to be
+     * overwritten by the second one's notice — so the reader was logged out with no
+     * reason given at all.
+     */
+    public function testTheLogoutExplanationSurvivesASecondFailureInTheSameRequest(): void
+    {
+        $provider = new ThrowingProgramProvider(
+            programsException: new ConnectException('down', new Request('GET', 'x')),
+            identityExceptionAfterFirstCall: new UnknownParticipantException('Unknown TIE code: ABC123'),
+        );
+        $app = $this->createApp(overrides: [
+            ProgramProviderInterface::class => $provider,
+            SkautisGatewayInterface::class => new FakeSkautisGateway(),
+        ]);
+
+        self::assertSame(302, $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'])->getStatusCode());
+
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+
+        self::assertStringNotContainsString('TIE ABC123', $html, 'the participant was not logged out');
+        self::assertStringContainsString('Váš TIE kód už není platný, byli jste odhlášeni.', $html);
+        self::assertStringContainsString('Programy se nepodařilo načíst, zkuste to prosím později.', $html);
+    }
+
+    /**
+     * A 200 carrying something that is not programme data is the same failure to the
+     * reader as a connection that never arrived: a notice, not a 500.
+     */
+    public function testAMalformedPayloadDegradesLikeAnOutage(): void
+    {
+        $provider = new ThrowingProgramProvider(
+            programsException: new ProgramDataException('kissj returned a non-array payload'),
+        );
+        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $provider]);
+
+        $response = $this->request($app, 'GET', '/programy');
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString(
+            'Programy se nepodařilo načíst, zkuste to prosím později.',
+            (string) $response->getBody(),
+        );
     }
 }
 

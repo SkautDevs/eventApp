@@ -7,6 +7,7 @@ namespace App\Module;
 use App\Auth\Authenticator;
 use App\Auth\UnknownParticipantException;
 use App\EventConfig;
+use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use GuzzleHttp\Exception\TransferException;
 use Slim\App;
@@ -43,6 +44,9 @@ final class ProgramsModule implements ModuleInterface
      */
     private const MAX_DRAWN_SPAN = 86400;
 
+    /** Shortest bar the grid will draw, in seconds — below this a card is unreadable. */
+    private const MIN_DRAWN_SPAN = 60;
+
     public static function key(): string
     {
         return 'programs';
@@ -60,7 +64,11 @@ final class ProgramsModule implements ModuleInterface
             $auth = $this->get(Authenticator::class);
             $provider = $this->get(ProgramProviderInterface::class);
             $hidden = $event->get('programs')['hiddenNames'] ?? [];
-            $notice = null;
+            // Both provider calls can fail in the same request — kissj being down is
+            // exactly when they do — and the first branch signs the participant out.
+            // One slot would let the second failure replace the explanation for that,
+            // so the notices accumulate and the template renders them as one line.
+            $notices = [];
             $mine = [];
 
             if ($auth->isLogged()) {
@@ -68,23 +76,25 @@ final class ProgramsModule implements ModuleInterface
                     $mine = ProgramsModule::withoutHidden($provider->getProgramsForIdentity($auth->identity()), $hidden);
                 } catch (UnknownParticipantException) {
                     $auth->logout();
-                    $notice = 'Váš TIE kód už není platný, byli jste odhlášeni.';
-                } catch (TransferException) {
-                    $notice = 'Osobní program se nepodařilo načíst.';
+                    $notices[] = 'Váš TIE kód už není platný, byli jste odhlášeni.';
+                } catch (TransferException | ProgramDataException) {
+                    // never arrived, or arrived as something that is not programme data —
+                    // the reader is told the same thing either way
+                    $notices[] = 'Osobní program se nepodařilo načíst.';
                 }
             }
 
             $all = [];
             try {
                 $all = ProgramsModule::withoutHidden($provider->getPrograms(), $hidden);
-            } catch (TransferException) {
-                $notice = 'Programy se nepodařilo načíst, zkuste to prosím později.';
+            } catch (TransferException | ProgramDataException) {
+                $notices[] = 'Programy se nepodařilo načíst, zkuste to prosím později.';
             }
 
             $model = ProgramsModule::buildViewModel($event, $all, $mine, $auth->isLogged());
 
             return $this->get(Twig::class)->render($response, 'programs.twig', $model + [
-                'notice' => $notice,
+                'notice' => $notices === [] ? null : implode(' ', $notices),
                 'isLogged' => $auth->isLogged(),
                 'identity' => $auth->identity()?->displayName,
             ]);
@@ -105,6 +115,44 @@ final class ProgramsModule implements ModuleInterface
     }
 
     /**
+     * Drops every record the screen cannot place in time. `strtotime` answers false for
+     * an empty or missing date, `ts()` would turn that into 1970-01-01, and a single such
+     * record puts the whole screen on a page labelled "čt 1. 1." — `activeKey` opens on
+     * the first page whenever today is not one of them. It arrives without any malice:
+     * KissjProgramProvider maps a missing `start` to an empty string.
+     *
+     * @param list<array> $programs
+     * @return list<array>
+     */
+    private static function withParsableDates(array $programs): array
+    {
+        return array_values(array_filter(
+            $programs,
+            static fn (array $program): bool => self::parse($program['start'] ?? null) !== null
+                && self::parse($program['end'] ?? null) !== null,
+        ));
+    }
+
+    /**
+     * Keeps the first record of every id. Two records sharing one id render two cards but
+     * a single detail body, so both cards open the second one's sheet; and the morph keys
+     * on the id, where a duplicate is re-created instead of matched and loses its live
+     * state. The cards, the details and the morph agree only if the id is unique here.
+     *
+     * @param list<array> $programs
+     * @return list<array>
+     */
+    private static function withUniqueIds(array $programs): array
+    {
+        $byId = [];
+        foreach ($programs as $program) {
+            $byId[$program['id']] ??= $program;
+        }
+
+        return array_values($byId);
+    }
+
+    /**
      * Shapes everything the template needs:
      *  - pages:  one per (day, section) pair that actually has programmes, each already
      *            carrying its hour ruler and its stage rows with positioned cards
@@ -117,6 +165,11 @@ final class ProgramsModule implements ModuleInterface
     private static function buildViewModel(EventConfig $event, array $all, array $mine, bool $isLogged): array
     {
         $sections = $event->sections;
+        // everything below reads the dates and the ids as given, so both are made sound
+        // once, here, rather than guarded at every use
+        $all = self::withUniqueIds(self::withParsableDates($all));
+        $mine = self::withUniqueIds(self::withParsableDates($mine));
+
         $registeredIds = [];
         foreach ($mine as $program) {
             $registeredIds[$program['id']] = true;
@@ -177,10 +230,11 @@ final class ProgramsModule implements ModuleInterface
      */
     private static function buildPage(string $day, array $section, array $programs, array $registeredIds, bool $isLogged): array
     {
-        // the axis is measured against the clipped ends, so one over-long record
-        // cannot widen the page for everything else on it
+        // the axis is measured against the ends the bars are actually drawn to, so one
+        // over-long record cannot widen the page for everything else on it — and a bar
+        // widened to the minimum still ends inside the grid
         $starts = array_map(static fn (array $p): int => self::ts($p['start']), $programs);
-        $ends = array_map(static fn (array $p): int => self::drawnEnd($p), $programs);
+        $ends = array_map(static fn (array $p): int => self::barEnd($p), $programs);
 
         $axisStart = intdiv(min($starts), self::HOUR) * self::HOUR;
         $axisEnd = (int) (ceil(max($ends) / self::HOUR) * self::HOUR);
@@ -201,12 +255,14 @@ final class ProgramsModule implements ModuleInterface
             $location = trim((string) ($program['location'] ?? ''));
             $byLocation[$location][] = $program;
         }
-        // stages read top to bottom in the order their first programme starts; no location goes last
-        uasort($byLocation, static function (array $a, array $b): int {
-            $first = static fn (array $items): int => min(array_map(static fn (array $p): int => self::ts($p['start']), $items));
-
-            return $first($a) <=> $first($b);
-        });
+        // stages read top to bottom in the order their first programme starts; no location goes last.
+        // The earliest start is computed once per location rather than inside the comparator,
+        // which walked both groups in full on every one of the O(n log n) comparisons.
+        $firstStart = array_map(
+            static fn (array $items): int => min(array_map(static fn (array $p): int => self::ts($p['start']), $items)),
+            $byLocation,
+        );
+        uksort($byLocation, static fn ($a, $b): int => $firstStart[$a] <=> $firstStart[$b]);
 
         $rows = [];
         foreach ($byLocation as $location => $items) {
@@ -242,8 +298,9 @@ final class ProgramsModule implements ModuleInterface
         usort($items, static fn (array $a, array $b): int => [self::ts($a['start']), -self::drawnEnd($a)]
             <=> [self::ts($b['start']), -self::drawnEnd($b)]);
 
-        // packing works on the clipped ends too, so a track is freed when the bar
-        // stops being drawn rather than when the record claims to finish
+        // packing works on the same end the bar is drawn to, clip and minimum width
+        // included: freeing a track at drawnEnd() while buildCard() widens a shorter
+        // programme to MIN_DRAWN_SPAN put the next card underneath that widened bar
         $trackEnds = [];
         $tracks = [];
         foreach ($items as $program) {
@@ -252,7 +309,7 @@ final class ProgramsModule implements ModuleInterface
             while (isset($trackEnds[$index]) && $trackEnds[$index] > $start) {
                 $index++;
             }
-            $trackEnds[$index] = self::drawnEnd($program);
+            $trackEnds[$index] = self::barEnd($program);
             $tracks[$index][] = self::buildCard($program, $axisStart, $registeredIds, $isLogged);
         }
         ksort($tracks);
@@ -264,8 +321,7 @@ final class ProgramsModule implements ModuleInterface
     private static function buildCard(array $program, int $axisStart, array $registeredIds, bool $isLogged): array
     {
         $start = self::ts($program['start']);
-        // a minute is the shortest bar worth drawing, a day the longest
-        $end = max(self::drawnEnd($program), $start + 60);
+        $end = self::barEnd($program);
         $registered = isset($registeredIds[$program['id']]);
 
         return [
@@ -397,9 +453,28 @@ final class ProgramsModule implements ModuleInterface
         return date('Y-m-d', self::ts($program['start']));
     }
 
-    private static function ts(array $datetime): int
+    private static function ts(mixed $datetime): int
     {
-        return (int) strtotime($datetime['date']);
+        return self::parse($datetime) ?? 0;
+    }
+
+    /**
+     * The timestamp of a `{'date': ...}` value, or null when there is none to read —
+     * a null, a missing key, an empty string or anything strtotime() rejects.
+     * withParsableDates() is what keeps such a record off the screen; this is also
+     * why ts() takes mixed, so a hand-edited fixture is a dropped row and not a
+     * TypeError five frames further in.
+     */
+    private static function parse(mixed $datetime): ?int
+    {
+        $date = is_array($datetime) ? ($datetime['date'] ?? null) : null;
+        if (!is_string($date) || trim($date) === '') {
+            return null;
+        }
+
+        $timestamp = strtotime($date);
+
+        return $timestamp === false ? null : $timestamp;
     }
 
     /**
@@ -412,6 +487,16 @@ final class ProgramsModule implements ModuleInterface
         $start = self::ts($program['start']);
 
         return min(self::ts($program['end']), $start + self::MAX_DRAWN_SPAN);
+    }
+
+    /**
+     * The end of the bar as it is actually drawn: the clipped end, or a minute past the
+     * start for a programme too short to see. The packer frees a track at this same
+     * value, or a widened bar would be drawn over the card that took the slot after it.
+     */
+    private static function barEnd(array $program): int
+    {
+        return max(self::drawnEnd($program), self::ts($program['start']) + self::MIN_DRAWN_SPAN);
     }
 
     /** A duration in hours, the unit the timeline's --hour-width scale is expressed in. */

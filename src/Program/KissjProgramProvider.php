@@ -43,19 +43,51 @@ final class KissjProgramProvider implements ProgramProviderInterface
             throw $e;
         }
 
-        return array_map($this->normalize(...), $data['programs'] ?? []);
+        $programs = $data['programs'] ?? [];
+        if (!is_array($programs)) {
+            throw new ProgramDataException('kissj returned a non-list of programs for a participant');
+        }
+
+        return array_map($this->normalize(...), $programs);
     }
 
+    /**
+     * kissj is an unverified boundary — see docs/kissj-contract.md, whose own title says
+     * so. A body that is not JSON, or is JSON but not a list of records, is a provider
+     * error rather than a 500 on /programy.
+     */
     private function getJson(string $path): array
     {
         $response = $this->http->request('GET', $path);
+        $body = (string) $response->getBody();
+        if (trim($body) === '') {
+            return [];
+        }
 
-        return json_decode((string) $response->getBody(), true) ?? [];
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) {
+            throw new ProgramDataException(sprintf('kissj returned a non-array payload for %s', $path));
+        }
+
+        return $decoded;
     }
 
-    /** Maps the kissj shape onto our internal program shape — see docs/kissj-contract.md */
-    private function normalize(array $kissj): array
+    /**
+     * Maps the kissj shape onto our internal program shape — see docs/kissj-contract.md.
+     *
+     * @param mixed $kissj one element of whatever kissj sent, trusted for nothing
+     */
+    private function normalize(mixed $kissj): array
     {
+        if (!is_array($kissj)) {
+            throw new ProgramDataException('kissj program record is not an object');
+        }
+        foreach (['id', 'name'] as $required) {
+            if (!isset($kissj[$required]) || !is_scalar($kissj[$required])) {
+                throw new ProgramDataException(sprintf('kissj program record has no usable %s', $required));
+            }
+        }
+
         return [
             'id' => (int) $kissj['id'],
             'name' => (string) $kissj['name'],
@@ -69,14 +101,24 @@ final class KissjProgramProvider implements ProgramProviderInterface
         ];
     }
 
-    private function toLocal(?string $iso): string
+    private function toLocal(mixed $iso): string
     {
-        if ($iso === null) {
+        if ($iso === null || $iso === '') {
             return '';
         }
+        if (!is_string($iso)) {
+            throw new ProgramDataException('kissj sent a datetime that is not a string');
+        }
 
-        return (new \DateTimeImmutable($iso))
-            ->setTimezone(new \DateTimeZone('Europe/Prague'))
-            ->format('Y-m-d H:i:s');
+        $prague = new \DateTimeZone('Europe/Prague');
+        try {
+            // the zone is the fallback for a naive datetime, which is what a PHP app most
+            // likely emits — a no-op when the string carries an offset of its own
+            $parsed = new \DateTimeImmutable($iso, $prague);
+        } catch (\Exception $e) {
+            throw new ProgramDataException(sprintf('kissj sent an unparseable datetime: %s', $iso), previous: $e);
+        }
+
+        return $parsed->setTimezone($prague)->format('Y-m-d H:i:s');
     }
 }

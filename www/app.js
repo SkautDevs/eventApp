@@ -90,6 +90,13 @@
 				if (!response.ok) {
 					throw new Error(String(response.status));
 				}
+				// A redirect answered something other than what was asked for — a
+				// login wall, a canonical URL, another screen entirely — and its
+				// markup would be cached under this path and shown for it from then
+				// on. The browser follows it where the reader can see it.
+				if (response.redirected) {
+					throw new Error('redirected');
+				}
 
 				return response.text();
 			})
@@ -97,6 +104,11 @@
 				var section = parse(html);
 				if (!section) {
 					throw new Error('no screen in response');
+				}
+				// The screen states its own path; one that is not the path asked for
+				// is somebody else's screen and must not be filed under this one.
+				if (section.dataset.screen !== path) {
+					throw new Error('screen is ' + section.dataset.screen);
 				}
 				// insert hidden; showing it, and only then wiring it, is show()'s job —
 				// measuring inside a hidden subtree returns 0
@@ -270,6 +282,12 @@
 				cursor = cursor.nextSibling;
 			} else if (!ownsIframe(step.match)) {
 				from.insertBefore(step.match, cursor);
+			} else {
+				// The one node that stays where it is: moving it reloads the iframe.
+				// The cursor has to step over it all the same, or every later
+				// insertBefore aims at a position the pinned node is now behind, and
+				// the siblings around it come out in the wrong order.
+				cursor = step.match.nextSibling;
 			}
 			patch(step.match, step.wanted);
 		});
@@ -359,12 +377,16 @@
 		entry.checking = true;
 		fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin'})
 			.then(function (response) {
-				return response.ok ? response.text() : null;
+				// the same two rules as load(): a non-200 and a redirect are both
+				// something other than this screen. A revalidation that finds one
+				// simply leaves the cached screen alone — it runs in the background,
+				// behind a reader who asked for nothing, so it may not navigate.
+				return response.ok && !response.redirected ? response.text() : null;
 			})
 			.then(function (html) {
 				entry.checking = false;
 				var fresh = html === null ? null : parse(html);
-				if (!fresh) {
+				if (!fresh || fresh.dataset.screen !== path) {
 					return;
 				}
 				entry.fetchedAt = Date.now();
@@ -389,6 +411,15 @@
 
 	function dressShell(section) {
 		document.title = section.dataset.docTitle || document.title;
+		// A swap changes the document title and the app bar, and no screen reader
+		// announces either on its own — a soft navigation is silent where a real one
+		// speaks. The shell's one live region gets the screen's name here. Only here,
+		// i.e. only on a swap: the first screen is server-rendered and this never runs
+		// for it, so a cold load announces nothing on top of the page it just read out.
+		var live = document.querySelector('[data-screen-live]');
+		if (live) {
+			live.textContent = section.dataset.title || '';
+		}
 		var title = document.querySelector('.appbar-title');
 		if (title) {
 			title.textContent = section.dataset.title || '';
@@ -396,7 +427,18 @@
 		var tab = section.dataset.tab || '';
 		document.body.className = 'screen-' + (tab !== '' ? tab : 'other');
 		document.querySelectorAll('.tabbar .tab').forEach(function (link) {
-			link.classList.toggle('is-active', pathOf(link.href) === currentPath);
+			var active = pathOf(link.href) === currentPath;
+			link.classList.toggle('is-active', active);
+			// The fill is pixels and .is-active is a class name; aria-current is the
+			// only thing that names the current tab to a screen reader. The server
+			// writes it on the screen it renders, so a swap that toggled the class
+			// alone would leave it on the tab the reader has just left — being told
+			// the wrong tab is worse than being told none.
+			if (active) {
+				link.setAttribute('aria-current', 'page');
+			} else {
+				link.removeAttribute('aria-current');
+			}
 		});
 	}
 
@@ -439,7 +481,7 @@
 		document.startViewTransition(swap).finished.then(done, done);
 	}
 
-	function show(path, entry, push) {
+	function show(path, entry) {
 		if (path === currentPath) {
 			return;
 		}
@@ -448,10 +490,6 @@
 		// popstate gets the reverse direction for free: the order comparison is the
 		// same one, and coming back reverses which side is bigger
 		var back = from >= 0 && to >= 0 && to < from;
-
-		if (push) {
-			history.pushState({screen: path}, '', path);
-		}
 
 		transition(function () {
 			var leaving = screens.get(currentPath);
@@ -480,20 +518,52 @@
 		revalidate(path, entry);
 	}
 
+	/**
+	 * Which navigation is the current one. A fetch takes as long as it takes, and the
+	 * reader is free to tap on or press Back while it is in flight; whatever resolved
+	 * last would otherwise win, minutes later if the network is bad enough. Every
+	 * navigation — a tap, a popstate — takes the next token, and a fetch that comes
+	 * back holding an old one has been overtaken.
+	 */
+	var navigation = 0;
+	/**
+	 * The destination the reader last asked for, which is not the same thing as the
+	 * screen on show while a fetch is in flight. The entry is recorded when they tap
+	 * rather than when the screen arrives: a tap is a navigation whether or not its
+	 * fetch wins the race to be shown, so five taps leave five entries to walk back
+	 * through, and pressing Back while one is loading returns to the screen before it.
+	 * A second tap on the destination already asked for is not a second navigation.
+	 */
+	var wantedPath = currentPath;
+
 	function go(path, push) {
+		var token = ++navigation;
+		if (push && path !== wantedPath) {
+			history.pushState({screen: path}, '', path);
+		}
+		wantedPath = path;
 		var entry = screens.get(path);
 		if (entry) {
-			show(path, entry, push);
+			show(path, entry);
 
 			return;
 		}
 		load(path).then(function (loaded) {
+			// An overtaken screen that did arrive is kept: it is a warm cache entry
+			// either way, and the next visit to it is then instant. It is only not
+			// shown, and not pushed, because the reader is somewhere else now.
+			if (token !== navigation) {
+				return;
+			}
 			if (!loaded) {
+				// The fallback throws the whole app away — the cache, the map's live
+				// iframe, the timeline's zoom — so it may only fire for the
+				// navigation the reader is actually waiting for.
 				location.href = path;
 
 				return;
 			}
-			show(path, loaded, push);
+			show(path, loaded);
 		});
 	}
 
@@ -521,6 +591,8 @@
 		go(url.pathname, true);
 	});
 
+	// Back is a navigation like any other, so it takes the next token too — which is
+	// what stops a tap still in flight from undoing it once its fetch lands.
 	window.addEventListener('popstate', function () {
 		var path = location.pathname;
 		if (order.indexOf(path) < 0) {

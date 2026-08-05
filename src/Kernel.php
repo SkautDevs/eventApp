@@ -17,6 +17,10 @@ final class Kernel
     public static function create(?EventConfig $event = null, array $containerOverrides = []): App
     {
         $root = dirname(__DIR__);
+        // Every date the app formats — the timeline's "today", the kissj datetimes, a
+        // subscription's created_at — is a local one. Left unset, PHP defaults to UTC and
+        // the whole event runs one or two hours off.
+        date_default_timezone_set('Europe/Prague');
 
         if ($event === null) {
             if (is_file($root . '/.env')) {
@@ -28,6 +32,11 @@ final class Kernel
             }
             $event = EventConfig::load($root . '/events', $slug);
         }
+
+        // An explicit whitelist rather than a cast: (bool) "false" and (bool) "off" are
+        // both true, so an operator writing the obvious APP_DEBUG=false in production
+        // would turn the debug pages *on*.
+        $debug = in_array($_ENV['APP_DEBUG'] ?? '', ['1', 'true', 'on'], true);
 
         $builder = new ContainerBuilder();
         $builder->addDefinitions([
@@ -67,8 +76,20 @@ final class Kernel
                 vapidPrivateKey: $_ENV['VAPID_PRIVATE_KEY'] ?? '',
                 vapidSubject: $_ENV['VAPID_SUBJECT'] ?? '',
             ),
-            Twig::class => function (ContainerInterface $c) use ($root, $event): Twig {
-                $twig = Twig::create($root . '/templates', ['cache' => false]);
+            Twig::class => function (ContainerInterface $c) use ($root, $event, $debug): Twig {
+                // Without a cache Twig lexes, parses, compiles and eval()s the layout and
+                // every template from source on *every* request — two thirds of the time a
+                // page takes. The compiled output reads globals rather than event literals,
+                // so one directory is shared by every event. auto_reload follows APP_DEBUG:
+                // in dev an edited template recompiles, in production it never stats.
+                $cacheDir = $root . '/var/twig';
+                if (!is_dir($cacheDir)) {
+                    @mkdir($cacheDir, 0o775, true);
+                }
+                $twig = Twig::create($root . '/templates', [
+                    'cache' => is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false,
+                    'auto_reload' => $debug,
+                ]);
                 $env = $twig->getEnvironment();
                 // 'theme' and 'roles' are spread in explicitly so they are arrays even for
                 // an event whose config never mentions them — the layout iterates them unguarded
@@ -113,7 +134,7 @@ final class Kernel
         $app->addRoutingMiddleware();
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
         $app->addErrorMiddleware(
-            displayErrorDetails: (bool) ($_ENV['APP_DEBUG'] ?? false),
+            displayErrorDetails: $debug,
             logErrors: true,
             logErrorDetails: true,
         );
@@ -122,6 +143,9 @@ final class Kernel
         // route, so a header applied further in would be missing from exactly the
         // responses a shared cache is most likely to keep.
         self::addScreenMiddleware($app, $container);
+        // For the same reason: an error page is exactly the response that must not be
+        // sniffed or framed, and it is the one the error middleware answers on its own.
+        self::addSecurityHeadersMiddleware($app);
 
         self::registerCoreRoutes($app);
         self::registerModules($app, $container, $event);
@@ -156,6 +180,41 @@ final class Kernel
         });
     }
 
+    /**
+     * The response headers that cost nothing and break nothing here: the app serves no
+     * user-uploaded file, never frames itself, and asks for none of the powerful
+     * features. Deliberately no CSP and no HSTS — the first needs a per-request nonce
+     * for the two inline scripts and the inline style block in `_layout.twig`, the
+     * second needs TLS to exist first; both are decisions, not omissions.
+     */
+    private static function addSecurityHeadersMiddleware(App $app): void
+    {
+        // deliberately not a static closure: Slim binds every middleware Closure to the
+        // container, and a static one cannot be bound at all
+        $app->add(function ($request, $handler) {
+            $response = $handler->handle($request);
+
+            return $response
+                ->withHeader('X-Content-Type-Options', 'nosniff')
+                ->withHeader('Referrer-Policy', 'same-origin')
+                ->withHeader('X-Frame-Options', 'DENY')
+                ->withHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=()');
+        });
+    }
+
+    /**
+     * A `Location` the caller chose is only ever allowed to be a path on this site.
+     * Anything else — an absolute URL, a protocol-relative `//host`, the `/\host` form
+     * browsers also read as protocol-relative, a `javascript:` URI — falls back to the
+     * homepage, so the post-login redirect cannot be pointed at a phishing page.
+     */
+    private static function safeReturnUrl(mixed $returnUrl): string
+    {
+        return is_string($returnUrl) && preg_match('#^/(?![/\\\\])#', $returnUrl) === 1
+            ? $returnUrl
+            : '/';
+    }
+
     private static function registerCoreRoutes(App $app): void
     {
         $app->get('/', function ($request, $response) {
@@ -169,12 +228,21 @@ final class Kernel
             $auth = $this->get(Auth\Authenticator::class);
 
             if (!empty($body['skautIS_Token'])) {
-                $auth->store($this->get(Auth\SkautisGatewayInterface::class)->loginFromPost($body));
+                try {
+                    $auth->store($this->get(Auth\SkautisGatewayInterface::class)->loginFromPost($body));
+                } catch (\Throwable) {
+                    // Anyone can post a token, and skautIS rejects it with an exception whose
+                    // type depends on whether ext-soap is even present — so catch broadly and
+                    // show the notice the TIE form already shows, rather than a 500.
+                    $this->get(Session::class)->set('tieError', 'Přihlášení přes skautIS se nezdařilo, zkuste to prosím znovu.');
+
+                    return $response->withHeader('Location', '/profil')->withStatus(302);
+                }
             } elseif (!empty($body['skautIS_Logout'])) {
                 $auth->logout();
             }
 
-            $returnUrl = $request->getQueryParams()['ReturnUrl'] ?? '/';
+            $returnUrl = self::safeReturnUrl($request->getQueryParams()['ReturnUrl'] ?? '/');
 
             return $response->withHeader('Location', $returnUrl)->withStatus(302);
         });

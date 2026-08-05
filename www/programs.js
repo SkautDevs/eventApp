@@ -115,7 +115,8 @@
 			// too short to hold the list's scroll and the browser clamps it to 0.
 			// Remembering it here is what makes switching views and coming back land
 			// where the reader was, the same way leaving the screen does.
-			if (currentView === 'list' && view !== 'list') {
+			const wasList = currentView === 'list';
+			if (wasList && view !== 'list') {
 				listScroll = window.scrollY;
 			}
 			currentView = view;
@@ -132,7 +133,79 @@
 			});
 			closeMenus();
 			if (view === 'list') {
-				enterList();
+				// The saved offset is only written when the reader leaves the list, so
+				// it is older than where they are as soon as they scroll again. It is
+				// therefore restored on a genuine switch into the list and nowhere
+				// else: showView('list') also runs after a background morph, with the
+				// reader sitting in the list — and possibly on another screen
+				// entirely, whose scroll it would be the one to move.
+				enterList(!wasList);
+			}
+		}
+
+		// --- the open dialog ---------------------------------------------
+		// The sheet and the day panel are modal to the pointer and to the accessibility
+		// tree — a backdrop over the screen, aria-modal on the card — but they were
+		// never modal to Tab: the app bar, the pager, every .pl-open behind the dimming,
+		// the view tabs and the tab bar all stayed in the tab order, with .sheet-close
+		// somewhere in the middle of them. `inert` takes the rest of the document out of
+		// it, and the Tab handler below closes the ring inside the card.
+
+		const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]),'
+			+ ' select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+		// exactly what the trap made inert, so that closing clears that and not an
+		// `inert` somebody else put there
+		let inerted = [];
+		let trapCard = null;
+
+		function trapFocus(dialog, card) {
+			releaseFocus();
+			trapCard = card;
+			// everything beside the dialog on its way up to <body>: the rest of the
+			// screen, the screens the loader is keeping alive next to it, and the
+			// shell's own skip link, app bar, live region and tab bar with them
+			for (let node = dialog; node && node !== document.body && node.parentElement; node = node.parentElement) {
+				Array.prototype.forEach.call(node.parentElement.children, function (sibling) {
+					if (sibling !== node && !sibling.inert) {
+						sibling.inert = true;
+						inerted.push(sibling);
+					}
+				});
+			}
+		}
+
+		function releaseFocus() {
+			inerted.forEach(function (element) {
+				element.inert = false;
+			});
+			inerted = [];
+			trapCard = null;
+		}
+
+		/**
+		 * Tab wraps inside the card. With the rest of the document inert the browser
+		 * would otherwise leave through its own chrome and come back in at the top; the
+		 * ring keeps the reader inside the dialog, which is what aria-modal promises.
+		 */
+		function cycleTab(event) {
+			const items = Array.from(trapCard.querySelectorAll(FOCUSABLE)).filter(function (item) {
+				// the sheet holds every programme's detail and shows one, so the links
+				// in all the others are inside the card but not on the screen
+				return item.getClientRects().length > 0;
+			});
+			const here = document.activeElement;
+			const inside = trapCard.contains(here);
+			if (items.length === 0) {
+				event.preventDefault();
+				trapCard.focus();
+
+				return;
+			}
+			const first = items[0];
+			const last = items[items.length - 1];
+			if (event.shiftKey ? (!inside || here === first) : (!inside || here === last)) {
+				event.preventDefault();
+				(event.shiftKey ? last : first).focus();
 			}
 		}
 
@@ -149,7 +222,11 @@
 			root.querySelectorAll('[data-pg-menu]').forEach(function (button) {
 				setAttr(button, 'aria-expanded', 'false');
 			});
-			// the day panel returns focus to its trigger, exactly as the sheet does
+			// the day panel returns focus to its trigger, exactly as the sheet does —
+			// after the trap is lifted, because focus() on an inert element does nothing
+			if (wasOpen) {
+				releaseFocus();
+			}
 			if (wasOpen && menuOpener && document.contains(menuOpener)) {
 				menuOpener.focus();
 			}
@@ -168,6 +245,7 @@
 			menuOpener = trigger;
 			const card = menu.querySelector('[data-pg-menu-card]');
 			if (card) {
+				trapFocus(menu, card);
 				card.focus();
 			}
 		}
@@ -193,6 +271,7 @@
 			sheet.classList.add('is-open');
 			sheet.setAttribute('aria-hidden', 'false');
 			sheetScroll.scrollTop = 0;
+			trapFocus(sheet, sheetCard);
 			sheetCard.focus();
 		}
 
@@ -202,6 +281,8 @@
 			}
 			sheet.classList.remove('is-open');
 			sheet.setAttribute('aria-hidden', 'true');
+			// before the focus goes back: an inert element cannot take it
+			releaseFocus();
 			if (opener && document.contains(opener)) {
 				opener.focus();
 			}
@@ -327,6 +408,33 @@
 			applyTickStep();
 		}
 
+		/**
+		 * One rescale per frame at most.
+		 *
+		 * A pinch delivers pointermove faster than the screen refreshes, and every
+		 * setZoom writes --hour-width and then reads scrollLeft back, which forces the
+		 * layout the new width implies. Doing that per event is doing it several times
+		 * for one painted frame. The maths is untouched — the scale a pinch asks for is
+		 * absolute (the span between the fingers against the span they started at) and
+		 * the anchor is the live midpoint, so applying only the newest of the requests
+		 * that arrived within a frame lands in exactly the same place, once.
+		 */
+		let zoomFrame = 0;
+		let zoomWanted = null;
+
+		function requestZoom(next, anchorClientX) {
+			zoomWanted = {next: next, anchor: anchorClientX};
+			if (zoomFrame) {
+				return;
+			}
+			zoomFrame = requestAnimationFrame(function () {
+				zoomFrame = 0;
+				const wanted = zoomWanted;
+				zoomWanted = null;
+				setZoom(wanted.next, wanted.anchor);
+			});
+		}
+
 		// two fingers on the grid scale the axis, anchored between them
 		const pointers = new Map();
 		let pinch = null;
@@ -362,8 +470,8 @@
 				return;
 			}
 			// the box may also have panned under the gesture; setting scrollLeft
-			// from the live midpoint each move is what keeps the anchor honest
-			setZoom(pinch.hourWidth * (span.dist / pinch.dist), span.midX);
+			// from the live midpoint each frame is what keeps the anchor honest
+			requestZoom(pinch.hourWidth * (span.dist / pinch.dist), span.midX);
 		});
 
 		function releasePointer(event) {
@@ -415,9 +523,20 @@
 			return Array.from(root.querySelectorAll('.pl-day'));
 		}
 
-		/** The bottom edge of the strip: below it is the part of the list being read. */
+		/**
+		 * The bottom edge of the strip: below it is the part of the list being read.
+		 *
+		 * The notch counts. The strip is docked under the app bar and the bar grows by
+		 * the top safe-area inset, so on a notched standalone install the band starts
+		 * that much further down; without it the arrows scrolled a heading 34px behind
+		 * the strip they were meant to dock it under. --appbar-inset can be read here
+		 * even though it is an env(): env(), like var(), is substituted while the
+		 * computed value is worked out, so this comes back as a plain length. A calc()
+		 * would not — which is exactly why the inset is a token of its own rather than
+		 * part of --appbar-height.
+		 */
 		function bandTop() {
-			return cssPx('--appbar-height') + cssPx('--pager-height');
+			return cssPx('--appbar-height') + cssPx('--appbar-inset') + cssPx('--pager-height');
 		}
 
 		function reducedMotion() {
@@ -573,7 +692,7 @@
 			return true;
 		}
 
-		function enterList() {
+		function enterList(restore) {
 			watchList();
 			if (pendingListTarget !== null) {
 				const found = scrollToItem(pendingListTarget);
@@ -583,7 +702,7 @@
 				}
 			}
 			// the browser clamped the window while the timeline was up
-			if (listScroll > 0 && window.scrollY === 0) {
+			if (restore && listScroll > 0 && window.scrollY === 0) {
 				window.scrollTo(0, listScroll);
 			}
 			syncDay();
@@ -668,6 +787,11 @@
 				return;
 			}
 
+			if (event.key === 'Tab' && trapCard) {
+				cycleTab(event);
+				return;
+			}
+
 			const target = event.target.closest ? event.target : null;
 			if (!target) {
 				return;
@@ -693,13 +817,12 @@
 				list[next].focus();
 				return;
 			}
-
-			// the list rows are not buttons (they carry a heading), so they need this by hand
-			const row = target.closest('.pl-item[data-pg-open]');
-			if (row && (event.key === 'Enter' || event.key === ' ')) {
-				event.preventDefault();
-				openSheet(row.dataset.pgOpen, false, row);
-			}
+			// A list row needs no key handling of its own any more. The control in it is
+			// the inner <button class="pl-open">, which answers Enter and Space itself;
+			// the branch that used to be here fired on the <article> and handed
+			// closeSheet() that as the opener, so focus came back one level out of where
+			// the reader had left it. The article keeps tabindex="-1" all the same — it
+			// is where focus returns to after a pointer press on the card.
 		});
 
 		// the old deep link into a single programme keeps working, and now opens its detail

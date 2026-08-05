@@ -1,11 +1,18 @@
 @charset "utf-8";
 /* CSS Document */
+
+/* Every face is served in several formats and the browser takes the FIRST entry it
+   can use, so the order of the list is the choice of format. WOFF2 goes first: it is
+   about 30% smaller than the WOFF sitting next to it on the same CDN, and while WOFF
+   led the list nothing ever fetched it.
+
+   One `src` per block, too. A rule keeps only the last declaration of a property, so
+   the two `src:` lines that used to precede this one — the bare .eot and the .eot?#iefix
+   for IE — were parsed and discarded, and the .eot they named was never requested. */
 @font-face {
 	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400.eot');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400.eot? #iefix') format('embedded-opentype');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.woff2') format('woff2'),
+	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400.woff2') format('woff2'),
+	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.woff') format('woff'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.otf') format('opentype'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.svg#themix') format('svg');
 	font-weight: 400;
@@ -14,10 +21,8 @@
 
 @font-face {
 	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.eot');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.eot? #iefix') format('embedded-opentype');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.woff2') format('woff2'),
+	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.woff2') format('woff2'),
+	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.woff') format('woff'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.otf') format('opentype'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.svg#themix') format('svg');
 	font-weight: 400;
@@ -26,10 +31,8 @@
 
 @font-face {
 	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700.eot');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700.eot? #iefix') format('embedded-opentype');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.woff2') format('woff2'),
+	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700.woff2') format('woff2'),
+	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.woff') format('woff'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.otf') format('opentype'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.svg#themix') format('svg');
 	font-weight: 700;
@@ -38,10 +41,8 @@
 
 @font-face {
 	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.eot');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.eot? #iefix') format('embedded-opentype');
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.woff2') format('woff2'),
+	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.woff2') format('woff2'),
+	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.woff') format('woff'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.otf') format('opentype'),
 	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.svg#themix') format('svg');
 	font-weight: 700;
@@ -50,10 +51,8 @@
 
 @font-face {
 	font-family: 'skautbold';
-	src: url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.eot');
-	src: url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.eot? #iefix') format('embedded-opentype');
-	src: url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.woff2') format('woff2'),
+	src: url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.woff2') format('woff2'),
+	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.woff') format('woff'),
 	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.otf') format('opentype'),
 	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.svg#skautbold') format('svg');
 	font-weight: normal;
@@ -172,6 +171,12 @@
 	--radius-sheet: var(--theme-radius-sheet, 18px);
 	--radius-card: var(--theme-radius-card, 4px);
 	--appbar-height: 52px;
+	/* The notch, on a standalone install with viewport-fit=cover. Every other fixed
+	   element in the app already clears the bottom inset; this is the app bar's half
+	   of the same job. It stays a token of its own rather than being folded into
+	   --appbar-height, because that one is read as a plain number by www/programs.js
+	   and a calc() there would parse as zero. */
+	--appbar-inset: env(safe-area-inset-top, 0px);
 	--tabbar-height: 58px;
 	/* the view switcher docked above the tab bar on /programy. It is chrome like
 	   the two bars, so screens that carry it subtract it from --screen-height;
@@ -179,7 +184,7 @@
 	--tabs-height: 48px;
 	--app-height: 100vh;
 	/* the space a screen actually gets between the two bars */
-	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px));
+	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--appbar-inset) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px));
 }
 
 /* dvh excludes the mobile browser's collapsing toolbars, which vh does not */
@@ -191,6 +196,47 @@
 
 *, *::before, *::after {
 	box-sizing: border-box;
+}
+
+/* --- assistive text ------------------------------------------------------ */
+
+/* Present to a screen reader, absent to the eye. Not `display: none` and not
+   `visibility: hidden` — both remove the text from the accessibility tree along
+   with the pixels, which is the opposite of the point. This is what carries the
+   per-screen <h1> the app bar already draws, the profile link's own label, and the
+   live region that names a screen the loader has swapped in. */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* The first thing in the tab order, and the only way past the map's iframe or a
+   long screen to the app's own navigation without tabbing through the lot. It is
+   off-screen until focused rather than absent, so it never takes layout. */
+.skip-link, .skip-link:visited {
+	position: fixed;
+	top: calc(var(--appbar-inset) + 6px);
+	left: 50%;
+	z-index: 100;
+	transform: translate(-50%, -200%);
+	padding: 10px 16px;
+	border-radius: var(--radius);
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border: 1px solid var(--edge);
+	text-decoration: none;
+}
+
+.skip-link:focus {
+	transform: translate(-50%, 0);
 }
 
 body {
@@ -215,8 +261,10 @@ body {
 	gap: 8px;
 	max-width: var(--app-width);
 	margin: 0 auto;
-	padding: 0 12px;
-	height: var(--appbar-height);
+	/* the notch is the bar's own band: the fill runs up under it and the row of
+	   controls starts below it, so nothing lands behind the hardware */
+	padding: var(--appbar-inset) 12px 0;
+	height: calc(var(--appbar-height) + var(--appbar-inset));
 	/* The bar is a filled band of the event's own colour, so its ink is that fill's
 	   own pair and nothing else. It used to take --on-structure, which is the ink for
 	   the neutral bar tier and flips with the mode — while the fill under it, the
@@ -235,9 +283,12 @@ body {
 	align-items: center;
 	color: var(--on-state);
 	text-decoration: none;
-	min-width: 0;
 }
 
+/* The brand end keeps its automatic minimum — the mark plus the title's own floor —
+   so that when the bar runs out of room the title ellipsises inside it rather than
+   spilling out of a box squeezed narrower than its contents and landing on top of
+   the profile link. */
 .appbar-brand {
 	gap: 10px;
 }
@@ -258,6 +309,11 @@ body {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+	/* `overflow: hidden` makes a flex item's automatic minimum size 0, so at 200%
+	   page zoom this box was squeezed out of existence and the bar showed a logo and
+	   nothing else. Four characters plus the ellipsis is the least that still names
+	   the screen. */
+	min-width: 4ch;
 }
 
 /* the right-hand end of the bar: the mode toggle, then the profile link */
@@ -265,12 +321,20 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 2px;
-	flex: 0 0 auto;
+	/* Shrinkable, now that the title next to it refuses to disappear. At 200% zoom
+	   the bar is 195px wide and the two ends together want more than that; something
+	   has to give, and it is the identity's own text — the screen's name is the one
+	   thing on this bar the reader cannot get anywhere else. Without this the two
+	   ends simply overlapped. */
+	flex: 0 1 auto;
+	min-width: 0;
 }
 
+/* the identity, on the other hand, is the end of the bar that gives way */
 .appbar-profile {
 	gap: 6px;
 	font-size: 22px;
+	min-width: 0;
 }
 
 /* 44x44 of target around a 20px glyph — the padding is the target, and the box
@@ -321,6 +385,11 @@ body {
 
 :root[data-mode="dark"] .mode-dark-only {
 	display: block;
+}
+
+/* the glyph is the link; it keeps its size while the name beside it gives way */
+.appbar-profile i {
+	flex: 0 0 auto;
 }
 
 .appbar-who {
@@ -392,7 +461,12 @@ main > .screen[hidden] {
 	line-height: 1.15;
 	text-decoration: none;
 	color: var(--on-structure);
-	opacity: 0.6;
+	/* An inactive tab steps back by fading its ink into the bar, which means the ink
+	   it ends up with is the one that owes AA, not the one declared. At 0.6 obrok19's
+	   soft grey landed on its own pale bar at 3.31:1 — below AA for an 11px label.
+	   0.75 is the step where every shipped pairing clears it: obrok19 4.76:1,
+	   obrok27 8.12:1 light and 7.64:1 dark. */
+	opacity: 0.75;
 }
 
 .tab i {
@@ -412,26 +486,29 @@ main > .screen[hidden] {
 }
 
 /* The one place in the shell that carries `state`: which screen you are on. The
-   mark is a filled chip behind the glyph rather than tinted type, because that is
-   the only shape an event's identity colour survives in light mode — obrok27's
-   lime is 1.25:1 as ink on a pale bar and 13:1 as a chip under dark ink — and it gives
-   `state` one form in both modes. The label under it stays the bar's own ink. */
+   whole tab is filled with the event's identity colour, because that is the only
+   shape it survives in light mode — obrok27's lime is 1.25:1 as ink on a pale bar
+   and 13.14:1 as a fill under dark ink — and it gives `state` one form in both modes.
+
+   The ink comes with the fill. It used to be left on --on-structure, which is the
+   bar's ink and flips with the mode, while the fill under it does not: obrok27's
+   pale dark-mode grey therefore sat on lime at 1.11:1. Same cure as .appbar above,
+   which is filled with the same colour. One colour, one role, one ink. */
 .tab.is-active, .tab.is-active:visited {
 	opacity: 1;
-    background: var(--state);
+	background-color: var(--state);
+	color: var(--on-state);
 }
 
+/* the mark keeps the breathing room the chip used to give it */
 .tab.is-active i,
 .tab.is-active .tab-logo {
 	padding: 2px 14px;
-	/* border-radius: var(--radius-pill);
-	background-color: var(--state);
-	color: var(--on-state); */
 }
 
-/* A glyph takes the chip's ink; a LOGO cannot, and a drawing in the event's own
-   colour is exactly what disappears on a chip filled with it. So an event that
-   puts artwork in the home tab names a second drawing for the chip — obrok19's
+/* A glyph takes the active tab's ink; a LOGO cannot, and a drawing in the event's
+   own colour is exactly what disappears on a tab filled with it. So an event that
+   puts artwork in the home tab names a second drawing for that state — obrok19's
    inverted shield, obrok27's purple ghost on its lime — and the class is only
    emitted when it does, so an event with one drawing keeps showing it. */
 .tab-logo-chip {
@@ -476,6 +553,10 @@ a, a:visited {
 	font-family: inherit;
 	text-decoration: none;
 	cursor: pointer;
+	/* a label is routinely a bare URL or a phone number, neither of which offers the
+	   line breaker anywhere to break; at 200% zoom one runs straight out of the
+	   column, and body { overflow-x: hidden } then puts it out of reach for good */
+	overflow-wrap: anywhere;
 	/* Tonal, not a filled dark block: the secondary button and the link CTA are the
 	   two widest things on the home screen, and an unlit slab there is what made
 	   light mode read as dark. The wash carries them; they need no outline. */
@@ -608,23 +689,70 @@ img.logo {
 	align-self: stretch;
 }
 
+/* Both caps are a share of --app-height rather than of vh: that token is already
+   100dvh wherever dvh exists and 100vh where it does not, so the two drawings
+   shrink with the same viewport the screen around them is measured against. Read
+   straight off vh they were sized against a taller viewport than the one the screen
+   actually gets, which is part of how the home screen overran its own frame. */
 img.mainLogo {
-	max-height: 38vh;
+	max-height: calc(var(--app-height) * 0.38);
 	width: auto;
 }
 
 .colophon img.logo {
-	max-height: 11vh;
+	max-height: calc(var(--app-height) * 0.11);
 	max-width: 60%;
+}
+
+/* A phone held sideways is about 400px tall, and the home screen's proportions are
+   written for a portrait column: 38% of the height for the mark, then the buttons,
+   then the colophon. Sideways they add up to more than the screen — obrok19 ran 92px
+   past it and its colophon sat half under the fixed tab bar — and a screen that
+   states it is one screenful should be one at every height, not just tall ones.
+
+   Three changes, and the threshold is a height rather than an orientation because a
+   short portrait phone has exactly the same problem.
+
+   The height becomes definite instead of a floor. That is what lets a flex item give
+   way at all: with `min-height` the column simply grows and free space is never
+   negative, so nothing ever shrinks.
+
+   The bottom padding shrinks to the home indicator. --screen-height has ALREADY
+   subtracted the tab bar, so on the one screen sized by it the shared .screen
+   padding was reserving that bar a second time — 58px of the 92 that overflowed.
+
+   And the mark absorbs whatever is still missing. It is the only elastic thing in
+   the column: the buttons and the colophon are type, and type shrinking is text
+   getting cut off. object-fit keeps the drawing's proportions while its box loses
+   height, and min-height: 0 is what allows the box to lose any. */
+@media (max-height: 520px) {
+	.screen[data-tab="homepage"] {
+		height: var(--screen-height);
+		padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+	}
+
+	.screen[data-tab="homepage"] img.mainLogo {
+		flex: 0 1 auto;
+		min-height: 0;
+		object-fit: contain;
+	}
+
+	.colophon img.logo {
+		max-height: calc(var(--app-height) * 0.08);
+	}
 }
 
 .colophon p {
 	margin: 4px 0;
 }
 
+/* The one line of text in the app that is a link and nothing else, so the ink being
+   faded here is --action-link rather than body copy. At 0.75 obrok27's purple came
+   out at 4.24:1 on the pale ground — the line still reads as a credit at 0.8, and
+   the worst pairing in either event is then 4.68:1. */
 .credit {
 	font-size: 13px;
-	opacity: 0.75;
+	opacity: 0.8;
 }
 
 /* schedule login hint and the notification opt-in — centred */
@@ -636,6 +764,16 @@ div.login-box {
 
 .login-box form {
 	margin: 8px 0;
+}
+
+/* Most of the labels on the Odkazy screen are bare hostnames and addresses —
+   facebook.com/skautskyobrok, info@obrok19.cz — and a bare URL contains no break
+   opportunity at all. At 200% zoom the column is under 200px and those lines ran
+   past it; with body { overflow-x: hidden } there was then no way to scroll to the
+   rest of the text. Only this screen: everywhere else the copy is prose, and prose
+   breaking mid-word is a regression, not a fix. */
+.screen[data-tab="links"] p {
+	overflow-wrap: anywhere;
 }
 
 /* the map is the screen — it runs edge to edge between the two bars */
@@ -799,7 +937,8 @@ table.harmonogram tr:first-child td {
 
 .pager {
 	position: sticky;
-	top: var(--appbar-height);
+	/* docked under the app bar, notch included — the bar grows by the top inset */
+	top: calc(var(--appbar-height) + var(--appbar-inset));
 	z-index: 8;
 	flex: 0 0 auto;
 	display: flex;
@@ -909,7 +1048,7 @@ table.harmonogram tr:first-child td {
    exactly as .sheet does. */
 .pager-menu {
 	position: fixed;
-	top: var(--appbar-height);
+	top: calc(var(--appbar-height) + var(--appbar-inset));
 	right: 0;
 	bottom: 0;
 	left: 0;
@@ -1063,7 +1202,10 @@ table.harmonogram tr:first-child td {
 	font-family: inherit;
 	font-size: 15px;
 	cursor: pointer;
-	opacity: 0.6;
+	/* same arithmetic as .tab in the bottom bar: what a faded label owes AA on is
+	   the ink it is painted with, not the ink it declares. 0.6 was 3.31:1 on
+	   obrok19's pale switcher. */
+	opacity: 0.75;
 }
 
 /* the icon keeps its size; only the words give way on a narrow phone */
@@ -1347,7 +1489,10 @@ table.harmonogram tr:first-child td {
    It is a bar, so it takes the bar tier and its hairline. */
 .pl-head {
 	position: sticky;
-	top: calc(var(--appbar-height) + var(--pager-height));
+	/* the notch included, exactly as the strip above it has it: the two dock against
+	   the same line, and bandTop() in www/programs.js reads the same three tokens —
+	   the day the strip names has to be the day whose heading is stuck here */
+	top: calc(var(--appbar-height) + var(--appbar-inset) + var(--pager-height));
 	z-index: 5;
 	margin: 0;
 	padding: 8px 14px;
@@ -1361,6 +1506,24 @@ table.harmonogram tr:first-child td {
 .pl-item {
 	padding: 12px 14px;
 	border-bottom: 1px solid var(--edge);
+	cursor: pointer;
+}
+
+/* The card is not the control. As <article role="button"> it flattened four lines of
+   programme — time, name, place, perex — into one 120-character accessible name, and
+   the reader had no way to hear the parts. The NAME is the control and the rest of
+   the card stays text; a pointer press anywhere on the card still opens the sheet,
+   because the handler matches the nearest [data-pg-open] and the card carries one.
+   It is styled to be indistinguishable from the h3 it sits in. */
+.pl-open {
+	display: block;
+	width: 100%;
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
 	cursor: pointer;
 }
 
@@ -1507,10 +1670,13 @@ table.harmonogram tr:first-child td {
 	font-weight: 700;
 }
 
+/* 0.7 put obrok19's soft grey on its pale sheet at 4.20:1, below AA for a 13px
+   line; 0.75 is 4.80:1 there and 8.12:1 on obrok27 and still reads as the quiet
+   line above the description. */
 .sheet-section {
 	margin: 0 0 8px;
 	font-size: 13px;
-	opacity: 0.7;
+	opacity: 0.75;
 }
 
 /* the star carries the accent here; the primary would be a poor read on the

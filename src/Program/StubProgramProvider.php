@@ -9,6 +9,9 @@ use App\Auth\UnknownParticipantException;
 
 final class StubProgramProvider implements ProgramProviderInterface
 {
+    /** @var array<string, array> decoded fixtures, kept for the life of the request */
+    private array $decoded = [];
+
     public function __construct(private readonly string $fixturesDir)
     {
     }
@@ -41,10 +44,20 @@ final class StubProgramProvider implements ProgramProviderInterface
         ));
     }
 
+    /**
+     * Memoised: a logged-in request asks for programs.json twice — once for the screen
+     * and once through getProgramsForIdentity() — and the provider lives for exactly one
+     * request, so there is no staleness to weigh against the saved read and decode.
+     */
     private function readJson(string $file): array
     {
-        $path = $this->fixturesDir . '/' . $file;
+        if (!isset($this->decoded[$file])) {
+            $path = $this->fixturesDir . '/' . $file;
+            $this->decoded[$file] = is_file($path)
+                ? (array) json_decode((string) file_get_contents($path), true)
+                : [];
+        }
 
-        return is_file($path) ? json_decode((string) file_get_contents($path), true) : [];
+        return $this->decoded[$file];
     }
 }

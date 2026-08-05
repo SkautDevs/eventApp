@@ -22,10 +22,33 @@ final class SubscriptionRepository
         );
     }
 
+    /** Longest endpoint any push service is known to issue is well under this */
+    private const MAX_FIELD_LENGTH = 2048;
+
+    /**
+     * The route behind this is unauthenticated, so the body is attacker-controlled:
+     * anything that is not a string of plausible length, or an endpoint that is not an
+     * https URL, is rejected here rather than stored and handed to the push library
+     * later. `PushModule` turns the exception into a 400.
+     */
     public function save(array $subscription): void
     {
         if (!isset($subscription['endpoint'], $subscription['keys']['p256dh'], $subscription['keys']['auth'])) {
             throw new \InvalidArgumentException('Invalid push subscription shape');
+        }
+
+        $endpoint = $subscription['endpoint'];
+        $publicKey = $subscription['keys']['p256dh'];
+        $authToken = $subscription['keys']['auth'];
+
+        foreach (['endpoint' => $endpoint, 'p256dh' => $publicKey, 'auth' => $authToken] as $field => $value) {
+            if (!is_string($value) || $value === '' || strlen($value) > self::MAX_FIELD_LENGTH) {
+                throw new \InvalidArgumentException(sprintf('Push subscription field %s is not a string of plausible length', $field));
+            }
+        }
+
+        if (filter_var($endpoint, \FILTER_VALIDATE_URL) === false || !str_starts_with(strtolower($endpoint), 'https://')) {
+            throw new \InvalidArgumentException('Push subscription endpoint is not an https URL');
         }
 
         $statement = $this->pdo->prepare(
@@ -33,9 +56,9 @@ final class SubscriptionRepository
              VALUES (:endpoint, :public_key, :auth_token, :created_at)'
         );
         $statement->execute([
-            'endpoint' => $subscription['endpoint'],
-            'public_key' => $subscription['keys']['p256dh'],
-            'auth_token' => $subscription['keys']['auth'],
+            'endpoint' => $endpoint,
+            'public_key' => $publicKey,
+            'auth_token' => $authToken,
             'created_at' => date('c'),
         ]);
     }
