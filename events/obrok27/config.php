@@ -104,11 +104,24 @@ return [
             'on-sheet-action' => '#ffffff',
 
             // the timeline, in the same vocabulary: a light neutral grid with the
-            // ruler, the stage column and the cards on it as structure
+            // stage column and the cards on it as structure
             'grid' => '#d6d9cf',
             'grid-structure' => '#14160f',
             'on-grid-structure' => '#f6f7f3',
             'grid-edge' => '#14160f',
+            // Structure that carries the identity, and the only place in the app
+            // that wears it: the hour ruler. The purple is the identity colour, so
+            // it is the same value as `action` — that is the role's whole point,
+            // and it is why there is exactly one of them. 6.65:1 under its labels.
+            'signature' => '#6122eb',
+            'on-signature' => '#f6f7f3',
+            // The stage column is structure, not state — a full-lime column was an
+            // accent painted on the biggest block of the screen. It takes a CAST of
+            // the lime instead (12% into the structure black), so the grid reads as
+            // 2027 without spending accent on the area. The names go from 16.95:1 to
+            // 12.92:1, which is the price of any visible cast on a near-black.
+            'stage' => '#292f14',
+            'on-stage' => '#f6f7f3',
             // light mode can leave the card's own boundary a ghost of the grid edge,
             // because there the card's fill already separates from the grid
             'hairline' => 'color-mix(in srgb, var(--role-grid-edge) 45%, transparent)',
@@ -163,15 +176,28 @@ return [
             // Elevation reads the other way up at night: the grid's chrome and its
             // cards are LIGHTER than the grid ground, not darker.
             'grid' => '#191c14',
-            // The card is only 1.5:1 against the grid on fill alone, which is the
-            // point: at night two large areas a few steps apart is easier on the eye
-            // than one bright block, and it is the hairline that identifies the card
-            // — 4.1:1 against the grid, well past the 3:1 a component boundary needs.
-            'grid-structure' => '#343a2d',
-            'on-grid-structure' => '#e6e8de',
+            // The card has to be legible as a card BEFORE its hairline is counted.
+            // At #343a2d it was 1.47:1 against the grid and the hairline was doing
+            // all the work, which reads as murk; this is 3.24:1 on fill alone, with
+            // the labels at 4.79:1 on it. The two pull against each other — every
+            // step lighter buys grid separation and spends label contrast — so this
+            // sits where both clear their threshold with room, and the card stays
+            // NEUTRAL, which is what keeps programme names readable.
+            'grid-structure' => '#686d60',
+            'on-grid-structure' => '#f2f4ea',
             'grid-edge' => '#787e6d',
-            'hairline' => '#787e6d',
-            'registered-bg' => '#343a2d',
+            // the ruler's purple, lifted for the night: #6122eb is 2.5:1 on this
+            // ground. This is 4.68:1 against the grid and carries dark ink at 5.03:1.
+            'signature' => '#8f6ff0',
+            'on-signature' => '#12140e',
+            // the lime cast, dark: 16% into a tone of the grid family. 7.08:1 under
+            // the stage names, and 2.19:1 against the grid where round 8 was 1.47:1.
+            'stage' => '#4b562f',
+            'on-stage' => '#f2f4ea',
+            // lifted with the card: at #787e6d the hairline is 1.2:1 against the new
+            // fill, i.e. gone. This one is 2.3:1 on it and 7.5:1 on the grid.
+            'hairline' => '#a7ad97',
+            'registered-bg' => '#686d60',
             'registered-line' => '#c2ea3a',
             'registered-width' => '3px',
         ],

@@ -79,15 +79,17 @@
    and the timeline's chrome, and a 10 split between `action` ("you can do this")
    and `state` ("you are here / this is yours").
 
-   Every role falls back to exactly the expression its rules used before roles
-   existed, so an event that declares none renders precisely as it did — obrok19
-   is the frozen control and proves it with a pixel diff. An event that declares
-   roles gives two full sets, light and dark; _layout.twig emits them as
-   --role-* and this file never sees which mode is active.
+   Every role falls back to the expression its rules used before roles existed —
+   `structure` is the one exception, and it says why on its own line — so an event
+   that declares none renders as it did, which obrok19 proves with a pixel diff.
+   An event that declares roles gives two full sets, light and dark; _layout.twig
+   emits them as --role-* and this file never sees which mode is active.
 
    Three scopes REBIND the core roles rather than adding new names: a text field,
    the bottom sheet and the timeline grid are each their own little surface with
-   their own structure on it. Same vocabulary, local values.
+   their own structure on it. Same vocabulary, local values. Only one role sits
+   BESIDE the core set rather than inside it — `signature`, structure carrying the
+   identity, whose single use is the hour ruler.
    --------------------------------------------------------------------------- */
 
 :root {
@@ -98,8 +100,14 @@
 	--surface: var(--role-surface, transparent);
 	--on-surface: var(--role-on-surface, var(--color-text));
 
-	/* ===== 30 — structure: the bars, the buttons, the grid's chrome ====== */
-	--structure: var(--role-structure, var(--color-base));
+	/* ===== 30 — structure: the bars, the buttons, the grid's chrome ======
+	   The default is the palette's DEEPER tone rather than --color-base, because
+	   structure is the one role that is a filled ground under inverted type at
+	   body size: obrok19's base carries --color-text-invert at 3.85:1, below AA,
+	   and its darker green at 6.84:1. --color-base stays the default for `edge`,
+	   `emphasis` and `scrim`, where it is a hairline or ink and never a ground
+	   under the inverted text colour. */
+	--structure: var(--role-structure, var(--color-darker));
 	--on-structure: var(--role-on-structure, var(--color-text-invert));
 	/* Dark mode separates structure from ground with a thin accent edge instead
 	   of a lifted tone, so the width is a role too and light mode leaves it 0 —
@@ -620,13 +628,28 @@ table.harmonogram tr:first-child td {
    direction however many stages a day has.
 
    The grid REBINDS the core roles rather than inventing names for itself: its
-   ground is a surface, its ruler, stage column and cards are structure, its
-   hairlines are edges, and the mark on the programmes you are registered for is
-   state. One colour, one role, the same vocabulary as the rest of the app —
-   which is why the ruler is no longer painted in the action colour and the
-   stage column no longer in the state colour. Both were accents doing
-   decoration, and between them they were why nothing else on this screen could
-   read as an accent.
+   ground is a surface, its stage column and cards are structure, its hairlines
+   are edges, and the mark on the programmes you are registered for is state.
+   One colour, one role, the same vocabulary as the rest of the app — which is
+   why the stage column is no longer painted in the state colour. It was an
+   accent doing decoration on the largest block of the screen, and that is why
+   nothing else here could read as an accent.
+
+   The hour ruler is the exception, and it has a role of its own to be it:
+   `signature`, structure that carries the identity. It behaves exactly like
+   structure — a filled band of chrome with type on it — but its value is the
+   event's own colour rather than the neutral structure tone, because a
+   monochrome grid leaves the time axis nowhere to be found at a glance. It is
+   the only use of that role in the app; painting a second surface with it would
+   put the screen straight back where it was.
+
+   The stage column has its own pair for the opposite reason: the cards need a
+   fill that separates from the grid on its own (3:1, so the card is a card
+   before the hairline is counted) while the column wants a cast of the event's
+   hue and the darkest ink-to-ground ratio it can hold. One token could not do
+   both — a value light enough to lift the cards leaves the stage names under
+   4.5:1 as soon as any hue is mixed in — so the column is separate and the
+   cards stay neutral, which is also what keeps programme names legible.
 
    The rebinding sits on .tl-scroll and not on .pg, because custom properties
    inherit: on .pg it would also reach the pager, the day panel, the view tabs
@@ -990,9 +1013,20 @@ body.screen-programs main {
 	--structure: var(--role-grid-structure, var(--color-text));
 	--on-structure: var(--role-on-grid-structure, var(--color-text-invert));
 	--edge: var(--role-grid-edge, var(--color-text-invert));
-	/* the card's own boundary. Light mode can leave it a ghost of the edge, because
-	   there the card's fill already separates from the grid; dark mode keeps the
-	   fills close and makes this opaque, so the edge is what identifies the card. */
+	/* Structure that carries the identity — see the block comment above. The hour
+	   ruler is its only use, and it defaults to the grid's own structure, so an
+	   event that declares nothing keeps the neutral ruler it has today. */
+	--signature: var(--role-signature, var(--structure));
+	--on-signature: var(--role-on-signature, var(--on-structure));
+	/* the stage column: structure by behaviour, and separate from the card fill
+	   only because the two want opposite things out of the same value */
+	--stage: var(--role-stage, var(--structure));
+	--on-stage: var(--role-on-stage, var(--on-structure));
+	/* The card's own boundary — a crisp line where the fill meets the grid, never
+	   the thing that has to prove the card is a card: that is the fill's job, at
+	   3:1, in both modes. Light mode can leave this a ghost of the edge; dark mode
+	   makes it opaque and a step LIGHTER than the fill, or a hairline picked for
+	   the old, darker card would sit invisibly on the new one. */
 	--hairline: var(--role-hairline, color-mix(in srgb, var(--edge) 45%, transparent));
 	/* how a programme you are registered for is marked: by default the card takes
 	   the state colour as its ground; an event can instead keep the neutral ground
@@ -1030,7 +1064,7 @@ body.screen-programs main {
 	display: flex;
 	flex: 0 0 auto;
 	height: 47px;
-	background-color: var(--structure);
+	background-color: var(--signature);
 }
 
 .tl-ticks {
@@ -1045,7 +1079,7 @@ body.screen-programs main {
 	font-size: 14px;
 	font-weight: 700;
 	line-height: 1;
-	color: var(--on-structure);
+	color: var(--on-signature);
 	white-space: nowrap;
 }
 
@@ -1074,7 +1108,7 @@ body.screen-programs main {
 	bottom: calc(100% + 5px);
 	width: 2px;
 	height: 11px;
-	background-color: var(--on-structure);
+	background-color: var(--on-signature);
 }
 
 .tl-row {
@@ -1093,8 +1127,8 @@ body.screen-programs main {
 	display: flex;
 	align-items: center;
 	padding: 6px 10px;
-	background-color: var(--structure);
-	color: var(--on-structure);
+	background-color: var(--stage);
+	color: var(--on-stage);
 	font-size: 14px;
 	font-weight: 700;
 	line-height: 1.15;
