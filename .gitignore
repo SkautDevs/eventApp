@@ -5,3 +5,7 @@ var/*
 !var/.gitkeep
 .idea/
 .phpunit.result.cache
+# local-only port mapping, see the comment in the file itself
+docker-compose.override.yml
+# agent scaffolding, never part of the app
+docs/superpowers/
