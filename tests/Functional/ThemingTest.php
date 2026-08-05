@@ -282,6 +282,119 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('color-scheme: light;', $light);
     }
 
+    /**
+     * The hour ruler is structure that carries the identity — a role of its own,
+     * because `action` may not be painted on chrome and a monochrome grid leaves
+     * the time axis nowhere to be found. It is the ONLY use of that role: a second
+     * surface wearing it would put the screen back where round 8 found it.
+     */
+    public function testTheIdentityRoleIsUsedByTheHourRulerAndNothingElse(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+
+        self::assertStringContainsString('--signature: var(--role-signature, var(--structure));', $css);
+        self::assertStringContainsString('background-color: var(--signature);', $css);
+        // the role definition reads --role-signature, so every var(--signature) in
+        // the file is a rule painting with it — and there is to be exactly one
+        self::assertSame(
+            1,
+            substr_count($css, 'var(--signature)'),
+            'the identity role is painted on more than the hour ruler',
+        );
+    }
+
+    /**
+     * A programme card has to read as a card on its fill alone; round 8 left the
+     * dark ones at 1.47:1 against the grid with the hairline carrying all of it,
+     * which measures fine and looks like murk. 3:1 is what a component boundary
+     * needs, and here the fill has to earn it before the hairline is counted.
+     */
+    public function testProgrammeCardsSeparateFromTheGridWithoutTheirHairline(): void
+    {
+        foreach (\App\EventConfig::load($this->eventsDir(), 'obrok27')->roles as $mode => $set) {
+            self::assertGreaterThanOrEqual(
+                3.0,
+                self::contrast($set['grid-structure'], $set['grid']),
+                sprintf('obrok27/%s: the programme card does not separate from the grid on its own', $mode),
+            );
+        }
+    }
+
+    /**
+     * Structure is the one role that is a filled ground under inverted type at body
+     * size, so the default is the palette's deeper tone: obrok19 carried its label
+     * on --color-base at 3.85:1, below AA, on the secondary button, the link CTA
+     * and the active tab alike.
+     */
+    public function testStructureDefaultsToThePalettesDeeperTone(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        self::assertStringContainsString('--structure: var(--role-structure, var(--color-darker));', $css);
+
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            $event = \App\EventConfig::load($this->eventsDir(), $slug);
+            if ($event->roles !== []) {
+                continue; // an event with roles states its own structure pair below
+            }
+
+            self::assertGreaterThanOrEqual(
+                4.5,
+                self::contrast($event->colors['darker'], $event->colors['text-invert']),
+                sprintf('%s: the default structure ground fails AA under the inverted text colour', $slug),
+            );
+        }
+    }
+
+    /**
+     * Every role pair an event hand-authors carries text, so every one of them owes
+     * AA in both modes. Measured rather than asserted: a hex nudged by eye in a
+     * config is exactly how a 4.4:1 pairing ships.
+     */
+    public function testEveryHandAuthoredRolePairClearsAA(): void
+    {
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                foreach ($set as $name => $value) {
+                    $ink = $set['on-' . $name] ?? null;
+                    if (!is_string($ink) || !preg_match('/^#[0-9a-f]{6}$/i', (string) $value) || !preg_match('/^#[0-9a-f]{6}$/i', $ink)) {
+                        continue;
+                    }
+                    $checked++;
+                    self::assertGreaterThanOrEqual(
+                        4.5,
+                        self::contrast((string) $value, $ink),
+                        sprintf('%s/%s: "%s" (%s) and its ink (%s) fail AA', $slug, $mode, $name, $value, $ink),
+                    );
+                }
+            }
+        }
+
+        self::assertGreaterThan(0, $checked, 'no event declares a role pair to measure');
+    }
+
+    /** WCAG 2.1 relative-luminance contrast ratio between two #rrggbb values. */
+    private static function contrast(string $a, string $b): float
+    {
+        $luminance = static function (string $hex): float {
+            $rgb = sscanf(ltrim($hex, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+            $channel = static function (int $value): float {
+                $c = $value / 255;
+
+                return $c <= 0.04045 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+            };
+
+            return 0.2126 * $channel((int) $rgb[0]) + 0.7152 * $channel((int) $rgb[1]) + 0.0722 * $channel((int) $rgb[2]);
+        };
+
+        $one = $luminance($a);
+        $two = $luminance($b);
+
+        return (max($one, $two) + 0.05) / (min($one, $two) + 0.05);
+    }
+
     /** The bar is built from the event's features, not from a hardcoded list of five. */
     public function testTabBarOnlyShowsEnabledFeatures(): void
     {
