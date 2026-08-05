@@ -70,7 +70,13 @@ final class Kernel
             Twig::class => function (ContainerInterface $c) use ($root, $event): Twig {
                 $twig = Twig::create($root . '/templates', ['cache' => false]);
                 $env = $twig->getEnvironment();
-                $env->addGlobal('event', $event->raw + ['slug' => $event->slug]);
+                // 'theme' and 'roles' are spread in explicitly so they are arrays even for
+                // an event whose config never mentions them — the layout iterates them unguarded
+                $env->addGlobal('event', $event->raw + [
+                    'slug' => $event->slug,
+                    'theme' => $event->theme,
+                    'roles' => $event->roles,
+                ]);
                 $env->addGlobal('vapidPublicKey', $_ENV['VAPID_PUBLIC_KEY'] ?? '');
                 // the app bar shows who is logged in. It has to be a function, not a global:
                 // a handler may log the user out (expired TIE code) during the very request

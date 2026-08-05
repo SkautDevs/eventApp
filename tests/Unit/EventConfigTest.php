@@ -71,6 +71,19 @@ final class EventConfigTest extends TestCase
         }
     }
 
+    /**
+     * Unlike the palette the theme map is optional and unvalidated, so it has to be
+     * an array even when the config never mentions it — the layout iterates it.
+     */
+    public function testThemeIsOptionalAndAlwaysAnArray(): void
+    {
+        $fixtures = dirname(__DIR__) . '/fixtures/events';
+
+        self::assertSame([], EventConfig::load($fixtures, 'minimal')->theme);
+        self::assertSame([], EventConfig::load($this->eventsDir, 'obrok19')->theme);
+        self::assertSame('0', EventConfig::load($this->eventsDir, 'obrok27')->theme['radius']);
+    }
+
     public function testContentLoadsFileAndDefaultsToEmpty(): void
     {
         $config = EventConfig::load($this->eventsDir, 'obrok19');
