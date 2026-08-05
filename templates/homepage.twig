@@ -3,7 +3,14 @@
 {% set activeTab = 'homepage' %}
 
 {% block content %}
-	<img class="logo mainLogo" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
+	{% if event.assets.mainLogoDark ?? false %}
+		{# the identity's own artwork, one drawing per mode: the purple ghost is close to
+		   invisible on a near-black ground, so dark mode gets the lime one instead #}
+		<img class="logo mainLogo mode-light-only" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
+		<img class="logo mainLogo mode-dark-only" src="{{ event.assets.mainLogoDark }}" alt="{{ event.name }}">
+	{% else %}
+		<img class="logo mainLogo" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
+	{% endif %}
 
 	{% if 'push' in event.features and vapidPublicKey %}
 		<p class="push-enable">

@@ -62,16 +62,94 @@
 
 
 /* ---------------------------------------------------------------------------
-   App shell. The palette arrives as --color-* custom properties injected by
-   _layout.twig from the event config, so this file never names a colour itself
-   (tests/Functional/ThemingTest asserts that).
+   App shell.
+
+   COLOUR IS ROLES, NOT PALETTE KEYS. Below this block no rule names --color-*;
+   every one of them reads a semantic role, and the roles are the only place the
+   palette is touched. That is the whole fix for "the colours are really mixed":
+   a rule saying "the app bar is --color-base" is a fact about one widget, not a
+   system, and once four different keys are all in play with no rule about which
+   means what, nothing can read as an accent because everything is one.
+
+   The rule that keeps it honest: A COLOUR HOLDS EXACTLY ONE ROLE. If the event's
+   lime is `state`, lime is not also a surface, a ground or a piece of chrome.
+
+   The budget the roles are sized for is 60:30:10 — a tinted neutral `ground`
+   (with `surface` as its one block tier), `structure` for the bars, the cards
+   and the timeline's chrome, and a 10 split between `action` ("you can do this")
+   and `state` ("you are here / this is yours").
+
+   Every role falls back to exactly the expression its rules used before roles
+   existed, so an event that declares none renders precisely as it did — obrok19
+   is the frozen control and proves it with a pixel diff. An event that declares
+   roles gives two full sets, light and dark; _layout.twig emits them as
+   --role-* and this file never sees which mode is active.
+
+   Three scopes REBIND the core roles rather than adding new names: a text field,
+   the bottom sheet and the timeline grid are each their own little surface with
+   their own structure on it. Same vocabulary, local values.
    --------------------------------------------------------------------------- */
 
 :root {
+	/* ===== 60 — the page ================================================= */
+	--ground: var(--role-ground, var(--color-background));
+	--on-ground: var(--role-on-ground, var(--color-text));
+	/* the one block tier above the ground; transparent means "no tier" */
+	--surface: var(--role-surface, transparent);
+	--on-surface: var(--role-on-surface, var(--color-text));
+
+	/* ===== 30 — structure: the bars, the buttons, the grid's chrome ====== */
+	--structure: var(--role-structure, var(--color-base));
+	--on-structure: var(--role-on-structure, var(--color-text-invert));
+	/* Dark mode separates structure from ground with a thin accent edge instead
+	   of a lifted tone, so the width is a role too and light mode leaves it 0 —
+	   an event that declares nothing gets no edge and no change. */
+	--edge-width: var(--role-edge-width, 0px);
+
+	/* ===== 10a — action: "you can do this" =============================== */
+	--action: var(--role-action, var(--color-primary));
+	--on-action: var(--role-on-action, var(--color-text-invert));
+	/* the same colour as --action wherever an event declares roles; separate only
+	   because obrok19 is frozen on the browser's own blue for links */
+	--action-link: var(--role-action-link, var(--color-link));
+
+	/* ===== 10b — state: "you are here / this is yours" =================== */
+	--state: var(--role-state, var(--color-nav-active, var(--color-text-invert)));
+	--on-state: var(--role-on-state, var(--color-base));
+
+	/* ===== support ======================================================= */
+	/* separators and hairlines */
+	--edge: var(--role-edge, var(--color-base));
+	/* the one heading colour that is neither ground nor structure */
+	--heading: var(--role-heading, var(--color-darker));
+	/* Ink with more weight than body copy: subheadings, and the icon controls that
+	   sit directly on the ground. It is deliberately NOT `structure`, even though
+	   obrok19's palette happens to make them the same value — structure is a FILL
+	   at the dark end, and a fill at the dark end used as ink on a ground that is
+	   also at the dark end, which is what dark mode is, cannot be seen. */
+	--emphasis: var(--role-emphasis, var(--color-base));
+	/* the scrim behind a modal, always used at partial opacity */
+	--scrim: var(--role-scrim, var(--color-base));
+
 	/* the whole app is laid out as a phone, centred, at every viewport width */
 	--app-width: 480px;
+	/* the whole app is laid out as a phone, centred, at every viewport width */
+	--app-width: 480px;
+	/* one duration for everything in the app that moves, on a plain curve */
+	--motion: var(--theme-motion, 120ms);
+	/* corner rounding, in the four sizes the app actually uses: the general one,
+	   pills, the bottom sheet and day panel, and the timeline card. An event that
+	   wants to look blocky sets them all to 0 in one place. */
+	--radius: var(--theme-radius, 8px);
+	--radius-pill: var(--theme-radius-pill, 999px);
+	--radius-sheet: var(--theme-radius-sheet, 18px);
+	--radius-card: var(--theme-radius-card, 4px);
 	--appbar-height: 52px;
 	--tabbar-height: 58px;
+	/* the view switcher docked above the tab bar on /programy. It is chrome like
+	   the two bars, so screens that carry it subtract it from --screen-height;
+	   every other screen simply never references it. */
+	--tabs-height: 48px;
 	--app-height: 100vh;
 	/* the space a screen actually gets between the two bars */
 	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px));
@@ -89,9 +167,9 @@
 }
 
 body {
-	font-family: themix, sans-serif;
-	background-color: var(--color-background);
-	color: var(--color-text);
+	font-family: var(--theme-font, themix, sans-serif);
+	background-color: var(--ground);
+	color: var(--on-ground);
 	text-align: center;
 	margin: 0;
 	min-height: var(--app-height);
@@ -112,15 +190,18 @@ body {
 	margin: 0 auto;
 	padding: 0 12px;
 	height: var(--appbar-height);
-	background-color: var(--color-base);
-	color: var(--color-text-invert);
+	background-color: var(--structure);
+	color: var(--on-structure);
+	/* 0 in light mode; dark mode separates the bar from the ground with a
+	   hairline in the accent rather than by lifting its tone */
+	border-bottom: var(--edge-width) solid var(--edge);
 }
 
 .appbar-brand, .appbar-brand:visited,
 .appbar-profile, .appbar-profile:visited {
 	display: flex;
 	align-items: center;
-	color: var(--color-text-invert);
+	color: var(--on-structure);
 	text-decoration: none;
 	min-width: 0;
 }
@@ -134,18 +215,79 @@ body {
 	width: auto;
 }
 
+/* the one display face in the shell; themed separately from the body face so an
+   event can swap its whole typography without dragging Skaut's bold into it */
 .appbar-title {
-	font-family: skautbold, sans-serif;
+	font-family: var(--theme-font-display, skautbold, sans-serif);
+	/* skautbold is a one-weight family, so the default is the body's weight; a
+	   variable face put in its place has to say which weight is the display one */
+	font-weight: var(--theme-font-display-weight, 400);
 	font-size: 20px;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
+/* the right-hand end of the bar: the mode toggle, then the profile link */
+.appbar-tools {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 0 0 auto;
+}
+
 .appbar-profile {
 	gap: 6px;
 	font-size: 22px;
+}
+
+/* 44x44 of target around a 20px glyph — the padding is the target, and the box
+   is as narrow as it can be because this bar is full at 320px */
+.appbar-mode {
 	flex: 0 0 auto;
+	width: 40px;
+	height: 44px;
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	color: var(--on-structure);
+	font-size: 20px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+/* the icon names the mode you would switch TO, so light shows a moon */
+.mode-sun,
+.mode-dark-only {
+	display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-mode="light"]) .mode-sun {
+		display: inline;
+	}
+
+	:root:not([data-mode="light"]) .mode-moon,
+	:root:not([data-mode="light"]) .mode-light-only {
+		display: none;
+	}
+
+	:root:not([data-mode="light"]) .mode-dark-only {
+		display: block;
+	}
+}
+
+:root[data-mode="dark"] .mode-sun {
+	display: inline;
+}
+
+:root[data-mode="dark"] .mode-moon,
+:root[data-mode="dark"] .mode-light-only {
+	display: none;
+}
+
+:root[data-mode="dark"] .mode-dark-only {
+	display: block;
 }
 
 .appbar-who {
@@ -177,7 +319,8 @@ main {
 	max-width: var(--app-width);
 	z-index: 20;
 	display: flex;
-	background-color: var(--color-base);
+	background-color: var(--structure);
+	border-top: var(--edge-width) solid var(--edge);
 	padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -194,7 +337,7 @@ main {
 	font-size: 11px;
 	line-height: 1.15;
 	text-decoration: none;
-	color: var(--color-text-invert);
+	color: var(--on-structure);
 	opacity: 0.6;
 }
 
@@ -214,37 +357,9 @@ main {
 	text-overflow: ellipsis;
 }
 
-/* nav-active is an optional palette key; events that omit it get the inverted
-   text colour, which is legible on any bar dark enough to carry the menu */
+/* the one place in the shell that carries `state`: which screen you are on */
 .tab.is-active, .tab.is-active:visited {
-	color: var(--color-nav-active, var(--color-text-invert));
-	opacity: 1;
-}
-
-/* --- segmented control --------------------------------------------------- */
-
-.segmented {
-	display: flex;
-	gap: 4px;
-	margin: 4px 8px 12px;
-	padding: 4px;
-	border-radius: 999px;
-	background-color: var(--color-base);
-}
-
-.segment, .segment:visited {
-	flex: 1 1 0;
-	padding: 8px 4px;
-	border-radius: 999px;
-	font-size: 15px;
-	text-decoration: none;
-	color: var(--color-text-invert);
-	opacity: 0.65;
-}
-
-.segment.is-active, .segment.is-active:visited {
-	background-color: var(--color-nav-active, var(--color-text-invert));
-	color: var(--color-base);
+	color: var(--state);
 	opacity: 1;
 }
 
@@ -252,54 +367,82 @@ main {
 
 /* without this rule links keep the browser's default blue */
 a, a:visited {
-	color: var(--color-link);
+	color: var(--action-link);
 }
 
+ /* A page-level action fills the column. Not the width of the screen: the 8px
+   side margin is the same gutter div.news and div.border-table already use, so
+   a button lines up with the content blocks above it rather than bleeding to
+   the edge. auto margins rather than a wider box, so the rule works the same on
+   a <button> (which is shrink-to-fit even as a block) and on an <a>.
+
+   This is layout, not identity, so unlike the colour work it reaches every
+   event. The controls it deliberately does not reach are the ones that share a
+   row with something else: the zoom pair, the day arrows, the five bottom tabs
+   and the view tabs. */
+.btn, .btn:visited,
 .highlight, .highlight:visited {
-	display: inline-block;
-	background-color: var(--color-base);
-	color: var(--color-text-invert);
-	padding: 10px 18px;
-	border-radius: 8px;
+	/* block, not flex: these labels mix text with an icon, and flex would make
+	   each run of text its own item — "Krizový telefon 📱 797 859 598" would
+	   arrive as three boxes with gaps between them instead of one sentence */
+	display: block;
+	width: calc(100% - 16px);
+	margin-left: auto;
+	margin-right: auto;
+	border: none;
+	font-family: inherit;
 	text-decoration: none;
+	cursor: pointer;
+	background-color: var(--structure);
+	color: var(--on-structure);
+}
+
+/* padding plus line-height make the box 44px on a one-line label, so the tap
+   target is the type's own frame rather than a min-height it floats inside */
+.highlight, .highlight:visited {
+	padding: 12px 18px;
+	line-height: 20px;
+	border-radius: var(--radius);
 }
 
 .btn, .btn:visited {
-	display: inline-block;
-	border: none;
-	border-radius: 999px;
+	border-radius: var(--radius-pill);
 	min-height: 44px;
 	padding: 11px 22px;
-	font-family: inherit;
 	font-size: 16px;
-	text-decoration: none;
-	cursor: pointer;
-	background-color: var(--color-base);
-	color: var(--color-text-invert);
 }
 
 .btn-primary, .btn-primary:visited {
-	background-color: var(--color-primary);
+	background-color: var(--action);
+	color: var(--on-action);
 }
 
-/* the "your programme" chip inside a schedule cell — same colours, less bulk */
-.btn-success, .btn-success:visited {
-	border-radius: 8px;
-	min-height: 0;
-	padding: 6px 12px;
-	font-size: 14px;
+/* .highlight used to do two jobs — a link the reader should press, and a line of
+   text telling them something went wrong. Only the first is a button; a notice
+   that stretched across the column would read as pressable and is not. This is
+   the old .highlight, unchanged, for the job that is not an action. */
+.notice {
+	display: inline-block;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	padding: 10px 18px;
+	border-radius: var(--radius);
+	text-decoration: none;
 }
 
-/* the field sits on the page ground, so it needs its own surface to read as a field */
+/* The field sits on the page ground, so it needs its own surface to read as a
+   field. It rebinds the surface pair rather than introducing a third name. */
 input[type=text], textarea {
+	--surface: var(--role-field, var(--color-text-invert));
+	--on-surface: var(--role-on-field, var(--color-text));
 	font-family: inherit;
 	font-size: 16px;
 	max-width: 100%;
 	padding: 10px 12px;
-	border: 2px solid var(--color-base);
-	border-radius: 8px;
-	background-color: var(--color-text-invert);
-	color: var(--color-text);
+	border: 2px solid var(--edge);
+	border-radius: var(--radius);
+	background-color: var(--surface);
+	color: var(--on-surface);
 }
 
 .stacked-form label {
@@ -307,8 +450,13 @@ input[type=text], textarea {
 	margin: 10px 0 4px;
 }
 
+/* the field takes the same column and the same gutter as the button under it,
+   so the form reads as one stack rather than as a field with a tail */
 .stacked-form input, .stacked-form textarea {
-	width: 90%;
+	display: block;
+	width: calc(100% - 16px);
+	margin-left: auto;
+	margin-right: auto;
 }
 
 /* --- typography ---------------------------------------------------------- */
@@ -316,25 +464,13 @@ input[type=text], textarea {
 h2 {
 	font-weight: 700;
 	font-size: 24px;
-	color: var(--color-darker);
-}
-
-h2.sectionName {
-	background-color: var(--color-base);
-	color: var(--color-text-invert);
-	padding: 8px 0;
-	margin: 0 0 8px;
-	border-radius: 8px;
-}
-
-h2.sectionName:hover {
-	cursor: pointer;
+	color: var(--heading);
 }
 
 h3 {
 	font-weight: 700;
 	font-size: 17px;
-	color: var(--color-base);
+	color: var(--emphasis);
 }
 
 h3 + table {
@@ -377,6 +513,12 @@ body.screen-homepage main {
 
 body.screen-homepage main > * {
 	margin: 0;
+}
+
+/* the home screen centres its children, which would leave a page action as wide
+   as its own label; the paragraphs that carry one take the full column instead */
+body.screen-homepage main > p {
+	align-self: stretch;
 }
 
 img.mainLogo {
@@ -430,37 +572,25 @@ div.map iframe {
 	opacity: 0.8;
 }
 
-div.section {
-	margin: 0 8px 12px;
-}
-
-div.program {
-	border: 4px solid var(--color-base);
-	border-radius: 8px;
-	margin-bottom: 8px;
-	padding: 0 4px;
-}
-
-div.program:hover {
-	cursor: pointer;
-}
-
-div.program img {
-	max-width: 100%;
-	height: auto;
-}
-
+/* The second and last surface tier: a content block sitting on the page ground.
+   There is no third, raised tier — depth in this app is two tones and nothing
+   else. Default transparent, so an event that declares no surface shade keeps
+   blocks on the bare ground exactly as before. */
 div.news {
-	border: 4px solid var(--color-base);
-	border-radius: 8px;
+	border: 4px solid var(--edge);
+	border-radius: var(--radius);
 	margin: 0 8px 8px;
+	background-color: var(--surface);
+	color: var(--on-surface);
 }
 
 div.border-table {
-	border: 4px solid var(--color-base);
-	border-radius: 8px;
+	border: 4px solid var(--edge);
+	border-radius: var(--radius);
 	margin: 0 8px 12px;
 	overflow: hidden;
+	background-color: var(--surface);
+	color: var(--on-surface);
 }
 
 table.harmonogram {
@@ -469,11 +599,883 @@ table.harmonogram {
 }
 
 table.harmonogram td {
-	border-top: 2px solid var(--color-base);
+	border-top: 2px solid var(--edge);
 	padding: 8px 10px;
 	text-align: left;
 }
 
 table.harmonogram tr:first-child td {
 	border-top: none;
+}
+
+
+/* ---------------------------------------------------------------------------
+   Program screen (/programy)
+
+   Two views live in the same page — a Gantt-style timeline of everything and a
+   personal list — and a segmented switcher docked above the tab bar picks one.
+   The timeline is the only part of the app allowed to scroll sideways; it does
+   that inside .tl-scroll, with the hour ruler stuck to the top of that box and
+   the stage column stuck to its left edge, so the body never moves in either
+   direction however many stages a day has.
+
+   The grid REBINDS the core roles rather than inventing names for itself: its
+   ground is a surface, its ruler, stage column and cards are structure, its
+   hairlines are edges, and the mark on the programmes you are registered for is
+   state. One colour, one role, the same vocabulary as the rest of the app —
+   which is why the ruler is no longer painted in the action colour and the
+   stage column no longer in the state colour. Both were accents doing
+   decoration, and between them they were why nothing else on this screen could
+   read as an accent.
+
+   The rebinding sits on .tl-scroll and not on .pg, because custom properties
+   inherit: on .pg it would also reach the pager, the day panel, the view tabs
+   and the personal list, which are page chrome and not grid chrome.
+
+   The fallbacks are the neutral Figma grid, mixed out of the TEXT pair rather
+   than the brand pair: that pair is the darkest and lightest neutral an event
+   owns, so the mix is a genuine grey in every event.
+
+   The Figma frame paints the grid in neutral greys, which belong to no event's
+   identity and cannot be written as literals here. They are mixed out of the
+   TEXT pair — --color-text against --color-text-invert — because that pair is
+   the darkest and lightest neutral an event owns, so the mix is a genuine grey
+   everywhere. The base pair would not do: obrok19's base is a mid-green, and
+   deriving the ground from it left a green grid carrying green cards.
+
+   For the same reason the grid's dark chrome (hour ruler, stage column, plain
+   cards) is --color-text rather than --color-base. On obrok27 the two keys hold
+   the same value, so that event is unchanged and stays faithful to Figma; on
+   obrok19 it turns a flat green wash into the neutral grid the design draws,
+   and leaves --color-primary free to be the one colour on the screen, marking
+   the programmes you are registered for. "Not registered" stays opacity.
+   --------------------------------------------------------------------------- */
+
+body.screen-programs main {
+	/* The screen manages its own vertical rhythm — pager, view, docked switcher —
+	   so the shared top padding goes. The bottom padding stays and holds exactly
+	   the tab bar's height: it is what puts the end of the column on top of that
+	   fixed bar, so a long list can be scrolled all the way to its last row and
+	   the switcher's docked position and its in-flow position coincide. */
+	padding: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+}
+
+/* The screen is a column exactly one screenful tall: the pager on top, the
+   active view taking what is left, and the view switcher docked at the bottom.
+   Because the switcher is in flow it reserves its height instead of covering
+   the last row of whatever is behind it. */
+.pg {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--screen-height);
+	/* One hour of programme, in pixels, and the only thing the zoom changes —
+	   everything on the grid is positioned as a multiple of it, so setting the
+	   property IS the zoom. Figma's literal 40px leaves a 45-minute card 30px
+	   wide, too narrow for any name; 80px keeps a short name readable and still
+	   fits a 12-hour day in three screenfuls of sideways scrolling, which is why
+	   it is where the screen opens. The bounds are declared here rather than in
+	   the script, so the range lives in one place: 40px is the Figma scale, where
+	   a card is a bar to be read against the ruler, and 200px is roughly where a
+	   half-hour programme's full name fits on one line. */
+	--hour-width: 80px;
+	--hour-width-min: 40px;
+	--hour-width-max: 200px;
+	--tl-stage-width: 104px;
+	/* 4px of air above and below leaves the 36px card Figma draws */
+	--tl-row-height: 44px;
+	--pager-height: 48px;
+
+	text-align: left;
+}
+
+/* --- pager --------------------------------------------------------------- */
+
+.pager {
+	position: sticky;
+	top: var(--appbar-height);
+	z-index: 8;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	/* No gap and no side padding: this row carries five controls on a 320px
+	   phone and the day label — the reader's only orientation on the screen —
+	   gets whatever the other four do not need. Each control keeps its own
+	   touch target through its box, so nothing here shrinks a hit area. */
+	gap: 0;
+	height: var(--pager-height);
+	padding: 0;
+	background-color: var(--ground);
+	border-bottom: 1px solid var(--edge);
+}
+
+.pager-arrow, .pager-label {
+	border: none;
+	border-radius: var(--radius-pill);
+	background-color: transparent;
+	font-family: inherit;
+	cursor: pointer;
+}
+
+.pager-arrow {
+	/* narrower than it was, and taller by the same amount — the glyph sits in a
+	   lot of its own whitespace, so the target loses nothing it was using */
+	flex: 0 0 34px;
+	height: 44px;
+	color: var(--emphasis);
+	font-size: 28px;
+	line-height: 1;
+	padding: 0;
+}
+
+.pager-arrow[disabled] {
+	opacity: 0.25;
+	cursor: default;
+}
+
+.pager-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	height: 44px;
+	/* the label is the widest thing here and the first to be squeezed, so its own
+	   padding is the minimum that keeps the text off the arrows */
+	padding: 0 4px;
+	font-size: 16px;
+	color: var(--on-ground);
+}
+
+.pager-label span {
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The hour-scale zoom, at the right end of the pager row and only on the row the
+   timeline uses — the personal list has no time axis to stretch. */
+.pager-zoom {
+	flex: 0 0 auto;
+	display: flex;
+	gap: 0;
+}
+
+/* The visible ink is a 21px glyph, but the box around it is a full 44x44 touch
+   target: the padding is the target, not the mark. Two of these cost 88px of a
+   402px row, which is why everything else on the row gave width back. */
+.pager-zoom-btn {
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius);
+	background-color: transparent;
+	color: var(--emphasis);
+	font-family: inherit;
+	font-size: 21px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+/* disabled rather than silent, so the end of the range is visible */
+.pager-zoom-btn[disabled] {
+	opacity: 0.25;
+	cursor: default;
+}
+
+/* The day list, as a panel dropping out of the bottom edge of the app bar — the
+   bottom sheet's mirror image. The overlay starts below the bar rather than at
+   the top of the viewport, so the bar stays fully visible and undimmed, and the
+   panel is clipped against that same edge: closed, none of it shows. Hidden
+   rather than display:none, so the closing slide has something to play on,
+   exactly as .sheet does. */
+.pager-menu {
+	position: fixed;
+	top: var(--appbar-height);
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 40;
+	overflow: hidden;
+	visibility: hidden;
+}
+
+.pager-menu.is-open {
+	visibility: visible;
+}
+
+/* the scrim is its own layer so only it is translucent, not the card on top of it */
+.pager-menu-backdrop {
+	position: absolute;
+	inset: 0;
+	background-color: var(--scrim);
+	opacity: 0;
+}
+
+.pager-menu.is-open .pager-menu-backdrop {
+	opacity: 0.55;
+}
+
+/* Edge to edge across the phone column, hung from the top of that overlay — so
+   it opens flush under the app bar and a plain translateY(-100%) is enough to
+   park it out of sight, the overlay's overflow doing the clipping. Only the
+   bottom corners can round, and they take the sheet's radius so the two panels
+   agree: an event that asks for square gets square in both places. */
+.pager-menu-card {
+	position: absolute;
+	top: 0;
+	left: 50%;
+	width: 100%;
+	max-width: var(--app-width);
+	max-height: 100%;
+	padding: 6px;
+	border-radius: 0 0 var(--radius-sheet) var(--radius-sheet);
+	background-color: var(--ground);
+	border-bottom: var(--edge-width) solid var(--edge);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	transform: translate(-50%, -100%);
+}
+
+.pager-menu.is-open .pager-menu-card {
+	transform: translate(-50%, 0);
+}
+
+.pager-menu-card:focus {
+	outline: none;
+}
+
+.pager-menu-item, .pager-menu-close {
+	display: block;
+	width: 100%;
+	border: none;
+	background-color: transparent;
+	font-family: inherit;
+	font-size: 16px;
+	color: var(--on-ground);
+	text-align: left;
+	padding: 12px 14px;
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+.pager-menu-item.is-active {
+	background-color: var(--structure);
+	color: var(--on-structure);
+}
+
+.pager-menu-close {
+	margin-top: 6px;
+	border-top: 1px solid var(--edge);
+	border-radius: 0;
+	text-align: center;
+}
+
+/* --- view switching ------------------------------------------------------ */
+
+.view-timeline, .view-list,
+.pg[data-view="timeline"] [data-pg-pager="list"],
+.pg[data-view="list"] [data-pg-pager="timeline"] {
+	display: none;
+}
+
+/* the active view takes whatever the pager and the switcher leave it */
+.pg[data-view="timeline"] .view-timeline,
+.pg[data-view="list"] .view-list {
+	display: block;
+	flex: 1 0 auto;
+}
+
+/* --- the docked view switcher -------------------------------------------- */
+
+/* Sticky, not fixed: in flow it reserves its height at the foot of the column,
+   and while a long list scrolls it stays docked on top of the tab bar. The two
+   positions coincide, because the column ends exactly where the tab bar begins. */
+.tabs-wrap {
+	position: sticky;
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+	z-index: 15;
+	flex: 0 0 auto;
+}
+
+.tabs {
+	position: relative;
+	display: flex;
+	height: var(--tabs-height);
+	background-color: var(--structure);
+	border-top: var(--edge-width) solid var(--edge);
+	/* which view you are looking at is state, like which screen you are on — but
+	   obrok19 is frozen on the accent here, so that is what the fallback keeps */
+	--state: var(--role-view-state, var(--color-primary));
+	--on-state: var(--role-on-view-state, var(--color-text-invert));
+}
+
+/* The selected segment is painted by one element that slides, not by two that
+   blink. Both segments are half the bar, so the indicator is a plain 50% and
+   one segment of travel is exactly translateX(100%) — no pixel widths, which is
+   what used to let a long label escape the control it was supposed to sit in. */
+.tabs-indicator {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 50%;
+	height: 100%;
+	background-color: var(--state);
+}
+
+.pg[data-view="list"] .tabs-indicator {
+	transform: translateX(100%);
+}
+
+.tabs-tab {
+	position: relative;
+	z-index: 1;
+	flex: 1 1 50%;
+	min-width: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 8px 10px;
+	border: none;
+	background-color: transparent;
+	color: var(--on-structure);
+	font-family: inherit;
+	font-size: 15px;
+	cursor: pointer;
+	opacity: 0.6;
+}
+
+/* the icon keeps its size; only the words give way on a narrow phone */
+.tabs-tab i {
+	flex: 0 0 auto;
+}
+
+.tabs-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tabs-tab[aria-selected="true"] {
+	color: var(--on-state);
+	font-weight: 700;
+	opacity: 1;
+}
+
+.tabs-tab:focus-visible {
+	outline: 2px solid var(--on-structure);
+	outline-offset: -2px;
+}
+
+/* --- timeline ------------------------------------------------------------ */
+
+.tl-page, .pl-day {
+	display: none;
+}
+
+.tl-page.is-active, .pl-day.is-active {
+	display: block;
+}
+
+/* The one box in the app that scrolls in both directions. It takes the screen
+   minus the two pieces of chrome this screen adds — the pager above it and the
+   docked view switcher below — so the grid fills the frame the way Figma's does
+   and its last row stays reachable instead of sitting under the switcher. */
+.tl-scroll {
+	--surface: var(--role-grid, color-mix(in srgb, var(--color-text) 59%, var(--color-text-invert)));
+	--structure: var(--role-grid-structure, var(--color-text));
+	--on-structure: var(--role-on-grid-structure, var(--color-text-invert));
+	--edge: var(--role-grid-edge, var(--color-text-invert));
+	/* the card's own boundary. Light mode can leave it a ghost of the edge, because
+	   there the card's fill already separates from the grid; dark mode keeps the
+	   fills close and makes this opaque, so the edge is what identifies the card. */
+	--hairline: var(--role-hairline, color-mix(in srgb, var(--edge) 45%, transparent));
+	/* how a programme you are registered for is marked: by default the card takes
+	   the state colour as its ground; an event can instead keep the neutral ground
+	   and ask for a thick edge in it, which is what reads better on a dark card */
+	--reg-bg: var(--role-registered-bg, var(--color-primary));
+	--reg-line: var(--role-registered-line, var(--hairline));
+	--reg-width: var(--role-registered-width, 1px);
+	display: flex;
+	flex-direction: column;
+	height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
+	overflow: auto;
+	overscroll-behavior: contain;
+	background-color: var(--surface);
+	/* one finger still pans the grid in both directions, but two fingers are the
+	   zoom gesture's, not the browser's — without this its own pinch-zoom would
+	   fight the handler. The page's viewport meta is deliberately left alone, so
+	   pinching anywhere else in the app still zooms the page as usual. */
+	touch-action: pan-x pan-y;
+}
+
+/* min-width keeps the ruler and the rows spanning the box when the day is
+   narrower than the screen, which zooming all the way out can produce */
+.tl-inner {
+	flex: 1 0 auto;
+	display: flex;
+	flex-direction: column;
+	width: calc(var(--tl-stage-width) + var(--tl-hours) * var(--hour-width));
+	min-width: 100%;
+}
+
+.tl-ruler {
+	position: sticky;
+	top: 0;
+	z-index: 6;
+	display: flex;
+	flex: 0 0 auto;
+	height: 47px;
+	background-color: var(--structure);
+}
+
+.tl-ticks {
+	position: relative;
+	flex: 0 0 calc(var(--tl-hours) * var(--hour-width));
+}
+
+.tl-tick {
+	position: absolute;
+	bottom: 7px;
+	padding-left: 5px;
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--on-structure);
+	white-space: nowrap;
+}
+
+/* Zoomed in far enough that a label no longer fits its hour, the text thins to
+   every second hour while every hour keeps its mark, so the axis still reads as
+   an hour grid instead of as one run-on string. The script sets data-hour-step
+   from the live scale, which is what makes it follow a pinch.
+
+   Two things this must not do, and does not: it never touches a tick's position
+   — those are absolute, off --hour-width, and the anchoring maths depends on it
+   — and it never blanks the first label, which is the reader's way into the
+   axis. nth-child(even) hides the 2nd, 4th, 6th and leaves the 1st alone.
+
+   visibility, not display: .tl-tick draws its mark above itself with a ::before
+   offset from its own height, so collapsing the text box would drop every mark
+   down the ruler. */
+.pg[data-hour-step="2"] .tl-tick:nth-child(even) .tl-tick-label {
+	visibility: hidden;
+}
+
+/* the mark the label belongs to, sitting exactly on the hour */
+.tl-tick::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	bottom: calc(100% + 5px);
+	width: 2px;
+	height: 11px;
+	background-color: var(--on-structure);
+}
+
+.tl-row {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: stretch;
+	border-bottom: 1px solid var(--edge);
+}
+
+/* the stage names stay put while the hours scroll under them */
+.tl-stage {
+	position: sticky;
+	left: 0;
+	z-index: 3;
+	flex: 0 0 var(--tl-stage-width);
+	display: flex;
+	align-items: center;
+	padding: 6px 10px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+
+/* The corner cell: pinned in both directions, so neither the ruler nor the
+   stage column ever slides out from under it. It belongs to the ruler rather
+   than to the stage column, so it shows the ruler's ground through — on an
+   event that grounds the two the same way, that is the same pixel as before. */
+.tl-stage-head {
+	z-index: 7;
+	padding: 0;
+	background-color: transparent;
+}
+
+/* the stage colour carries on down the left edge and the grid neutral under the
+   tracks, so a day with three stages reads as the same frame as one with twelve */
+.tl-fill {
+	display: flex;
+	flex: 1 0 0;
+}
+
+.tl-tracks {
+	position: relative;
+	flex: 0 0 calc(var(--tl-hours) * var(--hour-width));
+}
+
+/* one hairline per hour, drawn behind the cards */
+.tl-lines {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.35;
+	background-image: repeating-linear-gradient(to right, var(--edge) 0 1px, transparent 1px var(--hour-width));
+}
+
+.tl-track {
+	position: relative;
+	height: var(--tl-row-height);
+}
+
+.tl-card {
+	position: absolute;
+	top: 4px;
+	bottom: 4px;
+	/* a half-hour programme is 40px at this scale — still worth a thumb */
+	min-width: 46px;
+	display: flex;
+	align-items: center;
+	padding: 2px 7px;
+	/* a hairline in the grid's line colour, so the card edge stays crisp where the
+	   ink and the ground are closest — obrok19's pair is 3.1:1, obrok27's 4.0:1 */
+	border: 1px solid var(--hairline);
+	border-radius: var(--radius-card);
+	background-color: var(--structure);
+	color: var(--on-structure);
+	font-family: inherit;
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.1;
+	text-align: left;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.tl-card-name {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.tl-card.is-registered {
+	background-color: var(--reg-bg);
+	border-color: var(--reg-line);
+	border-width: var(--reg-width);
+	font-weight: 700;
+}
+
+/* logged in, everything you are not registered for steps back — opacity, never a colour */
+.tl-card.is-dimmed {
+	opacity: 0.45;
+}
+
+.tl-card:focus-visible {
+	outline: 2px solid var(--on-structure);
+	outline-offset: -3px;
+}
+
+/* --- personal list ------------------------------------------------------- */
+
+.pl-item {
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--edge);
+	cursor: pointer;
+}
+
+.pl-time {
+	margin: 0 0 2px;
+	font-size: 14px;
+	opacity: 0.75;
+}
+
+.pl-name {
+	margin: 0 0 4px;
+	font-size: 17px;
+}
+
+.pl-loc {
+	margin: 0 0 4px;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.pl-perex {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.35;
+}
+
+/* --- programme detail, as a bottom sheet --------------------------------- */
+
+/* hidden rather than display:none, so the closing slide has something to play on */
+.sheet {
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	visibility: hidden;
+}
+
+.sheet.is-open {
+	visibility: visible;
+}
+
+.sheet-backdrop {
+	position: absolute;
+	inset: 0;
+	background-color: var(--scrim);
+	opacity: 0;
+}
+
+.sheet.is-open .sheet-backdrop {
+	opacity: 0.55;
+}
+
+/* anchored to the bottom edge of the phone column, as tall as its content needs
+   and no taller than 85% of the screen, scrolling inside itself past that.
+   Figma paints the whole sheet dark with light type throughout, which is the
+   --color-base / --color-text-invert pairing the app bar and tab bar already use.
+   sheet-bg is an optional palette key overriding just the ground, for an event
+   whose base is too light to carry the inverted body type; omit it, get Figma.
+
+   An event may instead treat the sheet as what it structurally is — a content
+   block on the page ground — and hand it the surface shade, in which case its
+   type has to come back down to the dark end. Both move together, so the pair
+   can never end up light on light. */
+.sheet-card {
+	position: absolute;
+	left: 50%;
+	bottom: 0;
+	width: 100%;
+	max-width: var(--app-width);
+	max-height: calc(var(--app-height) * 0.85);
+	display: flex;
+	flex-direction: column;
+	--surface: var(--role-sheet, var(--color-sheet-bg, var(--color-base)));
+	--on-surface: var(--role-on-sheet, var(--color-text-invert));
+	/* the close row is the sheet's own action, so the action pair is rebound here
+	   too: it has to separate from THIS surface, not from the page ground */
+	--action: var(--role-sheet-action, color-mix(in srgb, var(--color-primary) 35%, var(--color-text-invert)));
+	--on-action: var(--role-on-sheet-action, var(--color-text));
+	border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+	background-color: var(--surface);
+	color: var(--on-surface);
+	border-top: var(--edge-width) solid var(--edge);
+	transform: translate(-50%, 100%);
+	overflow: hidden;
+}
+
+.sheet.is-open .sheet-card {
+	transform: translate(-50%, 0);
+}
+
+.sheet-card:focus {
+	outline: none;
+}
+
+.sheet-scroll {
+	flex: 0 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 20px 18px 16px;
+}
+
+.sheet-body {
+	display: none;
+}
+
+.sheet-body.is-open {
+	display: block;
+}
+
+/* název on the left, time over místo on the right, both right-aligned — Figma 23:411 */
+.sheet-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+/* the sheet's own heading colour: everywhere else an h2 is --color-darker, but
+   on the sheet it takes the same end of the ramp as the rest of the sheet's type */
+.sheet-name {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 0;
+	color: var(--on-surface);
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.1;
+	overflow-wrap: anywhere;
+}
+
+.sheet-meta {
+	flex: 0 1 auto;
+	text-align: right;
+}
+
+.sheet-when {
+	margin: 0 0 2px;
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.sheet-where {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 700;
+}
+
+.sheet-section {
+	margin: 0 0 8px;
+	font-size: 13px;
+	opacity: 0.7;
+}
+
+/* the star carries the accent here; the primary would be a poor read on the
+   dark ground, and Figma sets every line of sheet type to the same light colour */
+.sheet-mine {
+	margin: 0 0 8px;
+	font-size: 14px;
+}
+
+.sheet-perex {
+	margin: 0 0 12px;
+	line-height: 1.4;
+}
+
+.sheet-lector {
+	margin: 0 0 8px;
+}
+
+.sheet-map {
+	max-width: 100%;
+	height: auto;
+	border-radius: var(--radius);
+}
+
+/* the palette's link colour is picked to read on the page ground, not on the
+   sheet's, so inside the sheet a link is underlined sheet type instead */
+.sheet-link, .sheet-link:visited {
+	color: var(--on-surface);
+	text-decoration: underline;
+}
+
+/* Figma paints this row a coral that belonged to no event's palette and to no
+   job — a third hue on a screen that already had two — so the literal is gone and
+   the row wears the accent that means "action" everywhere else in the app.
+
+   It is a token pair rather than one colour because the row has to separate from
+   whatever ground the sheet is on, and events set that independently. The default
+   is a light TINT of the action colour, which lifts off the dark sheet that is
+   the default; full-strength primary would not, and on obrok19 in particular a
+   dark red on a dark green sheet measures 1.2:1 and disappears. An event whose
+   sheet is a light surface overrides both, where full strength reads as the
+   action and a tint of it would wash out. Measured: default 3.3:1 off obrok19's
+   sheet carrying a 4.7:1 label; obrok27's override 7.0:1 carrying 7.2:1. */
+.sheet-close {
+	flex: 0 0 auto;
+	display: block;
+	width: 100%;
+	padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+	border: none;
+	background-color: var(--action);
+	color: var(--on-action);
+	font-family: inherit;
+	font-size: 19px;
+	font-weight: 700;
+	text-align: center;
+	cursor: pointer;
+}
+
+/* --- motion --------------------------------------------------------------
+   Everything that moves is declared here and nowhere else, so a reader who has
+   asked for reduced motion simply never sees this block and gets the same
+   screen with every state change applied instantly.
+
+   One duration for the whole app — --motion, which an event may retune through
+   --theme-motion — and a plain ease curve. The two panels still slide in from
+   their own edges and the tab indicator still travels; nothing else animates,
+   so switching view and pressing a card land immediately.
+   ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+	/* the sheet, and the day panel, stay visible until the slide-out has finished */
+	.sheet, .pager-menu {
+		transition: visibility 0s linear var(--motion);
+	}
+
+	.pager-menu.is-open {
+		transition-delay: 0s;
+	}
+
+	/* the day panel is the sheet's mirror: same span, same curve, other edge */
+	.pager-menu-backdrop {
+		transition: opacity var(--motion) ease;
+	}
+
+	.pager-menu-card {
+		transition: transform var(--motion) ease;
+	}
+
+	.sheet.is-open {
+		transition-delay: 0s;
+	}
+
+	.sheet-backdrop {
+		transition: opacity var(--motion) ease;
+	}
+
+	.sheet-card {
+		transition: transform var(--motion) ease;
+	}
+
+	.tabs-indicator {
+		transition: transform var(--motion) ease;
+	}
+
+	.tabs-tab {
+		transition: opacity var(--motion) ease;
+	}
+
+	/* pressed, not animated: the feedback is the scale, and it arrives at once */
+	.tl-card:active {
+		transform: scale(0.96);
+	}
+
+	.pl-item:active {
+		transform: scale(0.985);
+	}
+
+	/* stepping to another page still slides the new one in from the side */
+	.tl-page.is-active, .pl-day.is-active {
+		animation: pg-page-next var(--motion) ease;
+	}
+
+	.pg[data-step="prev"] .tl-page.is-active,
+	.pg[data-step="prev"] .pl-day.is-active {
+		animation-name: pg-page-prev;
+	}
+
+	@keyframes pg-page-next {
+		from { opacity: 0; transform: translateX(14px); }
+		to { opacity: 1; transform: translateX(0); }
+	}
+
+	@keyframes pg-page-prev {
+		from { opacity: 0; transform: translateX(-14px); }
+		to { opacity: 1; transform: translateX(0); }
+	}
 }
