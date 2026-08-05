@@ -266,7 +266,12 @@ final class ThemingTest extends AppTestCase
         self::assertStringNotContainsString('defer', substr($html, $script - 400, 400));
     }
 
-    /** An event with no dark set must not show a control that does nothing. */
+    /**
+     * An event with no dark set must not show a control that does nothing. Obrok 19
+     * is that event: it declares a hand-authored LIGHT set like every other event —
+     * it stopped being the frozen control when its bars went white — and no dark
+     * one, so it gets the roles and none of the mode plumbing.
+     */
     public function testTheToggleOnlyExistsForAnEventWithADarkPalette(): void
     {
         $dark = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
@@ -276,10 +281,89 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('aria-label="Přepnout světlý a tmavý režim"', $dark);
         self::assertStringContainsString(':root[data-mode="dark"]', $dark);
 
+        self::assertStringContainsString('--role-ground: #f7f7f5', $light);
         self::assertStringNotContainsString('data-mode-toggle', $light);
         self::assertStringNotContainsString('obrokColorMode', $light);
-        self::assertStringNotContainsString('--role-', $light);
+        self::assertStringNotContainsString('prefers-color-scheme', $light);
+        self::assertStringNotContainsString('[data-mode="dark"]', $light);
         self::assertStringContainsString('color-scheme: light;', $light);
+    }
+
+    /**
+     * Light mode is light and dark mode is dark, all the way through: the roles that
+     * name a LARGE filled area — the page, its one block tier, and the chrome that
+     * grounds every bar, sheet and card — have to be at the mode's own end of the
+     * ramp. A near-black app bar in a light set is precisely the "black element in
+     * the light mode" this round removed, and a mid-grey card in a dark one is the
+     * same mistake upside down. The accents are deliberately not in this list: they
+     * are small by construction, which is what lets them be vivid.
+     */
+    public function testTheLargeFilledAreasFollowTheMode(): void
+    {
+        $areas = ['ground', 'surface', 'structure', 'sheet', 'field', 'grid', 'grid-structure', 'stage'];
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                foreach ($areas as $name) {
+                    if (!isset($set[$name]) || preg_match('/^#[0-9a-f]{6}$/i', (string) $set[$name]) !== 1) {
+                        continue;
+                    }
+                    $checked++;
+                    $luminance = self::luminance((string) $set[$name]);
+                    if ($mode === 'light') {
+                        self::assertGreaterThan(0.5, $luminance, sprintf('%s/light: "%s" (%s) is a dark fill in a light set', $slug, $name, $set[$name]));
+                    } else {
+                        self::assertLessThan(0.12, $luminance, sprintf('%s/dark: "%s" (%s) is a light fill in a dark set', $slug, $name, $set[$name]));
+                    }
+                }
+            }
+        }
+
+        self::assertGreaterThan(0, $checked, 'no event declares a filled area to measure');
+    }
+
+    /**
+     * The active tab is a filled chip in the event's colour with the glyph on top of
+     * it, in both modes — the only shape an identity colour survives in light mode,
+     * where obrok27's lime is 1.25:1 as ink on white. So the chip's ink owes AA on
+     * the chip in every event that declares one.
+     */
+    public function testTheActiveTabChipCarriesItsGlyphAtAA(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        self::assertStringContainsString('background-color: var(--state);', $css);
+        self::assertStringContainsString('color: var(--on-state);', $css);
+
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                self::assertArrayHasKey('state', $set, sprintf('%s/%s declares no active-tab chip', $slug, $mode));
+                self::assertArrayHasKey('on-state', $set, sprintf('%s/%s: the chip has no ink', $slug, $mode));
+                $checked++;
+                self::assertGreaterThanOrEqual(
+                    4.5,
+                    self::contrast($set['state'], $set['on-state']),
+                    sprintf('%s/%s: the active tab glyph fails AA on its chip', $slug, $mode),
+                );
+            }
+        }
+
+        self::assertSame(3, $checked, 'both events, three role sets between them');
+    }
+
+    /** The sheet is a role now; the palette key that used to ground it is retired. */
+    public function testTheSheetGroundIsARoleAndNotAPaletteKey(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        self::assertStringNotContainsString('--color-sheet-bg', $css);
+        self::assertStringContainsString('--surface: var(--role-sheet, var(--color-base));', $css);
+
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            self::assertArrayNotHasKey('sheet-bg', \App\EventConfig::load($this->eventsDir(), $slug)->colors, $slug);
+        }
     }
 
     /**
@@ -304,20 +388,45 @@ final class ThemingTest extends AppTestCase
     }
 
     /**
-     * A programme card has to read as a card on its fill alone; round 8 left the
-     * dark ones at 1.47:1 against the grid with the hairline carrying all of it,
-     * which measures fine and looks like murk. 3:1 is what a component boundary
-     * needs, and here the fill has to earn it before the hairline is counted.
+     * A programme card is a card by a tone step AND a hairline, and neither carries
+     * it alone. Round 9 asked the fill for 3:1 against the grid by itself, which is
+     * the right shape of rule and the wrong threshold: on a near-black grid a 3:1
+     * fill is a mid-grey block, i.e. a light element in a dark screen, and on a
+     * light grid a white card can never reach it at all. So the fill owes a step
+     * that is genuinely measurable rather than a nudge, and the hairline — which
+     * round 9's rule said nothing about — owes 3:1 against BOTH sides of itself,
+     * the card and the grid. A boundary that vanishes into either is not one.
      */
-    public function testProgrammeCardsSeparateFromTheGridWithoutTheirHairline(): void
+    public function testProgrammeCardsSeparateFromTheGridByToneAndHairline(): void
     {
-        foreach (\App\EventConfig::load($this->eventsDir(), 'obrok27')->roles as $mode => $set) {
-            self::assertGreaterThanOrEqual(
-                3.0,
-                self::contrast($set['grid-structure'], $set['grid']),
-                sprintf('obrok27/%s: the programme card does not separate from the grid on its own', $mode),
-            );
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                foreach (['grid', 'grid-structure', 'hairline'] as $name) {
+                    self::assertMatchesRegularExpression('/^#[0-9a-f]{6}$/i', (string) ($set[$name] ?? ''), sprintf('%s/%s: "%s" is not a measurable value', $slug, $mode, $name));
+                }
+                $checked++;
+
+                self::assertGreaterThanOrEqual(
+                    1.3,
+                    self::contrast($set['grid-structure'], $set['grid']),
+                    sprintf('%s/%s: the programme card sits on the grid with no tone step at all', $slug, $mode),
+                );
+                self::assertGreaterThanOrEqual(
+                    3.0,
+                    self::contrast($set['hairline'], $set['grid-structure']),
+                    sprintf('%s/%s: the card hairline disappears into the card', $slug, $mode),
+                );
+                self::assertGreaterThanOrEqual(
+                    3.0,
+                    self::contrast($set['hairline'], $set['grid']),
+                    sprintf('%s/%s: the card hairline disappears into the grid', $slug, $mode),
+                );
+            }
         }
+
+        self::assertSame(3, $checked, 'both events, three role sets between them');
     }
 
     /**
@@ -331,19 +440,29 @@ final class ThemingTest extends AppTestCase
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
         self::assertStringContainsString('--structure: var(--role-structure, var(--color-darker));', $css);
 
-        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
-            $slug = basename(dirname($path));
-            $event = \App\EventConfig::load($this->eventsDir(), $slug);
-            if ($event->roles !== []) {
-                continue; // an event with roles states its own structure pair below
-            }
+        // Both shipped events declare their own structure pair now, so the fallback's
+        // only remaining users are the fixture events — which is exactly why they are
+        // kept on it, and why they are what this measures.
+        $dirs = [$this->eventsDir(), dirname(__DIR__) . '/fixtures/events'];
+        $checked = 0;
+        foreach ($dirs as $dir) {
+            foreach (glob($dir . '/*/config.php') ?: [] as $path) {
+                $slug = basename(dirname($path));
+                $event = \App\EventConfig::load($dir, $slug);
+                if ($event->roles !== []) {
+                    continue; // an event with roles states its own structure pair below
+                }
 
-            self::assertGreaterThanOrEqual(
-                4.5,
-                self::contrast($event->colors['darker'], $event->colors['text-invert']),
-                sprintf('%s: the default structure ground fails AA under the inverted text colour', $slug),
-            );
+                $checked++;
+                self::assertGreaterThanOrEqual(
+                    4.5,
+                    self::contrast($event->colors['darker'], $event->colors['text-invert']),
+                    sprintf('%s: the default structure ground fails AA under the inverted text colour', $slug),
+                );
+            }
         }
+
+        self::assertGreaterThan(0, $checked, 'nothing is left on the built-in fallback to measure');
     }
 
     /**
@@ -354,9 +473,11 @@ final class ThemingTest extends AppTestCase
     public function testEveryHandAuthoredRolePairClearsAA(): void
     {
         $checked = 0;
+        $events = [];
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
             foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                $events[$slug] = true;
                 foreach ($set as $name => $value) {
                     $ink = $set['on-' . $name] ?? null;
                     if (!is_string($ink) || !preg_match('/^#[0-9a-f]{6}$/i', (string) $value) || !preg_match('/^#[0-9a-f]{6}$/i', $ink)) {
@@ -373,26 +494,30 @@ final class ThemingTest extends AppTestCase
         }
 
         self::assertGreaterThan(0, $checked, 'no event declares a role pair to measure');
+        // obrok19 hand-authors a set of its own now, so it is measured like any other
+        self::assertSame(['obrok19', 'obrok27'], array_keys($events));
     }
 
     /** WCAG 2.1 relative-luminance contrast ratio between two #rrggbb values. */
     private static function contrast(string $a, string $b): float
     {
-        $luminance = static function (string $hex): float {
-            $rgb = sscanf(ltrim($hex, '#'), '%2x%2x%2x') ?? [0, 0, 0];
-            $channel = static function (int $value): float {
-                $c = $value / 255;
-
-                return $c <= 0.04045 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
-            };
-
-            return 0.2126 * $channel((int) $rgb[0]) + 0.7152 * $channel((int) $rgb[1]) + 0.0722 * $channel((int) $rgb[2]);
-        };
-
-        $one = $luminance($a);
-        $two = $luminance($b);
+        $one = self::luminance($a);
+        $two = self::luminance($b);
 
         return (max($one, $two) + 0.05) / (min($one, $two) + 0.05);
+    }
+
+    /** WCAG 2.1 relative luminance of a #rrggbb value: 0 is black, 1 is white. */
+    private static function luminance(string $hex): float
+    {
+        $rgb = sscanf(ltrim($hex, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+        $channel = static function (int $value): float {
+            $c = $value / 255;
+
+            return $c <= 0.04045 ? $c / 12.92 : (($c + 0.055) / 1.055) ** 2.4;
+        };
+
+        return 0.2126 * $channel((int) $rgb[0]) + 0.7152 * $channel((int) $rgb[1]) + 0.0722 * $channel((int) $rgb[2]);
     }
 
     /** The bar is built from the event's features, not from a hardcoded list of five. */

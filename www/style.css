@@ -79,6 +79,19 @@
    and the timeline's chrome, and a 10 split between `action` ("you can do this")
    and `state` ("you are here / this is yours").
 
+   LIGHT MODE IS LIGHT AND DARK MODE IS DARK, all the way through. `structure` is
+   the ground of the bars, the sheet and the timeline's cards, so in a light set it
+   is the lightest thing on the screen and in a dark set the darkest — a filled
+   near-unlit bar in light mode is exactly the "dark element in the light mode"
+   that this system existed to stop. Two consequences the rules below depend on:
+   an accent can only appear as INK or as a small filled chip carrying dark ink,
+   never as a large fill (an event's identity colour is routinely under 3:1 on a
+   pale ground — obrok27's lime is 1.25:1), and separation cannot come from a step
+   alone, because content scrolls under a bar of very nearly its own colour. Every
+   bar, sheet and card therefore carries a HAIRLINE as well, in both modes: light
+   mode's is neutral, dark mode's is tinted with the accent. `--edge-width` is 0
+   for an event that declares nothing, so the built-in fallbacks are untouched.
+
    Every role falls back to the expression its rules used before roles existed —
    `structure` is the one exception, and it says why on its own line — so an event
    that declares none renders as it did, which obrok19 proves with a pixel diff.
@@ -109,9 +122,17 @@
 	   under the inverted text colour. */
 	--structure: var(--role-structure, var(--color-darker));
 	--on-structure: var(--role-on-structure, var(--color-text-invert));
-	/* Dark mode separates structure from ground with a thin accent edge instead
-	   of a lifted tone, so the width is a role too and light mode leaves it 0 —
-	   an event that declares nothing gets no edge and no change. */
+	/* The quiet form of an action, and the shape a standing notice takes: a heavily
+	   mixed wash of the accent carrying that same accent at full strength as ink.
+	   It exists because a secondary button cannot be a filled accent (that is what
+	   `action` is for) and must not be a filled dark block either. The fallback is
+	   the structure pair, which is what these rules read before the role existed. */
+	--tonal: var(--role-tonal, var(--structure));
+	--on-tonal: var(--role-on-tonal, var(--on-structure));
+	/* Bars, sheets and cards are told apart from the ground by a tone step AND a
+	   hairline — the step alone leaves a pale card sliding under an app bar of very
+	   nearly its own tone. The width is a role so that an event which declares nothing gets no
+	   edge and no change; both hand-authored sets in the app declare one. */
 	--edge-width: var(--role-edge-width, 0px);
 
 	/* ===== 10a — action: "you can do this" =============================== */
@@ -139,8 +160,6 @@
 	/* the scrim behind a modal, always used at partial opacity */
 	--scrim: var(--role-scrim, var(--color-base));
 
-	/* the whole app is laid out as a phone, centred, at every viewport width */
-	--app-width: 480px;
 	/* the whole app is laid out as a phone, centred, at every viewport width */
 	--app-width: 480px;
 	/* one duration for everything in the app that moves, on a plain curve */
@@ -198,10 +217,8 @@ body {
 	margin: 0 auto;
 	padding: 0 12px;
 	height: var(--appbar-height);
-	background-color: var(--structure);
-	color: var(--on-structure);
-	/* 0 in light mode; dark mode separates the bar from the ground with a
-	   hairline in the accent rather than by lifting its tone */
+	background-color: var(--state);
+    color: var(--on-action);
 	border-bottom: var(--edge-width) solid var(--edge);
 }
 
@@ -365,10 +382,39 @@ main {
 	text-overflow: ellipsis;
 }
 
-/* the one place in the shell that carries `state`: which screen you are on */
+/* The one place in the shell that carries `state`: which screen you are on. The
+   mark is a filled chip behind the glyph rather than tinted type, because that is
+   the only shape an event's identity colour survives in light mode — obrok27's
+   lime is 1.25:1 as ink on a pale bar and 13:1 as a chip under dark ink — and it gives
+   `state` one form in both modes. The label under it stays the bar's own ink. */
 .tab.is-active, .tab.is-active:visited {
-	color: var(--state);
 	opacity: 1;
+    background: var(--state);
+}
+
+.tab.is-active i,
+.tab.is-active .tab-logo {
+	padding: 2px 14px;
+	/* border-radius: var(--radius-pill);
+	background-color: var(--state);
+	color: var(--on-state); */
+}
+
+/* A glyph takes the chip's ink; a LOGO cannot, and a drawing in the event's own
+   colour is exactly what disappears on a chip filled with it. So an event that
+   puts artwork in the home tab names a second drawing for the chip — obrok19's
+   inverted shield, obrok27's purple ghost on its lime — and the class is only
+   emitted when it does, so an event with one drawing keeps showing it. */
+.tab-logo-chip {
+	display: none;
+}
+
+.tab.is-active .tab-logo.tab-logo-chip {
+	display: block;
+}
+
+.tab.is-active .tab-logo.tab-logo-plain {
+	display: none;
 }
 
 /* --- links, buttons, forms ----------------------------------------------- */
@@ -401,8 +447,11 @@ a, a:visited {
 	font-family: inherit;
 	text-decoration: none;
 	cursor: pointer;
-	background-color: var(--structure);
-	color: var(--on-structure);
+	/* Tonal, not a filled dark block: the secondary button and the link CTA are the
+	   two widest things on the home screen, and an unlit slab there is what made
+	   light mode read as dark. The wash carries them; they need no outline. */
+	background-color: var(--tonal);
+	color: var(--on-tonal);
 }
 
 /* padding plus line-height make the box 44px on a one-line label, so the tap
@@ -431,8 +480,9 @@ a, a:visited {
    the old .highlight, unchanged, for the job that is not an action. */
 .notice {
 	display: inline-block;
-	background-color: var(--structure);
-	color: var(--on-structure);
+	/* a tonal block, like the secondary button, but never a button shape */
+	background-color: var(--tonal);
+	color: var(--on-tonal);
 	padding: 10px 18px;
 	border-radius: var(--radius);
 	text-decoration: none;
@@ -583,9 +633,13 @@ div.map iframe {
 /* The second and last surface tier: a content block sitting on the page ground.
    There is no third, raised tier — depth in this app is two tones and nothing
    else. Default transparent, so an event that declares no surface shade keeps
-   blocks on the bare ground exactly as before. */
+   blocks on the bare ground exactly as before.
+
+   A hairline rather than the 4px frame it used to be: with a neutral separator
+   the frame reads as a border treatment, and the block is now told apart from the
+   ground by its own tone as well. */
 div.news {
-	border: 4px solid var(--edge);
+	border: 1px solid var(--edge);
 	border-radius: var(--radius);
 	margin: 0 8px 8px;
 	background-color: var(--surface);
@@ -593,7 +647,7 @@ div.news {
 }
 
 div.border-table {
-	border: 4px solid var(--edge);
+	border: 1px solid var(--edge);
 	border-radius: var(--radius);
 	margin: 0 8px 12px;
 	overflow: hidden;
@@ -607,7 +661,7 @@ table.harmonogram {
 }
 
 table.harmonogram td {
-	border-top: 2px solid var(--edge);
+	border-top: 1px solid var(--edge);
 	padding: 8px 10px;
 	text-align: left;
 }
@@ -641,15 +695,16 @@ table.harmonogram tr:first-child td {
    event's own colour rather than the neutral structure tone, because a
    monochrome grid leaves the time axis nowhere to be found at a glance. It is
    the only use of that role in the app; painting a second surface with it would
-   put the screen straight back where it was.
+   put the screen straight back where it was. It is deliberately a QUIET cast of
+   the identity rather than a full-strength slab: at full strength it is the
+   loudest thing on the screen in light mode and a lit panel at night, and it is
+   chrome, not the accent.
 
-   The stage column has its own pair for the opposite reason: the cards need a
-   fill that separates from the grid on its own (3:1, so the card is a card
-   before the hairline is counted) while the column wants a cast of the event's
-   hue and the darkest ink-to-ground ratio it can hold. One token could not do
-   both — a value light enough to lift the cards leaves the stage names under
-   4.5:1 as soon as any hue is mixed in — so the column is separate and the
-   cards stay neutral, which is also what keeps programme names legible.
+   The stage column keeps a pair of its own, but the value is now a plain neutral
+   in both modes — the lime cast it wore is gone. The two tokens exist because
+   the card and the column want different tones out of the same tier: the card
+   separates from the grid by a tone step AND its hairline, while the column is a
+   band of chrome behind bold names and wants the ink ratio instead.
 
    The rebinding sits on .tl-scroll and not on .pg, because custom properties
    inherit: on .pg it would also reach the pager, the day panel, the view tabs
@@ -884,9 +939,11 @@ body.screen-programs main {
 	cursor: pointer;
 }
 
+/* the day you are on: the same tonal vocabulary as a secondary button, not a
+   filled dark row on a light panel */
 .pager-menu-item.is-active {
-	background-color: var(--structure);
-	color: var(--on-structure);
+	background-color: var(--tonal);
+	color: var(--on-tonal);
 }
 
 .pager-menu-close {
@@ -1022,15 +1079,17 @@ body.screen-programs main {
 	   only because the two want opposite things out of the same value */
 	--stage: var(--role-stage, var(--structure));
 	--on-stage: var(--role-on-stage, var(--on-structure));
-	/* The card's own boundary — a crisp line where the fill meets the grid, never
-	   the thing that has to prove the card is a card: that is the fill's job, at
-	   3:1, in both modes. Light mode can leave this a ghost of the edge; dark mode
-	   makes it opaque and a step LIGHTER than the fill, or a hairline picked for
-	   the old, darker card would sit invisibly on the new one. */
+	/* The card's own boundary. Neither the fill nor the line carries the card on its
+	   own: a card at 3:1 against a barely-lit grid is a mid-grey block, which is a
+	   light element in a dark screen, and on a pale grid the palest card there is
+	   is still only a small step away from it. So the two work together — a measurable step in the
+	   fill plus a hairline that clears 3:1 against BOTH the card and the grid. */
 	--hairline: var(--role-hairline, color-mix(in srgb, var(--edge) 45%, transparent));
-	/* how a programme you are registered for is marked: by default the card takes
-	   the state colour as its ground; an event can instead keep the neutral ground
-	   and ask for a thick edge in it, which is what reads better on a dark card */
+	/* How a programme you are registered for is marked, and it is a per-mode choice
+	   because the accent behaves differently in each: on a light grid the card takes
+	   the state colour as its ground and keeps its dark ink, which is the only shape
+	   an identity colour survives on a pale ground; on a dark grid it keeps the
+	   neutral card and takes a thick edge in the accent, which a pale card swallows. */
 	--reg-bg: var(--role-registered-bg, var(--color-primary));
 	--reg-line: var(--role-registered-line, var(--hairline));
 	--reg-width: var(--role-registered-width, 1px);
@@ -1277,15 +1336,13 @@ body.screen-programs main {
 
 /* anchored to the bottom edge of the phone column, as tall as its content needs
    and no taller than 85% of the screen, scrolling inside itself past that.
-   Figma paints the whole sheet dark with light type throughout, which is the
-   --color-base / --color-text-invert pairing the app bar and tab bar already use.
-   sheet-bg is an optional palette key overriding just the ground, for an event
-   whose base is too light to carry the inverted body type; omit it, get Figma.
 
-   An event may instead treat the sheet as what it structurally is — a content
-   block on the page ground — and hand it the surface shade, in which case its
-   type has to come back down to the dark end. Both move together, so the pair
-   can never end up light on light. */
+   The sheet is a surface of its own, so it rebinds the surface pair rather than
+   adding a name. Both shipped events hand it the light end in light mode and the
+   unlit one at night — it is one of the biggest filled areas in the app and
+   it follows the mode like every other. The fallback is the Figma prototype's
+   dark panel with inverted type, which is what an event declaring nothing keeps;
+   the pair always moves together, so it can never end up light on light. */
 .sheet-card {
 	position: absolute;
 	left: 50%;
@@ -1295,7 +1352,7 @@ body.screen-programs main {
 	max-height: calc(var(--app-height) * 0.85);
 	display: flex;
 	flex-direction: column;
-	--surface: var(--role-sheet, var(--color-sheet-bg, var(--color-base)));
+	--surface: var(--role-sheet, var(--color-base));
 	--on-surface: var(--role-on-sheet, var(--color-text-invert));
 	/* the close row is the sheet's own action, so the action pair is rebound here
 	   too: it has to separate from THIS surface, not from the page ground */
