@@ -81,10 +81,18 @@
 		}
 	{% endif %}
 	</style>
-	<link rel="stylesheet" href="style.css?v=10">
+	<link rel="stylesheet" href="style.css?v=11">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<script src="push.js" defer></script>
+	{# the screen loader: without it every link is a plain navigation and the app is
+	   exactly what it was #}
+	<script src="app.js?v=1" defer></script>
+	{% if 'programs' in event.features %}
+		{# the Program screen's behaviour used to be inline in <head>, which no screen swap
+		   could ever reach; it lives here now and the loader calls into it #}
+		<script src="programs.js?v=1" defer></script>
+	{% endif %}
 	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}
 </head>
@@ -118,8 +126,17 @@
 	</div>
 </header>
 
+{# <main> is a stack of screens, not one screen: the first is server-rendered here and
+   www/app.js appends the rest as they are first visited, hiding rather than removing the
+   one it leaves. The wrapper is emitted identically by _screen.twig, so a screen that
+   arrived over the wire is indistinguishable from this one. #}
 <main>
-	{% block content %}{% endblock %}
+	<section class="screen"
+		data-screen="{{ screenPath }}"
+		data-title="{{ pageTitle }}"
+		data-doc-title="{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}"
+		data-tab="{{ activeTab }}"
+		tabindex="-1">{% block content %}{% endblock %}</section>
 </main>
 
 <nav class="tabbar" aria-label="Hlavní menu">

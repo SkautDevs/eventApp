@@ -1,0 +1,14 @@
+{# The shell-less half of every screen: the same {% block content %} the layout
+   renders, wrapped in the same <section> the layout wraps it in, and nothing else.
+   The loader in www/app.js inserts this into the running document's <main>.
+
+   pageTitle / activeTab are set by the extending template before this renders, exactly
+   as they are for _layout.twig — the two parents read the same two variables. #}
+{% set pageTitle = pageTitle|default(event.name) %}
+{% set activeTab = activeTab|default('') %}
+<section class="screen"
+	data-screen="{{ screenPath }}"
+	data-title="{{ pageTitle }}"
+	data-doc-title="{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}"
+	data-tab="{{ activeTab }}"
+	tabindex="-1">{% block content %}{% endblock %}</section>

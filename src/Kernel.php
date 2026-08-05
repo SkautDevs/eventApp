@@ -78,6 +78,13 @@ final class Kernel
                     'roles' => $event->roles,
                 ]);
                 $env->addGlobal('vapidPublicKey', $_ENV['VAPID_PUBLIC_KEY'] ?? '');
+                // Registered here so the per-request middleware below can *update* them:
+                // Twig refuses to add a global once the environment is initialised, but
+                // it is happy to overwrite one that already exists. screenPath is the
+                // path the screen was served from — not get_uri(), whose runtime slim/
+                // twig-view resolves once and then keeps for the life of the app.
+                $env->addGlobal('fragment', false);
+                $env->addGlobal('screenPath', '/');
                 // the app bar shows who is logged in. It has to be a function, not a global:
                 // a handler may log the user out (expired TIE code) during the very request
                 // whose response then renders the bar.
@@ -104,6 +111,7 @@ final class Kernel
         $app = AppFactory::create();
         $app->addBodyParsingMiddleware();
         $app->addRoutingMiddleware();
+        self::addScreenMiddleware($app, $container);
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
         $app->addErrorMiddleware(
             displayErrorDetails: (bool) ($_ENV['APP_DEBUG'] ?? false),
@@ -115,6 +123,26 @@ final class Kernel
         self::registerModules($app, $container, $event);
 
         return $app;
+    }
+
+    /**
+     * Fragment mode. A request carrying `X-Screen: 1` renders the screen without the
+     * shell: the templates pick their parent from the `fragment` global, so the same
+     * route and the same handler serve both a whole page and a bare screen. A plain
+     * request is byte-identical to what it was before this existed, which is what keeps
+     * deep links, crawlers and a no-JS reader working.
+     */
+    private static function addScreenMiddleware(App $app, ContainerInterface $container): void
+    {
+        $app->add(function ($request, $handler) use ($container) {
+            $env = $container->get(Twig::class)->getEnvironment();
+            $env->addGlobal('fragment', $request->getHeaderLine('X-Screen') === '1');
+            $env->addGlobal('screenPath', $request->getUri()->getPath());
+
+            // the two responses differ for the same URL, so anything caching them has to
+            // key on the header as well
+            return $handler->handle($request)->withHeader('Vary', 'X-Screen');
+        });
     }
 
     private static function registerCoreRoutes(App $app): void
