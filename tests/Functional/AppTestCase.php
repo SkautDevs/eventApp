@@ -33,11 +33,15 @@ abstract class AppTestCase extends TestCase
         return dirname(__DIR__, 2) . '/events';
     }
 
-    protected function request(App $app, string $method, string $uri, ?array $body = null): ResponseInterface
+    /** @param array<string, string> $headers */
+    protected function request(App $app, string $method, string $uri, ?array $body = null, array $headers = []): ResponseInterface
     {
         $request = (new ServerRequestFactory())->createServerRequest($method, $uri);
         if ($body !== null) {
             $request = $request->withParsedBody($body);
+        }
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
         }
 
         return $app->handle($request);

@@ -329,8 +329,29 @@ main {
 	display: block;
 	max-width: var(--app-width);
 	margin: 0 auto;
+	/* Deliberately NOT a view-transition-name, however tempting: naming an element
+	   makes it a stacking context, and the sheet and the day panel are fixed children
+	   of <main> that have to keep painting over the fixed tab bar. The swap animates
+	   the root snapshot instead — see the transition rules at the foot of this file. */
+}
+
+/* --- screens ------------------------------------------------------------- */
+
+/* <main> holds every screen the reader has visited; exactly one of them is not
+   hidden. Hidden rather than detached, because re-inserting a detached <iframe>
+   re-fetches it and the map's would restart on every visit. The padding lives here
+   rather than on <main> so a screen can drop it — the map and the Program screen
+   both run edge to edge. */
+.screen {
+	display: block;
 	/* clear the fixed tab bar, plus the home indicator on notched phones */
 	padding: 8px 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+}
+
+/* the per-screen rules below out-specify the UA's own [hidden], so say it again
+   loud enough to survive them */
+main > .screen[hidden] {
+	display: none;
 }
 
 /* --- tab bar ------------------------------------------------------------- */
@@ -559,7 +580,7 @@ img.logo {
 /* The home screen is a single screenful, not a document: it fills the space
    between the two bars and the two logos are capped in viewport units so the
    whole thing still fits on a short phone instead of scrolling. */
-body.screen-homepage main {
+.screen[data-tab="homepage"] {
 	display: flex;
 	flex-direction: column;
 	justify-content: space-evenly;
@@ -569,13 +590,13 @@ body.screen-homepage main {
 	padding-top: 0;
 }
 
-body.screen-homepage main > * {
+.screen[data-tab="homepage"] > * {
 	margin: 0;
 }
 
 /* the home screen centres its children, which would leave a page action as wide
    as its own label; the paragraphs that carry one take the full column instead */
-body.screen-homepage main > p {
+.screen[data-tab="homepage"] > p {
 	align-self: stretch;
 }
 
@@ -610,7 +631,7 @@ div.login-box {
 }
 
 /* the map is the screen — it runs edge to edge between the two bars */
-body.screen-map main {
+.screen[data-tab="map"] {
 	padding: 0;
 }
 
@@ -729,7 +750,7 @@ table.harmonogram tr:first-child td {
    the programmes you are registered for. "Not registered" stays opacity.
    --------------------------------------------------------------------------- */
 
-body.screen-programs main {
+.screen[data-tab="programs"] {
 	/* The screen manages its own vertical rhythm — pager, view, docked switcher —
 	   so the shared top padding goes. The bottom padding stays and holds exactly
 	   the tab bar's height: it is what puts the end of the column on top of that
@@ -1568,5 +1589,69 @@ body.screen-programs main {
 	@keyframes pg-page-prev {
 		from { opacity: 0; transform: translateX(-14px); }
 		to { opacity: 1; transform: translateX(0); }
+	}
+
+	/* Switching screens slides by tab order: moving right along the tab bar brings
+	   the new screen in from the right, moving left brings it in from the left. The
+	   View Transitions API does the work; www/app.js only sets data-nav on the root,
+	   and skips the API entirely when it is missing — the swap is then instant, which
+	   is a fallback rather than a JS animation.
+
+	   What slides is the root snapshot, i.e. everything that is not separately named
+	   — which is <main> and nothing else, because the two bars claim their own names
+	   below. <main> itself deliberately does NOT carry a name: a view-transition-name
+	   makes an element a stacking context, and the sheet and the day panel are fixed
+	   children of <main> that have to keep painting over the tab bar. */
+	:root::view-transition-old(root) {
+		animation: screen-out var(--motion) ease both;
+	}
+
+	:root::view-transition-new(root) {
+		animation: screen-in var(--motion) ease both;
+	}
+
+	:root[data-nav="back"]::view-transition-old(root) {
+		animation-name: screen-out-back;
+	}
+
+	:root[data-nav="back"]::view-transition-new(root) {
+		animation-name: screen-in-back;
+	}
+
+	/* The shell stays put while the screen under it moves. The bars are not identical
+	   across a switch — the app bar's title and the tab bar's active chip both change —
+	   so they keep the default cross-fade, at the app's one duration, and only their
+	   contents change rather than their position. */
+	.appbar {
+		view-transition-name: appbar;
+	}
+
+	.tabbar {
+		view-transition-name: tabbar;
+	}
+
+	:root::view-transition-old(appbar),
+	:root::view-transition-new(appbar),
+	:root::view-transition-old(tabbar),
+	:root::view-transition-new(tabbar),
+	:root::view-transition-group(appbar),
+	:root::view-transition-group(tabbar) {
+		animation-duration: var(--motion);
+	}
+
+	@keyframes screen-in {
+		from { opacity: 0; transform: translateX(24px); }
+	}
+
+	@keyframes screen-out {
+		to { opacity: 0; transform: translateX(-24px); }
+	}
+
+	@keyframes screen-in-back {
+		from { opacity: 0; transform: translateX(-24px); }
+	}
+
+	@keyframes screen-out-back {
+		to { opacity: 0; transform: translateX(24px); }
 	}
 }
