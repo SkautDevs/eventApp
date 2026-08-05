@@ -28,6 +28,33 @@
 		// where focus goes back to when the sheet, and the day panel, close
 		let opener = null;
 		let menuOpener = null;
+		// What the reader owns rather than the server: which view is up and which page
+		// the timeline is on. Held here as well as in the DOM, because a background
+		// morph rewrites the DOM back to the server's defaults and this is what puts
+		// the reader's own state back on top of it.
+		let currentView = root.dataset.view || 'timeline';
+		let currentPageKey = null;
+
+		// Write only what differs. The screen re-asserts its own state after a
+		// background morph, and a restore that rewrote every attribute it touches
+		// would undo half of what the morph's own minimality is for.
+		function setAttr(element, name, value) {
+			if (element.getAttribute(name) !== value) {
+				element.setAttribute(name, value);
+			}
+		}
+
+		function setText(element, text) {
+			if (element.textContent !== text) {
+				element.textContent = text;
+			}
+		}
+
+		function setDisabled(element, disabled) {
+			if (element.disabled !== disabled) {
+				element.disabled = disabled;
+			}
+		}
 
 		function panels(kind) {
 			return Array.from(root.querySelectorAll('[data-pg-panel="' + kind + '"]'));
@@ -54,16 +81,17 @@
 				panel.classList.toggle('is-active', i === index);
 			});
 
+			currentPageKey = list[index].dataset.key;
 			const title = root.querySelector('[data-pg-title="' + kind + '"]');
 			if (title) {
-				title.textContent = list[index].dataset.label;
+				setText(title, list[index].dataset.label);
 			}
 			root.querySelectorAll('[data-pg-page][data-pg-kind="' + kind + '"]').forEach(function (item) {
 				item.classList.toggle('is-active', item.dataset.pgPage === list[index].dataset.key);
 			});
 			root.querySelectorAll('[data-pg-step][data-pg-kind="' + kind + '"]').forEach(function (arrow) {
 				const target = index + Number(arrow.dataset.pgStep);
-				arrow.disabled = target < 0 || target > list.length - 1;
+				setDisabled(arrow, target < 0 || target > list.length - 1);
 			});
 			// the ruler that is on screen is this page's, so re-check its density
 			applyTickStep();
@@ -83,25 +111,43 @@
 		}
 
 		function showView(view) {
-			root.dataset.view = view;
+			// The timeline is exactly one screenful, so while it is up the document is
+			// too short to hold the list's scroll and the browser clamps it to 0.
+			// Remembering it here is what makes switching views and coming back land
+			// where the reader was, the same way leaving the screen does.
+			if (currentView === 'list' && view !== 'list') {
+				listScroll = window.scrollY;
+			}
+			currentView = view;
+			if (root.dataset.view !== view) {
+				root.dataset.view = view;
+			}
 			tabs().forEach(function (tab) {
 				const active = tab.dataset.pgView === view;
-				tab.setAttribute('aria-selected', active ? 'true' : 'false');
+				setAttr(tab, 'aria-selected', active ? 'true' : 'false');
 				// roving tabindex: only the selected tab is in the tab order
-				tab.tabIndex = active ? 0 : -1;
+				if (tab.tabIndex !== (active ? 0 : -1)) {
+					tab.tabIndex = active ? 0 : -1;
+				}
 			});
 			closeMenus();
+			if (view === 'list') {
+				enterList();
+			}
 		}
 
 		function closeMenus() {
 			let wasOpen = false;
 			root.querySelectorAll('[data-pg-menu-panel]').forEach(function (menu) {
-				wasOpen = wasOpen || menu.classList.contains('is-open');
+				if (!menu.classList.contains('is-open')) {
+					return;
+				}
+				wasOpen = true;
 				menu.classList.remove('is-open');
 				menu.setAttribute('aria-hidden', 'true');
 			});
 			root.querySelectorAll('[data-pg-menu]').forEach(function (button) {
-				button.setAttribute('aria-expanded', 'false');
+				setAttr(button, 'aria-expanded', 'false');
 			});
 			// the day panel returns focus to its trigger, exactly as the sheet does
 			if (wasOpen && menuOpener && document.contains(menuOpener)) {
@@ -138,6 +184,9 @@
 			if (followPage && body.dataset.page) {
 				showView('timeline');
 				showPageByKey('timeline', body.dataset.page);
+				// and the personal list is put on the same programme, so that opening
+				// Můj program after a deep link lands on it rather than at the top
+				pendingListTarget = id;
 			}
 			closeMenus();
 			opener = trigger || null;
@@ -215,14 +264,17 @@
 		// enough: at the 40px floor that leaves 80px between labels, twice what
 		// a label needs, so a third step would thin the axis for no gain.
 		function applyTickStep() {
-			root.dataset.hourStep = hourWidth >= tickLabelReach() ? '1' : '2';
+			const step = hourWidth >= tickLabelReach() ? '1' : '2';
+			if (root.dataset.hourStep !== step) {
+				root.dataset.hourStep = step;
+			}
 		}
 
 		function syncZoomButtons() {
 			root.querySelectorAll('[data-pg-zoom]').forEach(function (button) {
-				button.disabled = button.dataset.pgZoom === 'in'
+				setDisabled(button, button.dataset.pgZoom === 'in'
 					? hourWidth >= zoomMax - 0.01
-					: hourWidth <= zoomMin + 0.01;
+					: hourWidth <= zoomMin + 0.01);
 			});
 		}
 
@@ -333,6 +385,232 @@
 			setZoom(hourWidth * (event.deltaY < 0 ? 1.1 : 1 / 1.1), event.clientX);
 		}, {passive: false});
 
+		// --- Můj program: one continuous scroll --------------------------
+		// The personal list does not page. Every day of it is in the document, first
+		// to last, each under its own sticky heading, and the strip on top is an
+		// orientation instrument rather than a pager: the label follows the scroll,
+		// the arrows jump between day headings.
+		//
+		// Nothing here runs on a scroll event. An IntersectionObserver watches the
+		// day sections against a band that starts at the bottom edge of the strip, so
+		// it speaks only when a day crosses that line — a handful of times per scroll
+		// gesture — and each crossing costs one coalesced rAF that reads no geometry.
+		// The day at the top of the band is the day whose heading is stuck there, so
+		// the strip and the heading can never disagree.
+
+		// The days themselves are queried per call rather than held in a variable: a
+		// background morph can hand the screen a new set of them, and a stale
+		// reference to one would quietly stop the strip following the scroll.
+		const visibleDays = new Set();
+		let listSpy = null;
+		let spyFrame = 0;
+		let atListTop = true;
+		let currentDayKey = null;
+		let listScroll = 0;
+		// a deep link opens the timeline; the list is put on the same programme so
+		// that switching to it lands on the programme rather than at the top
+		let pendingListTarget = null;
+
+		function listDays() {
+			return Array.from(root.querySelectorAll('.pl-day'));
+		}
+
+		/** The bottom edge of the strip: below it is the part of the list being read. */
+		function bandTop() {
+			return cssPx('--appbar-height') + cssPx('--pager-height');
+		}
+
+		function reducedMotion() {
+			return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+		}
+
+		function scrollWindowTo(top) {
+			window.scrollTo({top: Math.max(Math.round(top), 0), behavior: reducedMotion() ? 'auto' : 'smooth'});
+		}
+
+		/** Where the window sits when `day`'s heading is docked under the strip. */
+		function dayStart(day) {
+			return window.scrollY + day.getBoundingClientRect().top - bandTop();
+		}
+
+		function onCross(entries) {
+			entries.forEach(function (entry) {
+				if (entry.target.hasAttribute('data-pg-list-top')) {
+					atListTop = entry.isIntersecting;
+
+					return;
+				}
+				if (entry.isIntersecting) {
+					visibleDays.add(entry.target);
+				} else {
+					visibleDays.delete(entry.target);
+				}
+			});
+			if (spyFrame) {
+				return;
+			}
+			spyFrame = requestAnimationFrame(function () {
+				spyFrame = 0;
+				syncDay();
+			});
+		}
+
+		function watchList() {
+			const targets = listDays();
+			if (listSpy || targets.length === 0 || !window.IntersectionObserver) {
+				return;
+			}
+			// One pixel below the strip rather than exactly on it: a day scrolled to its
+			// own start puts its top edge and the previous day's bottom edge on the same
+			// line, and an observer asked about that line answers "both". A pixel of
+			// clearance makes the outgoing day unambiguously outgoing, which is what
+			// keeps the label from naming the day above the one whose heading is stuck.
+			listSpy = new IntersectionObserver(onCross, {rootMargin: '-' + (Math.round(bandTop()) + 1) + 'px 0px 0px 0px'});
+			targets.forEach(function (day) {
+				listSpy.observe(day);
+			});
+			const top = root.querySelector('[data-pg-list-top]');
+			if (top) {
+				listSpy.observe(top);
+			}
+		}
+
+		/** The day being read is the first one still crossing the band. */
+		function syncDay() {
+			const targets = listDays();
+			const current = targets.find(function (day) {
+				return visibleDays.has(day);
+			});
+			// none crossing means the reader is past the end of the last day, and the
+			// last day is still what they are reading
+			setCurrentDay(current || null);
+		}
+
+		function setCurrentDay(day) {
+			const targets = listDays();
+			if (day) {
+				currentDayKey = day.dataset.key;
+			}
+			let index = targets.findIndex(function (item) {
+				return item.dataset.key === currentDayKey;
+			});
+			if (index < 0 && targets.length > 0) {
+				index = 0;
+				currentDayKey = targets[0].dataset.key;
+			}
+
+			const title = root.querySelector('[data-pg-title="list"]');
+			if (title && index >= 0) {
+				setText(title, targets[index].dataset.label);
+			}
+			root.querySelectorAll('[data-pg-page][data-pg-kind="list"]').forEach(function (item) {
+				item.classList.toggle('is-active', item.dataset.pgPage === currentDayKey);
+			});
+			root.querySelectorAll('[data-pg-step][data-pg-kind="list"]').forEach(function (arrow) {
+				// up has nowhere to go at the very top of the scroll, down none at the
+				// last day — the ends of the list are visible rather than silent
+				setDisabled(arrow, Number(arrow.dataset.pgStep) < 0
+					? atListTop
+					: index < 0 || index >= targets.length - 1);
+			});
+		}
+
+		/**
+		 * Up goes to the start of the day being read, and only to the previous day if
+		 * the reader is already standing on that start — the same rule a music player
+		 * uses for "previous track". Down always goes to the next day's start.
+		 */
+		function stepDay(direction) {
+			const targets = listDays();
+			if (targets.length === 0) {
+				return;
+			}
+			let index = targets.findIndex(function (item) {
+				return item.dataset.key === currentDayKey;
+			});
+			if (index < 0) {
+				index = 0;
+			}
+			let target;
+			if (direction > 0) {
+				target = targets[Math.min(index + 1, targets.length - 1)];
+			} else {
+				target = Math.abs(window.scrollY - dayStart(targets[index])) <= 2
+					? targets[Math.max(index - 1, 0)]
+					: targets[index];
+			}
+			scrollWindowTo(dayStart(target));
+			setCurrentDay(target);
+		}
+
+		function scrollToDay(key) {
+			const day = listDays().find(function (item) {
+				return item.dataset.key === key;
+			});
+			if (!day) {
+				return;
+			}
+			scrollWindowTo(dayStart(day));
+			setCurrentDay(day);
+		}
+
+		/** Puts a single programme under the strip, clear of its day's stuck heading. */
+		function scrollToItem(id) {
+			const item = root.querySelector('.view-list .pl-item[data-key="' + id + '"]');
+			if (!item) {
+				return false;
+			}
+			const day = item.closest('.pl-day');
+			const head = day.querySelector('.pl-head');
+			// clear of the day's stuck heading, but never so high that the heading
+			// itself loses the band and the strip starts naming the day above it
+			scrollWindowTo(Math.max(
+				window.scrollY + item.getBoundingClientRect().top
+					- bandTop() - (head ? head.getBoundingClientRect().height : 0) - 8,
+				dayStart(day),
+			));
+
+			return true;
+		}
+
+		function enterList() {
+			watchList();
+			if (pendingListTarget !== null) {
+				const found = scrollToItem(pendingListTarget);
+				pendingListTarget = null;
+				if (found) {
+					return;
+				}
+			}
+			// the browser clamped the window while the timeline was up
+			if (listScroll > 0 && window.scrollY === 0) {
+				window.scrollTo(0, listScroll);
+			}
+			syncDay();
+		}
+
+		/**
+		 * After a background morph the DOM carries the server's defaults again: the
+		 * timeline's own first page, no zoom, the timeline view. Everything the reader
+		 * owns goes back on top of it here — the morph itself only preserved what the
+		 * server never writes.
+		 */
+		function afterMorph() {
+			root.style.setProperty('--hour-width', hourWidth + 'px');
+			if (listSpy) {
+				listSpy.disconnect();
+				listSpy = null;
+				visibleDays.clear();
+			}
+			showView(currentView);
+			if (currentPageKey) {
+				showPageByKey('timeline', currentPageKey);
+			}
+			setCurrentDay(null);
+			syncZoomButtons();
+			applyTickStep();
+		}
+
 		root.addEventListener('click', function (event) {
 			const el = event.target.closest('[data-pg-view],[data-pg-step],[data-pg-menu],[data-pg-page],[data-pg-close],[data-pg-open],[data-pg-zoom]');
 			if (!el) {
@@ -343,7 +621,13 @@
 			if (data.pgView !== undefined) {
 				showView(data.pgView);
 			} else if (data.pgStep !== undefined) {
-				showPage(data.pgKind, activeIndex(data.pgKind) + Number(data.pgStep));
+				// the same two controls, two different instruments: the timeline steps
+				// a page, the list scrolls to a day heading
+				if (data.pgKind === 'list') {
+					stepDay(Number(data.pgStep));
+				} else {
+					showPage(data.pgKind, activeIndex(data.pgKind) + Number(data.pgStep));
+				}
 			} else if (data.pgMenu !== undefined) {
 				const menu = root.querySelector('[data-pg-menu-panel="' + data.pgMenu + '"]');
 				if (menu && menu.classList.contains('is-open')) {
@@ -352,8 +636,12 @@
 					openMenu(data.pgMenu, el);
 				}
 			} else if (data.pgPage !== undefined) {
-				showPageByKey(data.pgKind, data.pgPage);
 				closeMenus();
+				if (data.pgKind === 'list') {
+					scrollToDay(data.pgPage);
+				} else {
+					showPageByKey(data.pgKind, data.pgPage);
+				}
 			} else if (data.pgClose !== undefined) {
 				closeMenus();
 				closeSheet();
@@ -436,10 +724,21 @@
 			});
 		}
 
+		// A background morph rewrites the screen to the server's defaults; this is
+		// where the reader's own state goes back on top of it.
+		document.addEventListener('screen:morphed', function (event) {
+			if (event.target.contains && event.target.contains(root)) {
+				afterMorph();
+			}
+		});
+
 		// the scale outlives paging and view switching, but not the session
 		restoreZoom();
 		showPage('timeline', Math.max(activeIndex('timeline'), 0));
-		showPage('list', Math.max(activeIndex('list'), 0));
+		// the strip opens naming the day at the top of the scroll; from here on the
+		// observer names whichever day the reader has scrolled to
+		setCurrentDay(listDays()[0] || null);
+		showView(currentView);
 		fromHash();
 	}
 
