@@ -111,13 +111,17 @@ final class Kernel
         $app = AppFactory::create();
         $app->addBodyParsingMiddleware();
         $app->addRoutingMiddleware();
-        self::addScreenMiddleware($app, $container);
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
         $app->addErrorMiddleware(
             displayErrorDetails: (bool) ($_ENV['APP_DEBUG'] ?? false),
             logErrors: true,
             logErrorDetails: true,
         );
+        // Added last, so it is the outermost layer of the stack — outside the error
+        // middleware rather than inside it. A thrown 404 or 500 never reaches the
+        // route, so a header applied further in would be missing from exactly the
+        // responses a shared cache is most likely to keep.
+        self::addScreenMiddleware($app, $container);
 
         self::registerCoreRoutes($app);
         self::registerModules($app, $container, $event);
@@ -131,6 +135,13 @@ final class Kernel
      * route and the same handler serve both a whole page and a bare screen. A plain
      * request is byte-identical to what it was before this existed, which is what keeps
      * deep links, crawlers and a no-JS reader working.
+     *
+     * It is the outermost middleware, which is what puts `Vary: X-Screen` on an error
+     * response too: Slim's error middleware answers a 404 or a 500 without ever calling
+     * anything further in, so a header set inside it would be skipped for precisely the
+     * responses that differ by the header. The loader treats any non-200 as "not a
+     * screen" and falls back to a real navigation, so a full error page is never
+     * injected into a <section>.
      */
     private static function addScreenMiddleware(App $app, ContainerInterface $container): void
     {

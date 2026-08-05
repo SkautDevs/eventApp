@@ -217,8 +217,15 @@ body {
 	margin: 0 auto;
 	padding: 0 12px;
 	height: var(--appbar-height);
+	/* The bar is a filled band of the event's own colour, so its ink is that fill's
+	   own pair and nothing else. It used to take --on-structure, which is the ink for
+	   the neutral bar tier and flips with the mode — while the fill under it, the
+	   accent, does not. obrok27's pale dark-mode ink therefore landed on lime at
+	   1.12:1 and obrok19's body grey on green at 2.56:1. The same pair the active
+	   tab's chip uses measures 13.4:1 and 4.8:1 on those two fills, which is what it
+	   is for. One colour, one role, one ink. */
 	background-color: var(--state);
-    color: var(--on-action);
+	color: var(--on-state);
 	border-bottom: var(--edge-width) solid var(--edge);
 }
 
@@ -226,7 +233,7 @@ body {
 .appbar-profile, .appbar-profile:visited {
 	display: flex;
 	align-items: center;
-	color: var(--on-structure);
+	color: var(--on-state);
 	text-decoration: none;
 	min-width: 0;
 }
@@ -275,7 +282,8 @@ body {
 	padding: 0;
 	border: none;
 	background-color: transparent;
-	color: var(--on-structure);
+	/* on the app bar's fill, like everything else on it */
+	color: var(--on-state);
 	font-size: 20px;
 	line-height: 1;
 	cursor: pointer;
@@ -831,6 +839,15 @@ table.harmonogram tr:first-child td {
 	cursor: default;
 }
 
+/* The personal list's strip carries no zoom pair, so its two arrows can be the full
+   44px wide the touch target asks for instead of the 34px the timeline's row has to
+   squeeze them into. The glyph is smaller than the timeline's chevrons because ↑ and ↓
+   draw much more ink than ‹ and › at the same size. */
+.pager-arrow-day {
+	flex: 0 0 44px;
+	font-size: 21px;
+}
+
 .pager-label {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -1074,11 +1091,14 @@ table.harmonogram tr:first-child td {
 
 /* --- timeline ------------------------------------------------------------ */
 
-.tl-page, .pl-day {
+/* The timeline pages: one (day, section) at a time, stepped with ‹ ›. The personal
+   list does not page — every day of it is present and visible, first to last, and the
+   reader scrolls through the lot. */
+.tl-page {
 	display: none;
 }
 
-.tl-page.is-active, .pl-day.is-active {
+.tl-page.is-active {
 	display: block;
 }
 
@@ -1300,6 +1320,43 @@ table.harmonogram tr:first-child td {
 }
 
 /* --- personal list ------------------------------------------------------- */
+
+/* One continuous scroll over the whole event. The strip above only names where the
+   reader is; it is the day headings inside the scroll that do the dividing. */
+
+/* 1px rather than nothing: a zero-area target is a case IntersectionObserver
+   implementations disagree about, and this one exists purely to be observed. The
+   negative margin takes its height straight back out of the flow. */
+.pl-top {
+	display: block;
+	height: 1px;
+	margin-bottom: -1px;
+}
+
+/* The last day has to be able to dock under the strip like every other one, and it
+   cannot if the document ends two rows below its heading: ↓ would land short, the
+   strip would never name it and its arrow would never grey out. Its box is therefore
+   at least as tall as the band the reader reads in — the same height the timeline's
+   grid takes — so there is always scroll left for it to claim. */
+.pl-day:last-child {
+	min-height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
+}
+
+/* Sticky against the bottom edge of the strip, so the day being read is named twice —
+   in the strip, which follows the scroll, and here, where the reader's eye already is.
+   It is a bar, so it takes the bar tier and its hairline. */
+.pl-head {
+	position: sticky;
+	top: calc(var(--appbar-height) + var(--pager-height));
+	z-index: 5;
+	margin: 0;
+	padding: 8px 14px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border-bottom: 1px solid var(--edge);
+	font-size: 15px;
+	line-height: 1.2;
+}
 
 .pl-item {
 	padding: 12px 14px;
@@ -1571,13 +1628,15 @@ table.harmonogram tr:first-child td {
 		transform: scale(0.985);
 	}
 
-	/* stepping to another page still slides the new one in from the side */
-	.tl-page.is-active, .pl-day.is-active {
+	/* Stepping to another page still slides the new one in from the side. Only the
+	   timeline pages, so only the timeline has anything to slide: the personal list
+	   scrolls, and a day heading that re-animated every time the strip noticed it
+	   would be a twitch, not a transition. */
+	.tl-page.is-active {
 		animation: pg-page-next var(--motion) ease;
 	}
 
-	.pg[data-step="prev"] .tl-page.is-active,
-	.pg[data-step="prev"] .pl-day.is-active {
+	.pg[data-step="prev"] .tl-page.is-active {
 		animation-name: pg-page-prev;
 	}
 

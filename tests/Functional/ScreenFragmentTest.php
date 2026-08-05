@@ -84,6 +84,42 @@ final class ScreenFragmentTest extends AppTestCase
         $this->assertSame('X-Screen', $this->request($app, 'GET', '/')->getHeaderLine('Vary'));
     }
 
+    /**
+     * The error middleware answers a 404 without ever calling the route, so the header
+     * has to sit outside it. There is no shared cache in front of the app today, which
+     * is what makes this harmless today rather than forever.
+     */
+    public function testAnErrorResponseIsKeyedApartForCachesToo(): void
+    {
+        $app = $this->app();
+
+        $response = $this->request($app, 'GET', '/tohle-tady-neni');
+        self::assertSame(404, $response->getStatusCode());
+        self::assertSame('X-Screen', $response->getHeaderLine('Vary'));
+
+        $fragment = $this->request($app, 'GET', '/tohle-tady-neni', null, ['X-Screen' => '1']);
+        self::assertSame(404, $fragment->getStatusCode());
+        self::assertSame('X-Screen', $fragment->getHeaderLine('Vary'));
+    }
+
+    /**
+     * A missing route answers with the whole error page in both modes — there is no
+     * fragment-shaped 404 and there should not be one, because a page with an app bar
+     * in it injected into a <section> would put a second app bar inside the app. The
+     * loader treats any non-200 as "not a screen" and hands the URL to the browser.
+     */
+    public function testAMissingScreenIsLeftToARealNavigation(): void
+    {
+        $app = $this->app();
+
+        $html = (string) $this->request($app, 'GET', '/tohle-tady-neni', null, ['X-Screen' => '1'])->getBody();
+        self::assertStringNotContainsString('<section class="screen"', $html);
+
+        $loader = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        self::assertStringContainsString('if (!response.ok) {', $loader);
+        self::assertStringContainsString('location.href = path;', $loader);
+    }
+
     public function testTheProgramScreenCarriesNoInlineScriptAnyMore(): void
     {
         $app = $this->app();

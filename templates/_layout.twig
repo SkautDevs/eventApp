@@ -81,17 +81,17 @@
 		}
 	{% endif %}
 	</style>
-	<link rel="stylesheet" href="style.css?v=11">
+	<link rel="stylesheet" href="style.css?v=12">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<script src="push.js" defer></script>
 	{# the screen loader: without it every link is a plain navigation and the app is
 	   exactly what it was #}
-	<script src="app.js?v=1" defer></script>
+	<script src="app.js?v=2" defer></script>
 	{% if 'programs' in event.features %}
 		{# the Program screen's behaviour used to be inline in <head>, which no screen swap
 		   could ever reach; it lives here now and the loader calls into it #}
-		<script src="programs.js?v=1" defer></script>
+		<script src="programs.js?v=2" defer></script>
 	{% endif %}
 	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}

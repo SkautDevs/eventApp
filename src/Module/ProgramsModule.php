@@ -160,7 +160,10 @@ final class ProgramsModule implements ModuleInterface
             'pages' => $pages,
             'activePage' => self::activeKey($pages),
             'days' => $days,
-            'activeDay' => self::activeKey($days),
+            // The personal list is one continuous scroll over the whole event, so the
+            // day its strip opens on is the day at the top of that scroll — the first —
+            // and not today. The timeline still opens on today, because it pages.
+            'activeDay' => $days[0]['key'] ?? null,
             'details' => array_values($details),
         ];
     }
@@ -280,8 +283,11 @@ final class ProgramsModule implements ModuleInterface
     }
 
     /**
-     * The list view pages by day only: it holds five or so programmes in total, so
-     * splitting it by section as well would leave most of its pages empty.
+     * The list view groups by day only: it holds five or so programmes in total, so
+     * splitting it by section as well would leave most of its groups empty. Every day
+     * is rendered and the reader scrolls through all of them — a day the participant
+     * has nothing on simply does not exist here, because this is their programme and
+     * not the event's.
      *
      * @param list<array> $mine
      */
