@@ -1,6 +1,9 @@
 {# pageTitle / activeTab are set by the extending template before this renders #}
 {% set pageTitle = pageTitle|default(event.name) %}
 {% set activeTab = activeTab|default('') %}
+{# an event is dark-capable only if it hand-authored a full dark role set; one that
+   did not must never show a toggle that does nothing #}
+{% set hasDark = event.roles.dark is defined and event.roles.dark is not empty %}
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -12,16 +15,73 @@
 	<link rel="icon" type="image/png" sizes="32x32" href="events/{{ event.slug }}/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="events/{{ event.slug }}/favicon-16x16.png">
 	<link rel="mask-icon" href="events/{{ event.slug }}/safari-pinned-tab.svg" color="{{ event.colors.base }}">
-	<meta name="theme-color" content="{{ event.colors.base }}">
+	<meta name="theme-color" content="{{ hasDark ? event.roles.light.structure|default(event.colors.base) : event.colors.base }}"
+		{% if hasDark %}data-light="{{ event.roles.light.structure|default(event.colors.base) }}" data-dark="{{ event.roles.dark.structure }}"{% endif %}>
+	{% if hasDark %}
+		{# Before first paint, not from the deferred script at the bottom: the mode has to
+		   be on the root element by the time the stylesheet applies, or the reader sees a
+		   frame of the wrong theme. A stored choice wins forever once made; until then
+		   the device's own setting decides. #}
+		<script>
+			(function () {
+				try {
+					var mode = localStorage.getItem('obrokColorMode');
+					if (mode !== 'dark' && mode !== 'light') {
+						mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+					}
+					document.documentElement.setAttribute('data-mode', mode);
+					var meta = document.querySelector('meta[name=theme-color]');
+					if (meta) {
+						meta.setAttribute('content', meta.getAttribute(mode === 'dark' ? 'data-dark' : 'data-light'));
+					}
+				} catch (e) {
+					// no storage and no matchMedia: the CSS media query still gets it right
+				}
+			})();
+		</script>
+	{% endif %}
 	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
+	{# an event that names a webfont gets its stylesheet; one that doesn't gets no link at all #}
+	{% if event.theme['font-url'] is defined %}
+		<link rel="stylesheet" href="{{ event.theme['font-url'] }}">
+	{% endif %}
 	<style>
 		:root {
+			color-scheme: {{ hasDark ? 'light dark' : 'light' }};
 		{% for name, value in event.colors %}
 			--color-{{ name }}: {{ value }};
 		{% endfor %}
+		{# theme values are raw CSS authored in the event config, so they are emitted verbatim;
+		   font-url is a document resource, not a property, and is linked above instead #}
+		{% for name, value in event.theme|filter((value, name) => name != 'font-url') %}
+			--theme-{{ name }}: {{ value|raw }};
+		{% endfor %}
+		{# the light role set is the base; the dark one overrides it twice, below #}
+		{% for name, value in event.roles.light|default({}) %}
+			--role-{{ name }}: {{ value|raw }};
+		{% endfor %}
 		}
+	{% if hasDark %}
+		{# Without JS there is no data-mode, so the device's setting has to reach the roles
+		   on its own — but it must not override a reader who chose light. #}
+		@media (prefers-color-scheme: dark) {
+			:root:not([data-mode="light"]) {
+				color-scheme: dark;
+			{% for name, value in event.roles.dark %}
+				--role-{{ name }}: {{ value|raw }};
+			{% endfor %}
+			}
+		}
+		{# and the explicit choice last, so it wins over the media query either way #}
+		:root[data-mode="dark"] {
+			color-scheme: dark;
+		{% for name, value in event.roles.dark %}
+			--role-{{ name }}: {{ value|raw }};
+		{% endfor %}
+		}
+	{% endif %}
 	</style>
-	<link rel="stylesheet" href="style.css?v=6">
+	<link rel="stylesheet" href="style.css?v=9">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<script src="push.js" defer></script>
@@ -36,11 +96,21 @@
 		{% endif %}
 		<span class="appbar-title">{{ pageTitle }}</span>
 	</a>
-	<a class="appbar-profile" href="{{ url_for('profile') }}" aria-label="Přihlášení">
-		{% set who = auth_identity() %}
-		{% if who %}<span class="appbar-who">{{ who }}</span>{% endif %}
-		<i class="fas fa-user-circle" aria-hidden="true"></i>
-	</a>
+	<div class="appbar-tools">
+		{% if hasDark %}
+			{# the icon shows what you would switch TO; the label is rewritten to match by
+			   the script below, and stays truthful in both states without it #}
+			<button type="button" class="appbar-mode" data-mode-toggle aria-pressed="false" aria-label="Přepnout světlý a tmavý režim">
+				<i class="fas fa-moon mode-icon mode-moon" aria-hidden="true"></i>
+				<i class="fas fa-sun mode-icon mode-sun" aria-hidden="true"></i>
+			</button>
+		{% endif %}
+		<a class="appbar-profile" href="{{ url_for('profile') }}" aria-label="Přihlášení">
+			{% set who = auth_identity() %}
+			{% if who %}<span class="appbar-who">{{ who }}</span>{% endif %}
+			<i class="fas fa-user-circle" aria-hidden="true"></i>
+		</a>
+	</div>
 </header>
 
 <main>
@@ -63,5 +133,47 @@
 		</a>
 	{% endfor %}
 </nav>
+{% if hasDark %}
+	<script>
+		// The mode itself is already set — the head script did that before first paint.
+		// This only handles the tap, and keys the choice globally rather than per event:
+		// dark is a property of the reader's eyes, not of which Obrok they are looking at.
+		(function () {
+			var root = document.documentElement;
+			var button = document.querySelector('[data-mode-toggle]');
+			if (!button) {
+				return;
+			}
+
+			function describe() {
+				var dark = root.getAttribute('data-mode') === 'dark';
+				button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+				button.setAttribute('aria-label', dark ? 'Přepnout na světlý režim' : 'Přepnout na tmavý režim');
+			}
+
+			// no data-mode means the head script had neither storage nor matchMedia; read
+			// what the media query is actually rendering so the first tap inverts it
+			if (root.getAttribute('data-mode') === null) {
+				root.setAttribute('data-mode', window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			}
+			describe();
+
+			button.addEventListener('click', function () {
+				var next = root.getAttribute('data-mode') === 'dark' ? 'light' : 'dark';
+				root.setAttribute('data-mode', next);
+				try {
+					localStorage.setItem('obrokColorMode', next);
+				} catch (e) {
+					// private browsing: the choice lasts as long as the page does
+				}
+				var meta = document.querySelector('meta[name=theme-color]');
+				if (meta) {
+					meta.setAttribute('content', meta.getAttribute(next === 'dark' ? 'data-dark' : 'data-light'));
+				}
+				describe();
+			});
+		})();
+	</script>
+{% endif %}
 </body>
 </html>

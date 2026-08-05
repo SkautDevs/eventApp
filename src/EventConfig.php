@@ -17,6 +17,23 @@ final class EventConfig
         public readonly string $slug,
         public readonly string $name,
         public readonly array $colors,
+        /**
+         * Optional look-and-feel overrides, emitted as --theme-* custom properties.
+         * Unlike $colors this is deliberately unvalidated and may be empty: every rule
+         * in www/style.css that reads one carries today's value as its var() fallback,
+         * so an event that declares no theme renders exactly as it did before the map
+         * existed. Values are raw CSS and may reference the palette, e.g.
+         * 'ruler-bg' => 'var(--color-primary)'.
+         */
+        public readonly array $theme,
+        /**
+         * Semantic colour roles, as ['light' => [...], 'dark' => [...]]. Optional and
+         * unvalidated like $theme: www/style.css falls every role back to the palette
+         * expression its rules used before roles existed, so an event that declares
+         * none renders exactly as it did. An event without a 'dark' set is light-only
+         * and its layout shows no mode toggle.
+         */
+        public readonly array $roles,
         public readonly array $features,
         public readonly array $sections,
         public readonly array $raw,
@@ -52,6 +69,8 @@ final class EventConfig
             slug: $slug,
             name: $data['name'],
             colors: $data['colors'],
+            theme: $data['theme'] ?? [],
+            roles: $data['roles'] ?? [],
             features: $data['features'],
             sections: $data['sections'] ?? [],
             raw: $data,

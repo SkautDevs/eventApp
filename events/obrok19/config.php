@@ -26,6 +26,11 @@ return [
         'primary' => '#96201f',
         'text' => '#444343',
         'text-invert' => '#ffffff',
+        // Ground of the programme bottom sheet. Optional: an event that omits it
+        // gets --color-base, which is the Figma prototype's near-black. Obrok 19's
+        // base is a mid-green that only reaches 3.9:1 under the white body type the
+        // sheet uses, below the 4.5:1 AA needs; the darker green reaches 6.8:1.
+        'sheet-bg' => '#1e6650',
     ],
 
     'assets' => [
