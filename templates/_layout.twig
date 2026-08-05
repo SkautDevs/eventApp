@@ -91,7 +91,12 @@
 <body class="screen-{{ activeTab != '' ? activeTab : 'other' }}">
 <header class="appbar">
 	<a class="appbar-brand" href="{{ url_for('homepage') }}">
-		{% if event.assets.menuLogo %}
+		{% if event.assets.menuLogoDark ?? false %}
+			{# the bars follow the mode, so the mark on them does too: one drawing per
+			   mode, exactly as the homepage does with mainLogo/mainLogoDark #}
+			<img class="appbar-logo mode-light-only" src="{{ event.assets.menuLogo }}" alt="">
+			<img class="appbar-logo mode-dark-only" src="{{ event.assets.menuLogoDark }}" alt="">
+		{% elseif event.assets.menuLogo %}
 			<img class="appbar-logo" src="{{ event.assets.menuLogo }}" alt="">
 		{% endif %}
 		<span class="appbar-title">{{ pageTitle }}</span>
@@ -119,10 +124,21 @@
 
 <nav class="tabbar" aria-label="Hlavní menu">
 	<a class="tab{{ activeTab == 'homepage' ? ' is-active' }}" href="{{ url_for('homepage') }}">
-		{% if event.assets.menuLogo %}
-			<img class="tab-logo" src="{{ event.assets.menuLogo }}" alt="">
+		{# the active tab paints a chip in the event's own colour behind this mark, so an
+		   event whose drawing is that same colour names a second one to go on the chip;
+		   without one there is nothing to swap to and the single drawing stays put #}
+		{% set chipLogo = event.assets.menuLogoOnState ?? '' %}
+		{% set plainClass = chipLogo ? ' tab-logo-plain' : '' %}
+		{% if event.assets.menuLogoDark ?? false %}
+			<img class="tab-logo{{ plainClass }} mode-light-only" src="{{ event.assets.menuLogo }}" alt="">
+			<img class="tab-logo{{ plainClass }} mode-dark-only" src="{{ event.assets.menuLogoDark }}" alt="">
+		{% elseif event.assets.menuLogo %}
+			<img class="tab-logo{{ plainClass }}" src="{{ event.assets.menuLogo }}" alt="">
 		{% else %}
 			<i class="fas fa-home" aria-hidden="true"></i>
+		{% endif %}
+		{% if chipLogo %}
+			<img class="tab-logo tab-logo-chip" src="{{ chipLogo }}" alt="">
 		{% endif %}
 		<span>{{ event.shortName|default(event.name) }}</span>
 	</a>

@@ -57,8 +57,16 @@ return [
     // reading as an accent when the page itself was full-strength lime.
     //
     // The budget is 60:30:10 — a tinted neutral `ground` (plus `surface`, its one
-    // block tier), near-black `structure` for the bars, the buttons and the
-    // timeline's chrome, and a 10 split between purple `action` and lime `state`.
+    // block tier), `structure` for the bars, the buttons and the timeline's chrome,
+    // and a 10 split between purple `action` and lime `state`.
+    //
+    // LIGHT IS LIGHT AND DARK IS DARK. `structure` is white in the light set and
+    // near-black in the dark one — it is the ground of every bar, sheet and card,
+    // and a near-black bar in light mode is the thing this round removed. The lime
+    // is 1.25:1 on white, so in light mode it can only ever be a filled chip under
+    // dark ink, never ink and never a hairline; the purple is 6.65:1 and is free to
+    // be type. Both modes separate a bar from the ground with a tone step AND a
+    // hairline, because a white card scrolling under a white bar needs a line.
     //
     // THE TWO SETS ARE A TWO-PLACE EDIT. Changing a colour here means changing it
     // in both, deliberately: accents do not survive mechanical inversion, and the
@@ -73,19 +81,29 @@ return [
             'surface' => '#ffffff',
             'on-surface' => '#14160f',
 
-            // 30 — structure. Light mode separates it from the ground by tone
-            // alone, so it declares no edge width and stays outline-free.
-            'structure' => '#14160f',
-            'on-structure' => '#f6f7f3',
-            'edge-width' => '0px',
-            'edge' => '#14160f',
+            // 30 — structure: the app bar, the tab bar, the sheet, the timeline's
+            // cards. White, a tone step above the ground and a hairline away from
+            // it, because content scrolls under both bars.
+            'structure' => '#ffffff',
+            'on-structure' => '#14160f',
+            'edge-width' => '1px',
+            // a NEUTRAL hairline in light mode: 3.72:1 on the white it bounds and
+            // 3.46:1 on the ground it separates that white from
+            'edge' => '#82867a',
 
-            // 10a — action
+            // 10a — action. 7.15:1 under white, and 6.65:1 as ink on the ground.
             'action' => '#6122eb',
             'on-action' => '#ffffff',
             'action-link' => '#6122eb',
+            // the quiet form of it — the purple washed almost all the way into the
+            // ground, carrying the purple itself at full strength as ink (5.89:1).
+            // The secondary button, the link CTA, the notice and the active day.
+            'tonal' => '#ece6fd',
+            'on-tonal' => '#6122eb',
 
-            // 10b — state
+            // 10b — state. The lime is 1.25:1 on white and can never be ink here;
+            // as a filled chip under near-black ink it is 13.14:1, which is what
+            // the active tab wears in both modes.
             'state' => '#c2ea3a',
             'on-state' => '#14160f',
 
@@ -103,60 +121,61 @@ return [
             'sheet-action' => '#6122eb',
             'on-sheet-action' => '#ffffff',
 
-            // the timeline, in the same vocabulary: a light neutral grid with the
-            // stage column and the cards on it as structure
-            'grid' => '#d6d9cf',
-            'grid-structure' => '#14160f',
-            'on-grid-structure' => '#f6f7f3',
-            'grid-edge' => '#14160f',
+            // the timeline, in the same vocabulary: a faint neutral grid carrying
+            // white cards, with the stage column a plain grey band of chrome
+            'grid' => '#dcded5',
+            'grid-structure' => '#ffffff',
+            'on-grid-structure' => '#14160f',
+            'grid-edge' => '#9ba090',
             // Structure that carries the identity, and the only place in the app
-            // that wears it: the hour ruler. The purple is the identity colour, so
-            // it is the same value as `action` — that is the role's whole point,
-            // and it is why there is exactly one of them. 6.65:1 under its labels.
-            'signature' => '#6122eb',
-            'on-signature' => '#f6f7f3',
-            // The stage column is structure, not state — a full-lime column was an
-            // accent painted on the biggest block of the screen. It takes a CAST of
-            // the lime instead (12% into the structure black), so the grid reads as
-            // 2027 without spending accent on the area. The names go from 16.95:1 to
-            // 12.92:1, which is the price of any visible cast on a near-black.
-            'stage' => '#292f14',
-            'on-stage' => '#f6f7f3',
-            // light mode can leave the card's own boundary a ghost of the grid edge,
-            // because there the card's fill already separates from the grid
-            'hairline' => 'color-mix(in srgb, var(--role-grid-edge) 45%, transparent)',
-            // a registered programme keeps the neutral card and takes a thick edge
-            // in the state colour — the only lime on the screen besides the tab bar
-            'registered-bg' => '#14160f',
-            'registered-line' => '#c2ea3a',
-            'registered-width' => '3px',
+            // that wears it: the hour ruler. A QUIET cast of the purple rather than
+            // the full-strength slab it was — at full strength it is the loudest
+            // thing on a light screen, and it is chrome. 7.13:1 under its labels.
+            'signature' => '#c7b3f5',
+            'on-signature' => '#351086',
+            // The stage column is a plain neutral. The lime cast is withdrawn: the
+            // identity is carried by the ruler and the registered cards, and a hue
+            // on the largest block of the screen is how accents stop reading.
+            'stage' => '#bfc2b7',
+            'on-stage' => '#14160f',
+            // 4.44:1 on the white card and 3.27:1 on the grid, so the card's
+            // boundary holds against both sides of itself
+            'hairline' => '#76796d',
+            // registered: the lime as a fill under the card's own dark ink, which
+            // is the one shape it survives on a light grid
+            'registered-bg' => '#c2ea3a',
+            'registered-line' => '#76796d',
+            'registered-width' => '1px',
         ],
 
         'dark' => [
             // 60 — a near-black with the same trace of lime. Never pure black, and
             // the type on it never pure white: that pair halates at small sizes.
-            'ground' => '#12140e',
+            'ground' => '#0f1109',
             'on-ground' => '#e6e8de',
-            'surface' => '#1b1e15',
+            'surface' => '#252a1c',
             'on-surface' => '#e6e8de',
 
-            // 30 — structure stays near-black and is told apart from the ground by
-            // a hairline in the accent rather than by a lifted tone. That is why
-            // outlines exist here and nowhere in light mode.
-            'structure' => '#0c0e08',
+            // 30 — structure is one step OFF the ground rather than under it (at
+            // night, closer to the reader is lighter), and the accent-tinted
+            // hairline does the rest: 4.41:1 on the ground, 3.59:1 on the bar.
+            'structure' => '#21261a',
             'on-structure' => '#e6e8de',
             'edge-width' => '1px',
-            // 3.2:1 against the ground — a hairline still has to be findable
-            'edge' => '#6b57b6',
+            'edge' => '#7f6ad0',
 
             // 10a — the light purple will not do here: #6122eb is about 2.5:1 on
             // this ground. Lifted and slightly desaturated for the same role.
             'action' => '#b39cff',
             'on-action' => '#12100c',
             'action-link' => '#b39cff',
+            // the same wash the other way up: the purple mixed down into the ground,
+            // carrying the lifted purple as ink at 6.40:1
+            'tonal' => '#2a2249',
+            'on-tonal' => '#b39cff',
 
-            // 10b — the lime survives inversion; it is only ever ink or a hairline,
-            // never a filled area, so it does not glare
+            // 10b — the lime is a chip here too, small and under dark ink, so it
+            // never becomes a glaring filled area at night
             'state' => '#c2ea3a',
             'on-state' => '#12140e',
 
@@ -166,38 +185,37 @@ return [
             'scrim' => '#05060a',
             'view-state' => '#c2ea3a',
             'on-view-state' => '#12140e',
-            'field' => '#1b1e15',
+            'field' => '#252a1c',
             'on-field' => '#e6e8de',
-            'sheet' => '#1b1e15',
+            'sheet' => '#252a1c',
             'on-sheet' => '#e6e8de',
             'sheet-action' => '#b39cff',
             'on-sheet-action' => '#12100c',
 
             // Elevation reads the other way up at night: the grid's chrome and its
             // cards are LIGHTER than the grid ground, not darker.
-            'grid' => '#191c14',
-            // The card has to be legible as a card BEFORE its hairline is counted.
-            // At #343a2d it was 1.47:1 against the grid and the hairline was doing
-            // all the work, which reads as murk; this is 3.24:1 on fill alone, with
-            // the labels at 4.79:1 on it. The two pull against each other — every
-            // step lighter buys grid separation and spends label contrast — so this
-            // sits where both clear their threshold with room, and the card stays
-            // NEUTRAL, which is what keeps programme names readable.
-            'grid-structure' => '#686d60',
+            'grid' => '#15180f',
+            // The card is a card by a tone step AND its hairline together. Round 9
+            // asked the fill alone for 3:1, which on a near-black grid means a
+            // mid-grey block — a light element in a dark screen, which is what the
+            // round-10 complaint is about. 1.98:1 on fill, 3.92:1 on the hairline,
+            // and the labels sit at 8.17:1 on it.
+            'grid-structure' => '#454b36',
             'on-grid-structure' => '#f2f4ea',
-            'grid-edge' => '#787e6d',
-            // the ruler's purple, lifted for the night: #6122eb is 2.5:1 on this
-            // ground. This is 4.68:1 against the grid and carries dark ink at 5.03:1.
-            'signature' => '#8f6ff0',
-            'on-signature' => '#12140e',
-            // the lime cast, dark: 16% into a tone of the grid family. 7.08:1 under
-            // the stage names, and 2.19:1 against the grid where round 8 was 1.47:1.
-            'stage' => '#4b562f',
-            'on-stage' => '#f2f4ea',
-            // lifted with the card: at #787e6d the hairline is 1.2:1 against the new
-            // fill, i.e. gone. This one is 2.3:1 on it and 7.5:1 on the grid.
+            'grid-edge' => '#5f6553',
+            // the ruler at night: a deep purple band under light type, not the lit
+            // panel a bright purple makes. 2.15:1 against the grid, 7.05:1 under
+            // its labels.
+            'signature' => '#523f96',
+            'on-signature' => '#ede9ff',
+            // neutral here too — the lime cast is withdrawn in both modes
+            'stage' => '#2f3427',
+            'on-stage' => '#eef0e6',
+            // 3.92:1 against the card it bounds and 7.75:1 against the grid
             'hairline' => '#a7ad97',
-            'registered-bg' => '#686d60',
+            // registered: on a dark grid the lime is a thick edge on the neutral
+            // card (6.54:1 on it), because a lime fill at night is a lamp
+            'registered-bg' => '#454b36',
             'registered-line' => '#c2ea3a',
             'registered-width' => '3px',
         ],
@@ -207,7 +225,14 @@ return [
     // in the kissj repo, commit f2cec173 (that commit is not on any branch there — preserve
     // it before regenerating). Lime in the menu so it shows on the black bar; purple elsewhere.
     'assets' => [
-        'menuLogo' => 'events/obrok27/ghost-lime.png',
+        // The bars follow the mode now, so the drawing on them has to as well: the
+        // purple ghost on the white bars of light mode (6.65:1) and the lime one on
+        // the near-black bars at night, where the purple is about 2.5:1.
+        'menuLogo' => 'events/obrok27/ghost.png',
+        'menuLogoDark' => 'events/obrok27/ghost-lime.png',
+        // and on the active tab's lime chip, in either mode, the purple one again:
+        // the dark-mode drawing is lime, which is the colour the chip is filled with
+        'menuLogoOnState' => 'events/obrok27/ghost.png',
         'mainLogo' => 'events/obrok27/ghost.png',
         // the purple ghost measures about 2.5:1 on the dark ground; the lime one,
         // drawn for the black menu bar, is what carries the homepage at night
