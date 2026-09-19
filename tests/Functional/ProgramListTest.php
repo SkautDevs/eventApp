@@ -12,7 +12,7 @@ use App\Auth\SkautisGatewayInterface;
  * It used to page by day, one .pl-day visible at a time. Now every day is present and
  * visible in document order, each under its own sticky heading, and the strip on top
  * stops being a pager: the label follows the scroll and the arrows jump between day
- * headings. Only that strip changed — the timeline still pages by (day, section).
+ * headings. Only that strip changed — the timeline still pages, by day.
  */
 final class ProgramListTest extends AppTestCase
 {
@@ -55,7 +55,7 @@ final class ProgramListTest extends AppTestCase
 
     /**
      * Two strips, two instruments. Only the list's changed shape: the timeline keeps
-     * its chevrons, its (day, section) pages and its zoom pair.
+     * its chevrons, its day pages and its zoom pair.
      */
     public function testOnlyTheListStripBecameAnOrientationStrip(): void
     {

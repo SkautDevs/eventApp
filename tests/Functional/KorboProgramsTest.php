@@ -113,7 +113,7 @@ final class KorboProgramsTest extends AppTestCase
     }
 
     /**
-     * A programme lands on the (day, section) page of every day it runs, so all of them
+     * A programme lands on the day page of every day it runs, so all of them
      * have one card except Hennování, which runs three days and has three; and every
      * programme gets exactly one detail sheet, which is what each of its cards and the
      * deep link open. All six sections are listed, so all 59 programmes have both.
@@ -131,31 +131,17 @@ final class KorboProgramsTest extends AppTestCase
     }
 
     /**
-     * Sections show in two places: in the timeline's page names, in kissj's order within
-     * each day, and on every detail sheet.
+     * The timeline pages by day, one page per event day named by the day alone, and
+     * every detail sheet names its section.
      */
-    public function testEverySectionAppearsInKissjsOrder(): void
+    public function testEverySectionAppearsOnItsDetailSheets(): void
     {
         $html = $this->screen();
         $titles = [1 => 'Pohybová', 2 => 'Tvořivá', 3 => 'Kulturní', 4 => 'Přednáška', 5 => 'Debata', 6 => 'Jiné'];
 
-        preg_match_all('/data-pg-page="page-(\d{8})-(\d+)" data-pg-kind="timeline">[^<]* (\S+)<\/button>/u', $html, $pages, PREG_SET_ORDER);
-        $byDay = [];
-        foreach ($pages as [, $day, $sectionId, $title]) {
-            self::assertSame($titles[(int) $sectionId], $title);
-            $byDay[$day][] = (int) $sectionId;
-        }
-        // numeric string keys come back as ints
-        self::assertSame([20260916, 20260917, 20260918, 20260919, 20260920], array_keys($byDay));
-        foreach ($byDay as $day => $sectionIds) {
-            $sorted = $sectionIds;
-            sort($sorted); // kissj lists the Korbo sections in id order
-            self::assertSame($sorted, $sectionIds, "sections of {$day} are out of kissj's order");
-        }
-        // and between them the days name all six
-        $named = array_unique(array_merge(...array_values($byDay)));
-        sort($named);
-        self::assertSame(array_keys($titles), $named);
+        preg_match_all('/data-pg-page="(page-\d{8})" data-pg-kind="timeline">([^<]*)<\/button>/u', $html, $pages);
+        self::assertSame(['page-20260916', 'page-20260917', 'page-20260918', 'page-20260919', 'page-20260920'], $pages[1]);
+        self::assertSame(['st 16. 9.', 'čt 17. 9.', 'pá 18. 9.', 'so 19. 9.', 'ne 20. 9.'], $pages[2]);
 
         // every detail sheet names its section, as many times as the section has programmes
         $expected = array_count_values(array_map(
@@ -247,11 +233,11 @@ final class KorboProgramsTest extends AppTestCase
     public function testAProgrammeEndingAtMidnightStaysOnItsOwnEvening(): void
     {
         $html = $this->screen();
-        $page = self::page($html, 'page-20260916-3');
+        $page = self::page($html, 'page-20260916');
 
-        self::assertStringContainsString('data-key="8" style="left: calc(var(--hour-width) * 0.75); width: calc(var(--hour-width) * 0.25)"', $page);
+        self::assertStringContainsString('data-key="8" style="left: calc(var(--hour-width) * 23.75); width: calc(var(--hour-width) * 0.25)"', $page);
         self::assertStringContainsString('aria-label="Večerka pro noční sovy, 23:45 – 00:00"', $page);
-        self::assertStringNotContainsString('data-key="8"', self::page($html, 'page-20260917-3'));
+        self::assertStringNotContainsString('data-key="8"', self::page($html, 'page-20260917'));
         foreach ([8, 24, 40, 57] as $id) {
             self::assertSame(1, self::cardCounts($html)[$id], "programme {$id}");
         }
@@ -259,7 +245,7 @@ final class KorboProgramsTest extends AppTestCase
 
     public function testAnAllDayEntryFillsItsDay(): void
     {
-        $page = self::page($this->screen(), 'page-20260916-1');
+        $page = self::page($this->screen(), 'page-20260916');
 
         self::assertSame(24, substr_count($page, 'class="tl-tick"'));
         self::assertStringContainsString('data-key="1" style="left: calc(var(--hour-width) * 0); width: calc(var(--hour-width) * 23.9833)"', $page);
@@ -277,9 +263,9 @@ final class KorboProgramsTest extends AppTestCase
         $label = 'aria-label="Hennování a zaplétání copánků, st 16. 9. 00:00 – pá 18. 9. 23:59"';
 
         foreach ([
-            'page-20260916-2' => 24,
-            'page-20260917-2' => 24,
-            'page-20260918-2' => 23.9833,
+            'page-20260916' => 24,
+            'page-20260917' => 24,
+            'page-20260918' => 23.9833,
         ] as $key => $span) {
             $page = self::page($html, $key);
             self::assertStringContainsString('data-key="2" style="left: calc(var(--hour-width) * 0); width: calc(var(--hour-width) * ' . $span . ')"', $page, $key);
@@ -287,10 +273,10 @@ final class KorboProgramsTest extends AppTestCase
             // a bar filling the day makes that day's axis the whole day, and no more
             self::assertSame(24, substr_count($page, 'class="tl-tick"'), $key);
         }
-        self::assertStringNotContainsString('data-key="2"', self::page($html, 'page-20260919-2'));
+        self::assertStringNotContainsString('data-key="2"', self::page($html, 'page-20260919'));
 
         self::assertSame(1, substr_count($html, 'data-pg-detail="2"'));
-        self::assertStringContainsString('data-key="2" data-pg-detail="2" data-page="page-20260916-2"', $html);
+        self::assertStringContainsString('data-key="2" data-pg-detail="2" data-page="page-20260916"', $html);
         self::assertStringContainsString('<p class="sheet-when">st 16. 9. 00:00 – pá 18. 9. 23:59</p>', $html);
     }
 

@@ -140,8 +140,8 @@ final class ProgramsModule implements ModuleInterface
 
     /**
      * Shapes everything the template needs:
-     *  - pages:  one per (day, section) pair that actually has programmes, each already
-     *            carrying its hour ruler and its stage rows with positioned cards
+     *  - pages:  one per day that actually has programmes, every section together, each
+     *            already carrying its hour ruler and its stage rows with positioned cards
      *  - days:   one per day of the participant's own programme, for the list view
      *  - details: modal payload per programme id, for both views and the hash deep link
      *
@@ -161,8 +161,8 @@ final class ProgramsModule implements ModuleInterface
             $registeredIds[$program['id']] = true;
         }
 
-        // group everything by day and then by section, dropping sections the provider did
-        // not list. A programme running over several days goes on the page of each of them.
+        // group everything by day, dropping programmes in a section the provider did not
+        // list. A programme running over several days goes on the page of each of them.
         $grouped = [];
         foreach ($all as $program) {
             $sectionId = $program['section']['id'] ?? null;
@@ -170,27 +170,21 @@ final class ProgramsModule implements ModuleInterface
                 continue;
             }
             foreach (self::segments($program) as $segment) {
-                $grouped[$segment['day']][$sectionId][] = $segment;
+                $grouped[$segment['day']][] = $segment;
             }
         }
         ksort($grouped);
 
         $pages = [];
         $pageOfProgram = [];
-        foreach ($grouped as $day => $bySection) {
-            // sections keep the order the provider lists them in, not the order their programmes arrive in
-            foreach ($sections as $sectionId => $section) {
-                if (empty($bySection[$sectionId])) {
-                    continue;
-                }
-                $page = self::buildPage($day, $section, $bySection[$sectionId], $registeredIds, $isLogged);
-                // the days run in order, so the first page a programme is met on is the
-                // one it starts on — the page its sheet and its deep link belong to
-                foreach ($bySection[$sectionId] as $segment) {
-                    $pageOfProgram[$segment['program']['id']] ??= $page['key'];
-                }
-                $pages[] = $page;
+        foreach ($grouped as $day => $segments) {
+            $page = self::buildPage($day, $segments, $registeredIds, $isLogged);
+            // the days run in order, so the first page a programme is met on is the
+            // one it starts on — the page its sheet and its deep link belong to
+            foreach ($segments as $segment) {
+                $pageOfProgram[$segment['program']['id']] ??= $page['key'];
             }
+            $pages[] = $page;
         }
 
         $days = self::buildDays($mine);
@@ -219,7 +213,7 @@ final class ProgramsModule implements ModuleInterface
      * @param list<array{program: array, day: string, start: int, end: int}> $segments this day's pieces
      * @param array<int, true> $registeredIds
      */
-    private static function buildPage(string $day, array $section, array $segments, array $registeredIds, bool $isLogged): array
+    private static function buildPage(string $day, array $segments, array $registeredIds, bool $isLogged): array
     {
         // the axis is measured against the ends the bars are actually drawn to, so a
         // programme running on past midnight widens this page no further than the day —
@@ -267,9 +261,9 @@ final class ProgramsModule implements ModuleInterface
             <=> ($b['location'] === self::NO_LOCATION_LABEL ? 1 : 0));
 
         return [
-            'key' => 'page-' . date('Ymd', strtotime($day)) . '-' . $section['id'],
+            'key' => 'page-' . date('Ymd', strtotime($day)),
             'day' => $day,
-            'label' => self::dayLabel($day) . ' ' . self::sectionTitle($section),
+            'label' => self::dayLabel($day),
             'hours' => count($ruler),
             'ruler' => $ruler,
             'rows' => $rows,
@@ -335,8 +329,7 @@ final class ProgramsModule implements ModuleInterface
     }
 
     /**
-     * The list view groups by day only: it holds five or so programmes in total, so
-     * splitting it by section as well would leave most of its groups empty. Every day
+     * The list view groups by day, like the timeline, but does not page: every day
      * is rendered and the reader scrolls through all of them — a day the participant
      * has nothing on simply does not exist here, because this is their programme and
      * not the event's.

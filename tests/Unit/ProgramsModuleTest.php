@@ -115,9 +115,9 @@ final class ProgramsModuleTest extends TestCase
         $long = self::program(1, '2027-06-03 20:00:00', '2027-06-05 02:00:00');
         $model = self::buildViewModel([$long, self::program(2, '2027-06-04 09:00:00', '2027-06-04 10:00:00')], [$long]);
 
-        self::assertSame(['page-20270603-1', 'page-20270604-1', 'page-20270605-1'], array_column($model['pages'], 'key'));
+        self::assertSame(['page-20270603', 'page-20270604', 'page-20270605'], array_column($model['pages'], 'key'));
         self::assertSame([1, 2], array_column($model['details'], 'id'));
-        self::assertSame('page-20270603-1', $model['details'][0]['page']);
+        self::assertSame('page-20270603', $model['details'][0]['page']);
 
         $cards = array_values(array_filter(self::cardsOf($model['pages']), static fn (array $c): bool => $c['id'] === 1));
         self::assertCount(3, $cards);
@@ -195,7 +195,7 @@ final class ProgramsModuleTest extends TestCase
         ]);
 
         self::assertCount(1, $model['pages']);
-        self::assertSame('page-20270603-1', $model['activePage']);
+        self::assertSame('page-20270603', $model['activePage']);
         self::assertSame([1], array_column($model['details'], 'id'));
     }
 

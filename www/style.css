@@ -1233,7 +1233,7 @@ table.harmonogram tr:first-child td {
 
 /* --- timeline ------------------------------------------------------------ */
 
-/* The timeline pages: one (day, section) at a time, stepped with ‹ ›. The personal
+/* The timeline pages: one day at a time, stepped with ‹ ›. The personal
    list does not page — every day of it is present and visible, first to last, and the
    reader scrolls through the lot. */
 .tl-page {

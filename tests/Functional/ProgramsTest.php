@@ -103,7 +103,7 @@ final class ProgramsTest extends AppTestCase
         self::assertStringNotContainsString('Bez zacatku', $html);
         self::assertStringNotContainsString('Bez konce', $html);
         self::assertStringContainsString('Hodny program', $html);
-        self::assertStringContainsString('<section class="tl-page is-active" data-morph-keep="class" data-pg-panel="timeline" data-key="page-20270603-1"', $html);
+        self::assertStringContainsString('<section class="tl-page is-active" data-morph-keep="class" data-pg-panel="timeline" data-key="page-20270603"', $html);
     }
 
     /**

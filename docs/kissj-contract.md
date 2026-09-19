@@ -58,11 +58,11 @@ not soft-deleted, including admin-preregistered ones.
         ]
     }
 
-- `sections` is the event's list of programme sections, and **its order is the
-  display order**: eventApp pages the timeline by (day, section) in exactly this
-  order. kissj must add this — it has no section entity yet. Each section:
+- `sections` is the event's list of programme sections. The timeline pages by day
+  and shows only programmes whose section is listed here. kissj must add this — it
+  has no section entity yet. Each section:
   - `id` (int, required) — referenced by a programme's `sectionId`.
-  - `name` (string, required) — shown as the page and sheet heading.
+  - `name` (string, required) — shown in the programme sheet.
   - `subtitle` (string or null, optional) — appended to the name, e.g. two
     sections both named `Vapro` with subtitles `1. blok` and `2. blok`.
   - `imageUrl` (string or null, optional) — a map shown in the programme sheet.
