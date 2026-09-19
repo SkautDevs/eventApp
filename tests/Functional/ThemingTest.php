@@ -372,7 +372,7 @@ final class ThemingTest extends AppTestCase
             }
         }
 
-        self::assertSame(3, $checked, 'both events, three role sets between them');
+        self::assertSame(4, $checked, 'three events, four role sets between them — korbo borrows the obrok19 light set');
     }
 
     /** The sheet is a role now; the palette key that used to ground it is retired. */
@@ -450,7 +450,7 @@ final class ThemingTest extends AppTestCase
             }
         }
 
-        self::assertSame(3, $checked, 'both events, three role sets between them');
+        self::assertSame(4, $checked, 'three events, four role sets between them — korbo borrows the obrok19 light set');
     }
 
     /**
@@ -519,7 +519,7 @@ final class ThemingTest extends AppTestCase
 
         self::assertGreaterThan(0, $checked, 'no event declares a role pair to measure');
         // obrok19 hand-authors a set of its own now, so it is measured like any other
-        self::assertSame(['obrok19', 'obrok27'], array_keys($events));
+        self::assertSame(['korbo', 'obrok19', 'obrok27'], array_keys($events));
     }
 
     /**

@@ -1,0 +1,44 @@
+[
+    {
+        "id": 1,
+        "name": "Pohybová",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 2,
+        "name": "Tvořivá",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 3,
+        "name": "Kulturní",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 4,
+        "name": "Přednáška",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 5,
+        "name": "Debata",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 6,
+        "name": "Jiné",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    }
+]
