@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Auth\Identity;
+use App\Program\ProgramProviderInterface;
+
 final class ProgramsTest extends AppTestCase
 {
     public function testProgramsPageGroupsBySections(): void
@@ -15,7 +18,6 @@ final class ProgramsTest extends AppTestCase
         self::assertStringContainsString('Putování', $html);
         self::assertStringContainsString('Ukázková vycházka', $html);
         self::assertStringNotContainsString('map-vzlet.png', $html); // the Vzlet section has no program → not rendered
-        self::assertStringNotContainsString('Osobní volno', $html);
         // sections with no programs are not rendered
         self::assertStringNotContainsString('EXPO', $html);
     }
@@ -128,5 +130,91 @@ final class ProgramsTest extends AppTestCase
         self::assertSame(1, substr_count($html, 'data-pg-open="2"'));
         self::assertSame(1, substr_count($html, 'data-pg-detail="2"'));
         self::assertStringNotContainsString('Duplicitni id', $html);
+    }
+
+    /**
+     * Sections come from the provider, presentation and all. kissj sends its map and
+     * attachment as absolute URLs, where the stub's fixtures carry paths relative to www/;
+     * the page's <base href="/"> resolves the latter and leaves the former alone, so the
+     * sheet has to print both exactly as given.
+     */
+    public function testSectionPresentationFromTheProviderRendersInTheSheet(): void
+    {
+        $html = $this->programsWith([7 => [
+            'id' => 7,
+            'title' => 'Velká hra',
+            'subTitle' => '1. blok',
+            'image' => 'https://kissj.example/img/map.png',
+            'attachment' => ['href' => 'https://kissj.example/files/rules.pdf', 'label' => 'Pravidla'],
+        ]]);
+
+        self::assertStringContainsString('Hra v lese', $html);
+        self::assertStringContainsString('<p class="sheet-section">Velká hra – 1. blok</p>', $html);
+        self::assertStringContainsString('<img class="sheet-map" src="https://kissj.example/img/map.png"', $html);
+        self::assertStringContainsString('<a class="sheet-link" href="https://kissj.example/files/rules.pdf">Pravidla</a>', $html);
+    }
+
+    /** A programme in a section the provider did not list gets no place on the timeline. */
+    public function testAProgrammeInAnUnlistedSectionIsNotOnTheTimeline(): void
+    {
+        $listed = $this->programsWith([7 => ['id' => 7, 'title' => 'Velká hra', 'subTitle' => null, 'image' => null, 'attachment' => null]]);
+        $unlisted = $this->programsWith([8 => ['id' => 8, 'title' => 'Jiná', 'subTitle' => null, 'image' => null, 'attachment' => null]]);
+
+        self::assertStringContainsString('data-pg-open="1"', $listed);
+        self::assertStringNotContainsString('data-pg-open="1"', $unlisted);
+        self::assertStringNotContainsString('class="tl-page', $unlisted);
+    }
+
+    /**
+     * eventApp filters nothing by name: kissj sends only what belongs on the schedule, so
+     * a programme that arrives is shown, whatever it is called — "Osobní volno" included.
+     */
+    public function testEveryProgrammeTheProviderSendsIsShown(): void
+    {
+        $html = $this->programsWith(
+            [7 => ['id' => 7, 'title' => 'Velká hra', 'subTitle' => null, 'image' => null, 'attachment' => null]],
+            name: 'Osobní volno',
+        );
+
+        self::assertStringContainsString('data-pg-open="1"', $html);
+        self::assertStringContainsString('Osobní volno', $html);
+    }
+
+    /** Renders /programy over one programme in section 7 and the given sections. */
+    private function programsWith(array $sections, string $name = 'Hra v lese'): string
+    {
+        $provider = new class ($sections, $name) implements ProgramProviderInterface {
+            public function __construct(private readonly array $sections, private readonly string $name)
+            {
+            }
+
+            public function getPrograms(): array
+            {
+                return [[
+                    'id' => 1,
+                    'name' => $this->name,
+                    'section' => ['id' => 7],
+                    'start' => ['date' => '2027-06-03 09:00:00'],
+                    'end' => ['date' => '2027-06-03 10:00:00'],
+                    'location' => 'Les',
+                ]];
+            }
+
+            public function getSections(): array
+            {
+                return $this->sections;
+            }
+
+            public function getProgramsForIdentity(Identity $identity): array
+            {
+                return [];
+            }
+        };
+
+        return (string) $this->request(
+            $this->createApp(overrides: [ProgramProviderInterface::class => $provider]),
+            'GET',
+            '/programy',
+        )->getBody();
     }
 }

@@ -1,0 +1,72 @@
+{
+    "participant": {
+        "nickname": "Zkušební Skaut"
+    },
+    "programmes": [
+        {
+            "id": 17,
+            "name": "Splutí Orlice 2.0",
+            "description": "Protože máme Orlici co by kamenem dohodil, přivezem lodě (kánoe) a (podruhé) splujeme 10 říčních kilometrů z Petroviček do Krňovic. Cestou nás čekají klidné meandry, ale i jeden kamenný stupeň pro zpestření!\n\nAktivita má tyto parametry:\n\n- sraz 13:00 u nástěnky\n- musíš být plavec\n- zkušenosti s vodou a loděma žádoucí\n- s sebou měj boty na vodu (nebo nějaké náhradní s pevnou patou a špičkou) a nějaké oblečení na převlečení\n- budu schopná odvézt autem max 6 dalších lidí, pro zajištění dobré dopravy bude potřeba sehnat další auta (pokud máš, dej mi vědět na <[odstraněno]>)\n- pokud nebude přát počasí, aktivita neproběhne (toto rozhodnutí padne ještě před Korbem) - rozhodující je teplota a déšť",
+            "place": "Jiné místo - specifikuj",
+            "start": "2026-09-17T13:00:00+02:00",
+            "end": "2026-09-17T17:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        },
+        {
+            "id": 27,
+            "name": "Masáž zad - workshop",
+            "description": "Najdi si parťáka, s nímž ti nevadí vzájemný fyzický kontakt (při masáži se nevyhneš tomu, že se bude někdo dotýkat tebe nebo ty někoho, neasi) a přijďte se naučit se navzájem masírovat. (Každopádně budu potřebovat 1-2 figuranty, kteří dostanou masáž jen tak, mrk mrk.)\n\nPokud bude pěkně a počasí dovolí se více odhalit, budeme masírovat záda, pokud bude chladněji, tak zůstaneme u šíje (krk zezadu a horní část zad).\n\nKapacita neomezená. :)\n\nS sebou:\n\n- parťáka\n- karimatku (nenafukovací) nebo nějakou celtu, podložku, abys neležel(a) na studeném\n- ručník/mikinu na přikrytí (může se maličko umastit od oleje)",
+            "place": "",
+            "start": "2026-09-18T09:30:00+02:00",
+            "end": "2026-09-18T11:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        },
+        {
+            "id": 38,
+            "name": "Slunovrazi",
+            "description": "Hra mírně násilná a dobrodružná! Doporučujeme vzít sebou věci na zašpinění a hrát bez brýlí! (Brutalitou mírně méně násilná než-li buldoci)",
+            "place": "Louka Lesopark",
+            "start": "2026-09-18T21:00:00+02:00",
+            "end": "2026-09-18T22:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        },
+        {
+            "id": 42,
+            "name": "Ranní koupání se Sherpou",
+            "description": "Půjdeme se po ránu osvěžit a nabrat nový dech do nového dne. Poslouží k tomu nedaleká nádrž Marokánka.\n\nSsebou ručník, možno plavací míč, nebo frisbee, volitelně plavky",
+            "place": "Nástěnka",
+            "start": "2026-09-19T09:00:00+02:00",
+            "end": "2026-09-19T10:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        },
+        {
+            "id": 51,
+            "name": "Diskuze - Co bude s Korbem?",
+            "description": "V posledních 3 letech prošla tahle akce významným vývojem a hodně se toho mění a měnit ještě bude.\nKorbo drží krok se zbytkem organizace a zároveň si u toho chce zachovat původní myšlenku - to není jednoduchý úkol.\n\nPřijď vyjádřit svůj názor, diskutovat a třeba i porozumět některým změnám.\nAť už si zelenáč, nebo na Korbo patříš od začátku, máš čím přispět.\n\nKorbo je komunitní projekt a měli by ho utvářet všichni, proto závěr téhle diskuze bude mít nemalý vliv na jeho budoucí ročníky.",
+            "place": "",
+            "start": "2026-09-19T17:00:00+02:00",
+            "end": "2026-09-19T19:00:00+02:00",
+            "isPreregistered": true,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 5
+        }
+    ]
+}

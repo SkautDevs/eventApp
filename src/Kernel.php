@@ -47,10 +47,15 @@ final class Kernel
                     if ($baseUrl === '') {
                         throw new \RuntimeException('PROGRAM_PROVIDER=kissj requires KISSJ_BASE_URL');
                     }
+                    // kissj resolves the event from the key, so the key is what picks the event
+                    $apiKey = $_ENV['KISSJ_API_KEY'] ?? '';
+                    if ($apiKey === '') {
+                        throw new \RuntimeException('PROGRAM_PROVIDER=kissj requires KISSJ_API_KEY');
+                    }
 
                     return new \App\Program\KissjProgramProvider(
                         http: new \GuzzleHttp\Client(['base_uri' => rtrim($baseUrl, '/') . '/', 'timeout' => 10]),
-                        eventSlug: $event->get('kissj')['eventSlug'] ?? $event->slug,
+                        apiKey: $apiKey,
                     );
                 }
 

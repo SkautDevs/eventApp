@@ -35,7 +35,6 @@ final class EventConfig
          */
         public readonly array $roles,
         public readonly array $features,
-        public readonly array $sections,
         public readonly array $raw,
         public readonly string $dir,
     ) {
@@ -72,7 +71,6 @@ final class EventConfig
             theme: $data['theme'] ?? [],
             roles: $data['roles'] ?? [],
             features: $data['features'],
-            sections: $data['sections'] ?? [],
             raw: $data,
             dir: dirname($file),
         );

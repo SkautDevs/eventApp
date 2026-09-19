@@ -26,7 +26,6 @@ final class EventConfigTest extends TestCase
         self::assertTrue($config->isEnabled('news'));
         self::assertFalse($config->isEnabled('neexistuje'));
         self::assertSame('#2a9272', $config->colors['base']);
-        self::assertSame('Putování', $config->sections[10]['title']);
     }
 
     public function testUnknownSlugThrows(): void

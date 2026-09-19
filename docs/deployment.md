@@ -42,11 +42,14 @@ Každá akce = jedna instance aplikace (jeden adresář na hostingu, jedna domé
      - **Pozor:** když se řádek nevyplní, aplikace naběhne, vypadá funkčně a
        na `/programy` zobrazí *demo harmonogram jako skutečný*. Nic se neohlásí,
        žádná chyba, žádný log. Produkční instance musí mít `PROGRAM_PROVIDER=kissj`.
-   - `KISSJ_BASE_URL` — základní URL kissj API. Povinné při `PROGRAM_PROVIDER=kissj`;
-     bez něj aplikace při startu skončí `RuntimeException`. Při `stub` se ignoruje.
-     Volitelně lze v configu akce přepsat slug klíčem `kissj.eventSlug` (jinak se
-     použije slug akce). Před přepnutím produkční akce na `kissj` ověřit
-     `docs/kissj-contract.md` proti reálnému API.
+   - `KISSJ_BASE_URL` — kořenová URL kissj, např. `https://kissj.net`. Povinné při
+     `PROGRAM_PROVIDER=kissj`; bez něj aplikace při startu skončí `RuntimeException`.
+     Při `stub` se ignoruje.
+   - `KISSJ_API_KEY` — programový API klíč akce z kissj. Povinné při
+     `PROGRAM_PROVIDER=kissj`; bez něj aplikace při startu skončí `RuntimeException`.
+     Akci určuje kissj podle klíče, žádný slug akce se nikde nenastavuje. Programy
+     i sekce (včetně jejich pořadí, map a příloh) chodí z kissj, v configu akce
+     nejsou. kissj zatím endpointy z `docs/kissj-contract.md` neposkytuje.
    - `SKAUTIS_APP_ID` — z registrace aplikace na https://is.skaut.cz
    - `ADMIN_TOKEN`, `VAPID_*` — viz push notifikace níže
 4. Vytvořit zapisovatelný adresář `var/` — SQLite databáze push odběrů.

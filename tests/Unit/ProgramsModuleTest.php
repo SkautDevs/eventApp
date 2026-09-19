@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\EventConfig;
 use App\Module\ProgramsModule;
 use PHPUnit\Framework\TestCase;
 
@@ -62,12 +61,85 @@ final class ProgramsModuleTest extends TestCase
         self::assertSame(round(60 / 3600, 4), $tracks[0][0]['span']);
     }
 
-    /** A record claiming to run for a week is clipped to a day rather than stretching the axis. */
-    public function testAnAbsurdlyLongProgrammeIsClippedToADay(): void
+    /**
+     * A programme is drawn on every calendar day it overlaps, each piece clipped to its
+     * own day, so a three-day programme is a bar on three pages rather than one bar
+     * clipped at 24 hours on the first of them.
+     */
+    public function testAProgrammeIsCutIntoOnePiecePerDayItRuns(): void
     {
-        $tracks = self::pack([self::program(1, '2027-06-03 10:00:00', '2027-06-10 10:00:00')]);
+        $segments = self::call('segments', self::program(1, '2027-06-03 10:00:00', '2027-06-05 08:00:00'));
 
-        self::assertSame(24.0, $tracks[0][0]['span']);
+        self::assertSame(['2027-06-03', '2027-06-04', '2027-06-05'], array_column($segments, 'day'));
+        self::assertSame(
+            [['2027-06-03 10:00', '2027-06-04 00:00'], ['2027-06-04 00:00', '2027-06-05 00:00'], ['2027-06-05 00:00', '2027-06-05 08:00']],
+            array_map(static fn (array $s): array => [date('Y-m-d H:i', $s['start']), date('Y-m-d H:i', $s['end'])], $segments),
+        );
+    }
+
+    /** An end at exactly midnight is the end of the evening, not a zero-width card on the next day. */
+    public function testAProgrammeEndingAtMidnightStaysOnTheDayItStarts(): void
+    {
+        $segments = self::call('segments', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:00:00'));
+
+        self::assertSame(['2027-06-03'], array_column($segments, 'day'));
+        self::assertSame(strtotime('2027-06-04 00:00:00'), $segments[0]['end']);
+    }
+
+    /** A record of no length is still drawn once, on its day. */
+    public function testAProgrammeOfNoLengthIsStillOnItsDay(): void
+    {
+        $segments = self::call('segments', self::program(1, '2027-06-03 10:00:00', '2027-06-03 10:00:00'));
+
+        self::assertSame(['2027-06-03'], array_column($segments, 'day'));
+    }
+
+    /**
+     * A typo'd `end` from kissj must not fill hundreds of pages: the pieces stop after
+     * MAX_DRAWN_DAYS. The detail sheet still shows the record's own end.
+     */
+    public function testARecordClaimingToRunForMonthsIsDrawnOverABoundedNumberOfDays(): void
+    {
+        $segments = self::call('segments', self::program(1, '2027-06-03 10:00:00', '2027-12-24 10:00:00'));
+
+        self::assertCount((new \ReflectionClassConstant(ProgramsModule::class, 'MAX_DRAWN_DAYS'))->getValue(), $segments);
+    }
+
+    /**
+     * Every piece of a multi-day programme opens the same single sheet, carries the same
+     * registered state and names the whole run; the sheet, and with it the deep link,
+     * belongs to the page of the day it starts on.
+     */
+    public function testAMultiDayProgrammeIsOnePageADayAndOneSheet(): void
+    {
+        $long = self::program(1, '2027-06-03 20:00:00', '2027-06-05 02:00:00');
+        $model = self::buildViewModel([$long, self::program(2, '2027-06-04 09:00:00', '2027-06-04 10:00:00')], [$long]);
+
+        self::assertSame(['page-20270603-1', 'page-20270604-1', 'page-20270605-1'], array_column($model['pages'], 'key'));
+        self::assertSame([1, 2], array_column($model['details'], 'id'));
+        self::assertSame('page-20270603-1', $model['details'][0]['page']);
+
+        $cards = array_values(array_filter(self::cardsOf($model['pages']), static fn (array $c): bool => $c['id'] === 1));
+        self::assertCount(3, $cards);
+        foreach ($cards as $card) {
+            self::assertSame('čt 3. 6. 20:00 – so 5. 6. 02:00', $card['time']);
+            self::assertTrue($card['registered']);
+            self::assertFalse($card['dimmed']);
+        }
+        // each piece is clipped to its own day, so no page's axis runs past midnight
+        self::assertSame(['20:00', '00:00', '00:00'], array_map(static fn (array $p): string => $p['ruler'][0]['label'], $model['pages']));
+        self::assertSame([4, 24, 2], array_column($model['pages'], 'hours'));
+
+        // the list keeps it once, under the day it starts on, with its whole run
+        self::assertSame(['day-20270603'], array_column($model['days'], 'key'));
+        self::assertSame(['čt 3. 6. 20:00 – so 5. 6. 02:00'], array_column($model['days'][0]['items'], 'time'));
+    }
+
+    /** Midnight does not count as another day in the labels either. */
+    public function testATimeLabelEndingAtMidnightNamesNoDay(): void
+    {
+        self::assertSame('23:45 – 00:00', self::call('timeRange', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:00:00')));
+        self::assertSame('čt 3. 6. 23:45 – pá 4. 6. 00:30', self::call('timeRange', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:30:00')));
     }
 
     // --- day grouping -------------------------------------------------------
@@ -187,15 +259,17 @@ final class ProgramsModuleTest extends TestCase
     /** @return list<list<array>> */
     private static function pack(array $programs): array
     {
-        return self::call('packTracks', $programs, (int) strtotime('2027-06-03 00:00:00'), [], false);
+        $segments = array_map(static fn (array $p): array => self::call('segments', $p)[0], $programs);
+
+        return self::call('packTracks', $segments, (int) strtotime('2027-06-03 00:00:00'), [], false);
     }
 
     /** @return array<string, mixed> */
     private static function buildViewModel(array $all, array $mine = []): array
     {
-        $event = EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'programs');
+        $sections = [1 => ['id' => 1, 'title' => 'Sekce', 'subTitle' => null, 'image' => null, 'attachment' => null]];
 
-        return self::call('buildViewModel', $event, $all, $mine, $mine !== []);
+        return self::call('buildViewModel', $sections, $all, $mine, $mine !== []);
     }
 
     private static function program(int $id, string $start, string $end, string $location = 'Louka', string $name = 'Program'): array
@@ -227,16 +301,22 @@ final class ProgramsModuleTest extends TestCase
 
     private static function countCards(array $pages): int
     {
-        $count = 0;
+        return count(self::cardsOf($pages));
+    }
+
+    /** @return list<array> every card on every page */
+    private static function cardsOf(array $pages): array
+    {
+        $cards = [];
         foreach ($pages as $page) {
             foreach ($page['rows'] as $row) {
                 foreach ($row['tracks'] as $track) {
-                    $count += count($track);
+                    array_push($cards, ...$track);
                 }
             }
         }
 
-        return $count;
+        return $cards;
     }
 
     private static function withTimezone(string $zone, callable $body): mixed

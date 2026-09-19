@@ -6,7 +6,6 @@ namespace App\Module;
 
 use App\Auth\Authenticator;
 use App\Auth\UnknownParticipantException;
-use App\EventConfig;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use GuzzleHttp\Exception\TransferException;
@@ -37,12 +36,12 @@ final class ProgramsModule implements ModuleInterface
     private const HOUR = 3600;
 
     /**
-     * Longest bar the grid will draw, in seconds. A programme that claims to run
-     * longer — a typo'd `end` from kissj, say — is drawn clipped at a day rather
-     * than stretching the whole page's axis to fit it. The clip is a drawing
-     * decision only: the detail sheet still shows the true start and end.
+     * Most calendar days one programme is drawn across. Each day's piece is clipped to
+     * that day, so no record can stretch a page's axis; this bounds the other way a
+     * typo'd `end` from kissj could hurt — a bar on every day of the next ten years.
+     * The clip is a drawing decision only: the detail sheet still shows the true end.
      */
-    private const MAX_DRAWN_SPAN = 86400;
+    private const MAX_DRAWN_DAYS = 14;
 
     /** Shortest bar the grid will draw, in seconds — below this a card is unreadable. */
     private const MIN_DRAWN_SPAN = 60;
@@ -60,10 +59,8 @@ final class ProgramsModule implements ModuleInterface
     public function registerRoutes(App $app): void
     {
         $app->get('/programy', function ($request, $response) {
-            $event = $this->get(EventConfig::class);
             $auth = $this->get(Authenticator::class);
             $provider = $this->get(ProgramProviderInterface::class);
-            $hidden = $event->get('programs')['hiddenNames'] ?? [];
             // Both provider calls can fail in the same request — kissj being down is
             // exactly when they do — and the first branch signs the participant out.
             // One slot would let the second failure replace the explanation for that,
@@ -73,7 +70,7 @@ final class ProgramsModule implements ModuleInterface
 
             if ($auth->isLogged()) {
                 try {
-                    $mine = ProgramsModule::withoutHidden($provider->getProgramsForIdentity($auth->identity()), $hidden);
+                    $mine = $provider->getProgramsForIdentity($auth->identity());
                 } catch (UnknownParticipantException) {
                     $auth->logout();
                     $notices[] = 'Váš TIE kód už není platný, byli jste odhlášeni.';
@@ -85,13 +82,15 @@ final class ProgramsModule implements ModuleInterface
             }
 
             $all = [];
+            $sections = [];
             try {
-                $all = ProgramsModule::withoutHidden($provider->getPrograms(), $hidden);
+                $all = $provider->getPrograms();
+                $sections = $provider->getSections();
             } catch (TransferException | ProgramDataException) {
                 $notices[] = 'Programy se nepodařilo načíst, zkuste to prosím později.';
             }
 
-            $model = ProgramsModule::buildViewModel($event, $all, $mine, $auth->isLogged());
+            $model = ProgramsModule::buildViewModel($sections, $all, $mine, $auth->isLogged());
 
             return $this->get(Twig::class)->render($response, 'programs.twig', $model + [
                 'notice' => $notices === [] ? null : implode(' ', $notices),
@@ -99,19 +98,6 @@ final class ProgramsModule implements ModuleInterface
                 'identity' => $auth->identity()?->displayName,
             ]);
         })->setName('programs');
-    }
-
-    /**
-     * @param list<array> $programs
-     * @param list<string> $hidden
-     * @return list<array>
-     */
-    private static function withoutHidden(array $programs, array $hidden): array
-    {
-        return array_values(array_filter(
-            $programs,
-            static fn (array $program): bool => !in_array($program['name'], $hidden, true),
-        ));
     }
 
     /**
@@ -159,12 +145,12 @@ final class ProgramsModule implements ModuleInterface
      *  - days:   one per day of the participant's own programme, for the list view
      *  - details: modal payload per programme id, for both views and the hash deep link
      *
+     * @param array<int, array> $sections from getSections(), keyed by id in display order
      * @param list<array> $all programmes from getPrograms()
      * @param list<array> $mine programmes from getProgramsForIdentity()
      */
-    private static function buildViewModel(EventConfig $event, array $all, array $mine, bool $isLogged): array
+    private static function buildViewModel(array $sections, array $all, array $mine, bool $isLogged): array
     {
-        $sections = $event->sections;
         // everything below reads the dates and the ids as given, so both are made sound
         // once, here, rather than guarded at every use
         $all = self::withUniqueIds(self::withParsableDates($all));
@@ -175,28 +161,33 @@ final class ProgramsModule implements ModuleInterface
             $registeredIds[$program['id']] = true;
         }
 
-        // group everything by day and then by section, dropping sections this event does not know
+        // group everything by day and then by section, dropping sections the provider did
+        // not list. A programme running over several days goes on the page of each of them.
         $grouped = [];
         foreach ($all as $program) {
             $sectionId = $program['section']['id'] ?? null;
             if ($sectionId === null || !isset($sections[$sectionId])) {
                 continue;
             }
-            $grouped[self::dayOf($program)][$sectionId][] = $program;
+            foreach (self::segments($program) as $segment) {
+                $grouped[$segment['day']][$sectionId][] = $segment;
+            }
         }
         ksort($grouped);
 
         $pages = [];
         $pageOfProgram = [];
         foreach ($grouped as $day => $bySection) {
-            // sections keep the order the event config lists them in, not the order they arrive in
+            // sections keep the order the provider lists them in, not the order their programmes arrive in
             foreach ($sections as $sectionId => $section) {
                 if (empty($bySection[$sectionId])) {
                     continue;
                 }
                 $page = self::buildPage($day, $section, $bySection[$sectionId], $registeredIds, $isLogged);
-                foreach ($bySection[$sectionId] as $program) {
-                    $pageOfProgram[$program['id']] = $page['key'];
+                // the days run in order, so the first page a programme is met on is the
+                // one it starts on — the page its sheet and its deep link belong to
+                foreach ($bySection[$sectionId] as $segment) {
+                    $pageOfProgram[$segment['program']['id']] ??= $page['key'];
                 }
                 $pages[] = $page;
             }
@@ -225,16 +216,16 @@ final class ProgramsModule implements ModuleInterface
      * One timeline page: the hour ruler plus one stage row per location, each row split
      * into as many tracks as it takes for overlapping programmes not to cover each other.
      *
-     * @param list<array> $programs
+     * @param list<array{program: array, day: string, start: int, end: int}> $segments this day's pieces
      * @param array<int, true> $registeredIds
      */
-    private static function buildPage(string $day, array $section, array $programs, array $registeredIds, bool $isLogged): array
+    private static function buildPage(string $day, array $section, array $segments, array $registeredIds, bool $isLogged): array
     {
-        // the axis is measured against the ends the bars are actually drawn to, so one
-        // over-long record cannot widen the page for everything else on it — and a bar
-        // widened to the minimum still ends inside the grid
-        $starts = array_map(static fn (array $p): int => self::ts($p['start']), $programs);
-        $ends = array_map(static fn (array $p): int => self::barEnd($p), $programs);
+        // the axis is measured against the ends the bars are actually drawn to, so a
+        // programme running on past midnight widens this page no further than the day —
+        // and a bar widened to the minimum still ends inside the grid
+        $starts = array_column($segments, 'start');
+        $ends = array_map(self::barEnd(...), $segments);
 
         $axisStart = intdiv(min($starts), self::HOUR) * self::HOUR;
         $axisEnd = (int) (ceil(max($ends) / self::HOUR) * self::HOUR);
@@ -251,15 +242,15 @@ final class ProgramsModule implements ModuleInterface
         }
 
         $byLocation = [];
-        foreach ($programs as $program) {
-            $location = trim((string) ($program['location'] ?? ''));
-            $byLocation[$location][] = $program;
+        foreach ($segments as $segment) {
+            $location = trim((string) ($segment['program']['location'] ?? ''));
+            $byLocation[$location][] = $segment;
         }
         // stages read top to bottom in the order their first programme starts; no location goes last.
         // The earliest start is computed once per location rather than inside the comparator,
         // which walked both groups in full on every one of the O(n log n) comparisons.
         $firstStart = array_map(
-            static fn (array $items): int => min(array_map(static fn (array $p): int => self::ts($p['start']), $items)),
+            static fn (array $items): int => min(array_column($items, 'start')),
             $byLocation,
         );
         uksort($byLocation, static fn ($a, $b): int => $firstStart[$a] <=> $firstStart[$b]);
@@ -289,39 +280,44 @@ final class ProgramsModule implements ModuleInterface
      * Greedy interval packing: a programme goes into the first track whose previous
      * programme has already ended, so nothing is ever drawn on top of anything else.
      *
-     * @param list<array> $items
+     * @param list<array{program: array, day: string, start: int, end: int}> $items
      * @param array<int, true> $registeredIds
      * @return list<list<array>>
      */
     private static function packTracks(array $items, int $axisStart, array $registeredIds, bool $isLogged): array
     {
-        usort($items, static fn (array $a, array $b): int => [self::ts($a['start']), -self::drawnEnd($a)]
-            <=> [self::ts($b['start']), -self::drawnEnd($b)]);
+        usort($items, static fn (array $a, array $b): int => [$a['start'], -$a['end']] <=> [$b['start'], -$b['end']]);
 
         // packing works on the same end the bar is drawn to, clip and minimum width
-        // included: freeing a track at drawnEnd() while buildCard() widens a shorter
+        // included: freeing a track at the clipped end while buildCard() widens a shorter
         // programme to MIN_DRAWN_SPAN put the next card underneath that widened bar
         $trackEnds = [];
         $tracks = [];
-        foreach ($items as $program) {
-            $start = self::ts($program['start']);
+        foreach ($items as $segment) {
             $index = 0;
-            while (isset($trackEnds[$index]) && $trackEnds[$index] > $start) {
+            while (isset($trackEnds[$index]) && $trackEnds[$index] > $segment['start']) {
                 $index++;
             }
-            $trackEnds[$index] = self::barEnd($program);
-            $tracks[$index][] = self::buildCard($program, $axisStart, $registeredIds, $isLogged);
+            $trackEnds[$index] = self::barEnd($segment);
+            $tracks[$index][] = self::buildCard($segment, $axisStart, $registeredIds, $isLogged);
         }
         ksort($tracks);
 
         return array_values($tracks);
     }
 
-    /** @param array<int, true> $registeredIds */
-    private static function buildCard(array $program, int $axisStart, array $registeredIds, bool $isLogged): array
+    /**
+     * One card: a programme's piece of one day. Every piece of a programme carries the
+     * same id, label and state, so each opens the same sheet and says the same thing.
+     *
+     * @param array{program: array, day: string, start: int, end: int} $segment
+     * @param array<int, true> $registeredIds
+     */
+    private static function buildCard(array $segment, int $axisStart, array $registeredIds, bool $isLogged): array
     {
-        $start = self::ts($program['start']);
-        $end = self::barEnd($program);
+        $program = $segment['program'];
+        $start = $segment['start'];
+        $end = self::barEnd($segment);
         $registered = isset($registeredIds[$program['id']]);
 
         return [
@@ -430,9 +426,17 @@ final class ProgramsModule implements ModuleInterface
         return self::SHORT_DAY_NAMES[(int) $date->format('N')] . ' ' . $date->format('j. n.');
     }
 
-    /** e.g. "08:00 – 12:00" */
+    /**
+     * e.g. "08:00 – 12:00"; a programme that runs into another day names both days, the
+     * way the sheet does. Ending at midnight is ending the evening it started on.
+     */
     private static function timeRange(array $program): string
     {
+        $segments = self::segments($program);
+        if (count($segments) > 1) {
+            return self::whenLabel($program);
+        }
+
         return date('H:i', self::ts($program['start'])) . ' – ' . date('H:i', self::ts($program['end']));
     }
 
@@ -478,25 +482,44 @@ final class ProgramsModule implements ModuleInterface
     }
 
     /**
-     * The end the grid draws to: the real one, or a day after the start if the
-     * record claims longer. Only the bar is affected — buildDetail reads
-     * $program['end'] directly, so the sheet keeps the true time.
+     * A programme cut into one piece per calendar day it overlaps, each clipped to its
+     * day: from the later of its start and the day's midnight to the earlier of its end
+     * and the next midnight. The day it starts on always has a piece, even a record of
+     * no length; any later day only if the programme is still running into it, so an
+     * end at exactly midnight leaves no zero-width card on the next day. Only the bars
+     * are cut — buildDetail reads $program['end'] directly, so the sheet keeps the true time.
+     *
+     * @return list<array{program: array, day: string, start: int, end: int}>
      */
-    private static function drawnEnd(array $program): int
+    private static function segments(array $program): array
     {
         $start = self::ts($program['start']);
+        $end = max(self::ts($program['end']), $start);
+        $day = date('Y-m-d', $start);
 
-        return min(self::ts($program['end']), $start + self::MAX_DRAWN_SPAN);
+        $segments = [];
+        do {
+            // by the calendar rather than by 86400 seconds, which a DST change would break
+            $dayStart = (int) strtotime($day);
+            $nextDay = date('Y-m-d', (int) strtotime($day . ' +1 day'));
+            $dayEnd = (int) strtotime($nextDay);
+            $segments[] = ['program' => $program, 'day' => $day, 'start' => max($start, $dayStart), 'end' => min($end, $dayEnd)];
+            $day = $nextDay;
+        } while ($end > $dayEnd && count($segments) < self::MAX_DRAWN_DAYS);
+
+        return $segments;
     }
 
     /**
-     * The end of the bar as it is actually drawn: the clipped end, or a minute past the
-     * start for a programme too short to see. The packer frees a track at this same
+     * The end of the bar as it is actually drawn: the piece's clipped end, or a minute
+     * past its start for a piece too short to see. The packer frees a track at this same
      * value, or a widened bar would be drawn over the card that took the slot after it.
+     *
+     * @param array{start: int, end: int} $segment
      */
-    private static function barEnd(array $program): int
+    private static function barEnd(array $segment): int
     {
-        return max(self::drawnEnd($program), self::ts($program['start']) + self::MIN_DRAWN_SPAN);
+        return max($segment['end'], $segment['start'] + self::MIN_DRAWN_SPAN);
     }
 
     /** A duration in hours, the unit the timeline's --hour-width scale is expressed in. */

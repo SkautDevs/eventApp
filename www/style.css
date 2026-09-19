@@ -1544,10 +1544,12 @@ table.harmonogram tr:first-child td {
 	font-weight: 700;
 }
 
+/* a description is plain text whose line breaks are meant (docs/kissj-contract.md) */
 .pl-perex {
 	margin: 0;
 	font-size: 14px;
 	line-height: 1.35;
+	white-space: pre-line;
 }
 
 /* --- programme detail, as a bottom sheet --------------------------------- */
@@ -1689,6 +1691,7 @@ table.harmonogram tr:first-child td {
 .sheet-perex {
 	margin: 0 0 12px;
 	line-height: 1.4;
+	white-space: pre-line;
 }
 
 .sheet-lector {

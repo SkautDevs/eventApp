@@ -21,6 +21,15 @@ final class StubProgramProvider implements ProgramProviderInterface
         return $this->readJson('programs.json');
     }
 
+    /**
+     * fixtures/sections.json is kissj's own `sections` list, so it goes through the same
+     * mapping — and a fixture that would fail against kissj fails here too.
+     */
+    public function getSections(): array
+    {
+        return Sections::fromKissj($this->readJson('sections.json'));
+    }
+
     public function getProgramsForIdentity(Identity $identity): array
     {
         $map = $this->readJson('registered.json');

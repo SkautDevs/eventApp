@@ -135,31 +135,4 @@ return [
         'file' => 'events/obrok19/obrok19_handbook.pdf',
         'downloadName' => 'Obrok19_handbook.pdf',
     ],
-
-    'programs' => [
-        'hiddenNames' => ['Osobní volno'],
-    ],
-
-    // Program sections — formerly HttpService::getSectionsLocal().
-    // 'image'/'attachment' replace the maps that used to be hardcoded in programs.twig.
-    'sections' => [
-        10 => ['id' => 10, 'title' => 'Putování'],
-        12 => ['id' => 12, 'title' => 'Večerní programy'],
-        13 => ['id' => 13, 'title' => 'Doprovodné programy'],
-        1 => ['id' => 1, 'title' => 'Služba'],
-        2 => ['id' => 2, 'title' => 'Vzlet', 'image' => 'events/obrok19/map-vzlet.png'],
-        11 => ['id' => 11, 'title' => 'Pamětníci'],
-        14 => ['id' => 14, 'title' => 'M(a)y Day', 'image' => 'events/obrok19/map-mayday.png'],
-        15 => ['id' => 15, 'title' => 'Velká hra', 'image' => 'events/obrok19/map-velkahra.png'],
-        16 => ['id' => 16, 'title' => 'EXPO'],
-        3 => ['id' => 3, 'title' => 'Vapro', 'subTitle' => '1. blok'],
-        4 => ['id' => 4, 'title' => 'Vapro', 'subTitle' => '2. blok'],
-        17 => [
-            'id' => 17,
-            'title' => 'Netradiční sporty',
-            'image' => 'events/obrok19/map-netradicni-sporty.png',
-            'attachment' => ['href' => 'events/obrok19/netradicni-sporty.pdf', 'label' => 'Pravidla a více informací zde'],
-        ],
-        18 => ['id' => 18, 'title' => 'Mše'],
-    ],
 ];
