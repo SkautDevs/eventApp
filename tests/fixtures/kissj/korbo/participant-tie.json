@@ -1,0 +1,111 @@
+{
+    "participant": {
+        "nickname": "Testovací Korbák"
+    },
+    "programmes": [
+        {
+            "id": 3,
+            "name": "Postavme si Korbo  - v tuto dobu prosím neplánuj jiné aktivity.",
+            "description": "Čeká nás stavba společných stanů, vyhrazení ploch, rozmístění cedulí, stavba registrace, sociálního zařízení, subjektových stanů a dalších.",
+            "place": "",
+            "start": "2026-09-16T10:00:00+02:00",
+            "end": "2026-09-16T16:00:00+02:00",
+            "isPreregistered": true,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 2
+        },
+        {
+            "id": 5,
+            "name": "Speed dating (i pro zadané :D)",
+            "description": "Aby sis rozšířil(a) obzory i nad rámec skupinky, se kterou na Korbo jedeš, přijď se seznámit s novými lidmi během speed datingu, který spočívá v krátkých časově ohraničených pokecech s lidmi na různá (daná i vlastní) témata.\n\nCílem aktivity není najít sobě spřízněnou duši, ale prohodit pár slov s potenciálními novými kamarády. :)\n\nKapacita: neomezená",
+            "place": "",
+            "start": "2026-09-16T20:00:00+02:00",
+            "end": "2026-09-16T21:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 6
+        },
+        {
+            "id": 10,
+            "name": "Splutí Orlice 1.0",
+            "description": "Protože máme Orlici co by kamenem dohodil, přivezem lodě (kánoe) a splujeme 10 říčních kilometrů z Petroviček do Krňovic. Cestou nás čekají klidné meandry, ale i jeden kamenný stupeň pro zpestření!\n\nAktivita má tyto parametry:\n\n- sraz 8:00 u nástěnky\n- musíš být plavec\n- zkušenosti s vodou a loděma žádoucí\n- s sebou měj boty na vodu (nebo nějaké náhradní s pevnou patou a špičkou) a nějaké oblečení na převlečení\n- budu schopná odvézt autem max 6 dalších lidí, pro zajištění dobré dopravy bude potřeba sehnat další auta (pokud máš, dej mi vědět na <[odstraněno]>)\n- pokud nebude přát počasí, aktivita neproběhne (toto rozhodnutí padne ještě před Korbem) - rozhodující je teplota a déšť",
+            "place": "Jiné místo - specifikuj",
+            "start": "2026-09-17T08:00:00+02:00",
+            "end": "2026-09-17T12:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        },
+        {
+            "id": 26,
+            "name": "Ranní koupání se Sherpou",
+            "description": "Půjdeme se po ránu osvěžit a nabrat nový dech do nového dne. Poslouží k tomu nedaleká nádrž Marokánka.\n\nSsebou ručník, možno plavací míč, nebo frisbee, volitelně plavky",
+            "place": "Nástěnka",
+            "start": "2026-09-18T09:00:00+02:00",
+            "end": "2026-09-18T10:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        },
+        {
+            "id": 31,
+            "name": "Čajový workshop",
+            "description": "Víte, proč některé jazyky používají slovo „čaj“ a jiné „té“? A tušíte, jak se z jednoho jediného keře stane buď jemný bílý čaj, ale také silný černý? Přijďte si vypít šálek odpovědí a zjistit, co všechno se skrývá za jednou lístkovou rostlinou!",
+            "place": "",
+            "start": "2026-09-18T14:00:00+02:00",
+            "end": "2026-09-18T15:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 3
+        },
+        {
+            "id": 36,
+            "name": "Korbo ples",
+            "description": "Ani letos na Korbu nebude chybět příležitost k tanci. Vítáni jsou všichni tanečníci od úplných začátečníků až po chronické vymetače plesů.\n\nBudeme tančit předevšímn klasiku a latinu. Pro ty, kdo by si potřebovali kroky osvěžit, nebo budou tančit úplně poprvé budu k dispozici. Můžeme také okoukat nějaké nové figiury od ostatních párů a vzájemně se obohatit.",
+            "place": "Jiné místo - specifikuj",
+            "start": "2026-09-18T17:00:00+02:00",
+            "end": "2026-09-18T19:00:00+02:00",
+            "isPreregistered": true,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 3
+        },
+        {
+            "id": 45,
+            "name": "Street magic",
+            "description": "Je čas opět kouzlit na skautské akci! 6. ročník Magie na Korbu nabídne oblíbenou pouliční magii. Letos je to 5 let od mého prvního kouzlení na Korbu a zároveň 5 let skautské odborky Kouzelník/Kouzelnice.\n\nZ ulice akce se stane jeviště a z vás, účastníků, hlavní postavy v situacích, ve kterých se stane něco překvapivého. Žádné složité dekorace a rekvizity, žádní figuranti. Jen vy a skautský kouzelník. Moderní magie přichází za vámi.\n\nKouzlit se bude v daném čase na různých místech areálu. Začátek je tradičně u nástěnky.\n\nChceš-li, napiš si předem o kouzelnický zážitek: IG/FB: [odstraněno]",
+            "place": "Nástěnka",
+            "start": "2026-09-19T11:00:00+02:00",
+            "end": "2026-09-19T15:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 3
+        },
+        {
+            "id": 50,
+            "name": "Pevnost Boyard",
+            "description": "Zahrej si originální deskovku známé francouzské kultovní televizní gameshow. U této hry nebudeš jen sedět. Zažij netradiční úkoly za zvuků originální hudby. Zvítězí tvůj tým a dotkneš se legendárního pokladu?\n\nHra je pro 2-4 týmy a jeden tým může tvořit 2-6 hráčů.\n\nSraz u nástěnky.",
+            "place": "",
+            "start": "2026-09-19T16:00:00+02:00",
+            "end": "2026-09-19T17:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ],
+            "sectionId": 1
+        }
+    ]
+}

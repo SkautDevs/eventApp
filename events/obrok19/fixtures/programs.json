@@ -22,17 +22,6 @@
         "tools": null
     },
     {
-        "id": 11,
-        "name": "Osobní volno",
-        "section": {"id": 13},
-        "start": {"date": "2019-05-30 13:00:00"},
-        "end": {"date": "2019-05-30 14:00:00"},
-        "lector": null,
-        "location": null,
-        "perex": "Tenhle program se nesmí zobrazit (hiddenNames).",
-        "tools": null
-    },
-    {
         "id": 14,
         "name": "Služba v kuchyni",
         "section": {"id": 1},

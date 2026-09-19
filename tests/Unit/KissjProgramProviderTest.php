@@ -9,45 +9,177 @@ use App\Auth\UnknownParticipantException;
 use App\Program\KissjProgramProvider;
 use App\Program\ProgramDataException;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
 
 final class KissjProgramProviderTest extends TestCase
 {
+    private const SECTIONS = [['id' => 10, 'name' => 'Putování'], ['id' => 1, 'name' => 'Hlavní program']];
+
+    /** @var list<array{request: RequestInterface}> */
+    private array $history = [];
+
     private function provider(MockHandler $mock): KissjProgramProvider
     {
+        $this->history = [];
+        $stack = HandlerStack::create($mock);
+        $stack->push(Middleware::history($this->history));
+
         return new KissjProgramProvider(
-            http: new Client(['handler' => HandlerStack::create($mock)]),
-            eventSlug: 'obrok27',
+            http: new Client(['handler' => $stack, 'base_uri' => 'https://kissj.example/']),
+            apiKey: 'secret-key',
         );
+    }
+
+    private static function programme(array $overrides = []): array
+    {
+        return $overrides + [
+            'id' => 5,
+            'name' => 'Ukázková vycházka',
+            'sectionId' => 10,
+            'description' => 'Perex programu.',
+            'place' => 'Sraz u brány',
+            'start' => '2027-06-03T08:00:00+02:00',
+            'end' => '2027-06-03T12:00:00+02:00',
+            'isPreregistered' => false,
+            'targetRoles' => ['ist', 'guest'],
+        ];
+    }
+
+    private function lastRequest(): RequestInterface
+    {
+        self::assertNotEmpty($this->history, 'no request was sent');
+
+        return $this->history[array_key_last($this->history)]['request'];
     }
 
     public function testGetProgramsNormalizesShape(): void
     {
         $mock = new MockHandler([
-            new Response(200, [], json_encode([[
-                'id' => 5,
-                'name' => 'Ukázková vycházka',
-                'sectionId' => 10,
-                'start' => '2027-06-03T08:00:00+02:00',
-                'end' => '2027-06-03T12:00:00+02:00',
-                'lector' => 'Jana Testová',
-                'location' => 'Sraz u brány',
-                'description' => 'Perex programu.',
-                'tools' => null,
-            ]])),
+            new Response(200, [], (string) json_encode(['sections' => self::SECTIONS, 'programmes' => [self::programme()]])),
         ]);
 
         $programs = $this->provider($mock)->getPrograms();
 
-        self::assertSame(10, $programs[0]['section']['id']);
-        self::assertSame('2027-06-03 08:00:00', $programs[0]['start']['date']);
-        self::assertSame('Perex programu.', $programs[0]['perex']);
-        self::assertNull($programs[0]['tools']);
+        self::assertSame([
+            'id' => 5,
+            'name' => 'Ukázková vycházka',
+            'section' => ['id' => 10],
+            'start' => ['date' => '2027-06-03 08:00:00'],
+            'end' => ['date' => '2027-06-03 12:00:00'],
+            'lector' => null,
+            'location' => 'Sraz u brány',
+            'perex' => 'Perex programu.',
+            'tools' => null,
+        ], $programs[0]);
+    }
+
+    public function testGetProgramsCallsTheListEndpointWithTheApiKey(): void
+    {
+        $mock = new MockHandler([new Response(200, [], (string) json_encode(['sections' => self::SECTIONS, 'programmes' => []]))]);
+
+        self::assertSame([], $this->provider($mock)->getPrograms());
+
+        $request = $this->lastRequest();
+        self::assertSame('GET', $request->getMethod());
+        self::assertSame('/v3/programme/list', $request->getUri()->getPath());
+        self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'));
+    }
+
+    public function testParticipantEndpointsAreKeyedByTieCodeOrSkautisIdWithTheApiKey(): void
+    {
+        $body = (string) json_encode(['participant' => ['nickname' => null], 'programmes' => []]);
+
+        $mock = new MockHandler([new Response(200, [], $body)]);
+        $this->provider($mock)->getProgramsForIdentity(
+            new Identity(type: 'tie', displayName: 'TIE', tieCode: 'AB/C 1'),
+        );
+        self::assertSame('/v3/programme/participant/tie/AB%2FC%201', $this->lastRequest()->getUri()->getPath());
+        self::assertSame('Bearer secret-key', $this->lastRequest()->getHeaderLine('Authorization'));
+
+        $mock = new MockHandler([new Response(200, [], $body)]);
+        $this->provider($mock)->getProgramsForIdentity(
+            new Identity(type: 'skautis', displayName: 'Jana', skautisUserId: 1234),
+        );
+        self::assertSame('/v3/programme/participant/skautis/1234', $this->lastRequest()->getUri()->getPath());
+        self::assertSame('Bearer secret-key', $this->lastRequest()->getHeaderLine('Authorization'));
+    }
+
+    public function testSectionsKeepKissjsOrderAndAreKeyedById(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], (string) json_encode(['sections' => self::SECTIONS, 'programmes' => []])),
+        ]);
+
+        self::assertSame([
+            10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null, 'image' => null, 'attachment' => null],
+            1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null, 'image' => null, 'attachment' => null],
+        ], $this->provider($mock)->getSections());
+    }
+
+    /**
+     * The optional presentation fields map onto the names the Program screen already
+     * reads. They are nullable and may be absent, and an empty string is no value either.
+     */
+    public function testSectionPresentationFieldsMapOntoTheScreensShape(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], (string) json_encode(['programmes' => [], 'sections' => [
+                [
+                    'id' => 17,
+                    'name' => 'Netradiční sporty',
+                    'subtitle' => '1. blok',
+                    'imageUrl' => 'https://kissj.example/img/map.png',
+                    'attachment' => ['url' => 'https://kissj.example/files/rules.pdf', 'label' => 'Pravidla'],
+                ],
+                ['id' => 18, 'name' => 'Mše', 'subtitle' => '', 'imageUrl' => null, 'attachment' => null],
+            ]])),
+        ]);
+
+        $sections = $this->provider($mock)->getSections();
+
+        self::assertSame([
+            'id' => 17,
+            'title' => 'Netradiční sporty',
+            'subTitle' => '1. blok',
+            'image' => 'https://kissj.example/img/map.png',
+            'attachment' => ['href' => 'https://kissj.example/files/rules.pdf', 'label' => 'Pravidla'],
+        ], $sections[17]);
+        self::assertSame(['id' => 18, 'title' => 'Mše', 'subTitle' => null, 'image' => null, 'attachment' => null], $sections[18]);
+    }
+
+    /** The screen asks for both in one request, and kissj serves both in one response. */
+    public function testProgrammesAndSectionsShareOneListRequest(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], (string) json_encode(['sections' => self::SECTIONS, 'programmes' => [self::programme()]])),
+        ]);
+        $provider = $this->provider($mock);
+
+        $provider->getPrograms();
+        $provider->getSections();
+        $provider->getPrograms();
+
+        self::assertCount(1, $this->history);
+    }
+
+    public function testEmptyPlaceAndDescriptionBecomeNull(): void
+    {
+        $mock = new MockHandler([
+            new Response(200, [], (string) json_encode(['sections' => self::SECTIONS, 'programmes' => [self::programme(['place' => '', 'description' => ''])]])),
+        ]);
+
+        $programs = $this->provider($mock)->getPrograms();
+
+        self::assertNull($programs[0]['location']);
+        self::assertNull($programs[0]['perex']);
     }
 
     public function testUnknownTieCodeThrows(): void
@@ -75,18 +207,41 @@ final class KissjProgramProviderTest extends TestCase
         self::assertSame([], $programs);
     }
 
+    /**
+     * A rejected key answers 401 with a plain-text body. That is not a 404, so it is
+     * neither "unknown participant" nor "no registrations" — it is the provider failing,
+     * and Guzzle's own exception is what the modules already degrade on.
+     */
+    public function testUnauthorizedIsAProviderFailure(): void
+    {
+        foreach ([
+            fn (KissjProgramProvider $p) => $p->getPrograms(),
+            fn (KissjProgramProvider $p) => $p->getProgramsForIdentity(new Identity(type: 'tie', displayName: 'TIE', tieCode: 'ABC')),
+            fn (KissjProgramProvider $p) => $p->getProgramsForIdentity(new Identity(type: 'skautis', displayName: 'Jana', skautisUserId: 1)),
+        ] as $call) {
+            $mock = new MockHandler([new Response(401, ['Content-Type' => 'text/plain'], 'Unauthorized - unknown key')]);
+
+            try {
+                $call($this->provider($mock));
+                self::fail('a 401 did not fail');
+            } catch (ClientException $e) {
+                self::assertSame(401, $e->getResponse()->getStatusCode());
+            }
+        }
+    }
+
     public function testTieProgramsAreNormalized(): void
     {
         $mock = new MockHandler([
-            new Response(200, [], json_encode([
+            new Response(200, [], (string) json_encode([
                 'participant' => ['nickname' => 'Jana'],
-                'programs' => [[
+                'programmes' => [self::programme([
                     'id' => 7,
                     'name' => 'Program',
                     'sectionId' => 1,
                     'start' => '2027-06-03T15:00:00+02:00',
                     'end' => '2027-06-03T16:00:00+02:00',
-                ]],
+                ])],
             ])),
         ]);
 
@@ -95,6 +250,7 @@ final class KissjProgramProviderTest extends TestCase
         );
 
         self::assertSame(7, $programs[0]['id']);
+        self::assertSame(1, $programs[0]['section']['id']);
         self::assertSame('2027-06-03 15:00:00', $programs[0]['start']['date']);
     }
 
@@ -113,10 +269,10 @@ final class KissjProgramProviderTest extends TestCase
 
             try {
                 $mock = new MockHandler([
-                    new Response(200, [], (string) json_encode([
-                        ['id' => 1, 'name' => 'Naivní', 'sectionId' => 1, 'start' => '2027-06-03 08:00:00', 'end' => '2027-06-03 09:00:00'],
-                        ['id' => 2, 'name' => 'S posunem', 'sectionId' => 1, 'start' => '2027-06-03T08:00:00+00:00', 'end' => '2027-06-03T09:00:00+00:00'],
-                    ])),
+                    new Response(200, [], (string) json_encode(['sections' => self::SECTIONS, 'programmes' => [
+                        self::programme(['id' => 1, 'start' => '2027-06-03 08:00:00', 'end' => '2027-06-03 09:00:00']),
+                        self::programme(['id' => 2, 'start' => '2027-06-03T08:00:00+00:00', 'end' => '2027-06-03T09:00:00+00:00']),
+                    ]])),
                 ]);
 
                 $programs = $this->provider($mock)->getPrograms();
@@ -132,18 +288,74 @@ final class KissjProgramProviderTest extends TestCase
     }
 
     /**
-     * kissj is the one untrusted boundary in the app and the contract is unverified, so
-     * a 200 carrying the wrong shape has to be a provider error the module can catch —
+     * kissj is the one untrusted boundary in the app and does not serve the contract yet,
+     * so a 200 carrying the wrong shape has to be a provider error the module can catch —
      * not a TypeError five frames in, which is a 500 on /programy.
      */
     public function testAMalformedPayloadIsAProviderErrorAndNotACrash(): void
     {
-        foreach ([json_encode([1, 2, 3]), '<html>maintenance</html>', json_encode([['name' => 'Bez id']])] as $body) {
+        $list = static fn (array $programmes): string => (string) json_encode(['sections' => self::SECTIONS, 'programmes' => $programmes]);
+        $bodies = [
+            'bare list of scalars' => json_encode([1, 2, 3]),
+            'bare list of programmes' => json_encode([self::programme()]),
+            'not JSON' => '<html>maintenance</html>',
+            'empty body' => '',
+            'no programmes key' => json_encode(['sections' => self::SECTIONS, 'programs' => [self::programme()]]),
+            'programmes not a list' => json_encode(['sections' => self::SECTIONS, 'programmes' => 'none']),
+            'programmes a map' => json_encode(['sections' => self::SECTIONS, 'programmes' => ['a' => self::programme()]]),
+            'record without id' => $list([['name' => 'Bez id', 'sectionId' => 1]]),
+            'record without name' => $list([['id' => 1, 'sectionId' => 1]]),
+            'record without sectionId' => $list([array_diff_key(self::programme(), ['sectionId' => true])]),
+            'non-int sectionId' => $list([self::programme(['sectionId' => '10'])]),
+            'null sectionId' => $list([self::programme(['sectionId' => null])]),
+            'no sections key' => json_encode(['programmes' => [self::programme()]]),
+            'sections not a list' => json_encode(['sections' => 'none', 'programmes' => []]),
+            'sections a map' => json_encode(['sections' => ['a' => self::SECTIONS[0]], 'programmes' => []]),
+            'section not an object' => json_encode(['sections' => [10], 'programmes' => []]),
+            'section without id' => json_encode(['sections' => [['name' => 'Bez id']], 'programmes' => []]),
+            'section with a non-int id' => json_encode(['sections' => [['id' => '10', 'name' => 'Putování']], 'programmes' => []]),
+            'section without name' => json_encode(['sections' => [['id' => 10]], 'programmes' => []]),
+            'section with a non-string name' => json_encode(['sections' => [['id' => 10, 'name' => 7]], 'programmes' => []]),
+            'section with a non-string subtitle' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'subtitle' => 3]], 'programmes' => []]),
+            'section with a non-string imageUrl' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'imageUrl' => ['x']]], 'programmes' => []]),
+            'attachment not an object' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => 'x.pdf']], 'programmes' => []]),
+            'attachment without url' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => ['label' => 'L']]], 'programmes' => []]),
+            'attachment without label' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => ['url' => 'https://k.example/a.pdf']]], 'programmes' => []]),
+            // the attachment becomes an <a href>, so a scheme that runs script is not a link
+            'attachment with a javascript: url' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => ['url' => 'javascript:alert(1)', 'label' => 'L']]], 'programmes' => []]),
+            'image with a data: url' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'imageUrl' => 'data:image/svg+xml,<svg/>']], 'programmes' => []]),
+        ];
+
+        foreach ($bodies as $label => $body) {
+            foreach (['getPrograms', 'getSections'] as $method) {
+                $mock = new MockHandler([new Response(200, [], (string) $body)]);
+
+                try {
+                    $this->provider($mock)->$method();
+                    self::fail(sprintf('%s: no provider error for %s', $method, $label));
+                } catch (ProgramDataException) {
+                    self::assertTrue(true);
+                }
+            }
+        }
+    }
+
+    public function testAMalformedParticipantPayloadIsAProviderError(): void
+    {
+        $bodies = [
+            'bare list' => json_encode([self::programme()]),
+            'no programmes key' => json_encode(['participant' => ['nickname' => 'Jana']]),
+            'programmes not a list' => json_encode(['participant' => [], 'programmes' => 7]),
+        ];
+
+        foreach ($bodies as $label => $body) {
             $mock = new MockHandler([new Response(200, [], (string) $body)]);
 
             try {
-                $this->provider($mock)->getPrograms();
-                self::fail(sprintf('no provider error for payload %s', $body));
+                $this->provider($mock)->getProgramsForIdentity(
+                    new Identity(type: 'skautis', displayName: 'Jana', skautisUserId: 1),
+                );
+                self::fail(sprintf('no provider error for %s', $label));
             } catch (ProgramDataException) {
                 self::assertTrue(true);
             }

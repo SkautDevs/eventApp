@@ -27,14 +27,27 @@ external-app APIs (`/v3/entry`, `/v3/vendor`, `/v3/deal`) already use.
 
 ## GET /v3/programme/list
 
-All programmes of the authorized event that are not soft-deleted, including
-admin-preregistered ones.
+The programme sections of the authorized event, and all its programmes that are
+not soft-deleted, including admin-preregistered ones.
 
     {
+        "sections": [
+            {
+                "id": 1,
+                "name": "Hlavní program",
+                "subtitle": null,
+                "imageUrl": "https://kissj.net/files/obrok27/map-hlavni.png",
+                "attachment": {
+                    "url": "https://kissj.net/files/obrok27/pravidla.pdf",
+                    "label": "Pravidla a více informací zde"
+                }
+            }
+        ],
         "programmes": [
             {
                 "id": 5,
                 "name": "Ukázková vycházka",
+                "sectionId": 1,
                 "description": "Perex programu.",
                 "place": "Sraz u brány",
                 "start": "2027-06-03T08:00:00+02:00",
@@ -45,7 +58,37 @@ admin-preregistered ones.
         ]
     }
 
-- `place` may be an empty string; `description` may be an empty string.
+- `sections` is the event's list of programme sections, and **its order is the
+  display order**: eventApp pages the timeline by (day, section) in exactly this
+  order. kissj must add this — it has no section entity yet. Each section:
+  - `id` (int, required) — referenced by a programme's `sectionId`.
+  - `name` (string, required) — shown as the page and sheet heading.
+  - `subtitle` (string or null, optional) — appended to the name, e.g. two
+    sections both named `Vapro` with subtitles `1. blok` and `2. blok`.
+  - `imageUrl` (string or null, optional) — a map shown in the programme sheet.
+  - `attachment` (object or null, optional) — a link shown in the programme
+    sheet: `url` (string) and `label` (string), both required when the object
+    is present.
+  - `imageUrl` and `attachment.url` are **absolute URLs served by kissj**
+    (`http` or `https`). eventApp rejects any other scheme as a provider error.
+    Optional fields may be absent, null or an empty string; all three mean "none".
+- `sectionId` (int, required) on every programme — the `id` of one of the
+  `sections`. kissj must add this: its `Programme` entity on the `programmes`
+  branch does not have it yet. A programme whose `sectionId` is not among the
+  listed sections is not shown on the timeline.
+- kissj sends only programmes meant to be shown on the schedule. Placeholders
+  such as "Osobní volno" (personal free time) are not sent; eventApp does no
+  name-based filtering and shows every programme it receives.
+- `place` may be an empty string; `description` may be an empty string, which
+  means "no description".
+- `description` is **plain text**: no Markdown, no HTML and no HTML entities.
+  kissj decodes entities before it sends the text, so `->` arrives as `->` and
+  never as `-&gt;`. Line breaks (`\n`) are meaningful: eventApp keeps them and
+  shows each one as a new line. eventApp escapes the text once, when it renders
+  it, and interprets nothing in it.
+- A programme may run over several days. eventApp shows it on the timeline page
+  of every day it overlaps, clipped to that day. An `end` at exactly midnight
+  ends the day before: `23:45` to `00:00` is one evening.
 - `isPreregistered: true` marks programmes participants cannot self-register
   for (admins assign them); they are still part of the schedule and belong on
   the timeline.
@@ -63,6 +106,8 @@ programme registrations (self-registered and admin-assigned alike).
         "programmes": [ <same programme shape as above> ]
     }
 
+- No `sections` here: a programme's `sectionId` references the sections of
+  `/v3/programme/list`.
 - `404` (empty body) — no participant with that TIE code in the event. The
   TIE code doubles as the access secret, exactly as in kissj's vendor API.
 - `nickname` may be null; eventApp falls back to a generic greeting.
@@ -81,17 +126,22 @@ Same response shape as the TIE endpoint, keyed by SkautIS user id.
   images — eventApp's Program screen is read-only and shows none of these;
   registration conflicts are kissj's business.
 - Write operations — registering stays in kissj's own UI.
-- `sectionId`, `lector`, `tools` from the old speculative contract — kissj
-  has no such fields. The timeline's stage axis comes from `place` and any
-  section grouping is derived on the eventApp side.
+- `lector`, `tools` from the old speculative contract — kissj has no such
+  fields. The timeline's stage axis comes from `place`.
 
 ## Mapping to eventApp's internal shape
 
-kissj `place` → `location`; `description` → `perex`; `start`/`end`
-(ISO 8601) → `{"date": "Y-m-d H:i:s"}` in Europe/Prague; `lector`, `tools`
-and `section` have no kissj source and stay null/absent. Response key is
-`programmes` (kissj house spelling), participant endpoints wrap it beside
-`participant`.
+Programmes: kissj `sectionId` → `section.id`; `place` → `location` and
+`description` → `perex` (an empty string becomes null); `start`/`end`
+(ISO 8601) → `{"date": "Y-m-d H:i:s"}` in Europe/Prague; `lector` and `tools`
+have no kissj source and stay null. Response key is `programmes` (kissj house
+spelling), participant endpoints wrap it beside `participant`.
+
+Sections: `name` → `title`; `subtitle` → `subTitle`; `imageUrl` → `image`;
+`attachment.url`/`attachment.label` → `attachment.href`/`attachment.label`.
+The stub provider's `fixtures/sections.json` is the list's `sections` in this
+same shape, so both providers map it identically (the fixtures carry paths
+relative to `www/` where kissj sends absolute URLs).
 
 ## Expected growth
 

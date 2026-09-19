@@ -1,0 +1,64 @@
+[
+    {
+        "id": 10,
+        "name": "Putování"
+    },
+    {
+        "id": 12,
+        "name": "Večerní programy"
+    },
+    {
+        "id": 13,
+        "name": "Doprovodné programy"
+    },
+    {
+        "id": 1,
+        "name": "Služba"
+    },
+    {
+        "id": 2,
+        "name": "Vzlet",
+        "imageUrl": "events/obrok19/map-vzlet.png"
+    },
+    {
+        "id": 11,
+        "name": "Pamětníci"
+    },
+    {
+        "id": 14,
+        "name": "M(a)y Day",
+        "imageUrl": "events/obrok19/map-mayday.png"
+    },
+    {
+        "id": 15,
+        "name": "Velká hra",
+        "imageUrl": "events/obrok19/map-velkahra.png"
+    },
+    {
+        "id": 16,
+        "name": "EXPO"
+    },
+    {
+        "id": 3,
+        "name": "Vapro",
+        "subtitle": "1. blok"
+    },
+    {
+        "id": 4,
+        "name": "Vapro",
+        "subtitle": "2. blok"
+    },
+    {
+        "id": 17,
+        "name": "Netradiční sporty",
+        "imageUrl": "events/obrok19/map-netradicni-sporty.png",
+        "attachment": {
+            "url": "events/obrok19/netradicni-sporty.pdf",
+            "label": "Pravidla a více informací zde"
+        }
+    },
+    {
+        "id": 18,
+        "name": "Mše"
+    }
+]

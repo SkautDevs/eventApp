@@ -162,6 +162,15 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
         return [];
     }
 
+    public function getSections(): array
+    {
+        if ($this->programsException !== null) {
+            throw $this->programsException;
+        }
+
+        return [];
+    }
+
     public function getProgramsForIdentity(Identity $identity): array
     {
         $this->identityCalls++;

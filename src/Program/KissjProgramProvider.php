@@ -9,26 +9,41 @@ use App\Auth\UnknownParticipantException;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 
+/**
+ * Reads the Program screen's data from kissj's programme API, as agreed in
+ * docs/kissj-contract.md. The contract is agreed but kissj does not serve it yet, so
+ * everything that arrives is validated here rather than trusted.
+ */
 final class KissjProgramProvider implements ProgramProviderInterface
 {
+    /** @var array{sections: array<int, array>, programmes: list<array>}|null the list response, fetched once */
+    private ?array $list = null;
+
+    /**
+     * The key is passed in rather than set as a client default header: it is part of
+     * the contract — the event is resolved from it — so the provider owns sending it.
+     */
     public function __construct(
         private readonly ClientInterface $http,
-        private readonly string $eventSlug,
+        private readonly string $apiKey,
     ) {
     }
 
     public function getPrograms(): array
     {
-        $data = $this->getJson(sprintf('events/%s/programs', $this->eventSlug));
+        return $this->list()['programmes'];
+    }
 
-        return array_map($this->normalize(...), $data);
+    public function getSections(): array
+    {
+        return $this->list()['sections'];
     }
 
     public function getProgramsForIdentity(Identity $identity): array
     {
         $path = $identity->type === 'tie'
-            ? sprintf('events/%s/participants/tie/%s/programs', $this->eventSlug, rawurlencode((string) $identity->tieCode))
-            : sprintf('events/%s/participants/skautis/%d/programs', $this->eventSlug, $identity->skautisUserId);
+            ? sprintf('v3/programme/participant/tie/%s', rawurlencode((string) $identity->tieCode))
+            : sprintf('v3/programme/participant/skautis/%d', $identity->skautisUserId);
 
         try {
             $data = $this->getJson($path);
@@ -43,37 +58,69 @@ final class KissjProgramProvider implements ProgramProviderInterface
             throw $e;
         }
 
-        $programs = $data['programs'] ?? [];
-        if (!is_array($programs)) {
-            throw new ProgramDataException('kissj returned a non-list of programs for a participant');
-        }
-
-        return array_map($this->normalize(...), $programs);
+        return $this->programmes($data, $path);
     }
 
     /**
-     * kissj is an unverified boundary — see docs/kissj-contract.md, whose own title says
-     * so. A body that is not JSON, or is JSON but not a list of records, is a provider
-     * error rather than a 500 on /programy.
+     * `programmes` and `sections` arrive in one response and a request asks for both,
+     * so the list is fetched and validated once, as a whole, for the provider's lifetime
+     * — which is one request.
+     *
+     * @return array{sections: array<int, array>, programmes: list<array>}
+     */
+    private function list(): array
+    {
+        if ($this->list === null) {
+            $path = 'v3/programme/list';
+            $data = $this->getJson($path);
+            if (!array_key_exists('sections', $data)) {
+                throw new ProgramDataException(sprintf('kissj sent no sections for %s', $path));
+            }
+            $this->list = [
+                'sections' => Sections::fromKissj($data['sections']),
+                'programmes' => $this->programmes($data, $path),
+            ];
+        }
+
+        return $this->list;
+    }
+
+    /** @return list<array> */
+    private function programmes(array $data, string $path): array
+    {
+        $programmes = $data['programmes'] ?? null;
+        if (!is_array($programmes) || !array_is_list($programmes)) {
+            throw new ProgramDataException(sprintf('kissj sent no list of programmes for %s', $path));
+        }
+
+        return array_map($this->normalize(...), $programmes);
+    }
+
+    /**
+     * Every 200 the contract allows is a JSON object. A body that is not JSON, or is a
+     * bare array, is a provider error rather than a 500 on /programy. Any status other
+     * than 200 — a 401 for a rejected key included — surfaces as Guzzle's own exception.
+     *
+     * @return array<string, mixed>
      */
     private function getJson(string $path): array
     {
-        $response = $this->http->request('GET', $path);
-        $body = (string) $response->getBody();
-        if (trim($body) === '') {
-            return [];
-        }
+        $response = $this->http->request('GET', $path, [
+            'headers' => ['Authorization' => 'Bearer ' . $this->apiKey, 'Accept' => 'application/json'],
+        ]);
 
-        $decoded = json_decode($body, true);
-        if (!is_array($decoded)) {
-            throw new ProgramDataException(sprintf('kissj returned a non-array payload for %s', $path));
+        $decoded = json_decode((string) $response->getBody(), true);
+        if (!is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
+            throw new ProgramDataException(sprintf('kissj sent something other than a JSON object for %s', $path));
         }
 
         return $decoded;
     }
 
     /**
-     * Maps the kissj shape onto our internal program shape — see docs/kissj-contract.md.
+     * Maps one kissj programme onto our internal program shape — see docs/kissj-contract.md.
+     * Fields the contract does not name (`isPreregistered`, `targetRoles`, whatever comes
+     * later) are ignored.
      *
      * @param mixed $kissj one element of whatever kissj sent, trusted for nothing
      */
@@ -87,18 +134,36 @@ final class KissjProgramProvider implements ProgramProviderInterface
                 throw new ProgramDataException(sprintf('kissj program record has no usable %s', $required));
             }
         }
+        // strict: the id has to match a section's integer id, and a coerced one could
+        // quietly match the wrong section
+        if (!isset($kissj['sectionId']) || !is_int($kissj['sectionId'])) {
+            throw new ProgramDataException('kissj program record has no integer sectionId');
+        }
 
         return [
             'id' => (int) $kissj['id'],
             'name' => (string) $kissj['name'],
-            'section' => ['id' => (int) ($kissj['sectionId'] ?? 0)],
+            'section' => ['id' => $kissj['sectionId']],
             'start' => ['date' => $this->toLocal($kissj['start'] ?? null)],
             'end' => ['date' => $this->toLocal($kissj['end'] ?? null)],
-            'lector' => $kissj['lector'] ?? null,
-            'location' => $kissj['location'] ?? null,
-            'perex' => $kissj['description'] ?? null,
-            'tools' => $kissj['tools'] ?? null,
+            'lector' => null,
+            'location' => $this->optionalText($kissj['place'] ?? null),
+            'perex' => $this->optionalText($kissj['description'] ?? null),
+            'tools' => null,
         ];
+    }
+
+    /** kissj sends an empty string for "none"; the screen tests for null. */
+    private function optionalText(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        if (!is_scalar($value)) {
+            throw new ProgramDataException('kissj sent a text field that is not a string');
+        }
+
+        return (string) $value;
     }
 
     private function toLocal(mixed $iso): string

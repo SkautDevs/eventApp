@@ -267,14 +267,4 @@ return [
         'file' => 'events/obrok27/obrok27_handbook.pdf',
         'downloadName' => 'Obrok27_handbook.pdf',
     ],
-
-    'programs' => [
-        'hiddenNames' => ['Osobní volno'],
-    ],
-
-    // The program team fills these in once kissj knows them. Ids must match kissj.
-    'sections' => [
-        1 => ['id' => 1, 'title' => 'Hlavní program'],
-        2 => ['id' => 2, 'title' => 'Doprovodný program'],
-    ],
 ];
