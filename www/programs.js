@@ -10,7 +10,7 @@
  * It must be called only once the screen is *visible* — the ruler's label-width
  * measurement and every scrollLeft calculation return 0 inside a hidden subtree.
  *
- * The whole screen is one page: every (day, section) page, both views and every
+ * The whole screen is one page: every day's timeline page, both views and every
  * programme detail are in the DOM, and this only decides what is visible.
  */
 (function () {

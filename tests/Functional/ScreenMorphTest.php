@@ -51,7 +51,7 @@ final class ScreenMorphTest extends AppTestCase
         self::assertMatchesRegularExpression('/<button type="button" class="tl-card[^"]*" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<div class="sheet-body" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<article class="pl-item" data-key="\d+"/', $html);
-        self::assertMatchesRegularExpression('/<section class="tl-page[^"]*"[^>]* data-key="page-\d+-\d+"/', $html);
+        self::assertMatchesRegularExpression('/<section class="tl-page[^"]*"[^>]* data-key="page-\d{8}"/', $html);
         self::assertMatchesRegularExpression('/<section class="pl-day" data-key="day-\d+"/', $html);
     }
 

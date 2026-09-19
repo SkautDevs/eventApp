@@ -13,7 +13,7 @@
 		{% endif %}
 
 		{# One strip per view, and they are not the same instrument. The timeline's is a
-		   pager: it steps through (day, section) pages with ‹ ›. The list's is an
+		   pager: it steps through day pages with ‹ ›. The list's is an
 		   orientation strip over one continuous scroll: ↑ ↓ jump between day headings and
 		   the label names the day being read rather than the page being shown. #}
 		{% for pager in [
@@ -48,7 +48,7 @@
 			{% endif %}
 		{% endfor %}
 
-		{# --- timeline: every programme of the active (day, section) page --- #}
+		{# --- timeline: every programme of the active day, from every section --- #}
 		<div class="view view-timeline" id="pg-view-timeline" role="tabpanel" aria-labelledby="pg-tab-timeline">
 			{% if pages is empty %}
 				<p class="empty">Program zatím není k dispozici.</p>
