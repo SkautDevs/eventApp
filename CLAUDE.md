@@ -12,6 +12,8 @@ Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 
 - `composer start` — alternative: run locally via `php -S localhost:8080 -t www/`
 - `composer test` / `vendor/bin/phpunit` — run tests (PHPUnit 11, config in `phpunit.xml`, suites `Unit` + `Functional`)
 - `vendor/bin/phpunit --filter testGetHomepage` — run a single test
+- `docker run -d --name eventapp-korbo --rm -p 8081:8080 -v "$PWD":/app -w /app -e EVENT=korbo -e PROGRAM_PROVIDER=stub -e APP_DEBUG=1 php:8.3-alpine php -S 0.0.0.0:8080 -t www/` — serve the `korbo` dev event (the realistic Korbo camp data through the stub provider) on `localhost:8081/programy`; the `-e` values override `.env`, and TIE code `KORBO1` logs in as the participant with 8 programmes
+- `docker run --rm -v "$PWD":/app -w /app php:8.3-alpine php bin/korbo-fixtures.php` — regenerate `events/korbo/fixtures/` from `tests/fixtures/kissj/korbo/` through the real `KissjProgramProvider` mapping
 
 Before running, copy `.env.example` to `.env` and set `EVENT=obrok19` (the reference event) and `APP_DEBUG=1` for dev.
 
