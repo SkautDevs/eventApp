@@ -195,8 +195,14 @@ file to update tests, dependency auditing and deployment together.
 `ci.yml` runs the tests and audits the locked dependencies.
 It runs on pull requests, non-master pushes and manually, and is reusable through
 `workflow_call`. `deploy.yml` calls it on master pushes or a manual run, then
-installs production dependencies, prepares `release/` and syncs it
-using `lftp`. Only master can deploy.
+runs `just release` to prepare `release/` and `just deploy` to sync it using `lftp`.
+Only master can deploy. CI installs `just` and `lftp` through `apt`.
+
+For a local release, install [just](https://just.systems/man/en/packages.html)
+and `lftp`, then run `just release` followed by `just deploy` with the FTP variables
+below exported in your shell. PHP and Composer must also be available. Plain
+`just` lists the recipes. Release preparation replaces any previous `release/`;
+deployment uses the prepared bundle without rebuilding it.
 
 Add these repository secrets, using the same names as `SkautDevs/web`:
 
