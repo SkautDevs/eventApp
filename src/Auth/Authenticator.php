@@ -30,13 +30,13 @@ final class Authenticator
 
     public function isLogged(): bool
     {
-        return $this->session->has(self::SESSION_KEY);
+        return $this->identity() !== null;
     }
 
     public function identity(): ?Identity
     {
         $data = $this->session->get(self::SESSION_KEY);
 
-        return $data === null ? null : Identity::fromArray($data);
+        return is_array($data) ? Identity::fromArray($data) : null;
     }
 }

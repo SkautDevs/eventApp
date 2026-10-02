@@ -6,8 +6,11 @@ namespace App\Module;
 
 use App\Auth\Authenticator;
 use App\Auth\UnknownParticipantException;
+use App\EventConfig;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
+use App\Push\MessageRepository;
+use App\Session;
 use GuzzleHttp\Exception\TransferException;
 use Slim\App;
 use Slim\Views\Twig;
@@ -92,10 +95,31 @@ final class ProgramsModule implements ModuleInterface
 
             $model = ProgramsModule::buildViewModel($sections, $all, $mine, $auth->isLogged());
 
+            // the organisers' messages about a programme are in its sheet, for everybody
+            $messages = [];
+            foreach ($this->get(MessageRepository::class)->visible($this->get(EventConfig::class)->slug) as $message) {
+                if ($message['programmeId'] !== null) {
+                    $messages[$message['programmeId']][] = [
+                        'when' => NewsModule::when($message['sentAt']),
+                        'title' => $message['title'],
+                        'body' => $message['body'],
+                    ];
+                }
+            }
+            foreach ($model['details'] as $i => $detail) {
+                $model['details'][$i]['messages'] = $messages[(int) $detail['id']] ?? [];
+            }
+
+            // a failed login from Můj program lands back here and is explained in place
+            $session = $this->get(Session::class);
+            $tieError = $session->get('tieError');
+            $session->delete('tieError');
+
             return $this->get(Twig::class)->render($response, 'programs.twig', $model + [
                 'notice' => $notices === [] ? null : implode(' ', $notices),
                 'isLogged' => $auth->isLogged(),
                 'identity' => $auth->identity()?->displayName,
+                'tieError' => $tieError,
             ]);
         })->setName('programs');
     }

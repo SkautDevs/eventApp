@@ -4,15 +4,95 @@
 
 {% block content %}
 	{% if result %}
-		<p><strong>Odesláno: {{ result.sent }}</strong>, odstraněno neplatných odběrů: {{ result.removed }}</p>
+		<p><strong>Odesláno: {{ result.sent }}</strong>, odstraněno neplatných odběrů: {{ result.removed }}{% if result.unreached is not null %}, přihlášených bez notifikací: {{ result.unreached }}{% endif %}</p>
 	{% endif %}
 
-	<form method="post" action="{{ url_for('admin-notify') }}" class="stacked-form">
+	{% for error in errors %}
+		<p class="notice" role="alert">{{ error }}</p>
+	{% endfor %}
+
+	<form method="post" action="{{ url_for('admin-notify') }}" class="stacked-form" id="notify-form">
 		<input type="hidden" name="token" value="{{ token }}">
+		<label for="target">Komu</label>
+		<select id="target" name="target">
+			<option value="">Všem odběratelům</option>
+			{% for group in groups %}
+				<optgroup label="{{ group.start|dateToCzechDayName }} {{ group.label }}">
+					{% for option in group.options %}
+						<option value="{{ option.id }}"{% if values.target == option.id ~ '' %} selected{% endif %}>{{ option.label }}</option>
+					{% endfor %}
+				</optgroup>
+			{% endfor %}
+		</select>
+		{% if programmesUnavailable %}
+			<p class="notice">Programy se nepodařilo načíst, lze poslat jen všem.</p>
+		{% endif %}
 		<label for="title">Titulek</label>
-		<input type="text" id="title" name="title" required>
+		<input type="text" id="title" name="title" maxlength="60" required value="{{ values.title }}">
 		<label for="body">Zpráva</label>
-		<textarea id="body" name="body" rows="3" required></textarea>
-		<button type="submit" class="btn btn-primary">Odeslat všem</button>
+		<textarea id="body" name="body" rows="3" maxlength="500" required>{{ values.body }}</textarea>
+		<label for="signature">Podpis</label>
+		<input type="text" id="signature" name="signature" maxlength="40" required value="{{ values.signature }}">
+		<button type="submit" class="btn btn-primary">Odeslat</button>
 	</form>
+
+	<h2>Odeslané zprávy</h2>
+	{% for entry in log %}
+		<article class="notify-log-entry">
+			<p><strong>{{ entry.sentAt|date('j. n. Y H:i') }}</strong> · {{ entry.targetLabel }}</p>
+			<h3>{{ entry.title }}</h3>
+			<p class="notify-log-body">{{ entry.body }}</p>
+			<p>Podpis: {{ entry.signature }}</p>
+			<p>Odesláno: {{ entry.sent }}, odstraněno neplatných odběrů: {{ entry.removed }}{% if entry.unreached is not null %}, přihlášených bez notifikací: {{ entry.unreached }}{% endif %}</p>
+			{% if entry.toggledAt %}
+				<p>{{ entry.hidden ? 'Skryto z Novinek' : 'Znovu zobrazeno' }} ({{ entry.toggledBy }}, {{ entry.toggledAt|date('j. n. Y H:i') }})</p>
+			{% endif %}
+			<form method="post" action="{{ url_for('admin-notify-hidden', {id: entry.id}) }}" class="stacked-form">
+				<input type="hidden" name="token" value="{{ token }}">
+				<input type="hidden" name="page" value="{{ page }}">
+				<input type="hidden" name="hidden" value="{{ entry.hidden ? '0' : '1' }}">
+				<label for="signature-{{ entry.id }}">Podpis</label>
+				<input type="text" id="signature-{{ entry.id }}" name="signature" maxlength="40" required>
+				<button type="submit" class="btn">{{ entry.hidden ? 'Zobrazit v Novinkách' : 'Skrýt z Novinek' }}</button>
+			</form>
+		</article>
+	{% else %}
+		<p>Zatím nebyla odeslána žádná zpráva.</p>
+	{% endfor %}
+
+	{% if page > 1 or hasOlder %}
+		<p>
+			{% if page > 1 %}<a href="{{ url_for('admin-notify', {}, {token: token, page: page - 1}) }}">Novější</a>{% endif %}
+			{% if hasOlder %}<a href="{{ url_for('admin-notify', {}, {token: token, page: page + 1}) }}">Starší</a>{% endif %}
+		</p>
+	{% endif %}
+
+	<script>
+		(function () {
+			// Podpis is the admin's name; this browser remembers it so it need not be typed every time
+			var stored = '';
+			try {
+				stored = localStorage.getItem('notifySignature') || '';
+			} catch (e) {
+				// storage blocked: the field simply starts empty
+			}
+			if (stored !== '') {
+				document.querySelectorAll('input[name="signature"]').forEach(function (input) {
+					if (input.value === '') {
+						input.value = stored;
+					}
+				});
+			}
+			var form = document.getElementById('notify-form');
+			if (form) {
+				form.addEventListener('submit', function () {
+					try {
+						localStorage.setItem('notifySignature', form.elements.signature.value);
+					} catch (e) {
+						// storage blocked: nothing to remember
+					}
+				});
+			}
+		})();
+	</script>
 {% endblock %}

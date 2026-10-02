@@ -1,0 +1,13 @@
+{
+    "name": "Navigamus 2025",
+    "short_name": "Navigamus",
+    "start_url": "/navigamus25/",
+    "scope": "/navigamus25/",
+    "icons": [
+        { "src": "/events/navigamus25/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
+        { "src": "/events/navigamus25/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+    ],
+    "theme_color": "#e6ebed",
+    "background_color": "#e6ebed",
+    "display": "standalone"
+}

@@ -14,7 +14,7 @@ final class HandbookTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
         self::assertStringContainsString('Handbook (PDF)', $html);
-        self::assertStringContainsString('href="/handbook/download"', $html);
+        self::assertStringContainsString('href="/obrok19/handbook/download"', $html);
     }
 
     public function testHandbookPageIsGone(): void

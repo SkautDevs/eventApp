@@ -50,27 +50,26 @@ final class StubProgramProviderTest extends TestCase
         self::assertSame([], $provider->getSections());
     }
 
-    public function testRegisteredProgramsForSkautisUser(): void
-    {
-        $identity = new Identity(type: 'skautis', displayName: 'Test User', skautisUserId: 123);
-
-        $programs = $this->provider->getProgramsForIdentity($identity);
-
-        self::assertCount(2, $programs);
-    }
-
-    public function testUnknownSkautisUserReturnsEmpty(): void
-    {
-        $identity = new Identity(type: 'skautis', displayName: 'Nikdo', skautisUserId: 999999);
-
-        self::assertSame([], $this->provider->getProgramsForIdentity($identity));
-    }
-
     public function testUnknownTieCodeThrows(): void
     {
-        $identity = new Identity(type: 'tie', displayName: 'TIE NEZNAMY', tieCode: 'NEZNAMY');
+        $identity = new Identity(displayName: 'TIE NEZNAMY', tieCode: 'NEZNAMY');
 
         $this->expectException(UnknownParticipantException::class);
         $this->provider->getProgramsForIdentity($identity);
+    }
+
+    public function testTieCodesForAProgrammeAreRegisteredJsonInverted(): void
+    {
+        $dir = sys_get_temp_dir() . '/stub-tie-' . uniqid();
+        mkdir($dir);
+        file_put_contents($dir . '/registered.json', json_encode(['tie:KORBO1' => [3, 5], 'tie:KORBO2' => [5], 'tie:KORBO3' => []]));
+        $provider = new StubProgramProvider($dir);
+
+        self::assertSame(['KORBO1', 'KORBO2'], $provider->getTieCodesForProgramme(5));
+        self::assertSame(['KORBO1'], $provider->getTieCodesForProgramme(3));
+        self::assertSame([], $provider->getTieCodesForProgramme(99));
+
+        array_map('unlink', glob($dir . '/*'));
+        rmdir($dir);
     }
 }

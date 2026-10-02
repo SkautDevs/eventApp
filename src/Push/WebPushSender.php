@@ -17,19 +17,59 @@ final class WebPushSender implements PushSenderInterface
     ) {
     }
 
-    public function sendToAll(string $title, string $body, ?string $icon = null): array
-    {
-        $webPush = new WebPush([
-            'VAPID' => [
-                'subject' => $this->vapidSubject,
-                'publicKey' => $this->vapidPublicKey,
-                'privateKey' => $this->vapidPrivateKey,
-            ],
-        ]);
+    public function sendToEvent(
+        string $event,
+        string $title,
+        string $body,
+        ?string $icon = null,
+        ?string $url = null,
+        ?array $tieCodes = null,
+    ): array {
+        return $this->deliver($this->repository->forEvent($event, $tieCodes), $title, $body, $icon, $url);
+    }
 
-        $payload = json_encode(['title' => $title, 'body' => $body, 'icon' => $icon]);
+    public function sendToSubscription(
+        string $event,
+        string $endpoint,
+        string $title,
+        string $body,
+        ?string $icon = null,
+        ?string $url = null,
+    ): bool {
+        $row = $this->repository->find($event, $endpoint);
+
+        return $row !== null && $this->deliver([$row], $title, $body, $icon, $url)['sent'] === 1;
+    }
+
+    /**
+     * @param list<array{endpoint: string, publicKey: string, authToken: string, tieCode: ?string}> $rows
+     *
+     * @return array{sent: int, removed: int}
+     */
+    private function deliver(array $rows, string $title, string $body, ?string $icon, ?string $url): array
+    {
+        // Without GMP or BCMath — the bare php:8.3-alpine dev container; the image installs GMP —
+        // the library raises a notice that a displaying dev server prints into the response,
+        // ahead of the subscribe JSON and the admin redirect alike. It is advice, not a fault.
+        set_error_handler(
+            static fn (int $errno, string $message): bool => str_contains($message, 'GMP or BCMath'),
+            \E_USER_NOTICE,
+        );
+        try {
+            $webPush = new WebPush([
+                'VAPID' => [
+                    'subject' => $this->vapidSubject,
+                    'publicKey' => $this->vapidPublicKey,
+                    'privateKey' => $this->vapidPrivateKey,
+                ],
+            ]);
+        } finally {
+            restore_error_handler();
+        }
+
+        $payload = json_encode(['title' => $title, 'body' => $body, 'icon' => $icon, 'url' => $url]);
         $removed = 0;
-        foreach ($this->repository->all() as $row) {
+        foreach ($rows as $row) {
             // One unusable row must not cost everybody else their notification. The
             // library accepts a malformed key pair without complaint here and only
             // throws while encrypting inside flush(), which takes the whole batch down

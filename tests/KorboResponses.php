@@ -7,7 +7,7 @@ namespace Tests;
 use GuzzleHttp\Psr7\Response;
 
 /**
- * The kissj responses under tests/fixtures/kissj/korbo/, built from a real camp export
+ * The kissj responses under tests/fixtures/kissj/korbo26/, built from a real camp export
  * (Korbo, 16–20 Sep 2026) and kept verbatim — oddities included, on purpose — except that
  * every description is the plain text the contract asks kissj for, where the export had
  * Markdown and HTML entities. The unit and the functional test both read them, so the
@@ -17,11 +17,10 @@ final class KorboResponses
 {
     public const LIST = 'programme-list.json';
     public const TIE = 'participant-tie.json';
-    public const SKAUTIS = 'participant-skautis.json';
 
     public static function body(string $file): string
     {
-        $path = __DIR__ . '/fixtures/kissj/korbo/' . $file;
+        $path = __DIR__ . '/fixtures/kissj/korbo26/' . $file;
         $body = file_get_contents($path);
         if ($body === false) {
             throw new \RuntimeException(sprintf('Korbo fixture missing: %s', $path));

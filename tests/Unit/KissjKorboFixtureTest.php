@@ -162,12 +162,11 @@ final class KissjKorboFixtureTest extends TestCase
         }
         self::assertStringContainsString("\n", $list[35]['description']);
 
-        foreach ([KorboResponses::TIE, KorboResponses::SKAUTIS] as $file) {
-            $body = KorboResponses::body($file);
-            foreach (KorboResponses::decoded($file)['programmes'] as $programme) {
-                self::assertSame($list[$programme['id']], $programme, "{$file}, programme {$programme['id']}");
-                self::assertStringContainsString(self::source($list[$programme['id']]), $body, "{$file}, programme {$programme['id']}");
-            }
+        $file = KorboResponses::TIE;
+        $body = KorboResponses::body($file);
+        foreach (KorboResponses::decoded($file)['programmes'] as $programme) {
+            self::assertSame($list[$programme['id']], $programme, "{$file}, programme {$programme['id']}");
+            self::assertStringContainsString(self::source($list[$programme['id']]), $body, "{$file}, programme {$programme['id']}");
         }
     }
 
@@ -188,19 +187,9 @@ final class KissjKorboFixtureTest extends TestCase
     {
         $provider = $this->provider(KorboResponses::TIE);
 
-        $mine = $provider->getProgramsForIdentity(new Identity(type: 'tie', displayName: 'TIE KORBO1', tieCode: 'KORBO1'));
+        $mine = $provider->getProgramsForIdentity(new Identity(displayName: 'TIE KORBO1', tieCode: 'KORBO1'));
 
         self::assertSame([3, 5, 10, 26, 31, 36, 45, 50], array_column($mine, 'id'));
         self::assertSame('/v3/programme/participant/tie/KORBO1', $this->history[0]['request']->getUri()->getPath());
-    }
-
-    public function testTheSkautisParticipantGetsTheirFiveProgrammes(): void
-    {
-        $provider = $this->provider(KorboResponses::SKAUTIS);
-
-        $mine = $provider->getProgramsForIdentity(new Identity(type: 'skautis', displayName: 'Zkušební Skaut', skautisUserId: 4321));
-
-        self::assertSame([17, 27, 38, 42, 51], array_column($mine, 'id'));
-        self::assertSame('/v3/programme/participant/skautis/4321', $this->history[0]['request']->getUri()->getPath());
     }
 }

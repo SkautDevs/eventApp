@@ -26,4 +26,12 @@ interface ProgramProviderInterface
      * @throws UnknownParticipantException when the participant does not exist
      */
     public function getProgramsForIdentity(Identity $identity): array;
+
+    /**
+     * The TIE codes of every participant registered for this programme, upper-cased.
+     *
+     * @return list<string>
+     * @throws \GuzzleHttp\Exception\TransferException|ProgramDataException when the provider fails
+     */
+    public function getTieCodesForProgramme(int $programmeId): array;
 }

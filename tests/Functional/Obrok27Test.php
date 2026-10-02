@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\SkautisGatewayInterface;
-
 final class Obrok27Test extends AppTestCase
 {
     public function testObrok27Boots(): void
@@ -18,9 +16,7 @@ final class Obrok27Test extends AppTestCase
 
     public function testEveryEnabledFeatureRenders(): void
     {
-        $app = $this->createApp('obrok27', overrides: [
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
-        ]);
+        $app = $this->createApp('obrok27');
         foreach (['/novinky', '/mapa', '/odkazy', '/programy', '/profil'] as $uri) {
             self::assertSame(200, $this->request($app, 'GET', $uri)->getStatusCode(), $uri);
         }
@@ -44,7 +40,7 @@ final class Obrok27Test extends AppTestCase
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/novinky')->getBody();
 
         self::assertStringContainsString('--color-nav-active: #c2ea3a', $html);
-        self::assertStringContainsString('class="tab is-active" href="/novinky"', $html);
+        self::assertStringContainsString('class="tab is-active" href="/obrok27/novinky"', $html);
     }
 
     public function testHomeTabUsesTheShortEventName(): void

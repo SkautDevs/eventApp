@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Skautské akce</title>
+	{# the picker belongs to no event, so it carries its own neutral palette #}
+	<style>
+		:root { --bg: #f7f7f5; --fg: #1f2320; --card: #ffffff; --edge: #84847f; --muted: #5c5f5a; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #121412; --fg: #e8e9e6; --card: #1b1e1b; --edge: #6d706b; --muted: #a9aca6; } }
+		body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+		main { max-width: 30rem; margin: 0 auto; padding: 24px 16px; }
+		ul { list-style: none; padding: 0; }
+		a.event { display: block; padding: 14px 16px; margin: 8px 0; background: var(--card); color: inherit;
+			border: 1px solid var(--edge); border-radius: 12px; text-decoration: none; }
+		.dates { color: var(--muted); font-size: 14px; }
+	</style>
+</head>
+<body>
+<main>
+	<h1>Skautské akce</h1>
+	{% for group in [{title: 'Nadcházející a probíhající akce', events: upcoming}, {title: 'Proběhlé akce', events: past}] %}
+		{% if group.events is not empty %}
+			<h2>{{ group.title }}</h2>
+			<ul>
+			{% for e in group.events %}
+				<li><a class="event" href="/{{ e.slug }}/">{{ e.name }}
+					<span class="dates">{{ e.dates.start|date('j. n. Y') }} – {{ e.dates.end|date('j. n. Y') }}</span></a></li>
+			{% endfor %}
+			</ul>
+		{% endif %}
+	{% endfor %}
+</main>
+</body>
+</html>

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\SkautisGatewayInterface;
-
 /**
  * Můj program is one continuous scroll over the whole event.
  *
@@ -19,7 +17,7 @@ final class ProgramListTest extends AppTestCase
     /** tie:ABC123 is registered for eight programmes across three days of obrok19. */
     private function loggedInScreen(): string
     {
-        $app = $this->createApp(overrides: [SkautisGatewayInterface::class => new FakeSkautisGateway()]);
+        $app = $this->createApp();
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
 
         return (string) $this->request($app, 'GET', '/programy')->getBody();
@@ -106,5 +104,43 @@ final class ProgramListTest extends AppTestCase
         self::assertStringNotContainsString('class="pl-day"', $html);
         self::assertStringNotContainsString('data-pg-pager="list"', $html);
         self::assertStringContainsString('Přihlaste se', $html);
+    }
+
+    /** Logged out, the list asks for the TIE code in place instead of sending the reader to /profil. */
+    public function testLoggedOutTheListCarriesTheTieForm(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('action="/obrok19/profil/tie"', $html);
+        self::assertStringContainsString('name="tieCode"', $html);
+        self::assertStringContainsString('<input type="hidden" name="return" value="programy">', $html);
+    }
+
+    public function testALoginFromTheListLandsBackOnTheList(): void
+    {
+        $response = $this->request($this->createApp(), 'POST', '/profil/tie', ['tieCode' => 'ABC123', 'return' => 'programy']);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/obrok19/programy#muj-program', $response->getHeaderLine('Location'));
+    }
+
+    public function testAFailedLoginFromTheListIsExplainedOnTheList(): void
+    {
+        $app = $this->createApp();
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NOPE99', 'return' => 'programy']);
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('Neplatný TIE kód.', $html);
+        // shown once, then gone
+        $again = (string) $this->request($app, 'GET', '/programy')->getBody();
+        self::assertStringNotContainsString('Neplatný TIE kód.', $again);
+    }
+
+    /** Only a known screen is a return target; anything else keeps the old /profil redirect. */
+    public function testAnUnknownReturnFallsBackToTheProfile(): void
+    {
+        $response = $this->request($this->createApp(), 'POST', '/profil/tie', ['tieCode' => 'ABC123', 'return' => 'https://evil.example']);
+
+        self::assertSame('/obrok19/profil', $response->getHeaderLine('Location'));
     }
 }

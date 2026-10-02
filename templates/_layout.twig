@@ -99,17 +99,19 @@
 		}
 	{% endif %}
 	</style>
-	<link rel="stylesheet" href="style.css?v=13">
+	<link rel="stylesheet" href="style.css?v=15">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
+	<meta name="event-base" content="{{ base }}/">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
-	<script src="push.js?v=1" defer></script>
+	<meta name="push-identity" content="{{ auth_tie_code() }}">
+	<script src="push.js?v=7" defer></script>
 	{# the screen loader: without it every link is a plain navigation and the app is
 	   exactly what it was #}
 	<script src="app.js?v=3" defer></script>
 	{% if 'programs' in event.features %}
 		{# the Program screen's behaviour used to be inline in <head>, which no screen swap
 		   could ever reach; it lives here now and the loader calls into it #}
-		<script src="programs.js?v=3" defer></script>
+		<script src="programs.js?v=4" defer></script>
 	{% endif %}
 	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}
@@ -118,8 +120,9 @@
 {# The first stop in the tab order. Without it the only way to the app's own
    navigation is through everything above it — on /mapa that is a dozen tab stops
    inside Google's iframe before the tab bar is reached. It targets <main> rather
-   than a screen, because <main> is the one anchor that survives a screen swap. #}
-<a class="skip-link" href="#obsah">Přeskočit na obsah</a>
+   than a screen, because <main> is the one anchor that survives a screen swap. The href
+   carries the current path because <base href="/"> would send a bare "#obsah" to the picker. #}
+<a class="skip-link" href="{{ screenPath }}#obsah">Přeskočit na obsah</a>
 <header class="appbar">
 	<a class="appbar-brand" href="{{ url_for('homepage') }}">
 		{# The bar is filled with `state`, and `state` is the one fill that does NOT
@@ -144,8 +147,8 @@
 			</button>
 		{% endif %}
 		{# The label is text rather than an aria-label, because an aria-label REPLACES
-		   the element's contents: with one on the link, the TIE code or the skautIS
-		   name a sighted reader can see here was announced as "Přihlášení" and the
+		   the element's contents: with one on the link, the TIE code
+		   a sighted reader can see here was announced as "Přihlášení" and the
 		   identity never reached a screen reader at all. #}
 		<a class="appbar-profile" href="{{ url_for('profile') }}">
 			<span class="sr-only">Přihlášení</span>

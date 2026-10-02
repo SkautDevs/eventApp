@@ -1,0 +1,2883 @@
+{
+    "sections": [
+        {
+            "id": 1,
+            "name": "Účastníci",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        },
+        {
+            "id": 2,
+            "name": "V areálu",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        },
+        {
+            "id": 3,
+            "name": "Mimo areál",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        }
+    ],
+    "programmes": [
+        {
+            "id": 1,
+            "name": "Otevřena Registrace",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 2,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-02T18:00:00+02:00",
+            "end": "2027-06-02T20:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 3,
+            "name": "Čas na spánek",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-02T22:30:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 4,
+            "name": "Obrokový speed dating",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-02T16:30:00+02:00",
+            "end": "2027-06-02T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 5,
+            "name": "Zahajovací ceremoniál",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-02T19:45:00+02:00",
+            "end": "2027-06-02T20:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 6,
+            "name": "Rocky and his bootlegs",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-02T20:30:00+02:00",
+            "end": "2027-06-02T21:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 7,
+            "name": "TooT Ensemble",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-02T21:30:00+02:00",
+            "end": "2027-06-02T22:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 8,
+            "name": "zpíváme večerku",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-02T22:45:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 9,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-02T21:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 10,
+            "name": "Táborák",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-02T20:30:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 11,
+            "name": "prihlaseni k Ucastnickym aktivitam - zahajeni druhe vlny + prihlasovani na Open mike druha vlna + prihlasovani do Obrok kapely + na kadernictvi",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T12:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 12,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les 1/2",
+            "start": "2027-06-02T21:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 13,
+            "name": "příchod z putování",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-02T10:30:00+02:00",
+            "end": "2027-06-02T13:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 14,
+            "name": "divadelní inscenace Když živly ožijí",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-02T20:30:00+02:00",
+            "end": "2027-06-02T22:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 15,
+            "name": "just dance",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-02T15:00:00+02:00",
+            "end": "2027-06-02T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 16,
+            "name": "VýRoN (dešťová varianta)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-02T21:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 17,
+            "name": "ekofilm projekce",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-02T20:30:00+02:00",
+            "end": "2027-06-02T22:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 18,
+            "name": "ekofilm reflexe",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-02T22:45:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 19,
+            "name": "Dopro Něco duchaplného",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 20,
+            "name": "Dopro sportovni a deskovkova pujcovna",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 21,
+            "name": "Dopro výstavy PJTN PRAHO Kodex dosp.",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 22,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T21:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 23,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 24,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T14:45:00+02:00",
+            "end": "2027-06-02T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 25,
+            "name": "hudební jam",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-02T16:30:00+02:00",
+            "end": "2027-06-02T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 26,
+            "name": "kreativní stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro kreativní stan",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 27,
+            "name": "VýRoN",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-02T21:00:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 28,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-03T07:00:00+02:00",
+            "end": "2027-06-03T08:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 29,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-03T12:30:00+02:00",
+            "end": "2027-06-03T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 30,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-03T18:00:00+02:00",
+            "end": "2027-06-03T20:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 31,
+            "name": "Čas na spánek",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-03T22:00:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 32,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 33,
+            "name": "nástup",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-03T19:45:00+02:00",
+            "end": "2027-06-03T20:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 34,
+            "name": "úvod na stagi",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-03T20:00:00+02:00",
+            "end": "2027-06-03T20:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 35,
+            "name": "Ples",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-03T20:15:00+02:00",
+            "end": "2027-06-03T22:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 36,
+            "name": "zpíváme večerku",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-03T22:45:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 37,
+            "name": "Představení dopoledního progoramu",
+            "sectionId": 2,
+            "description": "",
+            "place": "Stage",
+            "start": "2027-06-03T08:45:00+02:00",
+            "end": "2027-06-03T09:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 38,
+            "name": "Reflexe Výro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Stage",
+            "start": "2027-06-03T10:00:00+02:00",
+            "end": "2027-06-03T13:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 39,
+            "name": "Sport",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 40,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 41,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-03T19:30:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 42,
+            "name": "Seznámení",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 43,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 44,
+            "name": "táborák",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-03T20:15:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 45,
+            "name": "rozcvička Tkaj a Marta",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-03T07:30:00+02:00",
+            "end": "2027-06-03T08:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 46,
+            "name": "Sport",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 47,
+            "name": "Obrokový speed dating Mlask, Víla, Máňa",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-03T15:00:00+02:00",
+            "end": "2027-06-03T16:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 48,
+            "name": "VýRo",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 49,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 50,
+            "name": "Relax studio",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 51,
+            "name": "Sport",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 52,
+            "name": "radiopodcast Sapik",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-03T13:30:00+02:00",
+            "end": "2027-06-03T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 53,
+            "name": "VýRo",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 54,
+            "name": "společné landartování 1 Kaši",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T16:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 55,
+            "name": "Víma, Janča",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les",
+            "start": "2027-06-03T16:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 56,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les",
+            "start": "2027-06-03T19:30:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 57,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Chillzóna",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 58,
+            "name": "nástup",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-03T08:00:00+02:00",
+            "end": "2027-06-03T08:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 59,
+            "name": "Seznámení",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 60,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 61,
+            "name": "4:50 sraz na východ slunce - 5:30 návrat",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-03T06:15:00+02:00",
+            "end": "2027-06-03T06:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 62,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 63,
+            "name": "Planeta Praha -film Sapik",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-03T20:00:00+02:00",
+            "end": "2027-06-03T22:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 64,
+            "name": "open discussion",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-03T09:45:00+02:00",
+            "end": "2027-06-03T11:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 65,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 66,
+            "name": "kadeřnictví Eliška",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-03T19:00:00+02:00",
+            "end": "2027-06-03T19:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 67,
+            "name": "open mic Marek",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-03T20:30:00+02:00",
+            "end": "2027-06-03T22:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 68,
+            "name": "blind session Mlask, Kaši",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-03T09:45:00+02:00",
+            "end": "2027-06-03T12:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 69,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 70,
+            "name": "silent disco Mikov, Katy, Irony",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-03T20:00:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 71,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "FoodCourt stan",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 72,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "FoodCourt stan",
+            "start": "2027-06-03T19:30:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 73,
+            "name": "Dopro Něco duchaplného?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T06:15:00+02:00",
+            "end": "2027-06-03T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 74,
+            "name": "Dopro Něco duchaplného?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T15:00:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 75,
+            "name": "Dopro sportovni a deskovkova pujcovna",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T08:45:00+02:00",
+            "end": "2027-06-03T09:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 76,
+            "name": "Dopro výstavy PJTN PRAHO Kodex dosp.",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T06:15:00+02:00",
+            "end": "2027-06-03T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 77,
+            "name": "Dopro výstavy PJTN PRAHO",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T15:00:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 78,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T08:45:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 79,
+            "name": "Stálá místa",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T13:00:00+02:00",
+            "end": "2027-06-03T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 80,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T15:00:00+02:00",
+            "end": "2027-06-03T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 81,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T08:45:00+02:00",
+            "end": "2027-06-03T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 82,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-03T15:00:00+02:00",
+            "end": "2027-06-03T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 83,
+            "name": "Veru, Marek",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-03T08:45:00+02:00",
+            "end": "2027-06-03T09:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 84,
+            "name": "ÚČ. AK. Pískání",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-03T10:00:00+02:00",
+            "end": "2027-06-03T11:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 85,
+            "name": "hudební jam",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-03T16:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 86,
+            "name": "ÚČ. AK. DND",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro kreativní stan",
+            "start": "2027-06-03T20:00:00+02:00",
+            "end": "2027-06-03T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 87,
+            "name": "VýRo",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 88,
+            "name": "VaPro",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 89,
+            "name": "VýRoN",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-03T19:30:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 90,
+            "name": "VaPro",
+            "sectionId": 3,
+            "description": "",
+            "place": "Náměstí",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 91,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-04T07:00:00+02:00",
+            "end": "2027-06-04T09:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 92,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-04T12:30:00+02:00",
+            "end": "2027-06-04T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 93,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-04T18:00:00+02:00",
+            "end": "2027-06-04T20:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 94,
+            "name": "Čas na spánek",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-04T22:00:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 95,
+            "name": "Úvod na stage",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T09:00:00+02:00",
+            "end": "2027-06-04T09:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 96,
+            "name": "Inspiromat aktivity (RoPro)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T09:30:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 97,
+            "name": "Úvod na stage",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T14:30:00+02:00",
+            "end": "2027-06-04T15:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 98,
+            "name": "Inspiromat aktivity (RoPro)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 99,
+            "name": "nástup",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T19:45:00+02:00",
+            "end": "2027-06-04T20:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 100,
+            "name": "úvod na stagi",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T20:00:00+02:00",
+            "end": "2027-06-04T20:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 101,
+            "name": "slam",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T20:15:00+02:00",
+            "end": "2027-06-04T21:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 102,
+            "name": "Propadleek",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T21:30:00+02:00",
+            "end": "2027-06-04T22:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 103,
+            "name": "zpíváme večerku",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-04T22:45:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 104,
+            "name": "Úvod na stage",
+            "sectionId": 2,
+            "description": "",
+            "place": "Stage",
+            "start": "2027-06-04T09:00:00+02:00",
+            "end": "2027-06-04T09:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 105,
+            "name": "Úvod na stage",
+            "sectionId": 2,
+            "description": "",
+            "place": "Stage",
+            "start": "2027-06-04T14:30:00+02:00",
+            "end": "2027-06-04T15:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 106,
+            "name": "RoPro (Zelená trasa)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-04T09:30:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 107,
+            "name": "RoPro (Zelená trasa)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 108,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-04T19:30:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 109,
+            "name": "Účastnická aktivita - workshop pískání na prsty",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-04T11:00:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 110,
+            "name": "RoPro (Žlutá trasa)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 111,
+            "name": "Táborák",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-04T20:15:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 112,
+            "name": "rozcvička Okurka a Lucka",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-04T07:30:00+02:00",
+            "end": "2027-06-04T08:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 113,
+            "name": "RoPro (PaV)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-04T09:30:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 114,
+            "name": "RoPro (PaV)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 115,
+            "name": "RoPro (Červená trasa)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-04T09:30:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 116,
+            "name": "RoPro (Červená trasa)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 117,
+            "name": "RoPro (+registr dárců kostní dřeně)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-04T09:30:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 118,
+            "name": "radiopodcast",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-04T13:30:00+02:00",
+            "end": "2027-06-04T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 119,
+            "name": "RoPro (+stánek Červený kříž)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-04T14:30:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 120,
+            "name": "prihlasovani na scout quiz - start",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-04T18:00:00+02:00",
+            "end": "2027-06-04T18:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 121,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les",
+            "start": "2027-06-04T19:30:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 122,
+            "name": "Meditace a joga s hostem",
+            "sectionId": 2,
+            "description": "",
+            "place": "Chillzóna",
+            "start": "2027-06-04T09:00:00+02:00",
+            "end": "2027-06-04T10:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 123,
+            "name": "Europeum - diskuze s hosty",
+            "sectionId": 2,
+            "description": "",
+            "place": "Chillzóna",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T16:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 124,
+            "name": "VH - vysvětlení pravidel",
+            "sectionId": 2,
+            "description": "",
+            "place": "Chillzóna",
+            "start": "2027-06-04T17:00:00+02:00",
+            "end": "2027-06-04T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 125,
+            "name": "nástup",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-04T08:00:00+02:00",
+            "end": "2027-06-04T08:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 126,
+            "name": "open discussion",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-04T09:00:00+02:00",
+            "end": "2027-06-04T11:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 127,
+            "name": "ranni prochazka za sluncem",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-04T07:00:00+02:00",
+            "end": "2027-06-04T08:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 128,
+            "name": "Inspiromat",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-04T09:30:00+02:00",
+            "end": "2027-06-04T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 129,
+            "name": "Inspiromat",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-04T14:30:00+02:00",
+            "end": "2027-06-04T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 130,
+            "name": "ekofilm projekce",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-04T20:00:00+02:00",
+            "end": "2027-06-04T21:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 131,
+            "name": "ekofilm reflexe",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-04T21:00:00+02:00",
+            "end": "2027-06-04T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 132,
+            "name": "Janek Rubeš",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-04T21:30:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 133,
+            "name": "párty",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-04T20:00:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 134,
+            "name": "deskovkové klání",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-04T20:00:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 135,
+            "name": "Dopro Něco duchaplného?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T06:15:00+02:00",
+            "end": "2027-06-04T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 136,
+            "name": "Dopro Něco duchaplného?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 137,
+            "name": "Dopro sportovni a deskovkova pujcovna",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T08:45:00+02:00",
+            "end": "2027-06-04T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 138,
+            "name": "Dopro sportovni a deskovkova pujcovna",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 139,
+            "name": "Dopro výstavy PJTN PRAHO Kodex dosp.",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T06:15:00+02:00",
+            "end": "2027-06-04T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 140,
+            "name": "Dopro výstavy PJTN PRAHO",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 141,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T08:45:00+02:00",
+            "end": "2027-06-04T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 142,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 143,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T08:45:00+02:00",
+            "end": "2027-06-04T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 144,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 145,
+            "name": "open disscusion (mokrá vr.) nebo hudební jam (pokud neprší)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-04T09:00:00+02:00",
+            "end": "2027-06-04T11:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 146,
+            "name": "cestovatelská přednáška",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-04T15:00:00+02:00",
+            "end": "2027-06-04T16:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 147,
+            "name": "zpívání indianských písní s hostem",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-04T16:30:00+02:00",
+            "end": "2027-06-04T17:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 148,
+            "name": "´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´´k",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-04T20:30:00+02:00",
+            "end": "2027-06-04T22:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 149,
+            "name": "VýRoN",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-04T19:30:00+02:00",
+            "end": "2027-06-04T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 150,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-05T07:00:00+02:00",
+            "end": "2027-06-05T09:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 151,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-05T12:30:00+02:00",
+            "end": "2027-06-05T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 152,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-05T18:00:00+02:00",
+            "end": "2027-06-05T20:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 153,
+            "name": "Čas na spánek",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-05T22:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 154,
+            "name": "Velká hra",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 155,
+            "name": "Zakončovací ceremoniál",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-05T19:45:00+02:00",
+            "end": "2027-06-05T20:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 156,
+            "name": "Squared Circles",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-05T20:30:00+02:00",
+            "end": "2027-06-05T21:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 157,
+            "name": "STAYJ",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-05T21:30:00+02:00",
+            "end": "2027-06-05T22:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 158,
+            "name": "Párty - playlist ze spotify nebo najdem servisaka",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-05T22:30:00+02:00",
+            "end": "2027-06-05T23:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 159,
+            "name": "společná večerka",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-05T23:45:00+02:00",
+            "end": "2027-06-06T00:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 160,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Stage",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 161,
+            "name": "Velká hra",
+            "sectionId": 2,
+            "description": "",
+            "place": "Stage",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 162,
+            "name": "Kapitoly",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 163,
+            "name": "Velká hra",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 164,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Zelená louka",
+            "start": "2027-06-05T21:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 165,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 166,
+            "name": "Velká hra",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 167,
+            "name": "Táborák",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-05T20:15:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 168,
+            "name": "rozcvička Termixka a Hádej?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-05T07:30:00+02:00",
+            "end": "2027-06-05T08:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 169,
+            "name": "EXPO (TRoP)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 170,
+            "name": "Velká hra",
+            "sectionId": 2,
+            "description": "",
+            "place": "Modrá louka",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 171,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 172,
+            "name": "EXPO",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 173,
+            "name": "ekodebata (foodcourt)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Plaza",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T15:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 174,
+            "name": "VýRoN",
+            "sectionId": 2,
+            "description": "",
+            "place": "Les",
+            "start": "2027-06-05T21:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 175,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Chillzóna",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 176,
+            "name": "nástup",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-05T08:00:00+02:00",
+            "end": "2027-06-05T08:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 177,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Iluzivní brány",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 178,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 179,
+            "name": "scout pub quiz",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 180,
+            "name": "scout pub quiz",
+            "sectionId": 2,
+            "description": "",
+            "place": "Velké šapitó",
+            "start": "2027-06-05T20:30:00+02:00",
+            "end": "2027-06-05T22:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 181,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 182,
+            "name": "přednáška Veronika Mašková Šibůrková",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T16:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 183,
+            "name": "přednáška Ivo Zelinka",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-05T16:15:00+02:00",
+            "end": "2027-06-05T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 184,
+            "name": "karaoke",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-05T20:45:00+02:00",
+            "end": "2027-06-05T22:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 185,
+            "name": "Semináře",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 186,
+            "name": "blind session",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T17:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 187,
+            "name": "VýRoN (mokrá varianta)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Programový stan",
+            "start": "2027-06-05T21:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 188,
+            "name": "Dopro Něco duchaplného?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T06:15:00+02:00",
+            "end": "2027-06-05T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 189,
+            "name": "Dopro Něco duchaplného?",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T15:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 190,
+            "name": "Dopro sportovni a deskovkova pujcovna",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T08:45:00+02:00",
+            "end": "2027-06-05T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 191,
+            "name": "Dopro sportovni a deskovkova pujcovna",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T15:00:00+02:00",
+            "end": "2027-06-05T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 192,
+            "name": "Dopro výstavy PJTN PRAHO Kodex dosp.",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T06:15:00+02:00",
+            "end": "2027-06-05T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 193,
+            "name": "Dopro výstavy PJTN PRAHO",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T15:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 194,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T08:45:00+02:00",
+            "end": "2027-06-05T14:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 195,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T15:00:00+02:00",
+            "end": "2027-06-05T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 196,
+            "name": "Dopro Swap stan ÚČA. - Climate Fresk (9:00 az 10:30)",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T11:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 197,
+            "name": "Dopro Swap stan",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-05T15:00:00+02:00",
+            "end": "2027-06-05T21:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 198,
+            "name": "Přednáška reKáva",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-05T10:00:00+02:00",
+            "end": "2027-06-05T11:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 199,
+            "name": "radiopodcast",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-05T13:30:00+02:00",
+            "end": "2027-06-05T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 200,
+            "name": "just dance",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro hudební stan",
+            "start": "2027-06-05T14:30:00+02:00",
+            "end": "2027-06-05T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 201,
+            "name": "Semináře",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 202,
+            "name": "VýRoN",
+            "sectionId": 3,
+            "description": "",
+            "place": "Kostel",
+            "start": "2027-06-05T21:00:00+02:00",
+            "end": "2027-06-05T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 203,
+            "name": "Semináře",
+            "sectionId": 3,
+            "description": "",
+            "place": "Náměstí",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 204,
+            "name": "Semináře",
+            "sectionId": 3,
+            "description": "",
+            "place": "Škola",
+            "start": "2027-06-05T09:00:00+02:00",
+            "end": "2027-06-05T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        }
+    ]
+}

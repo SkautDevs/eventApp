@@ -4,15 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\SkautisGatewayInterface;
-
 final class TieLoginTest extends AppTestCase
 {
     private function app(): \Slim\App
     {
-        return $this->createApp(overrides: [
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
-        ]);
+        return $this->createApp();
     }
 
     public function testValidTieCodeLogsInAndHighlights(): void
@@ -64,5 +60,50 @@ final class TieLoginTest extends AppTestCase
 
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringNotContainsString('TIE ABC123', $html);
+    }
+
+    public function testTheProfileOffersOnlyTheTieCode(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/profil')->getBody();
+
+        self::assertStringNotContainsStringIgnoringCase('skautis', $html);
+        self::assertStringContainsString('name="tieCode"', $html);
+    }
+
+    public function testThePostToTheRootIsGone(): void
+    {
+        self::assertSame(405, $this->request($this->createApp(), 'POST', '/', ['skautIS_Token' => 'abc'])->getStatusCode());
+    }
+
+    public function testLoggingIntoOneEventDoesNotLogIntoAnother(): void
+    {
+        $korbo = $this->createApp('korbo26');
+        $this->request($korbo, 'POST', '/profil/tie', ['tieCode' => 'KORBO1']);
+
+        $html = (string) $this->request($this->createApp('obrok19'), 'GET', '/profil')->getBody();
+        self::assertStringNotContainsString('TIE KORBO1', $html);
+    }
+
+    public function testOneEventsTieCodeIsRejectedByAnother(): void
+    {
+        $app = $this->createApp('obrok19');
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'KORBO1']);
+
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
+        self::assertStringContainsString('Neplatný TIE kód.', $html);
+        self::assertArrayNotHasKey('identity', $_SESSION['obrok19'] ?? []);
+    }
+
+    public function testLoggingOutOfOneEventKeepsTheOtherLoggedIn(): void
+    {
+        $korbo = $this->createApp('korbo26');
+        $obrok = $this->createApp('obrok19');
+        $this->request($korbo, 'POST', '/profil/tie', ['tieCode' => 'KORBO1']);
+        $this->request($obrok, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+
+        $this->request($obrok, 'POST', '/profil/tie-logout');
+
+        self::assertStringContainsString('TIE KORBO1', (string) $this->request($korbo, 'GET', '/profil')->getBody());
+        self::assertStringNotContainsString('TIE ABC123', (string) $this->request($obrok, 'GET', '/profil')->getBody());
     }
 }

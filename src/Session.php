@@ -8,6 +8,38 @@ final class Session
 {
     private bool $started = false;
 
+    /**
+     * One cookie serves every event on the host, so each event's values live under its
+     * own key — a TIE code means nothing outside its event, and neither does a logout.
+     */
+    public function __construct(private readonly string $namespace = '')
+    {
+    }
+
+    /**
+     * Read-only view that leaves no empty bag behind for an event that never wrote.
+     *
+     * @return array<string, mixed>
+     */
+    private function read(): array
+    {
+        $this->start();
+
+        return $this->namespace === '' ? $_SESSION : ($_SESSION[$this->namespace] ?? []);
+    }
+
+    /** @return array<string, mixed> */
+    private function &bag(): array
+    {
+        $this->start();
+        if ($this->namespace === '') {
+            return $_SESSION;
+        }
+        $_SESSION[$this->namespace] ??= [];
+
+        return $_SESSION[$this->namespace];
+    }
+
     private function start(): void
     {
         if ($this->started) {
@@ -35,28 +67,26 @@ final class Session
 
     public function get(string $key, mixed $default = null): mixed
     {
-        $this->start();
-
-        return $_SESSION[$key] ?? $default;
+        return $this->read()[$key] ?? $default;
     }
 
     public function set(string $key, mixed $value): void
     {
-        $this->start();
-        $_SESSION[$key] = $value;
+        $bag = &$this->bag();
+        $bag[$key] = $value;
     }
 
     public function delete(string $key): void
     {
-        $this->start();
-        unset($_SESSION[$key]);
+        if (array_key_exists($key, $this->read())) {
+            $bag = &$this->bag();
+            unset($bag[$key]);
+        }
     }
 
     public function has(string $key): bool
     {
-        $this->start();
-
-        return isset($_SESSION[$key]);
+        return isset($this->read()[$key]);
     }
 
     /**

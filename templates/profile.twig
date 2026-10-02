@@ -6,24 +6,12 @@
 	<div class="login-box">
 		{% if isLogged %}
 			<p>Zvýrazňuje se program pro <strong>{{ identity }}</strong></p>
-			{% if identity starts with 'TIE ' %}
-				<form method="post" action="{{ url_for('tie-logout') }}">
-					<button type="submit" class="btn">Odhlásit TIE kód</button>
-				</form>
-			{% else %}
-				<p><a class="btn" href="{{ logoutUrl }}">Odhlásit se</a></p>
-			{% endif %}
+			<form method="post" action="{{ url_for('tie-logout') }}">
+				<button type="submit" class="btn">Odhlásit TIE kód</button>
+			</form>
 		{% else %}
 			<p>Přihlaste se a v programu se vám zvýrazní to, na co jste zaregistrovaní.</p>
-			<p><a class="btn btn-primary" href="{{ loginUrl }}">Přihlásit přes SkautIS</a></p>
-			<p>nebo</p>
-			<form method="post" action="{{ url_for('tie-login') }}" class="stacked-form">
-				<input type="text" name="tieCode" placeholder="TIE kód" required>
-				<button type="submit" class="btn btn-primary">Přihlásit</button>
-			</form>
-			{% if tieError %}
-				<p class="notice">{{ tieError }}</p>
-			{% endif %}
+			{% include '_tie_form.twig' %}
 		{% endif %}
 	</div>
 {% endblock %}

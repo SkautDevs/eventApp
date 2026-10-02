@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Push\SubscriptionRepository;
-use Slim\Psr7\Factory\ServerRequestFactory;
-use Slim\Psr7\Factory\StreamFactory;
 
 final class PushSubscribeTest extends AppTestCase
 {
@@ -23,37 +21,179 @@ final class PushSubscribeTest extends AppTestCase
         @unlink($this->dbPath);
     }
 
+    private SpyPushSender $sender;
+
     private function repo(): SubscriptionRepository
     {
         return new SubscriptionRepository($this->dbPath);
     }
 
+    /** a spy sender: the welcome push must never reach a real push service from a test */
+    private function overrides(): array
+    {
+        $this->sender ??= new SpyPushSender();
+
+        return [SubscriptionRepository::class => $this->repo(), \App\Push\PushSenderInterface::class => $this->sender];
+    }
+
     public function testSubscribeStoresSubscription(): void
     {
-        $app = $this->createApp(overrides: [SubscriptionRepository::class => $this->repo()]);
+        $app = $this->createApp(overrides: $this->overrides());
 
-        $request = (new ServerRequestFactory())->createServerRequest('POST', '/push/subscribe')
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody((new StreamFactory())->createStream(json_encode([
-                'endpoint' => 'https://push.example/xyz',
-                'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
-            ])));
-
-        $response = $app->handle($request);
+        $response = $this->request($app, 'POST', '/push/subscribe', [
+            'endpoint' => 'https://push.example/xyz',
+            'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
+        ]);
 
         self::assertSame(201, $response->getStatusCode());
-        self::assertSame(1, $this->repo()->count());
+        self::assertSame(1, $this->repo()->count('obrok19'));
+        self::assertSame(0, $this->repo()->count('obrok27'));
     }
 
     public function testInvalidBodyIs400(): void
     {
-        $app = $this->createApp(overrides: [SubscriptionRepository::class => $this->repo()]);
+        $app = $this->createApp(overrides: $this->overrides());
 
-        $request = (new ServerRequestFactory())->createServerRequest('POST', '/push/subscribe')
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody((new StreamFactory())->createStream('{"endpoint": "x"}'));
-
-        self::assertSame(400, $app->handle($request)->getStatusCode());
+        self::assertSame(400, $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'x'])->getStatusCode());
         self::assertSame(0, $this->repo()->count());
+    }
+
+    public function testABodyCannotChooseItsEvent(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+
+        $response = $this->request($app, 'POST', '/push/subscribe', [
+            'endpoint' => 'https://push.example/xyz',
+            'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
+            'event' => 'obrok27',
+        ]);
+
+        self::assertSame(201, $response->getStatusCode());
+        self::assertSame(1, $this->repo()->count('obrok19'));
+        self::assertSame(0, $this->repo()->count('obrok27'));
+    }
+
+    private const SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']];
+
+    public function testASubscriptionCarriesTheLoggedInTieCode(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'abc123']);
+
+        $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame('ABC123', $this->repo()->forEvent('obrok19')[0]['tieCode']);
+    }
+
+    public function testLoggingOutAndResubscribingClearsTheTieCode(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $this->request($app, 'POST', '/push/subscribe', self::SUB);
+        $this->request($app, 'POST', '/profil/tie-logout');
+
+        $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertNull($this->repo()->forEvent('obrok19')[0]['tieCode']);
+        self::assertSame(1, $this->repo()->count('obrok19'));
+    }
+
+    public function testABodyCannotChooseItsTieCode(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+
+        $this->request($app, 'POST', '/push/subscribe', self::SUB + ['tieCode' => 'ABC123', 'tie_code' => 'ABC123']);
+
+        self::assertNull($this->repo()->forEvent('obrok19')[0]['tieCode']);
+    }
+
+    public function testThePageTellsPushJsWhoIsLoggedIn(): void
+    {
+        $app = $this->createApp();
+        self::assertStringContainsString('<meta name="push-identity" content="">', (string) $this->request($app, 'GET', '/')->getBody());
+
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        self::assertStringContainsString('<meta name="push-identity" content="ABC123">', (string) $this->request($app, 'GET', '/')->getBody());
+    }
+
+    public function testANewSubscriptionGetsAWelcomeAtOnce(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+
+        $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame(201, $response->getStatusCode());
+        self::assertTrue(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertCount(1, $this->sender->welcomes);
+        $welcome = $this->sender->welcomes[0];
+        self::assertSame('obrok19', $welcome['event']);
+        self::assertSame(self::SUB['endpoint'], $welcome['endpoint']);
+        self::assertStringEndsWith('/novinky', (string) $welcome['url']);
+        self::assertNotSame('', $welcome['title']);
+        self::assertSame([], $this->sender->calls, 'a welcome is not a message to the whole event');
+    }
+
+    public function testResendingAKnownSubscriptionStaysSilent(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+        $this->request($app, 'POST', '/push/subscribe', self::SUB);
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+
+        $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertNull(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertCount(1, $this->sender->welcomes);
+    }
+
+    public function testAnUndeliveredWelcomeDropsTheSubscriptionSoTheNextTapStartsOver(): void
+    {
+        $overrides = $this->overrides();
+        $this->sender->welcomeDelivered = false;
+        $app = $this->createApp(overrides: $overrides);
+
+        $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame(502, $response->getStatusCode());
+        self::assertFalse(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertSame(0, $this->repo()->count('obrok19'));
+
+        $this->sender->welcomeDelivered = true;
+        $retry = $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame(201, $retry->getStatusCode());
+        self::assertTrue(json_decode((string) $retry->getBody(), true)['welcome']);
+        self::assertCount(2, $this->sender->welcomes, 'the retry is new again and gets its welcome');
+        self::assertSame(1, $this->repo()->count('obrok19'));
+    }
+
+    public function testASenderThatThrowsIsAFailedWelcome(): void
+    {
+        $sender = new class implements \App\Push\PushSenderInterface {
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $tieCodes = null): array
+            {
+                return ['sent' => 0, 'removed' => 0];
+            }
+
+            public function sendToSubscription(string $event, string $endpoint, string $title, string $body, ?string $icon = null, ?string $url = null): bool
+            {
+                throw new \ErrorException('[VAPID] Public key should be 65 bytes long when decoded.');
+            }
+        };
+        $app = $this->createApp(overrides: [SubscriptionRepository::class => $this->repo(), \App\Push\PushSenderInterface::class => $sender]);
+
+        $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame(502, $response->getStatusCode());
+        self::assertFalse(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertSame(0, $this->repo()->count('obrok19'));
+    }
+
+    public function testARejectedBodyGetsNoWelcome(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+
+        $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'https://push.example/xyz']);
+
+        self::assertSame([], $this->sender->welcomes);
     }
 }

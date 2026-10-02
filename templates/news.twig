@@ -4,10 +4,14 @@
 {% set activeTab = 'news' %}
 
 {% block content %}
+	{# data-key is the morph's handle on a message: a new one arrives at the top and must
+	   not shift every message after it #}
 	{% for item in items %}
-		<div class="news">
-			<h3>{{ item.datetime }}</h3>
-			<p>{{ item.text }}</p>
+		<div class="news" data-key="message-{{ item.id }}">
+			<h3>{{ item.when }}</h3>
+			<p><strong>{{ item.title }}</strong></p>
+			{% if item.programme is not null %}<p class="news-programme">{{ item.programme }}</p>{% endif %}
+			<p class="news-body">{{ item.body }}</p>
 		</div>
 	{% else %}
 		<p>Zatím žádné novinky.</p>

@@ -12,7 +12,7 @@
  * This is an enhancement layer, not a client router. Every link is a real <a href>;
  * with this file absent, or fetch/pushState missing, every tap is the plain navigation
  * it always was. Anything not on the tab bar (the handbook PDF, external links,
- * /admin/notify) and every non-GET (SkautIS login, the TIE form, logout, push
+ * /admin/notify) and every non-GET (the TIE form, logout, push
  * subscribe) is deliberately left to the browser: logging in changes both the app bar
  * and the registered marking on every programme, so a full load is the correctness
  * rule there, not laziness.

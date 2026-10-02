@@ -35,6 +35,10 @@ final class EventConfig
          */
         public readonly array $roles,
         public readonly array $features,
+        /** Shown in the picker at `/`. An unlisted event still works at its URL. */
+        public readonly bool $listed,
+        /** @var array{start: string, end: string}|null  Y-m-d, both inclusive */
+        public readonly ?array $dates,
         public readonly array $raw,
         public readonly string $dir,
     ) {
@@ -42,7 +46,7 @@ final class EventConfig
 
     public static function load(string $eventsDir, string $slug): self
     {
-        if (preg_match('/^[a-z0-9-]+$/', $slug) !== 1) {
+        if (preg_match('/^[a-z0-9-]+\z/', $slug) !== 1) {
             throw new \RuntimeException(sprintf('Invalid event slug: "%s"', $slug));
         }
 
@@ -58,10 +62,36 @@ final class EventConfig
             }
         }
 
+        if (in_array('news', $data['features'], true) && !in_array('push', $data['features'], true)) {
+            throw new \RuntimeException(sprintf('Event config "%s" enables news without push: News lists the sent notifications', $slug));
+        }
+
         foreach (self::REQUIRED_COLORS as $color) {
             if (!isset($data['colors'][$color])) {
                 throw new \RuntimeException(sprintf('Event config "%s" is missing the colour "%s"', $slug, $color));
             }
+        }
+
+        $listed = (bool) ($data['listed'] ?? false);
+        $dates = $data['dates'] ?? null;
+        if ($dates !== null) {
+            if (!is_array($dates)) {
+                throw new \RuntimeException(sprintf('Event config "%s" has invalid dates (expected start and end)', $slug));
+            }
+            foreach (['start', 'end'] as $k) {
+                $parsed = is_string($dates[$k] ?? null) ? \DateTimeImmutable::createFromFormat('!Y-m-d', $dates[$k]) : false;
+                // the round trip rejects dates PHP would roll over, e.g. 2025-02-31
+                if ($parsed === false || $parsed->format('Y-m-d') !== $dates[$k]) {
+                    throw new \RuntimeException(sprintf('Event config "%s" has an invalid dates.%s (expected Y-m-d)', $slug, $k));
+                }
+            }
+            if ($dates['end'] < $dates['start']) {
+                throw new \RuntimeException(sprintf('Event config "%s" has dates.end before dates.start', $slug));
+            }
+        }
+        // the picker orders by date, so a listed event without one would have no place in it
+        if ($listed && $dates === null) {
+            throw new \RuntimeException(sprintf('Event config "%s" is listed but has no dates', $slug));
         }
 
         return new self(
@@ -71,9 +101,31 @@ final class EventConfig
             theme: $data['theme'] ?? [],
             roles: $data['roles'] ?? [],
             features: $data['features'],
+            listed: $listed,
+            dates: $dates,
             raw: $data,
             dir: dirname($file),
         );
+    }
+
+    /** The per-event env var name: `ADMIN_TOKEN` → `ADMIN_TOKEN_OBROK27`. */
+    public function envKey(string $name): string
+    {
+        return $name . '_' . strtoupper(str_replace('-', '_', $this->slug));
+    }
+
+    /**
+     * A per-event setting from the environment. Deliberately no fallback to the
+     * unsuffixed name: one instance serves every event, so an instance-wide
+     * ADMIN_TOKEN or KISSJ_API_KEY would silently apply to all of them.
+     */
+    public function env(string $name, string $default = ''): string
+    {
+        $key = $this->envKey($name);
+        // $_ENV can be empty under php-fpm's variables_order, where the process env still has it
+        $value = $_ENV[$key] ?? getenv($key);
+
+        return is_string($value) && $value !== '' ? $value : $default;
     }
 
     public function content(string $name): array

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\SkautisGatewayInterface;
 use App\Program\KissjProgramProvider;
 use App\Program\ProgramProviderInterface;
 use GuzzleHttp\Client;
@@ -38,7 +37,6 @@ final class KorboProgramsTest extends AppTestCase
 
         return $this->createApp('programs', [
             ProgramProviderInterface::class => $provider,
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ], fixtureEvent: true);
     }
 
@@ -190,7 +188,8 @@ final class KorboProgramsTest extends AppTestCase
         // and every element that renders a perex draws those breaks as lines
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
         preg_match_all('/<(\w+) class="([\w-]*perex[\w-]*)"/', (string) file_get_contents(dirname(__DIR__, 2) . '/templates/programs.twig'), $perexes);
-        self::assertSame(['pl-perex', 'sheet-perex'], $perexes[2]);
+        // the second sheet-perex is an organiser's message in the sheet, plain text like the perex
+        self::assertSame(['pl-perex', 'sheet-perex', 'sheet-perex'], $perexes[2]);
         foreach ($perexes[2] as $class) {
             self::assertMatchesRegularExpression('/\n\.' . $class . ' \{[^}]*white-space: pre-line;/', $css, $class);
         }
@@ -316,5 +315,17 @@ final class KorboProgramsTest extends AppTestCase
             // three cards of programme 2 and one of everything else, 59 sheets, the pages
             self::assertGreaterThan(61 + 59, $keyed);
         }
+    }
+
+    public function testAProgrammeSheetShowsItsMessagesToEveryone(): void
+    {
+        $messages = new \App\Push\MessageRepository(':memory:');
+        $id = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/events/korbo26/fixtures/registered.json'), true)['tie:KORBO1'][0];
+        $messages->add('korbo26', $id, 'Program', 'Přesun na 15:00', 'Kvůli dešti', 'Lung', 0, 0, 0);
+
+        $html = (string) $this->request($this->createApp('korbo26', overrides: [\App\Push\MessageRepository::class => $messages]), 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('Přesun na 15:00', $html);
+        self::assertStringContainsString('Oznámení', $html);
     }
 }

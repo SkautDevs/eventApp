@@ -209,6 +209,11 @@ final class ProgramsTest extends AppTestCase
             {
                 return [];
             }
+
+            public function getTieCodesForProgramme(int $programmeId): array
+            {
+                return [];
+            }
         };
 
         return (string) $this->request(

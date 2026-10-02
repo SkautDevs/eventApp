@@ -8,6 +8,8 @@ return [
     'name' => 'Obrok 2027',
     // fits the home tab; keep it in step with short_name in www/events/obrok27/site.webmanifest
     'shortName' => 'Obrok 27',
+    'listed' => true,
+    'dates' => ['start' => '2027-06-02', 'end' => '2027-06-05'],
     'features' => ['map', 'programs', 'handbook', 'news', 'links', 'push'],
 
     // 2027 visual identity: lime ground, black notched stripes, purple accent

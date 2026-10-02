@@ -1,0 +1,12 @@
+{# The TIE-code login form, shared by /profil and Můj program. `return` names the
+   screen the login redirects back to; the handler accepts only the ones it knows. #}
+<form method="post" action="{{ url_for('tie-login') }}" class="stacked-form">
+	{% if return is defined and return %}
+		<input type="hidden" name="return" value="{{ return }}">
+	{% endif %}
+	<input type="text" name="tieCode" placeholder="TIE kód" aria-label="TIE kód" autocomplete="off" autocapitalize="characters" required>
+	<button type="submit" class="btn btn-primary">Přihlásit</button>
+</form>
+{% if tieError %}
+	<p class="notice">{{ tieError }}</p>
+{% endif %}

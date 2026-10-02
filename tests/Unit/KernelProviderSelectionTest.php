@@ -15,7 +15,7 @@ final class KernelProviderSelectionTest extends TestCase
 {
     protected function tearDown(): void
     {
-        unset($_ENV['PROGRAM_PROVIDER'], $_ENV['KISSJ_BASE_URL'], $_ENV['KISSJ_API_KEY']);
+        unset($_ENV['PROGRAM_PROVIDER_OBROK27'], $_ENV['PROGRAM_PROVIDER_OBROK19'], $_ENV['KISSJ_BASE_URL'], $_ENV['KISSJ_API_KEY_OBROK27']);
     }
 
     private function providerFor(): ProgramProviderInterface
@@ -33,18 +33,18 @@ final class KernelProviderSelectionTest extends TestCase
 
     public function testKissjSelected(): void
     {
-        $_ENV['PROGRAM_PROVIDER'] = 'kissj';
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'kissj';
         $_ENV['KISSJ_BASE_URL'] = 'https://kissj.example';
-        $_ENV['KISSJ_API_KEY'] = 'secret-key';
+        $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
 
         self::assertInstanceOf(KissjProgramProvider::class, $this->providerFor());
     }
 
     public function testKissjWithoutBaseUrlThrows(): void
     {
-        $_ENV['PROGRAM_PROVIDER'] = 'kissj';
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'kissj';
         $_ENV['KISSJ_BASE_URL'] = '';
-        $_ENV['KISSJ_API_KEY'] = 'secret-key';
+        $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('KISSJ_BASE_URL');
@@ -58,12 +58,19 @@ final class KernelProviderSelectionTest extends TestCase
      */
     public function testKissjWithoutApiKeyThrows(): void
     {
-        $_ENV['PROGRAM_PROVIDER'] = 'kissj';
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'kissj';
         $_ENV['KISSJ_BASE_URL'] = 'https://kissj.example';
-        $_ENV['KISSJ_API_KEY'] = '';
+        $_ENV['KISSJ_API_KEY_OBROK27'] = '';
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('PROGRAM_PROVIDER=kissj requires KISSJ_API_KEY');
+        $this->expectExceptionMessage('PROGRAM_PROVIDER=kissj requires KISSJ_API_KEY_OBROK27');
         $this->providerFor();
+    }
+
+    public function testAnotherEventsSettingDoesNotApply(): void
+    {
+        $_ENV['PROGRAM_PROVIDER_OBROK19'] = 'kissj';
+        self::assertInstanceOf(StubProgramProvider::class, $this->providerFor());
+        unset($_ENV['PROGRAM_PROVIDER_OBROK19']);
     }
 }

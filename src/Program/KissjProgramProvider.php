@@ -41,24 +41,34 @@ final class KissjProgramProvider implements ProgramProviderInterface
 
     public function getProgramsForIdentity(Identity $identity): array
     {
-        $path = $identity->type === 'tie'
-            ? sprintf('v3/programme/participant/tie/%s', rawurlencode((string) $identity->tieCode))
-            : sprintf('v3/programme/participant/skautis/%d', $identity->skautisUserId);
+        $path = sprintf('v3/programme/participant/tie/%s', rawurlencode($identity->tieCode));
 
         try {
             $data = $this->getJson($path);
         } catch (RequestException $e) {
             if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
-                if ($identity->type === 'tie') {
-                    throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode), previous: $e);
-                }
-
-                return []; // a logged-in SkautIS user with no registration for the event is not an error
+                throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode), previous: $e);
             }
             throw $e;
         }
 
         return $this->programmes($data, $path);
+    }
+
+    public function getTieCodesForProgramme(int $programmeId): array
+    {
+        $path = sprintf('v3/programme/%d/participants', $programmeId);
+        $codes = $this->getJson($path)['tieCodes'] ?? null;
+        if (!is_array($codes) || !array_is_list($codes)) {
+            throw new ProgramDataException(sprintf('kissj sent no list of tieCodes for %s', $path));
+        }
+        foreach ($codes as $code) {
+            if (!is_string($code) || $code === '') {
+                throw new ProgramDataException(sprintf('kissj sent a TIE code that is not a string for %s', $path));
+            }
+        }
+
+        return array_values(array_unique(array_map('strtoupper', $codes)));
     }
 
     /**

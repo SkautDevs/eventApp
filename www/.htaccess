@@ -35,7 +35,7 @@ Options -Indexes
 </IfModule>
 
 # The assets are hand-versioned in templates/_layout.twig (style.css?v=13, app.js?v=3,
-# programs.js?v=3, push.js?v=1), which is the precondition for an immutable lifetime:
+# programs.js?v=3, push.js?v=2), which is the precondition for an immutable lifetime:
 # a changed asset gets a new URL. Bump the query when you change one, or a returning
 # visitor keeps last year's copy.
 # Anything served from here that is NOT versioned — an event logo replaced in place,

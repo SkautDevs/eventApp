@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\SkautisGatewayInterface;
-
 /**
  * A stale screen whose HTML changed is morphed into the new one, never replaced.
  *
@@ -39,7 +37,7 @@ final class ScreenMorphTest extends AppTestCase
 
     public function testEveryRepeatedRowCarriesAKey(): void
     {
-        $app = $this->createApp(overrides: [SkautisGatewayInterface::class => new FakeSkautisGateway()]);
+        $app = $this->createApp();
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 

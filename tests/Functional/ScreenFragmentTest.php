@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\SkautisGatewayInterface;
-
 /**
  * Fragment mode: `X-Screen: 1` renders a screen without the shell, so the loader in
  * www/app.js can swap it into a running document. The same route without the header
@@ -24,15 +22,9 @@ final class ScreenFragmentTest extends AppTestCase
         '/profil' => '',
     ];
 
-    /** /profil asks the gateway for its login URL, so every app here gets the fake one. */
-    private function app(string $slug = 'obrok19'): \Slim\App
-    {
-        return $this->createApp($slug, [SkautisGatewayInterface::class => new FakeSkautisGateway()]);
-    }
-
     public function testFragmentCarriesNoShell(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         foreach (array_keys(self::SCREENS) as $path) {
             $html = (string) $this->request($app, 'GET', $path, null, ['X-Screen' => '1'])->getBody();
@@ -47,12 +39,12 @@ final class ScreenFragmentTest extends AppTestCase
 
     public function testFragmentCarriesTheMetadataTheShellNeeds(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         foreach (self::SCREENS as $path => $tab) {
             $html = (string) $this->request($app, 'GET', $path, null, ['X-Screen' => '1'])->getBody();
 
-            $this->assertStringContainsString('data-screen="' . $path . '"', $html, $path);
+            $this->assertStringContainsString('data-screen="' . $app->getBasePath() . $path . '"', $html, $path);
             $this->assertStringContainsString('data-tab="' . $tab . '"', $html, $path);
             $this->assertMatchesRegularExpression('/data-title="[^"]+"/', $html, $path);
             $this->assertMatchesRegularExpression('/data-doc-title="[^"]+"/', $html, $path);
@@ -62,7 +54,7 @@ final class ScreenFragmentTest extends AppTestCase
 
     public function testAPlainRequestStillRendersTheWholePage(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         foreach (array_keys(self::SCREENS) as $path) {
             $response = $this->request($app, 'GET', $path);
@@ -73,13 +65,13 @@ final class ScreenFragmentTest extends AppTestCase
             $this->assertStringContainsString('class="appbar"', $html, $path);
             $this->assertStringContainsString('Hlavní menu', $html, $path);
             // the whole page wraps its content in exactly the same screen element
-            $this->assertStringContainsString('data-screen="' . $path . '"', $html, $path);
+            $this->assertStringContainsString('data-screen="' . $app->getBasePath() . $path . '"', $html, $path);
         }
     }
 
     public function testTheTwoResponsesAreKeyedApartForCaches(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         $this->assertSame('X-Screen', $this->request($app, 'GET', '/')->getHeaderLine('Vary'));
     }
@@ -91,7 +83,7 @@ final class ScreenFragmentTest extends AppTestCase
      */
     public function testAnErrorResponseIsKeyedApartForCachesToo(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         $response = $this->request($app, 'GET', '/tohle-tady-neni');
         self::assertSame(404, $response->getStatusCode());
@@ -110,7 +102,7 @@ final class ScreenFragmentTest extends AppTestCase
      */
     public function testAMissingScreenIsLeftToARealNavigation(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         $html = (string) $this->request($app, 'GET', '/tohle-tady-neni', null, ['X-Screen' => '1'])->getBody();
         self::assertStringNotContainsString('<section class="screen"', $html);
@@ -122,7 +114,7 @@ final class ScreenFragmentTest extends AppTestCase
 
     public function testTheProgramScreenCarriesNoInlineScriptAnyMore(): void
     {
-        $app = $this->app();
+        $app = $this->createApp();
 
         // <head> is the one place a screen swap cannot reach, so the Program screen's
         // behaviour has to be a file the shell loads once
@@ -137,7 +129,7 @@ final class ScreenFragmentTest extends AppTestCase
 
     public function testBothModesWorkForTheOtherEventToo(): void
     {
-        $app = $this->app('obrok27');
+        $app = $this->createApp('obrok27');
 
         foreach (self::SCREENS as $path => $tab) {
             $fragment = $this->request($app, 'GET', $path, null, ['X-Screen' => '1']);
@@ -152,12 +144,16 @@ final class ScreenFragmentTest extends AppTestCase
      */
     public function testANonParticipatingRouteIgnoresTheHeader(): void
     {
-        $app = $this->app();
-        $_ENV['ADMIN_TOKEN'] = 'test-token';
+        $app = $this->createApp();
+        $_ENV['ADMIN_TOKEN_OBROK19'] = 'test-token';
 
         $html = (string) $this->request($app, 'GET', '/admin/notify?token=test-token', null, ['X-Screen' => '1'])->getBody();
         $this->assertStringContainsString('<!DOCTYPE html>', $html);
+    }
 
-        unset($_ENV['ADMIN_TOKEN']);
+    protected function tearDown(): void
+    {
+        unset($_ENV['ADMIN_TOKEN_OBROK19']);
+        parent::tearDown();
     }
 }
