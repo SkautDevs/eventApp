@@ -1,0 +1,63 @@
+name: Deploy via FTP
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version-file: .github/php-version
+          extensions: pdo_sqlite, curl, mbstring, openssl, gmp
+          coverage: none
+          tools: composer:v2
+
+      - name: Prepare release
+        run: |
+          composer install --no-dev --prefer-dist --no-interaction --no-progress --optimize-autoloader
+          mkdir release
+          cp -a src templates events vendor www release/
+
+      - name: Install lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
+
+      - name: Sync release
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USER }}
+          FTP_PASS: ${{ secrets.FTP_PASS }}
+        run: |
+          : "${FTP_HOST:?Missing FTP_HOST}"
+          : "${FTP_USER:?Missing FTP_USER}"
+          : "${FTP_PASS:?Missing FTP_PASS}"
+          lftp -u "$FTP_USER,$FTP_PASS" "$FTP_HOST" -e '
+            set cmd:fail-exit true;
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ftp:ssl-auth TLS;
+            set ftp:passive-mode true;
+            set ssl:verify-certificate yes;
+            mirror -R --delete --no-perms --upload-older \
+              --exclude-glob .env --exclude-glob var/ \
+              --exclude-glob __log/ --exclude-glob tmp/ \
+              --exclude-glob www/.well-known/ --exclude-glob www/.user.ini \
+              --exclude-glob www/cgi-bin/ release .;
+            bye'
