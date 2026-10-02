@@ -13,7 +13,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '${{ matrix.php }}'
-          extensions: pdo_sqlite, soap, gmp
+          extensions: pdo_sqlite, gmp
       - run: composer install --no-progress --prefer-dist
       - run: vendor/bin/phpunit
 
@@ -28,5 +28,5 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
-          extensions: pdo_sqlite, soap, gmp
+          extensions: pdo_sqlite, gmp
       - run: composer audit --locked --no-interaction

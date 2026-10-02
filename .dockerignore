@@ -1,0 +1,10 @@
+.git
+.env
+var
+vendor
+tests
+docs
+bin
+tools
+.idea
+docker-compose*.yml

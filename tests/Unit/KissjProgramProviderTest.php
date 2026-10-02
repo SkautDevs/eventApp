@@ -11,6 +11,7 @@ use App\Program\ProgramDataException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -93,22 +94,15 @@ final class KissjProgramProviderTest extends TestCase
         self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'));
     }
 
-    public function testParticipantEndpointsAreKeyedByTieCodeOrSkautisIdWithTheApiKey(): void
+    public function testParticipantEndpointsAreKeyedByTieCodeWithTheApiKey(): void
     {
         $body = (string) json_encode(['participant' => ['nickname' => null], 'programmes' => []]);
 
         $mock = new MockHandler([new Response(200, [], $body)]);
         $this->provider($mock)->getProgramsForIdentity(
-            new Identity(type: 'tie', displayName: 'TIE', tieCode: 'AB/C 1'),
+            new Identity(displayName: 'TIE', tieCode: 'AB/C 1'),
         );
         self::assertSame('/v3/programme/participant/tie/AB%2FC%201', $this->lastRequest()->getUri()->getPath());
-        self::assertSame('Bearer secret-key', $this->lastRequest()->getHeaderLine('Authorization'));
-
-        $mock = new MockHandler([new Response(200, [], $body)]);
-        $this->provider($mock)->getProgramsForIdentity(
-            new Identity(type: 'skautis', displayName: 'Jana', skautisUserId: 1234),
-        );
-        self::assertSame('/v3/programme/participant/skautis/1234', $this->lastRequest()->getUri()->getPath());
         self::assertSame('Bearer secret-key', $this->lastRequest()->getHeaderLine('Authorization'));
     }
 
@@ -190,21 +184,8 @@ final class KissjProgramProviderTest extends TestCase
 
         $this->expectException(UnknownParticipantException::class);
         $this->provider($mock)->getProgramsForIdentity(
-            new Identity(type: 'tie', displayName: 'TIE ABC', tieCode: 'ABC'),
+            new Identity(displayName: 'TIE ABC', tieCode: 'ABC'),
         );
-    }
-
-    public function testUnknownSkautisUserReturnsEmpty(): void
-    {
-        $mock = new MockHandler([
-            new RequestException('Not Found', new Request('GET', 'x'), new Response(404)),
-        ]);
-
-        $programs = $this->provider($mock)->getProgramsForIdentity(
-            new Identity(type: 'skautis', displayName: 'Nikdo', skautisUserId: 999),
-        );
-
-        self::assertSame([], $programs);
     }
 
     /**
@@ -216,8 +197,7 @@ final class KissjProgramProviderTest extends TestCase
     {
         foreach ([
             fn (KissjProgramProvider $p) => $p->getPrograms(),
-            fn (KissjProgramProvider $p) => $p->getProgramsForIdentity(new Identity(type: 'tie', displayName: 'TIE', tieCode: 'ABC')),
-            fn (KissjProgramProvider $p) => $p->getProgramsForIdentity(new Identity(type: 'skautis', displayName: 'Jana', skautisUserId: 1)),
+            fn (KissjProgramProvider $p) => $p->getProgramsForIdentity(new Identity(displayName: 'TIE', tieCode: 'ABC')),
         ] as $call) {
             $mock = new MockHandler([new Response(401, ['Content-Type' => 'text/plain'], 'Unauthorized - unknown key')]);
 
@@ -246,7 +226,7 @@ final class KissjProgramProviderTest extends TestCase
         ]);
 
         $programs = $this->provider($mock)->getProgramsForIdentity(
-            new Identity(type: 'tie', displayName: 'TIE ABC', tieCode: 'ABC'),
+            new Identity(displayName: 'TIE ABC', tieCode: 'ABC'),
         );
 
         self::assertSame(7, $programs[0]['id']);
@@ -353,12 +333,55 @@ final class KissjProgramProviderTest extends TestCase
 
             try {
                 $this->provider($mock)->getProgramsForIdentity(
-                    new Identity(type: 'skautis', displayName: 'Jana', skautisUserId: 1),
+                    new Identity(displayName: 'TIE ABC', tieCode: 'ABC'),
                 );
                 self::fail(sprintf('no provider error for %s', $label));
             } catch (ProgramDataException) {
                 self::assertTrue(true);
             }
         }
+    }
+
+    public function testTieCodesForAProgrammeComeFromTheParticipantsEndpoint(): void
+    {
+        $mock = new MockHandler([new Response(200, [], (string) json_encode(['tieCodes' => ['korbo1', 'KORBO2']]))]);
+
+        $codes = $this->provider($mock)->getTieCodesForProgramme(42);
+
+        $request = $this->lastRequest();
+        self::assertSame('GET', $request->getMethod());
+        self::assertSame('/v3/programme/42/participants', $request->getUri()->getPath());
+        self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'));
+        self::assertSame(['KORBO1', 'KORBO2'], $codes);
+    }
+
+    public function testParticipantsThatAreNotAListOfStringsAreAProviderError(): void
+    {
+        $bodies = [
+            'a string' => ['tieCodes' => 'KORBO1'],
+            'a number in the list' => ['tieCodes' => [1]],
+            'an empty code' => ['tieCodes' => ['']],
+            'a map' => ['tieCodes' => ['a' => 'KORBO1']],
+            'no key' => [],
+        ];
+
+        foreach ($bodies as $label => $body) {
+            $mock = new MockHandler([new Response(200, [], (string) json_encode($body))]);
+
+            try {
+                $this->provider($mock)->getTieCodesForProgramme(42);
+                self::fail(sprintf('no provider error for %s', $label));
+            } catch (ProgramDataException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
+    public function testAFailedParticipantsCallSurfacesAsATransferException(): void
+    {
+        $mock = new MockHandler([new Response(500)]);
+
+        $this->expectException(TransferException::class);
+        $this->provider($mock)->getTieCodesForProgramme(42);
     }
 }

@@ -9,3 +9,20 @@ var/*
 docker-compose.override.yml
 # agent scaffolding, never part of the app
 docs/superpowers/
+# copies of .env carry the same secrets
+.env.*
+!.env.example
+# The mock events' source material and the converters that read it stay local: only the
+# kissj-shaped JSON they produced (tests/fixtures/kissj/, events/*/fixtures/) is committed.
+docs/Harmonogram celé akce.xlsx
+docs/MQ-Přednášky - data.xlsx
+docs/doprovodny_program_do_registrace.pdf
+bin/obrok-harmonogram.php
+bin/miquik-rozvrh.php
+tools/Fixtures/ObrokHarmonogram.php
+tools/Fixtures/MiquikRozvrh.php
+tools/Fixtures/XlsxGrid.php
+tests/Unit/ObrokHarmonogramTest.php
+tests/Unit/MiquikRozvrhTest.php
+tests/Unit/XlsxGridTest.php
+tests/fixtures/xlsx/

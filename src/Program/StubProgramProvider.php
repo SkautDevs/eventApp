@@ -33,16 +33,10 @@ final class StubProgramProvider implements ProgramProviderInterface
     public function getProgramsForIdentity(Identity $identity): array
     {
         $map = $this->readJson('registered.json');
-        $key = $identity->type === 'skautis'
-            ? 'skautis:' . $identity->skautisUserId
-            : 'tie:' . $identity->tieCode;
+        $key = 'tie:' . $identity->tieCode;
 
         if (!isset($map[$key])) {
-            if ($identity->type === 'tie') {
-                throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode));
-            }
-
-            return [];
+            throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode));
         }
 
         $ids = $map[$key];
@@ -51,6 +45,18 @@ final class StubProgramProvider implements ProgramProviderInterface
             $this->getPrograms(),
             fn (array $program): bool => in_array($program['id'], $ids, true),
         ));
+    }
+
+    public function getTieCodesForProgramme(int $programmeId): array
+    {
+        $codes = [];
+        foreach ($this->readJson('registered.json') as $key => $ids) {
+            if (str_starts_with((string) $key, 'tie:') && is_array($ids) && in_array($programmeId, $ids, true)) {
+                $codes[] = strtoupper(substr((string) $key, 4));
+            }
+        }
+
+        return $codes;
     }
 
     /**

@@ -25,6 +25,12 @@ abstract class AppTestCase extends TestCase
             : $this->eventsDir();
         $event = EventConfig::load($dir, $slug);
 
+        // every app gets throwaway push storage; a test that needs to look inside passes its own
+        $overrides += [
+            \App\Push\SubscriptionRepository::class => new \App\Push\SubscriptionRepository(':memory:'),
+            \App\Push\MessageRepository::class => new \App\Push\MessageRepository(':memory:'),
+        ];
+
         return Kernel::create($event, $overrides);
     }
 
@@ -33,8 +39,19 @@ abstract class AppTestCase extends TestCase
         return dirname(__DIR__, 2) . '/events';
     }
 
-    /** @param array<string, string> $headers */
+    /**
+     * A request to a path *inside* the event: '/programy' goes to '/obrok19/programy'.
+     * Tests keep reading like the routes they exercise.
+     *
+     * @param array<string, string> $headers
+     */
     protected function request(App $app, string $method, string $uri, ?array $body = null, array $headers = []): ResponseInterface
+    {
+        return $this->rawRequest($app, $method, $app->getBasePath() . $uri, $body, $headers);
+    }
+
+    /** @param array<string, string> $headers */
+    protected function rawRequest(App $app, string $method, string $uri, ?array $body = null, array $headers = []): ResponseInterface
     {
         $request = (new ServerRequestFactory())->createServerRequest($method, $uri);
         if ($body !== null) {

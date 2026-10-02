@@ -94,7 +94,10 @@
 		{# --- list: only the programmes the logged-in participant is registered for --- #}
 		<div class="view view-list" id="pg-view-list" role="tabpanel" aria-labelledby="pg-tab-list">
 			{% if not isLogged %}
-				<p class="login-hint"><a href="{{ url_for('profile') }}">Přihlaste se</a> a uvidíte tady svůj vlastní program.</p>
+				<div class="login-box">
+					<p>Přihlaste se TIE kódem a uvidíte tady svůj vlastní program.</p>
+					{% include '_tie_form.twig' with {'return': 'programy'} %}
+				</div>
 			{% elseif days is empty %}
 				<p class="empty">Zatím nemáte přihlášený žádný program.</p>
 			{% else %}
@@ -152,6 +155,15 @@
 							</div>
 							{% if detail.section %}<p class="sheet-section">{{ detail.section }}</p>{% endif %}
 							{% if detail.registered %}<p class="sheet-mine"><i class="fas fa-star" aria-hidden="true"></i> Váš program</p>{% endif %}
+							{% if detail.messages %}
+								<div class="sheet-messages">
+									<h3>Oznámení</h3>
+									{% for message in detail.messages %}
+										<p class="sheet-message"><strong>{{ message.title }}</strong> <small>{{ message.when }}</small></p>
+										<p class="sheet-perex">{{ message.body }}</p>
+									{% endfor %}
+								</div>
+							{% endif %}
 							{% if detail.perex %}<p class="sheet-perex">{{ detail.perex }}</p>{% endif %}
 							{% if detail.lector %}<p class="sheet-lector">{{ detail.lector }}</p>{% endif %}
 							{% if detail.tools %}<p><b>S sebou:</b> {{ detail.tools }}</p>{% endif %}

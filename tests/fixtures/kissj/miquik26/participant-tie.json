@@ -1,0 +1,77 @@
+{
+    "participant": {
+        "nickname": "Testovací Miquikář"
+    },
+    "programmes": [
+        {
+            "id": 1,
+            "name": "Proč je říkat: \"Ne!\" tak složité?",
+            "sectionId": 1,
+            "description": "V přednášce shrnu svou strastiplnou cestu s jedním nejkratších a nejtěžších slov zároveň. Jak odmítat, proč se to bojíme dělat a hlavně... Jak se vyrovnat s tím, když někdo odmítne nás? Po přednášce následuje otevřená debata.\n\nPřednáší: Kovy - Karel Kovář\nOnline přenos: Gočár (155)\n\nKarel Kovář je jedním z nejvýraznějších představitelů české YouTube scény a s více než milionem odběratelů ho už dávno nesledují jen děti. Ve videích probírá celospolečenská témata, politiku, finanční gramotnost, soukromí, či sociální sítě. Časopis Forbes ho zařadil mezi 30 nejvlivnějších Čechů na sociálních sítích. Právě z nich však rozšířil zásah i do jiných sfér. Nedávno se zhostil prestižní moderace předávání cen České filmové a televizní akademie Český Lev, každoročně moderuje benefiční koncert Světlo pro Světlušku, vedl rozhovor s jeho svatostí Dalajlámou nebo s bývalým Předsedou Evropské komise Jeanem Claudem Junckerem. V roce 2019 si zatančil v pořadu Stardance a s Ivo Bystřičanem pro Českou televizi vytvořil dokumentární sondu do české výuky moderních dějin \"Kovy řeší dějiny\". S Terezou Salte nahrává podcast Linka, dialogy i monology vydává v svém podcastu LOG a je též autorem autobiografického bestselleru OVŠEM a young adult fikce iPohádka.",
+            "place": "Kotěr (105)",
+            "start": "2026-11-14T09:00:00+01:00",
+            "end": "2026-11-14T10:00:00+01:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 3,
+            "name": "Masarykových pětkrát \"NE!\"",
+            "sectionId": 2,
+            "description": "První československý prezident T. G. Masaryk často vystupoval proti většinovému názoru společnosti a neobával se jasně říci své ne. Byl za to vystaven negativním reakcím i útokům. Na pěti příkladech ukážeme jeho životní postoje a řešení konfliktních situací z perspektivy akademika, žurnalisty i politika. Z Masarykovy osobnosti se postupně stal mýtus. Je jím i nyní?\n\nPřednáší: Dagmar Hájková + Jakub Štofaník\n\nDagmar Hájková, vědecká pracovnice Masarykova ústavu a Archivu AV ČR. Je autorkou či spoluautorkou edic dokumentů a monografií z doby první světové války a meziválečného Československa, např. Emanuel Voska. Špionážní legenda první světové války (2014) či Sláva republice! Oficiální svátky a oslavy v meziválečném Československu (2018).\n\nJakub Štofaník se specializuje na sociální, kulturní a politické dějiny 19. a 20. století. Působí v Masarykově ústavu a Archivu Akademie věd ČR v Praze. Odborně se věnuje tématům sociálního myšlení katolické církve, religiozitě dělnictva, dějinám meziválečného Československa a připomínání osobnosti T. G. Masaryka.",
+            "place": "Gočár (155)",
+            "start": "2026-11-14T10:15:00+01:00",
+            "end": "2026-11-14T11:15:00+01:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 17,
+            "name": "NEsmyslná reklama",
+            "sectionId": 3,
+            "description": "Reklamní sdělení nás obklopují na každém kroku – od billboardů přes výlohy až po digitální obrazovky. Co to ale dělá s naším vnímáním prostoru a estetiky? V přednášce se podíváme na reklamní smog z pohledu grafického designu: ukážeme si příklady kvalitních i nešťastně řešených kampaní a otevřeme diskusi o tom, jak může design ovlivnit kulturu veřejného prostoru i naši schopnost vizuálně vnímat svět.\n\nPřednáší: Daniel Korbel + Jan Švarc\n\nJsme Daniel Korbel a Jan Švarc, oba se věnujeme grafickému designu a společně učíme na Střední škole GRACE. Baví nás vizuální komunikace, značky a to, jak design dokáže měnit způsob, jakým lidé vnímají svět kolem sebe. Každý z nás má trochu jiný přístup a pohled na design, což se promítá i do naší výuky i vlastní tvorby.",
+            "place": "112+113",
+            "start": "2026-11-14T11:30:00+01:00",
+            "end": "2026-11-14T12:30:00+01:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 31,
+            "name": "NE neznamená slabost: Jak říkat ne, zvládat tlak a nepřetěžovat se",
+            "sectionId": 4,
+            "description": "Kolikrát jsi kývl jen proto, že „by se to přece mělo“? A kolikrát jsi pak nestíhal, spal tři hodiny a měl chuť utéct do lesa bez signálu? Říkat NE není o vzdoru, ale o odvaze chránit sebe. V hodinové přednášce se podíváme na to, proč je tak těžké odmítat, jak poznat, že už je toho moc, a jak říkat NE tak, aby to neznělo jako útok, ale jako respekt – k sobě i k druhým.\n\nPřednáší: Tereza Nesvatbová\n\nTereza Nesvatbová, - sociální pracovnice, budoucí psycholožka a psychoterapeutka pracující s rodinami a dětmi, se zájmem o náhradní rodinnou péči. Ráda se vzdělává dál formou kurzů a výcviků (psychoterapeutický výcvik, terapie hrou, krizová intervence apod.). V minulosti působila na krizovém chatu a aktuálně lektoruje o duševním zdraví v organizaci Nepanikař.",
+            "place": "152+153",
+            "start": "2026-11-14T13:45:00+01:00",
+            "end": "2026-11-14T15:30:00+01:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 41,
+            "name": "Čemu řekli Češi NE a čemu ANO? Malé povolební zamyšlení",
+            "sectionId": 5,
+            "description": "Přednáška se bude zabývat tím nejdůležitějším, o čem vypovídá výsledek nedávných voleb do Poslanecké sněmovny. V první části nastíní, jaké důsledky bude mít pro českou politiku a co všechno se (pravděpodobně) změní. Ve druhé části bude představeno, jak vlastně vypadá práce politologa, proč jsou pro něj volby zásadním mezníkem a jak politolog může využít terénní práce, kterou bychom u jeho profese přece jen příliš nečekali...\n\nPřednáší: Aleš Michal\nOnline přenos: Gočár (155)\n\nPolitolog z Fakulty sociálních věd Univerzity Karlovy, který se zabývá politikou ve střední Evropě a trendy souvisejícími s vývojem demokracie.",
+            "place": "Kotěr (105)",
+            "start": "2026-11-14T15:45:00+01:00",
+            "end": "2026-11-14T16:45:00+01:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        }
+    ]
+}

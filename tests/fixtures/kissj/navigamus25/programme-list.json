@@ -1,0 +1,118 @@
+{
+    "_note": "Every start/end below is invented, shaped by the stated durations.",
+    "sections": [
+        {
+            "id": 1,
+            "name": "Doprovodný program",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        }
+    ],
+    "programmes": [
+        {
+            "id": 1,
+            "name": "Plachtní regata",
+            "sectionId": 1,
+            "place": "Slapy – u kempu",
+            "description": "Organizuje Olda Pešina.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T14:00:00+02:00",
+            "end": "2025-06-06T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 2,
+            "name": "Exkurze – elektrárna Štěchovice",
+            "sectionId": 1,
+            "place": "Elektrárna Štěchovice",
+            "description": "Doprava autobusem – cca 50–100 Kč.\nDélka prohlídky: 1,5 hod.\nKapacita: max 40 osob (20 v infocentru sleduje video, 20 je na prohlídce).\nProhlídka je zdarma.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T13:30:00+02:00",
+            "end": "2025-06-06T16:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 3,
+            "name": "Plavba výletní lodí po Slapech",
+            "sectionId": 1,
+            "place": "Přístaviště u kempu",
+            "description": "Z kempu na hráz a zpět cca 1,5 hod. + 30 min. procházka po hrázi.\nKapacita lodi: 150 míst (80 k sezení), při velkém zájmu lze objednat dvě lodě.\nCena podle počtu zájemců – cca 100–150 Kč.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T14:00:00+02:00",
+            "end": "2025-06-06T16:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 4,
+            "name": "Prohlídka zámku Konopiště",
+            "sectionId": 1,
+            "place": "Zámek Konopiště",
+            "description": "Doprava autobusem – cca 50–100 Kč.\na) 2. okruh (Salony severního křídla) – 55 min., dospělí 280 Kč, mládež 220 Kč, děti 80 Kč.\nb) Muzeum sv. Jiří (patron skautů) – 30 min., 80 Kč bez rozdílu věku.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T13:00:00+02:00",
+            "end": "2025-06-06T17:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 5,
+            "name": "Výlet na Drtinovu rozhlednu nebo rozhlednu Veselý vrch",
+            "sectionId": 1,
+            "place": "Rozhledny za přehradou",
+            "description": "Pramicí na druhý břeh, pak pěšky cca 4 km tam a zpět.\nObě rozhledny jsou volně přístupné.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T14:00:00+02:00",
+            "end": "2025-06-06T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 6,
+            "name": "Program vodní záchranné služby",
+            "sectionId": 1,
+            "place": "Kemp",
+            "description": "Modelové ukázky – záchrana tonoucího, vytažení na loď s transportem na břeh, využití paddleboardu (15 min.).\nPráce s házečkami, resuscitace na figuríně, první pomoc (2 skupiny, max 20 osob, 30 min.).\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T14:00:00+02:00",
+            "end": "2025-06-06T15:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 7,
+            "name": "Plavba k místu prvního tábora skautek",
+            "sectionId": 1,
+            "place": "Přístaviště u kempu",
+            "description": "Na vlastních lodích cca 2 km na dnes zatopené místo, kde v roce 1915 tábořily první skautky.\nVyprávění a dobové fotografie: skautský historik Roman Šantora – Bobo.\nDélka cca 1,5 hod., vhodné pro děti starší 10 let.\nKapacita: max 30 osob.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T14:00:00+02:00",
+            "end": "2025-06-06T15:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        },
+        {
+            "id": 8,
+            "name": "Plavba k místu prvního tábora skautek",
+            "sectionId": 1,
+            "place": "Přístaviště u kempu",
+            "description": "Druhá plavba, pokud je zájem.\nNa vlastních lodích cca 2 km na dnes zatopené místo, kde v roce 1915 tábořily první skautky.\nVyprávění a dobové fotografie: skautský historik Roman Šantora – Bobo.\nDélka cca 1,5 hod., vhodné pro děti starší 10 let.\nKapacita: max 30 osob.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
+            "start": "2025-06-06T16:00:00+02:00",
+            "end": "2025-06-06T17:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,121 @@
+<?php
+
+// Korbo 2026 — a DEV event, not a shipped one. It exists to click through the realistic
+// Korbo camp data (16–20 Sep 2026) on the real Program screen with PROGRAM_PROVIDER=stub.
+// Its fixtures are generated from tests/fixtures/kissj/korbo26/ by bin/kissj-fixtures.php korbo26 --clamp-all-day=08:00-22:00;
+// edit the generator's source data, not fixtures/, and regenerate.
+//
+// The design is kissj's (~/prg/kissj/public/eventSpecificCss/stylesKorbo.css, with kissj's default
+// dark palette for what that file leaves out), adjusted by eventApp's contrast rules: every role
+// pair clears AA, large fills are pale in light mode and dark in dark mode, cards carry a tone
+// step and a 3:1 hairline. Body text is neutral, not the event colour.
+return [
+    'name' => 'Korbo 2026',
+    'shortName' => 'Korbo',
+    'features' => ['programs', 'push', 'news'],
+    'listed' => true,
+    'dates' => ['start' => '2026-09-16', 'end' => '2026-09-20'],
+
+    'theme' => ['radius' => '6px', 'radius-card' => '6px', 'radius-sheet' => '6px'],
+
+    'colors' => [
+        'background' => '#ede9e6',
+        'link' => '#000000',
+        'base' => '#dd6700',
+        'darker' => '#ae0e13',
+        'primary' => '#d43b00',
+        'text' => '#262626',
+        'text-invert' => '#ffffff',
+    ],
+
+    'roles' => [
+        'light' => [
+            'ground' => '#ede9e6',
+            'on-ground' => '#262626',
+            'surface' => '#f9f9f9',
+            'on-surface' => '#262626',
+            'structure' => '#f9f9f9',
+            'on-structure' => '#262626',
+            'edge-width' => '1px',
+            'edge' => '#818181',
+            'action' => '#d43b00',
+            'on-action' => '#ffffff',
+            'action-link' => '#000000',
+            'tonal' => '#f6e7db',
+            'on-tonal' => '#ae0e13',
+            'state' => '#dd6700',
+            'on-state' => '#141414',
+            'heading' => '#ae0e13',
+            'emphasis' => '#ae0e13',
+            'scrim' => '#141414',
+            'view-state' => '#dd6700',
+            'on-view-state' => '#141414',
+            'field' => '#ffffff',
+            'on-field' => '#262626',
+            'sheet' => '#f9f9f9',
+            'on-sheet' => '#262626',
+            'sheet-action' => '#d43b00',
+            'on-sheet-action' => '#ffffff',
+            'grid' => '#dfdbd8',
+            'grid-structure' => '#ffffff',
+            'on-grid-structure' => '#141414',
+            'grid-edge' => '#979695',
+            'signature' => '#f2d4bb',
+            'on-signature' => '#ae0e13',
+            'stage' => '#c7c4c1',
+            'on-stage' => '#262626',
+            'hairline' => '#000000',
+            'registered-bg' => '#dd6700',
+            'registered-line' => '#000000',
+            'registered-width' => '1px',
+        ],
+        'dark' => [
+            'ground' => '#212121',
+            'on-ground' => '#ececec',
+            'surface' => '#252525',
+            'on-surface' => '#ececec',
+            'structure' => '#212121',
+            'on-structure' => '#ececec',
+            'edge-width' => '1px',
+            'edge' => '#b27844',
+            'action' => '#d5b885',
+            'on-action' => '#141414',
+            'action-link' => '#dd6700',
+            'tonal' => '#46311e',
+            'on-tonal' => '#ffffff',
+            'state' => '#dd6700',
+            'on-state' => '#141414',
+            'heading' => '#dd6700',
+            'emphasis' => '#dd6700',
+            'scrim' => '#000000',
+            'view-state' => '#dd6700',
+            'on-view-state' => '#141414',
+            'field' => '#2f2f2f',
+            'on-field' => '#ececec',
+            'sheet' => '#252525',
+            'on-sheet' => '#ececec',
+            'sheet-action' => '#d5b885',
+            'on-sheet-action' => '#141414',
+            'grid' => '#191919',
+            'grid-structure' => '#2f2f2f',
+            'on-grid-structure' => '#ececec',
+            'grid-edge' => '#5f5f5f',
+            'signature' => '#4a301a',
+            'on-signature' => '#ffffff',
+            'stage' => '#2e2e2e',
+            'on-stage' => '#ececec',
+            'hairline' => '#888888',
+            'registered-bg' => '#dd6700',
+            'registered-line' => '#888888',
+            'registered-width' => '1px',
+        ],
+    ],
+
+    'assets' => ['menuLogo' => 'events/korbo26/logo_korbo_89.png', 'mainLogo' => 'events/korbo26/logo_korbo_1272.png', 'notificationIcon' => 'events/korbo26/logo_korbo_89.png'],
+
+    'homepage' => [
+        'footerText' => '',
+        'footerLinkLabel' => '',
+        'footerLinkHref' => '',
+    ],
+];

@@ -1,10 +1,23 @@
 [
     {
         "id": 1,
-        "name": "Hlavní program"
+        "name": "Účastníci",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
     },
     {
         "id": 2,
-        "name": "Doprovodný program"
+        "name": "V areálu",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 3,
+        "name": "Mimo areál",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
     }
 ]

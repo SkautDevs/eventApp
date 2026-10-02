@@ -600,7 +600,7 @@ a, a:visited {
 
 /* The field sits on the page ground, so it needs its own surface to read as a
    field. It rebinds the surface pair rather than introducing a third name. */
-input[type=text], textarea {
+input[type=text], textarea, .stacked-form select {
 	--surface: var(--role-field, var(--color-text-invert));
 	--on-surface: var(--role-on-field, var(--color-text));
 	font-family: inherit;
@@ -620,11 +620,20 @@ input[type=text], textarea {
 
 /* the field takes the same column and the same gutter as the button under it,
    so the form reads as one stack rather than as a field with a tail */
-.stacked-form input, .stacked-form textarea {
+.stacked-form input, .stacked-form textarea, .stacked-form select {
 	display: block;
 	width: calc(100% - 16px);
 	margin-left: auto;
 	margin-right: auto;
+}
+
+/* the admin page's message log: an entry's text keeps the line breaks it was sent with */
+.notify-log-entry {
+	margin: 24px 0;
+}
+
+.notify-log-body {
+	white-space: pre-line;
 }
 
 /* --- typography ---------------------------------------------------------- */
@@ -757,6 +766,7 @@ img.mainLogo {
 
 /* schedule login hint and the notification opt-in — centred */
 p.push-enable,
+p.push-status,
 p.login-hint,
 div.login-box {
 	text-align: center;
@@ -811,6 +821,11 @@ div.news {
 	margin: 0 8px 8px;
 	background-color: var(--surface);
 	color: var(--on-surface);
+}
+
+/* A message is plain text whose line breaks are meant, like a perex */
+.news-body {
+	white-space: pre-line;
 }
 
 div.border-table {

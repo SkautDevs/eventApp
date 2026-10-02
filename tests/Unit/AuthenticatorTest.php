@@ -23,13 +23,23 @@ final class AuthenticatorTest extends TestCase
         self::assertFalse($auth->isLogged());
         self::assertNull($auth->identity());
 
-        $auth->store(new Identity(type: 'skautis', displayName: 'Jan Novák (jnovak)', skautisUserId: 123));
+        $auth->store(new Identity(displayName: 'TIE ABC123', tieCode: 'ABC123'));
 
         self::assertTrue($auth->isLogged());
-        self::assertSame('Jan Novák (jnovak)', $auth->identity()->displayName);
-        self::assertSame(123, $auth->identity()->skautisUserId);
+        self::assertSame('TIE ABC123', $auth->identity()->displayName);
+        self::assertSame('ABC123', $auth->identity()->tieCode);
 
         $auth->logout();
+        self::assertFalse($auth->isLogged());
+    }
+
+    public function testAStoredSkautisIdentityFromBeforeTheRemovalCountsAsLoggedOut(): void
+    {
+        // a session written by the old code must not crash the app bar
+        $_SESSION = ['identity' => ['type' => 'skautis', 'displayName' => 'Jan Novák (jnovak)', 'skautisUserId' => 123, 'tieCode' => null]];
+        $auth = new Authenticator(new Session());
+
+        self::assertNull($auth->identity());
         self::assertFalse($auth->isLogged());
     }
 }

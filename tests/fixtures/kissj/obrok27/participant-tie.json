@@ -1,0 +1,119 @@
+{
+    "participant": {
+        "nickname": "Testovací Obročák"
+    },
+    "programmes": [
+        {
+            "id": 1,
+            "name": "Otevřena Registrace",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T12:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 8,
+            "name": "zpíváme večerku",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-02T22:45:00+02:00",
+            "end": "2027-06-02T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 15,
+            "name": "just dance",
+            "sectionId": 2,
+            "description": "",
+            "place": "Malé šapitó",
+            "start": "2027-06-02T15:00:00+02:00",
+            "end": "2027-06-02T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 22,
+            "name": "stálá místa: fotokotek slacklines volejbal workoout hriste lanove aktivity hamakový háj potrav. banka landart galerie",
+            "sectionId": 2,
+            "description": "",
+            "place": "Dopro - aktivity celou dobu",
+            "start": "2027-06-02T12:00:00+02:00",
+            "end": "2027-06-02T21:45:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 29,
+            "name": "Čas na jídlo",
+            "sectionId": 1,
+            "description": "",
+            "place": "Celý tábor",
+            "start": "2027-06-03T12:30:00+02:00",
+            "end": "2027-06-03T14:30:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 36,
+            "name": "zpíváme večerku",
+            "sectionId": 2,
+            "description": "",
+            "place": "Louka u stage",
+            "start": "2027-06-03T22:45:00+02:00",
+            "end": "2027-06-03T23:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 43,
+            "name": "VaPro",
+            "sectionId": 2,
+            "description": "",
+            "place": "Žlutá louka",
+            "start": "2027-06-03T14:30:00+02:00",
+            "end": "2027-06-03T18:00:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        },
+        {
+            "id": 50,
+            "name": "Relax studio",
+            "sectionId": 2,
+            "description": "",
+            "place": "Červená louka",
+            "start": "2027-06-03T09:00:00+02:00",
+            "end": "2027-06-03T12:15:00+02:00",
+            "isPreregistered": false,
+            "targetRoles": [
+                "ist",
+                "pl"
+            ]
+        }
+    ]
+}

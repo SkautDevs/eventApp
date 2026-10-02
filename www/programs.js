@@ -827,6 +827,11 @@
 
 		// the old deep link into a single programme keeps working, and now opens its detail
 		function fromHash() {
+			if (location.hash === '#muj-program') {
+				// where a login from the list's own form lands
+				showView('list');
+				return;
+			}
 			const matches = location.hash.match(/^#section-(\d+)-program-(\d+)$/);
 			if (matches) {
 				openSheet(matches[2], true, null);

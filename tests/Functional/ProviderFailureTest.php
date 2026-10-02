@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Auth\Identity;
-use App\Auth\SkautisGatewayInterface;
 use App\Auth\UnknownParticipantException;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
@@ -37,7 +36,6 @@ final class ProviderFailureTest extends AppTestCase
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
         // the first call (TIE code login) goes through fine
@@ -59,7 +57,6 @@ final class ProviderFailureTest extends AppTestCase
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
         $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
@@ -77,7 +74,6 @@ final class ProviderFailureTest extends AppTestCase
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
         // the first call (TIE code login) goes through fine
@@ -108,7 +104,6 @@ final class ProviderFailureTest extends AppTestCase
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
-            SkautisGatewayInterface::class => new FakeSkautisGateway(),
         ]);
 
         self::assertSame(302, $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'])->getStatusCode());
@@ -150,6 +145,7 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
         private readonly ?\Throwable $programsException = null,
         private readonly ?\Throwable $identityExceptionAfterFirstCall = null,
         private readonly ?\Throwable $identityException = null,
+        private readonly ?\Throwable $tieCodesException = null,
     ) {
     }
 
@@ -181,6 +177,15 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
 
         if ($this->identityCalls > 1 && $this->identityExceptionAfterFirstCall !== null) {
             throw $this->identityExceptionAfterFirstCall;
+        }
+
+        return [];
+    }
+
+    public function getTieCodesForProgramme(int $programmeId): array
+    {
+        if ($this->tieCodesException !== null) {
+            throw $this->tieCodesException;
         }
 
         return [];

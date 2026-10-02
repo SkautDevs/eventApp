@@ -14,8 +14,9 @@ external-app APIs (`/v3/entry`, `/v3/vendor`, `/v3/deal`) already use.
   carries `Authorization: Bearer <KISSJ_API_KEY>`; kissj looks up the event
   owning that key (a per-event programme API key, mirroring its entry/vendor
   key pattern) and scopes every response to it. Consequence for eventApp: the
-  per-event config key `kissj.eventSlug` is obsolete; `KISSJ_API_KEY` joins
-  `KISSJ_BASE_URL` as a required env var when `PROGRAM_PROVIDER=kissj`.
+  per-event config key `kissj.eventSlug` is obsolete; `KISSJ_API_KEY_<SLUG>` (e.g.
+  `KISSJ_API_KEY_KORBO26`) joins `KISSJ_BASE_URL` as a required env var when
+  `PROGRAM_PROVIDER_<SLUG>=kissj`.
 - Missing/malformed/unknown key → `401` with a plain-text body
   (`Unauthorized - <reason>`). Not JSON — treat any non-200 as provider
   failure.
@@ -112,13 +113,28 @@ programme registrations (self-registered and admin-assigned alike).
   TIE code doubles as the access secret, exactly as in kissj's vendor API.
 - `nickname` may be null; eventApp falls back to a generic greeting.
 
+## GET /v3/programme/{programmeId}/participants
+
+The TIE codes of the participants with an active registration for this programme of
+the authorized event (self-registered and admin-assigned alike). eventApp calls it when an
+organiser sends a push message to one programme.
+
+    {
+        "tieCodes": ["KORBO1", "KORBO2"]
+    }
+
+- `404` (empty body) — no such programme in the event. Like any non-200, eventApp
+  treats it as a provider failure and sends nothing.
+- An empty list is a valid answer: nobody is registered.
+- eventApp compares TIE codes case-insensitively.
+
 ## GET /v3/programme/participant/skautis/{skautisUserId}
+
+eventApp no longer calls this endpoint (TIE code is the only login, 2026-09-30); kissj need not build it for eventApp.
 
 Same response shape as the TIE endpoint, keyed by SkautIS user id.
 
 - `404` (empty body) — no participant for that SkautIS user in the event.
-  eventApp maps this to an empty list: a logged-in SkautIS user without a
-  registration is not an error.
 
 ## Deliberately not in the contract
 

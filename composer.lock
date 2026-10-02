@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5306656f56ab85a1d40b8ca2010780c1",
+    "content-hash": "9b182760bee9125043c7a93f56c45bab",
     "packages": [
         {
             "name": "brick/math",
@@ -1465,69 +1465,6 @@
                 "source": "https://github.com/ralouphie/getallheaders/tree/develop"
             },
             "time": "2019-03-08T08:55:37+00:00"
-        },
-        {
-            "name": "skautis/skautis",
-            "version": "v2.3.0",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/skaut/Skautis.git",
-                "reference": "a676c628c8f6bd074eb0650b47688b9fd1dce905"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/skaut/Skautis/zipball/a676c628c8f6bd074eb0650b47688b9fd1dce905",
-                "reference": "a676c628c8f6bd074eb0650b47688b9fd1dce905",
-                "shasum": ""
-            },
-            "require": {
-                "ext-soap": "*",
-                "php": ">=5.6"
-            },
-            "require-dev": {
-                "friendsofphp/php-cs-fixer": "^2.15",
-                "mockery/mockery": "^1.2",
-                "phpunit/phpunit": "^5.7"
-            },
-            "suggest": {
-                "skautis/nette": "Integrace Skautis do Nette",
-                "skautis/skautis-bundle": "Integrace Skautis do Symfony"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "Skautis\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "BSD-3-Clause"
-            ],
-            "authors": [
-                {
-                    "name": "František Hána",
-                    "homepage": "https://github.com/sinacek"
-                },
-                {
-                    "name": "Jindřich Pilař",
-                    "homepage": "https://github.com/JindrichPilar"
-                }
-            ],
-            "description": "Library for API calls to SkautIS",
-            "homepage": "https://github.com/skaut/Skautis",
-            "keywords": [
-                "api",
-                "skaut",
-                "skautis",
-                "soap",
-                "wsdl"
-            ],
-            "support": {
-                "issues": "https://github.com/skaut/Skautis/issues",
-                "source": "https://github.com/skaut/Skautis",
-                "wiki": "http://is.skaut.cz/napoveda/"
-            },
-            "time": "2023-04-02T19:19:57+00:00"
         },
         {
             "name": "slim/psr7",

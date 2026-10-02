@@ -1,0 +1,37 @@
+[
+    {
+        "id": 1,
+        "name": "Úvodní přednáška",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 2,
+        "name": "1. sekce",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 3,
+        "name": "2. sekce",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 4,
+        "name": "3. sekce",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    },
+    {
+        "id": 5,
+        "name": "Závěrečná přednáška",
+        "subtitle": null,
+        "imageUrl": null,
+        "attachment": null
+    }
+]
