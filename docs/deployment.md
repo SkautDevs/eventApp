@@ -188,6 +188,39 @@ Every event is still served by the one instance, so this is a single installatio
    `session.gc_maxlifetime` to at least `604800` and, if the host shares `/tmp`, a
    private `session.save_path`.
 
+### GitHub Actions deployment over FTP
+
+All workflows use the PHP version in `.github/php-version`. Change that
+file to update tests, dependency auditing and deployment together.
+`ci.yml` runs the tests and audits the locked dependencies.
+It runs on pull requests, non-master pushes and manually, and is reusable through
+`workflow_call`. `deploy.yml` calls it on master pushes or a manual run, then
+installs production dependencies, prepares `release/` and syncs it
+using `lftp`. Only master can deploy.
+
+Add these repository secrets, using the same names as `SkautDevs/web`:
+
+- `FTP_HOST`: the FTP URL, e.g. `ftp://ftp.example.com` (TLS is required).
+- `FTP_USER`: the FTP username.
+- `FTP_PASS`: the FTP password.
+
+Use an FTP account dedicated to eventApp whose public directory is `www/`.
+The release contains `src/`, `templates/`, `events/`, `vendor/` and `www/`, including
+`www/.htaccess`. The private directories are uploaded beside `www/`.
+
+Create `.env` once in that private root from `.env.example`. It holds `APP_DEBUG=0`,
+the programme provider settings and kissj API keys, admin tokens and push keys
+described above. Also create writable `var/` as in the hosting setup steps.
+The sync mirrors `release/` directly to the FTP root and deletes stale files.
+It excludes `.env`, `var/`, `__log/`, `tmp/`, `www/.well-known/`,
+`www/.user.ini` and `www/cgi-bin/` to preserve runtime data and hosting settings.
+Changes to
+`www/.htaccess` must be committed because deployment replaces that file.
+
+Follow-up: update the [SkautDevs/web FTP pipeline](https://github.com/SkautDevs/web/blob/main/Makefile)
+to add `--delete` to `mirror -R dist www`, with exclusions for hosting-managed files,
+so removed assets are also deleted from the server.
+
 ### HTTP to HTTPS redirect
 
 The redirect is deliberately not in the repository. Once the certificate works, add

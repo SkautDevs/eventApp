@@ -1,21 +1,30 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  # Master pushes run CI through the deployment pipeline.
+  push:
+    branches-ignore: [master]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php: ['8.3', '8.4']
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '${{ matrix.php }}'
-          extensions: pdo_sqlite, gmp
-      - run: composer install --no-progress --prefer-dist
-      - run: vendor/bin/phpunit
+          php-version-file: .github/php-version
+          extensions: pdo_sqlite, curl, mbstring, openssl, gmp
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-progress --prefer-dist --no-interaction
+      - run: composer test
 
   # Its own job so an advisory shows up as a distinct failed check rather than
   # being lost at the tail of a test run. No `|| true` and no continue-on-error:
@@ -23,10 +32,12 @@ jobs:
   # the build. Runs against composer.lock, so no vendor install is needed.
   audit:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
-          extensions: pdo_sqlite, gmp
+          php-version-file: .github/php-version
+          coverage: none
+          tools: composer:v2
       - run: composer audit --locked --no-interaction
