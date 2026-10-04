@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Push\PushSenderInterface;
+use App\Push\SendOutcome;
 
 final class SpyPushSender implements PushSenderInterface
 {
@@ -13,7 +14,8 @@ final class SpyPushSender implements PushSenderInterface
     /** @var list<array{event: string, endpoint: string, title: string, body: string, icon: ?string, url: ?string}> */
     public array $welcomes = [];
 
-    public bool $welcomeDelivered = true;
+    /** what the next welcome comes back as */
+    public SendOutcome $welcomeOutcome = SendOutcome::Delivered;
 
     public function sendToEvent(
         string $event,
@@ -35,9 +37,9 @@ final class SpyPushSender implements PushSenderInterface
         string $body,
         ?string $icon = null,
         ?string $url = null,
-    ): bool {
+    ): SendOutcome {
         $this->welcomes[] = compact('event', 'endpoint', 'title', 'body', 'icon', 'url');
 
-        return $this->welcomeDelivered;
+        return $this->welcomeOutcome;
     }
 }

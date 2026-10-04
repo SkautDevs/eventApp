@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\EventConfig;
 use App\Kernel;
+use App\Program\CachingProgramProvider;
 use App\Program\ProgramProviderInterface;
 use App\Program\KissjProgramProvider;
 use App\Program\StubProgramProvider;
@@ -15,7 +16,7 @@ final class KernelProviderSelectionTest extends TestCase
 {
     protected function tearDown(): void
     {
-        unset($_ENV['PROGRAM_PROVIDER_OBROK27'], $_ENV['PROGRAM_PROVIDER_OBROK19'], $_ENV['KISSJ_BASE_URL'], $_ENV['KISSJ_API_KEY_OBROK27']);
+        unset($_ENV['PROGRAM_PROVIDER_OBROK27'], $_ENV['PROGRAM_PROVIDER_OBROK19'], $_ENV['KISSJ_BASE_URL'], $_ENV['KISSJ_API_KEY_OBROK27'], $_ENV['PROGRAM_CACHE_TTL']);
     }
 
     private function providerFor(): ProgramProviderInterface
@@ -31,13 +32,29 @@ final class KernelProviderSelectionTest extends TestCase
         self::assertInstanceOf(StubProgramProvider::class, $this->providerFor());
     }
 
-    public function testKissjSelected(): void
+    public function testKissjSelectedBehindTheCache(): void
     {
         $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'kissj';
         $_ENV['KISSJ_BASE_URL'] = 'https://kissj.example';
         $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
 
-        self::assertInstanceOf(KissjProgramProvider::class, $this->providerFor());
+        $provider = $this->providerFor();
+
+        self::assertInstanceOf(CachingProgramProvider::class, $provider);
+        self::assertInstanceOf(KissjProgramProvider::class, $provider->inner());
+    }
+
+    public function testTheCacheTtlIsWholeSecondsAndFallsBackTo300(): void
+    {
+        foreach ([[null, 300], ['', 300], ['0', 0], ['60', 60], ['-5', 300], ['5m', 300], [' 60', 300], ['1.5', 300]] as [$value, $expected]) {
+            if ($value === null) {
+                unset($_ENV['PROGRAM_CACHE_TTL']);
+            } else {
+                $_ENV['PROGRAM_CACHE_TTL'] = $value;
+            }
+
+            self::assertSame($expected, Kernel::programCacheTtl(), var_export($value, true));
+        }
     }
 
     public function testKissjWithoutBaseUrlThrows(): void

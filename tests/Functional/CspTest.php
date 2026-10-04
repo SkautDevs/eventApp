@@ -194,12 +194,7 @@ final class CspTest extends AppTestCase
 
     public function testTheHomepageButtonIsBoundByPushJsNotInline(): void
     {
-        $_ENV['VAPID_PUBLIC_KEY'] = 'test-key';
-        try {
-            $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
-        } finally {
-            unset($_ENV['VAPID_PUBLIC_KEY']);
-        }
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
         self::assertStringContainsString('data-push-toggle', $html);
         self::assertStringNotContainsString('onclick', $html);

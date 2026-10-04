@@ -152,6 +152,27 @@ final class ScreenFragmentTest extends AppTestCase
         $this->assertStringContainsString('<!DOCTYPE html>', $html);
     }
 
+    /** Round C prints "aktualizováno HH:MM" from this; it must be on every screen, in both modes. */
+    public function testEveryScreenCarriesItsDataTimestampInBothModes(): void
+    {
+        $app = $this->createApp();
+
+        foreach (array_keys(self::SCREENS) as $path) {
+            foreach ([[], ['X-Screen' => '1']] as $headers) {
+                $html = (string) $this->request($app, 'GET', $path, null, $headers)->getBody();
+                $mode = $path . ($headers === [] ? ' (page)' : ' (fragment)');
+
+                $this->assertMatchesRegularExpression(
+                    '/<section class="screen"[^>]*\sdata-fetched-at="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+0[12]:00"/',
+                    $html,
+                    $mode,
+                );
+                // the stub is never stale
+                $this->assertStringNotContainsString('data-stale', $html, $mode);
+            }
+        }
+    }
+
     protected function tearDown(): void
     {
         unset($_ENV['ADMIN_TOKEN_OBROK19']);

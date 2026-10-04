@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\EventConfig;
 use App\Kernel;
 use App\Telemetry\Telemetry;
+use Monolog\Handler\StreamHandler;
+use Monolog\Level;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Sentry\Monolog\LogToSentryIssueHandler;
 use Sentry\SentrySdk;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\ServerRequestFactory;
@@ -112,5 +117,35 @@ final class TelemetryTest extends TestCase
         // the very same object: byte-identical to a stack without the middleware
         self::assertSame($response, $result);
         self::assertSame(1, $handler->calls);
+    }
+
+    /** push.sent is a log line, not an issue; issues start at warning. */
+    public function testTheEventLoggerFilesOnlyWarningsAndAboveWithSentry(): void
+    {
+        $app = Kernel::create(EventConfig::load(dirname(__DIR__, 2) . '/events', 'obrok19'), [
+            \PDO::class => AppTestCase::memoryDb(),
+            \App\Push\PushSenderInterface::class => new SpyPushSender(),
+        ]);
+        $logger = $app->getContainer()->get(\Psr\Log\LoggerInterface::class);
+
+        self::assertInstanceOf(Logger::class, $logger);
+        $levels = [];
+        foreach ($logger->getHandlers() as $handler) {
+            $levels[$handler::class] = $handler->getLevel();
+        }
+        self::assertSame([StreamHandler::class => Level::Info, LogToSentryIssueHandler::class => Level::Warning], $levels);
+    }
+
+    /** Like kissj: the SDK's default integrations stay, ErrorListenerIntegration among them. */
+    public function testTheSdkKeepsItsDefaultIntegrationsLikeKissj(): void
+    {
+        $options = Telemetry::options('https://public@sentry.example/1');
+
+        self::assertSame('https://public@sentry.example/1', $options['dsn']);
+        self::assertArrayNotHasKey('default_integrations', $options);
+        self::assertArrayNotHasKey('integrations', $options);
+        self::assertArrayNotHasKey('error_types', $options);
+        self::assertFalse($options['send_default_pii']);
+        self::assertNull(SentrySdk::getCurrentHub()->getClient(), 'building the options binds nothing');
     }
 }

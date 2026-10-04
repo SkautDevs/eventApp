@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Telemetry\RouteNameMiddleware;
+use App\Telemetry\TransactionMiddleware;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -12,6 +13,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Slim\Factory\AppFactory;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\ServerRequestFactory;
+use Sentry\Tracing\TransactionSource;
 use Slim\Routing\RouteContext;
 
 final class RouteNameMiddlewareTest extends TestCase
@@ -53,6 +55,36 @@ final class RouteNameMiddlewareTest extends TestCase
         };
 
         $result = (new RouteNameMiddleware('korbo26'))->process((new ServerRequestFactory())->createServerRequest('GET', '/korbo26/'), $handler);
+
+        self::assertSame($response, $result);
+    }
+
+    /** A 404 or 405 never reaches the route namer, so it keeps the name it started with. */
+    public function testATransactionStartsAsUnmatchedNotAsTheRawPath(): void
+    {
+        $context = TransactionMiddleware::context();
+
+        self::assertSame('unmatched', TransactionMiddleware::UNMATCHED);
+        self::assertSame(TransactionMiddleware::UNMATCHED, $context->getName());
+        self::assertSame('http.server', $context->getOp());
+        self::assertSame(TransactionSource::custom(), $context->getMetadata()->getSource());
+    }
+
+    public function testTheInstanceAppNamesItsRoutesWithoutAnEvent(): void
+    {
+        $response = (new ResponseFactory())->createResponse(200);
+        $handler = new class ($response) implements RequestHandlerInterface {
+            public function __construct(private readonly ResponseInterface $response)
+            {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->response;
+            }
+        };
+
+        $result = (new RouteNameMiddleware(null))->process((new ServerRequestFactory())->createServerRequest('GET', '/'), $handler);
 
         self::assertSame($response, $result);
     }

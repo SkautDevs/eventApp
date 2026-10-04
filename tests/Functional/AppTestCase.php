@@ -25,12 +25,14 @@ abstract class AppTestCase extends TestCase
             : $this->eventsDir();
         $event = EventConfig::load($dir, $slug);
 
-        // every app gets throwaway push storage and silent loggers; a test that needs to
-        // look inside passes its own
+        // every app gets throwaway push storage, silent loggers and a spy sender (a welcome
+        // must never reach a real push service from a test, and a fake sender needs no
+        // VAPID keys); a test that needs to look inside passes its own
         $overrides += [
             \PDO::class => self::memoryDb(),
             \Psr\Log\LoggerInterface::class => new \Psr\Log\NullLogger(),
             Kernel::ERRORS_LOGGER => new \Psr\Log\NullLogger(),
+            \App\Push\PushSenderInterface::class => new SpyPushSender(),
         ];
 
         return Kernel::create($event, $overrides);

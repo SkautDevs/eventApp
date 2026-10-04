@@ -18,11 +18,12 @@ use Slim\Routing\RouteContext;
  * not the concrete path — and tags it with the event. Added before the routing middleware,
  * i.e. inside it, so the route is already on the request. Slim keeps the pattern without
  * the base path, which is the slug-free name wanted. A request that matched no route
- * never gets here and keeps the placeholder name.
+ * never gets here and keeps the name `unmatched`. The instance app passes no slug: it
+ * names its routes but tags no event.
  */
 final class RouteNameMiddleware implements MiddlewareInterface
 {
-    public function __construct(private readonly string $slug)
+    public function __construct(private readonly ?string $slug)
     {
     }
 
@@ -36,7 +37,9 @@ final class RouteNameMiddleware implements MiddlewareInterface
                 $transaction->setName($name);
                 $transaction->getMetadata()->setSource(TransactionSource::route());
             }
-            Tracer::tag('event', $this->slug);
+            if ($this->slug !== null) {
+                Tracer::tag('event', $this->slug);
+            }
         }
 
         return $handler->handle($request);

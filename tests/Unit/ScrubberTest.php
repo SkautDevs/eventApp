@@ -50,6 +50,18 @@ final class ScrubberTest extends TestCase
         self::assertSame('<subscription redacted>', Scrubber::scrub($event)->getRequest()['data']);
     }
 
+    public function testAnUnsubscribeBodyIsReplacedWhole(): void
+    {
+        $event = Event::createEvent();
+        $event->setRequest([
+            'url' => 'https://app.example/korbo26/push/unsubscribe',
+            'method' => 'POST',
+            'data' => ['endpoint' => 'https://fcm.googleapis.com/fcm/send/x'],
+        ]);
+
+        self::assertSame('<subscription redacted>', Scrubber::scrub($event)->getRequest()['data']);
+    }
+
     public function testAnAdminSendBodyIsReplacedWhole(): void
     {
         $event = Event::createEvent();

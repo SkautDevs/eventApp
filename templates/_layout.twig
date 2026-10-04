@@ -104,10 +104,10 @@
 	<meta name="event-base" content="{{ base }}/">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<meta name="push-identity" content="{{ auth_tie_code() }}">
-	<script src="push.js?v=8" defer></script>
+	<script src="push.js?v=10" defer></script>
 	{# the screen loader: without it every link is a plain navigation and the app is
 	   exactly what it was #}
-	<script src="app.js?v=3" defer></script>
+	<script src="app.js?v=5" defer></script>
 	{% if 'programs' in event.features %}
 		{# the Program screen's behaviour used to be inline in <head>, which no screen swap
 		   could ever reach; it lives here now and the loader calls into it #}
@@ -164,12 +164,16 @@
    one it leaves. The wrapper is emitted identically by _screen.twig, so a screen that
    arrived over the wire is indistinguishable from this one. #}
 <main id="obsah" tabindex="-1">
+	{# data-fetched-at is when the provider data on this screen was fetched (the request
+	   time when it used none); data-stale marks an old copy served because kissj failed.
+	   The handler has already run when this renders, so both are final here. #}
 	<section class="screen"
 		aria-label="{{ pageTitle }}"
 		data-screen="{{ screenPath }}"
 		data-title="{{ pageTitle }}"
 		data-doc-title="{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}"
 		data-tab="{{ activeTab }}"
+		data-fetched-at="{{ data_freshness().fetchedAt }}"{% if data_freshness().stale %} data-stale="1"{% endif %}
 		tabindex="-1"><h1 class="sr-only">{{ pageTitle }}</h1>{% block content %}{% endblock %}</section>
 </main>
 

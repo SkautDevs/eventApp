@@ -81,4 +81,29 @@ final class ScreenMorphTest extends AppTestCase
         self::assertSame(1, substr_count($html, '<iframe'));
         self::assertMatchesRegularExpression('/<div class="map">\s*<iframe /', $html);
     }
+
+    /**
+     * Review Focus 5: the comparison is on innerHTML, which leaves the section's own
+     * attributes out — so the data timestamp is carried over explicitly, on the unchanged
+     * path and on the morph path alike.
+     */
+    public function testARevalidationCarriesTheFreshTimestampEvenWhenNothingElseChanged(): void
+    {
+        $js = $this->loader();
+
+        self::assertStringContainsString('function syncFreshness(section, fresh)', $js);
+        self::assertStringContainsString("['data-fetched-at', 'data-stale']", $js);
+        // the definition, the morph path and the unchanged path; a mention in a // comment
+        // or a docblock line does not count
+        $code = implode("\n", array_filter(
+            explode("\n", $js),
+            static fn (string $line): bool => preg_match('~^\s*(//|\*|/\*)~', $line) !== 1,
+        ));
+        self::assertSame(1, preg_match_all('/\bfunction syncFreshness\(/', $code));
+        self::assertSame(1, preg_match_all('/^\s*syncFreshness\(entry\.section, fresh\.section\);/m', $code), 'the morph path');
+        self::assertSame(1, preg_match_all('/^\s*syncFreshness\(entry\.section, fresh\);/m', $code), 'the unchanged path');
+        // and the unchanged path drops a held older morph, or it would re-apply over this fetch
+        self::assertSame(1, preg_match_all('/^\s*entry\.pending = null;\s*\n\s*syncFreshness\(entry\.section, fresh\);/m', $code), 'the unchanged path clears pending');
+        self::assertStringContainsString('app.js?v=5', (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig'));
+    }
 }

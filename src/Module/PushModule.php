@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module;
 
+use App\Push\PushSenderInterface;
+use App\Push\SendOutcome;
 use App\Push\SubscriptionRepository;
+use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 
 final class PushModule implements ModuleInterface
@@ -45,38 +48,61 @@ final class PushModule implements ModuleInterface
                     return $response->withStatus(400);
                 }
 
-                // A new subscription gets a welcome at once, so the reader sees on the very first tap
-                // that notifications arrive — rather than finding out at the first real message. The
-                // re-send after a login or logout is not new and stays silent. null: nothing was sent.
-                $welcome = null;
-                if ($isNew) {
-                    try {
-                        $welcome = $this->get(\App\Push\PushSenderInterface::class)->sendToSubscription(
-                            event: $event->slug,
-                            endpoint: $endpoint,
-                            title: $event->name,
-                            body: 'Notifikace jsou zapnuté. Novinky z akce ti budou chodit sem.',
-                            icon: $event->get('assets')['notificationIcon'] ?? null,
-                            url: $app->getBasePath() . '/novinky',
-                        );
-                    } catch (\Throwable) {
-                        $welcome = false;
-                    }
-                    // A subscription whose welcome did not get through is not kept: the reader is told
-                    // it failed and taps again, and that tap is new again, welcome included.
-                    if (!$welcome) {
-                        $repository->delete($event->slug, $endpoint);
-                        $response->getBody()->write(json_encode(['ok' => false, 'welcome' => false]));
+                \App\Telemetry\Tracer::spanTag('push.new', $isNew ? '1' : '0');
 
-                        return $response->withHeader('Content-Type', 'application/json')->withStatus(502);
-                    }
+                // The re-send after a login or logout is not new and stays silent. null: nothing was sent.
+                if (!$isNew) {
+                    return self::json($response, 201, ['saved' => true, 'welcome' => null]);
                 }
 
-                $response->getBody()->write(json_encode(['ok' => true, 'welcome' => $welcome]));
+                // A new subscription gets a welcome at once, so the reader sees on the very first tap
+                // that notifications arrive — rather than finding out at the first real message.
+                try {
+                    $outcome = $this->get(PushSenderInterface::class)->sendToSubscription(
+                        event: $event->slug,
+                        endpoint: $endpoint,
+                        title: $event->name,
+                        body: 'Notifikace jsou zapnuté. Novinky z akce ti budou chodit sem.',
+                        icon: $event->get('assets')['notificationIcon'] ?? null,
+                        url: $app->getBasePath() . '/novinky',
+                    );
+                } catch (\Throwable) {
+                    // an exception proves nothing about the subscription
+                    $outcome = SendOutcome::Failed;
+                }
 
-                return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+                // The push service disowned the subscription: the row goes, the browser lets go of
+                // it too (push.js), and the reader's next tap is new again, welcome included.
+                if ($outcome === SendOutcome::Rejected) {
+                    $repository->delete($event->slug, $endpoint);
+
+                    return self::json($response, 502, ['saved' => false, 'welcome' => false, 'error' => 'subscription-rejected']);
+                }
+
+                // Failed keeps the row: a timeout or a 500 proves nothing, and the next real send
+                // reaches it or removes it the way every send does. The reader is told only what is true.
+                return self::json($response, 201, ['saved' => true, 'welcome' => $outcome === SendOutcome::Delivered]);
             });
         })->setName('push-subscribe');
+
+        // Turning notifications off. The browser lets go of the subscription first, so this
+        // is housekeeping: unauthenticated like subscribe, and 204 whether or not the endpoint
+        // was known, because the answer must not tell anyone which endpoints exist.
+        $app->post('/push/unsubscribe', function ($request, $response) {
+            $event = $this->get(\App\EventConfig::class);
+
+            return \App\Telemetry\Tracer::span('push.unsubscribe', 'unsubscribe ' . $event->slug, function () use ($request, $response, $event) {
+                $endpoint = ((array) $request->getParsedBody())['endpoint'] ?? null;
+                if (!is_string($endpoint)) {
+                    return $response->withStatus(400);
+                }
+                $repository = $this->get(SubscriptionRepository::class);
+                \App\Telemetry\Tracer::spanTag('push.found', $repository->find($event->slug, $endpoint) === null ? '0' : '1');
+                $repository->delete($event->slug, $endpoint);
+
+                return $response->withStatus(204);
+            });
+        })->setName('push-unsubscribe');
 
         // The shared link /admin/notify?token=<ADMIN_TOKEN_<SLUG>> logs the browser in for a
         // day and redirects to the bare URL, so the token never sits in history, a referrer
@@ -367,5 +393,13 @@ final class PushModule implements ModuleInterface
     private static function signatureValid(string $signature): bool
     {
         return $signature !== '' && mb_strlen($signature) <= 40;
+    }
+
+    /** @param array<string, mixed> $body */
+    private static function json(ResponseInterface $response, int $status, array $body): ResponseInterface
+    {
+        $response->getBody()->write((string) json_encode($body));
+
+        return $response->withHeader('Content-Type', 'application/json')->withStatus($status);
     }
 }

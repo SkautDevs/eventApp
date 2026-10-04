@@ -22,7 +22,20 @@ final class Telemetry
             return;
         }
 
-        $client = ClientBuilder::create([
+        SentrySdk::init()->bindClient(ClientBuilder::create(self::options($dsn))->getClient());
+    }
+
+    /**
+     * The client's options. The SDK's default integrations stay on, as in kissj — among
+     * them ErrorListenerIntegration, which files PHP warnings and deprecations as events.
+     * That is deliberate: a warning in production is a bug to see. The one routine notice
+     * (web-push's "GMP or BCMath" advice) is swallowed where it is raised.
+     *
+     * @return array<string, mixed>
+     */
+    public static function options(string $dsn): array
+    {
+        return [
             'dsn' => $dsn,
             'environment' => Kernel::debug() ? 'debug' : 'production',
             'release' => 'eventapp@' . self::release(dirname(__DIR__, 2)),
@@ -32,8 +45,7 @@ final class Telemetry
             'send_default_pii' => false,
             'before_send' => Scrubber::scrub(...),
             'before_send_transaction' => Scrubber::scrub(...),
-        ])->getClient();
-        SentrySdk::init()->bindClient($client);
+        ];
     }
 
     /** APP_RELEASE (the Docker build sets it), else the checked-out commit, else 'unknown'. */

@@ -51,8 +51,12 @@ What the image does, and why:
   them every variable below would read as unset and the app would silently run on
   its defaults (stub programmes, empty admin token).
 - **The `var` volume** (`/app/var`) holds `push.sqlite` (push subscriptions and the
-  log of sent messages, which is what News shows) and the compiled Twig cache, and
-  `sessions/` (see below). Back up `push.sqlite`; the subscriptions and the message log
+  log of sent messages, which is what News shows), the compiled Twig cache,
+  `sessions/` (see below) and `cache/<slug>/`, the last kissj answers of each event on
+  `kissj` (one JSON file per entry, replaced atomically). `cache/` is safe to delete at
+  any time: the next request per event asks kissj again. The entrypoint leaves it alone
+  on purpose, so a kissj outage right after a redeploy still has data to fall back on.
+  Back up `push.sqlite`; the subscriptions and the message log
   are the only durable state, sessions can be lost at the price of a re-login.
   The database runs in WAL mode, so `push.sqlite-wal` and `push.sqlite-shm` sit next to
   it: a backup copies all three, or runs `sqlite3 push.sqlite ".backup /path/push-backup.sqlite"`.
@@ -90,6 +94,17 @@ What the image does, and why:
   `503 {"ok":false}` when it does not, with `Cache-Control: no-store`. Point the
   reverse proxy's health check or an uptime probe at it; it migrates nothing, logs
   nothing and is not reported to Sentry.
+- **What reaches Sentry.** An issue for every exception the error handler sees (not a
+  404 or 405), for every kissj failure hidden behind a stale cache entry, for every app
+  log line at warning or above (such as `push.failed`, one per send in which some
+  notifications were refused or failed), for every throwable the push sender swallows,
+  and for PHP warnings and deprecations (the SDK's default integrations stay on, as in
+  kissj). A log record that carries `['exception' => $e]` is **not** filed with its
+  exception by `LogToSentryIssueHandler`, so code reports an exception through
+  `Telemetry\Collector::collect()`, never through the logger. Routine log lines such as
+  `push.sent` stay on stdout. Push and cache counts are span data (`push.send`, `push.welcome`,
+  `push.subscribe`, `push.unsubscribe`, `program.cache`), not issues. A request that
+  matched no route is the one transaction `unmatched`.
 - **nginx serves `.webmanifest` as `application/manifest+json`** (`types` block in
   `docker/nginx.conf`); its `mime.types` does not know the extension.
 - **nginx mirrors `www/.htaccess`**: versioned assets get a year of `immutable` cache,
@@ -144,15 +159,16 @@ Instance-wide:
 | --- | --- |
 | `APP_DEBUG` | `0` in production, exactly. Only `1`, `true` and `on` turn debugging on, but debug pages print stack traces with paths and configuration, so leave the value at `0`. |
 | `KISSJ_BASE_URL` | kissj root, e.g. `https://kissj.net`. Required as soon as any event uses `kissj`; without it that event's pages fail with a `RuntimeException`. |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Push keys: `php bin/generate-vapid.php` (run it in any PHP 8.3 container with the repo mounted; `bin/` is not in the image). One pair for the whole instance. |
-| `VAPID_SUBJECT` | `mailto:` contact for the push services. |
+| `PROGRAM_CACHE_TTL` | Seconds a kissj answer (the programme list, one participant's registrations) is served from `var/cache/<slug>/` before kissj is asked again; whole seconds, default `300`. When kissj fails, the last answer is served however old it is and the failure goes to Sentry, so the Program screen keeps working through an outage. `0` asks kissj on every request and still falls back. Events on `stub` are never cached. |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Push keys: `php bin/generate-vapid.php` (run it in any PHP 8.3 container with the repo mounted; `bin/` is not in the image). One pair for the whole instance. **Required:** every event has push, and an event refuses to boot when a key is missing or is not a base64url P-256 key (public: 65 bytes starting `0x04`; private: 32 bytes). Every request to that event then fails with a bare 500 before the app exists; the `RuntimeException` naming the variable is in the PHP log (`docker logs`) and in Sentry, not on the page. |
+| `VAPID_SUBJECT` | `mailto:` contact for the push services. Must start with `mailto:` or `https://`; checked at boot like the keys. |
 | `PUSH_DB_PATH` | Defaults to `var/push.sqlite`. Holds the push subscriptions and the message log that News is built from. |
 | `SENTRY_DSN` | Sentry project DSN. Empty (the default) switches error reporting and tracing off entirely. |
 | `SENTRY_TRACES_SAMPLE_RATE` | Share of requests traced, `0`..`1`; `.env.example` suggests `0.2`. Missing or empty means `0`. |
 | `SENTRY_PROFILES_SAMPLE_RATE` | Share of traced requests profiled, `0`..`1`; leave at `0` unless the excimer extension is installed. |
 | `APP_RELEASE` | Release name in Sentry. The Docker build sets it from the deploy command; leave it out of `.env` (it is commented out in `.env.example`), because any line here, even an empty `APP_RELEASE=`, overrides the build's hash. Uncomment it only to override that. |
 | `TRUSTED_PROXY_COUNT` | Reverse proxies in front of the app whose `X-Forwarded-For` entries are trusted. `1` behind the Docker stack's proxy, `0` (default) when PHP sees the readers directly. Wrong here, the TIE login limit is either global (too low) or spoofable (too high). |
-| `PUSH_ENDPOINT_HOSTS` | Extra push-service hosts a browser subscription may name, comma-separated, `*.example` allowed. Empty in production: the known services (Google, Apple, Mozilla, Microsoft, Samsung) are built in. |
+| `PUSH_ENDPOINT_HOSTS` | Extra push-service hosts a browser subscription may name, comma-separated, `*.example` allowed. Empty in production: the known services (Google, Apple, Mozilla, Microsoft, Samsung) are built in. Narrowing the list deletes the stored subscriptions on hosts no longer allowed at the next send to them. |
 
 Per event, each name suffixed with the slug in upper case and `-` turned into `_`
 (`obrok27` becomes `OBROK27`). Only the events that need a value need a line.
