@@ -26,5 +26,5 @@ deploy:
       set ftp:ssl-auth TLS;
       set ftp:passive-mode true;
       set ssl:verify-certificate yes;
-      mirror -R --delete --no-perms --upload-older --exclude-glob .env --exclude-glob var/ --exclude-glob __log/ --exclude-glob tmp/ --exclude-glob www/.well-known/ --exclude-glob www/.user.ini --exclude-glob www/cgi-bin/ release .;
+      mirror -R --delete --parallel=8 --verbose --no-perms --upload-older --exclude-glob .env --exclude-glob var/ --exclude-glob __log/ --exclude-glob tmp/ --exclude-glob www/.well-known/ --exclude-glob www/.user.ini --exclude-glob www/cgi-bin/ release .;
       bye'
