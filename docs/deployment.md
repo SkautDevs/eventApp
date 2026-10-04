@@ -218,6 +218,8 @@ Create `.env` once in that private root from `.env.example`. It holds `APP_DEBUG
 the programme provider settings and kissj API keys, admin tokens and push keys
 described above. Also create writable `var/` as in the hosting setup steps.
 The sync mirrors `release/` directly to the FTP root and deletes stale files.
+It uses up to eight parallel transfers and logs file operations to help diagnose
+slow deployments.
 It excludes `.env`, `var/`, `__log/`, `tmp/`, `www/.well-known/`,
 `www/.user.ini` and `www/cgi-bin/` to preserve runtime data and hosting settings.
 Changes to
