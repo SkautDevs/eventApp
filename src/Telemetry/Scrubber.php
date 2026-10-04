@@ -9,7 +9,7 @@ use Sentry\Event;
 /**
  * Takes this app's secrets out of every event before it leaves: the admin token in a
  * URL (old links still carry it), a TIE code or token in a form body, a whole push
- * subscription (endpoint and keys together are the credential to push to a device),
+ * subscribe or unsubscribe body (endpoint and keys together are the credential to push to a device),
  * a whole admin form (the message, its Podpis and the CSRF token), and the Authorization and Cookie headers. The exception message and the stack frames
  * are never touched — nothing secret is put there in the first place.
  */
@@ -41,7 +41,7 @@ final class Scrubber
             }
 
             $path = is_string($request['url'] ?? null) ? (string) parse_url($request['url'], \PHP_URL_PATH) : '';
-            if (array_key_exists('data', $request) && str_ends_with($path, '/push/subscribe')) {
+            if (array_key_exists('data', $request) && (str_ends_with($path, '/push/subscribe') || str_ends_with($path, '/push/unsubscribe'))) {
                 $request['data'] = self::SUBSCRIPTION_REDACTED;
             } elseif (array_key_exists('data', $request) && (str_ends_with($path, '/admin/notify') || str_contains($path, '/admin/notify/'))) {
                 $request['data'] = self::ADMIN_REDACTED;

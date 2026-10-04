@@ -8,6 +8,7 @@ use App\Auth\Identity;
 use App\Auth\UnknownParticipantException;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\TransferException;
 
 /**
  * Reads the Program screen's data from kissj's programme API, as agreed in
@@ -48,12 +49,13 @@ final class KissjProgramProvider implements ProgramProviderInterface
 
         try {
             $data = $this->getJson($path, 'kissj.participant', 'GET v3/programme/participant/tie', $where);
-        } catch (RequestException $e) {
-            if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
-                // the code stays out of the message: messages reach logs and Sentry
-                throw new UnknownParticipantException('Unknown TIE code', previous: $e);
+        } catch (TransferException $e) {
+            $status = $e instanceof RequestException ? $e->getResponse()?->getStatusCode() : null;
+            if ($status === 404) {
+                // the code stays out of the message and out of the chain: both reach logs and Sentry
+                throw new UnknownParticipantException('Unknown TIE code');
             }
-            throw $e;
+            throw KissjTransferException::on($where, $status, $e);
         }
 
         return $this->programmes($data, $where);

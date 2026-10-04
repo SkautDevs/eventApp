@@ -7,9 +7,11 @@ namespace Tests\Unit;
 use App\Auth\Identity;
 use App\Auth\UnknownParticipantException;
 use App\Program\KissjProgramProvider;
+use App\Program\KissjTransferException;
 use App\Program\ProgramDataException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Handler\MockHandler;
@@ -188,28 +190,33 @@ final class KissjProgramProviderTest extends TestCase
         } catch (UnknownParticipantException $e) {
             // the message reaches logs and Sentry; the code must not
             self::assertSame('Unknown TIE code', $e->getMessage());
+            // nor may a chained exception carry it: Guzzle's message names the URI
+            self::assertNull($e->getPrevious());
         }
     }
 
     /**
      * A rejected key answers 401 with a plain-text body. That is not a 404, so it is
-     * neither "unknown participant" nor "no registrations" — it is the provider failing,
-     * and Guzzle's own exception is what the modules already degrade on.
+     * neither "unknown participant" nor "no registrations" — it is the provider failing.
+     * The list endpoint surfaces Guzzle's own exception; the participant endpoint's path
+     * carries the TIE code, so its failure is rewrapped into a TransferException without it.
      */
     public function testUnauthorizedIsAProviderFailure(): void
     {
-        foreach ([
-            fn (KissjProgramProvider $p) => $p->getPrograms(),
-            fn (KissjProgramProvider $p) => $p->getProgramsForIdentity(new Identity(displayName: 'TIE', tieCode: 'ABC')),
-        ] as $call) {
-            $mock = new MockHandler([new Response(401, ['Content-Type' => 'text/plain'], 'Unauthorized - unknown key')]);
+        $answer = static fn (): Response => new Response(401, ['Content-Type' => 'text/plain'], 'Unauthorized - unknown key');
 
-            try {
-                $call($this->provider($mock));
-                self::fail('a 401 did not fail');
-            } catch (ClientException $e) {
-                self::assertSame(401, $e->getResponse()->getStatusCode());
-            }
+        try {
+            $this->provider(new MockHandler([$answer()]))->getPrograms();
+            self::fail('a 401 did not fail');
+        } catch (ClientException $e) {
+            self::assertSame(401, $e->getResponse()->getStatusCode());
+        }
+
+        try {
+            $this->provider(new MockHandler([$answer()]))->getProgramsForIdentity(new Identity(displayName: 'TIE', tieCode: 'ABC'));
+            self::fail('a 401 did not fail');
+        } catch (TransferException $e) {
+            self::assertSame('kissj answered HTTP 401 on the participant endpoint', $e->getMessage());
         }
     }
 
@@ -410,5 +417,30 @@ final class KissjProgramProviderTest extends TestCase
 
         $this->expectException(TransferException::class);
         $this->provider($mock)->getTieCodesForProgramme(42);
+    }
+
+    /** Every message — and every chained one — reaches logs and Sentry; the code is the participant's secret. */
+    public function testAFailedParticipantCallCarriesTheCodeInNoMessage(): void
+    {
+        $uri = 'https://kissj.example/v3/programme/participant/tie/SECRET7';
+        $expected = [
+            'HTTP 500' => 'kissj answered HTTP 500 on the participant endpoint',
+            'timeout' => 'kissj could not be reached on the participant endpoint (ConnectException)',
+        ];
+        foreach ([
+            'HTTP 500' => new Response(500, [], 'boom'),
+            'timeout' => new ConnectException('cURL error 28: Operation timed out for ' . $uri, new Request('GET', $uri)),
+        ] as $case => $answer) {
+            try {
+                $this->provider(new MockHandler([$answer]))->getProgramsForIdentity(new Identity(displayName: 'TIE SECRET7', tieCode: 'SECRET7'));
+                self::fail($case . ' did not fail');
+            } catch (TransferException $e) {
+                // still a TransferException, so every existing catch site keeps degrading on it
+                self::assertInstanceOf(KissjTransferException::class, $e, $case);
+                self::assertSame($expected[$case], $e->getMessage(), $case);
+                self::assertNull($e->getPrevious(), $case);
+                self::assertStringNotContainsString('SECRET7', $e->getMessage(), $case);
+            }
+        }
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Telemetry;
 
+use App\Auth\UnknownParticipantException;
+use GuzzleHttp\Exception\RequestException;
 use Sentry\SentrySdk;
 use Sentry\State\Scope;
 use Sentry\Tracing\SpanContext;
@@ -46,13 +48,44 @@ final class Tracer
 
             return $result;
         } catch (\Throwable $e) {
-            $span->setStatus(SpanStatus::internalError());
+            $span->setStatus(self::statusFor($e));
             throw $e;
         } finally {
             $span->setData($data);
             $span->finish();
             $hub->setSpan($parent);
         }
+    }
+
+    /**
+     * The status a failed span carries. An HTTP answer keeps its own meaning — kissj's 404
+     * for an unknown TIE code is `not_found`, an answer rather than a fault, and so is the
+     * exception the provider turns it into — and everything else is `internal_error`.
+     */
+    public static function statusFor(\Throwable $e): SpanStatus
+    {
+        if ($e instanceof RequestException && $e->getResponse() !== null) {
+            return SpanStatus::createFromHttpStatusCode($e->getResponse()->getStatusCode());
+        }
+        if ($e instanceof UnknownParticipantException) {
+            return SpanStatus::notFound();
+        }
+
+        return SpanStatus::internalError();
+    }
+
+    /**
+     * A tag on the span running right now — inside span()'s callable, that span — for the
+     * counters Sentry derives from spans (push.outcome, push.new …). Unlike tag(), which
+     * marks the whole transaction.
+     */
+    public static function spanTag(string $key, string $value): void
+    {
+        $hub = SentrySdk::getCurrentHub();
+        if ($hub->getClient() === null) {
+            return;
+        }
+        $hub->getSpan()?->setTags([$key => $value]);
     }
 
     /** A tag on the current scope, which the transaction carries when it is sent. */

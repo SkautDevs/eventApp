@@ -63,6 +63,18 @@ final class Kernel
     }
 
     /**
+     * PROGRAM_CACHE_TTL: seconds a kissj answer is served without asking again. Whole
+     * seconds only; anything else — empty, negative, "5m" — is the default, 300. 0 asks
+     * every time and still keeps the last answer for an outage.
+     */
+    public static function programCacheTtl(): int
+    {
+        $value = $_ENV['PROGRAM_CACHE_TTL'] ?? '';
+
+        return is_string($value) && ctype_digit($value) ? (int) $value : 300;
+    }
+
+    /**
      * An explicit whitelist rather than a cast: (bool) "false" and (bool) "off" are both
      * true, so an operator writing the obvious APP_DEBUG=false would turn debug pages on.
      */
@@ -119,6 +131,9 @@ final class Kernel
         AppFactory::setContainer($container);
         $app = AppFactory::create();
         $app->addBodyParsingMiddleware();
+        // before the routing middleware means inside it, as in create(): the picker is
+        // "GET /", and only an unmatched path keeps the name "unmatched"
+        $app->add(new Telemetry\RouteNameMiddleware(null));
         $app->addRoutingMiddleware();
         self::addErrorHandling($app, $container);
         self::addSecurityHeadersMiddleware($app);
@@ -167,7 +182,7 @@ final class Kernel
         $builder = new ContainerBuilder();
         $builder->addDefinitions([
             EventConfig::class => $event,
-            \App\Program\ProgramProviderInterface::class => function () use ($event): \App\Program\ProgramProviderInterface {
+            \App\Program\ProgramProviderInterface::class => function (ContainerInterface $c) use ($event, $root): \App\Program\ProgramProviderInterface {
                 if ($event->env('PROGRAM_PROVIDER', 'stub') === 'kissj') {
                     $baseUrl = $_ENV['KISSJ_BASE_URL'] ?? '';
                     if ($baseUrl === '') {
@@ -179,14 +194,25 @@ final class Kernel
                         throw new \RuntimeException(sprintf('PROGRAM_PROVIDER=kissj requires %s', $event->envKey('KISSJ_API_KEY')));
                     }
 
-                    return new \App\Program\KissjProgramProvider(
-                        http: new \GuzzleHttp\Client(['base_uri' => rtrim($baseUrl, '/') . '/', 'timeout' => 10]),
-                        apiKey: $apiKey,
+                    // Only kissj is cached: the stub's fixture files already are a local copy.
+                    // One timeout for every endpoint — a shorter one on the participant call
+                    // would reject a slow-but-working kissj on the one call (login) that has no
+                    // entry to fall back to, and with the cache a slow kissj is paid once per TTL.
+                    return new Program\CachingProgramProvider(
+                        inner: new \App\Program\KissjProgramProvider(
+                            http: new \GuzzleHttp\Client(['base_uri' => rtrim($baseUrl, '/') . '/', 'timeout' => 10]),
+                            apiKey: $apiKey,
+                        ),
+                        cache: new Cache\FileCache($root . '/var/cache/' . $event->slug),
+                        freshness: $c->get(Program\Freshness::class),
+                        ttl: self::programCacheTtl(),
                     );
                 }
 
                 return new \App\Program\StubProgramProvider($event->dir . '/fixtures');
             },
+            // how old this request's provider data is; the screen middleware resets it per request
+            Program\Freshness::class => fn (): Program\Freshness => new Program\Freshness(),
             Session::class => fn (): Session => new Session($event->slug),
             Auth\Authenticator::class => \DI\autowire(),
             Auth\LoginThrottle::class => \DI\autowire(),
@@ -205,17 +231,22 @@ final class Kernel
             \App\Push\MessageRepository::class => \DI\autowire(),
             \App\Push\EndpointPolicy::class => fn (): \App\Push\EndpointPolicy => \App\Push\EndpointPolicy::fromEnvironment(),
             // Neither logger has a WebProcessor: request data reaches Sentry through the
-            // SDK's own request integration, where the Scrubber sees it.
+            // SDK's own request integration, where the Scrubber sees it. Sentry gets an
+            // issue only from warning up: the routine push.sent line is a log record, and
+            // the counts it carries live on the push.send span; push.failed is a warning.
             \Psr\Log\LoggerInterface::class => fn (): \Psr\Log\LoggerInterface => new \Monolog\Logger('eventapp', [
                 new \Monolog\Handler\StreamHandler('php://stdout', \Monolog\Level::Info),
-                new \Sentry\Monolog\Handler(\Sentry\SentrySdk::getCurrentHub(), \Monolog\Level::Info),
+                new \Sentry\Monolog\LogToSentryIssueHandler(\Sentry\SentrySdk::getCurrentHub(), \Monolog\Level::Warning),
             ]),
             self::ERRORS_LOGGER => fn (): \Psr\Log\LoggerInterface => self::errorsLogger(),
             \App\Push\PushSenderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
-                repository: $c->get(\App\Push\SubscriptionRepository::class),
+                // resolved on the first send: building the sender must not open the database
+                repository: static fn (): \App\Push\SubscriptionRepository => $c->get(\App\Push\SubscriptionRepository::class),
+                endpoints: $c->get(\App\Push\EndpointPolicy::class),
                 vapidPublicKey: $_ENV['VAPID_PUBLIC_KEY'] ?? '',
                 vapidPrivateKey: $_ENV['VAPID_PRIVATE_KEY'] ?? '',
                 vapidSubject: $_ENV['VAPID_SUBJECT'] ?? '',
+                logger: $c->get(\Psr\Log\LoggerInterface::class),
             ),
             Twig::class => function (ContainerInterface $c) use ($root, $event): Twig {
                 // Without a cache Twig lexes, parses, compiles and eval()s the layout and
@@ -263,6 +294,13 @@ final class Kernel
                     'auth_tie_code',
                     fn (): ?string => $c->get(Auth\Authenticator::class)->identity()?->tieCode,
                 ));
+                // The age of the provider data on this screen. A function rather than a
+                // global for the same reason as auth_identity(): the handler fills it while
+                // it runs, before the layout renders.
+                $env->addFunction(new \Twig\TwigFunction(
+                    'data_freshness',
+                    fn (): array => $c->get(Program\Freshness::class)->forView(),
+                ));
                 $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
                     $day = (new \DateTime($datetimeArray['date']))->format('D');
 
@@ -277,6 +315,14 @@ final class Kernel
         ]);
         $builder->addDefinitions($containerOverrides);
         $container = $builder->build();
+
+        // A misconfigured push instance fails on the first request to the event, not on the
+        // first tap of the button. Building the sender opens no database (its repository is
+        // resolved on the first send), so this costs nothing per request. A container
+        // override — every test app's fake sender — is simply what gets built.
+        if (in_array('push', $event->features, true)) {
+            $container->get(\App\Push\PushSenderInterface::class);
+        }
 
         AppFactory::setContainer($container);
         $app = AppFactory::create();
@@ -334,6 +380,9 @@ final class Kernel
             $env = $container->get(Twig::class)->getEnvironment();
             $env->addGlobal('fragment', $request->getHeaderLine('X-Screen') === '1');
             $env->addGlobal('screenPath', $request->getUri()->getPath());
+            // Request-scoped: in a long-lived app the container, and this one instance with
+            // it, outlives the request, and a stale flag must not leak into the next screen.
+            $container->get(Program\Freshness::class)->reset(new \DateTimeImmutable());
 
             // the two responses differ for the same URL, so anything caching them has to
             // key on the header as well

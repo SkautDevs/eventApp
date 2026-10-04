@@ -206,6 +206,24 @@
 		}
 	}
 
+	/**
+	 * The data timestamp is the section's own, and the section's attributes are not part
+	 * of the innerHTML a revalidation compares, nor does patchAttributes() remove one the
+	 * fresh markup no longer has. So both are carried over here: an unchanged screen still
+	 * learns when its data was last confirmed, and a morphed one drops a data-stale the
+	 * server stopped sending.
+	 */
+	function syncFreshness(section, fresh) {
+		['data-fetched-at', 'data-stale'].forEach(function (name) {
+			var value = fresh.getAttribute(name);
+			if (value === null) {
+				section.removeAttribute(name);
+			} else if (section.getAttribute(name) !== value) {
+				section.setAttribute(name, value);
+			}
+		});
+	}
+
 	function patch(from, to) {
 		if (from.nodeType !== 1) {
 			if (from.nodeValue !== to.nodeValue) {
@@ -351,6 +369,7 @@
 		entry.pending = null;
 		var focus = captureFocus(entry.section);
 		patchAttributes(entry.section, fresh.section);
+		syncFreshness(entry.section, fresh.section);
 		morphChildren(entry.section, fresh.section);
 		restoreFocus(focus);
 		entry.html = fresh.html;
@@ -392,6 +411,9 @@
 				entry.fetchedAt = Date.now();
 				var freshHtml = fresh.innerHTML;
 				if (freshHtml === entry.html) {
+					// a held older morph must not re-apply over this newer, identical fetch
+					entry.pending = null;
+					syncFreshness(entry.section, fresh);
 					return;
 				}
 				// if the reader is busy in it, the morph waits for the next time it is shown

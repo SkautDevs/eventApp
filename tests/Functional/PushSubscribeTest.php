@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Push\SendOutcome;
 use App\Push\SubscriptionRepository;
 
 final class PushSubscribeTest extends AppTestCase
@@ -126,7 +127,8 @@ final class PushSubscribeTest extends AppTestCase
         $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
         self::assertSame(201, $response->getStatusCode());
-        self::assertTrue(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertSame(['saved' => true, 'welcome' => true], json_decode((string) $response->getBody(), true));
+        self::assertSame(1, $this->repo()->count('obrok19'));
         self::assertCount(1, $this->sender->welcomes);
         $welcome = $this->sender->welcomes[0];
         self::assertSame('obrok19', $welcome['event']);
@@ -144,28 +146,46 @@ final class PushSubscribeTest extends AppTestCase
 
         $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
-        self::assertNull(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertSame(201, $response->getStatusCode());
+        self::assertSame(['saved' => true, 'welcome' => null], json_decode((string) $response->getBody(), true));
         self::assertCount(1, $this->sender->welcomes);
     }
 
-    public function testAnUndeliveredWelcomeDropsTheSubscriptionSoTheNextTapStartsOver(): void
+    public function testARejectedWelcomeDropsTheSubscriptionSoTheNextTapStartsOver(): void
     {
         $overrides = $this->overrides();
-        $this->sender->welcomeDelivered = false;
+        $this->sender->welcomeOutcome = SendOutcome::Rejected;
         $app = $this->createApp(overrides: $overrides);
 
         $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
         self::assertSame(502, $response->getStatusCode());
-        self::assertFalse(json_decode((string) $response->getBody(), true)['welcome']);
+        self::assertSame(
+            ['saved' => false, 'welcome' => false, 'error' => 'subscription-rejected'],
+            json_decode((string) $response->getBody(), true),
+        );
         self::assertSame(0, $this->repo()->count('obrok19'));
 
-        $this->sender->welcomeDelivered = true;
+        $this->sender->welcomeOutcome = SendOutcome::Delivered;
         $retry = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
         self::assertSame(201, $retry->getStatusCode());
-        self::assertTrue(json_decode((string) $retry->getBody(), true)['welcome']);
+        self::assertSame(['saved' => true, 'welcome' => true], json_decode((string) $retry->getBody(), true));
         self::assertCount(2, $this->sender->welcomes, 'the retry is new again and gets its welcome');
+        self::assertSame(1, $this->repo()->count('obrok19'));
+    }
+
+    /** A push-service hiccup must not throw away a perfectly good subscription. */
+    public function testAFailedWelcomeKeepsTheSubscriptionAndSaysSo(): void
+    {
+        $overrides = $this->overrides();
+        $this->sender->welcomeOutcome = SendOutcome::Failed;
+        $app = $this->createApp(overrides: $overrides);
+
+        $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame(201, $response->getStatusCode());
+        self::assertSame(['saved' => true, 'welcome' => false], json_decode((string) $response->getBody(), true));
         self::assertSame(1, $this->repo()->count('obrok19'));
     }
 
@@ -177,7 +197,7 @@ final class PushSubscribeTest extends AppTestCase
                 return ['sent' => 0, 'removed' => 0];
             }
 
-            public function sendToSubscription(string $event, string $endpoint, string $title, string $body, ?string $icon = null, ?string $url = null): bool
+            public function sendToSubscription(string $event, string $endpoint, string $title, string $body, ?string $icon = null, ?string $url = null): \App\Push\SendOutcome
             {
                 throw new \ErrorException('[VAPID] Public key should be 65 bytes long when decoded.');
             }
@@ -186,9 +206,9 @@ final class PushSubscribeTest extends AppTestCase
 
         $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
-        self::assertSame(502, $response->getStatusCode());
-        self::assertFalse(json_decode((string) $response->getBody(), true)['welcome']);
-        self::assertSame(0, $this->repo()->count('obrok19'));
+        self::assertSame(201, $response->getStatusCode());
+        self::assertSame(['saved' => true, 'welcome' => false], json_decode((string) $response->getBody(), true));
+        self::assertSame(1, $this->repo()->count('obrok19'), 'an exception proves nothing about the subscription');
     }
 
     public function testARejectedBodyGetsNoWelcome(): void

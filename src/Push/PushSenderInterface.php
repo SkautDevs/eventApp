@@ -26,8 +26,7 @@ interface PushSenderInterface
     /**
      * One notification to one stored subscription of the event — the welcome a browser gets
      * right after it subscribes, which proves the whole chain works before anything matters.
-     *
-     * @return bool whether the push service accepted it
+     * A row found dead (Rejected) has been deleted by the time this returns.
      */
     public function sendToSubscription(
         string $event,
@@ -36,5 +35,5 @@ interface PushSenderInterface
         string $body,
         ?string $icon = null,
         ?string $url = null,
-    ): bool;
+    ): SendOutcome;
 }
