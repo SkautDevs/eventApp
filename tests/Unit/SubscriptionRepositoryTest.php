@@ -5,28 +5,24 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Push\SubscriptionRepository;
+use App\Storage\Database;
+use App\Storage\Migrator;
 use PHPUnit\Framework\TestCase;
 
 final class SubscriptionRepositoryTest extends TestCase
 {
-    private string $dbPath;
-
-    protected function setUp(): void
+    private function repo(): SubscriptionRepository
     {
-        $this->dbPath = sys_get_temp_dir() . '/push-test-' . uniqid() . '.sqlite';
-    }
+        $pdo = Database::open(':memory:');
+        (new Migrator())->migrate($pdo);
 
-    protected function tearDown(): void
-    {
-        @unlink($this->dbPath);
+        return new SubscriptionRepository($pdo);
     }
 
     public function testSaveIsIdempotentPerEndpoint(): void
     {
-        $repo = new SubscriptionRepository($this->dbPath);
-        $sub = ['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK1', 'auth' => 'AT1']];
-
-        $repo->save($sub, 'obrok19');
+        $repo = $this->repo();
+        $repo->save(['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK1', 'auth' => 'AT1']], 'obrok19');
         $repo->save(['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK2', 'auth' => 'AT2']], 'obrok19');
 
         self::assertSame(1, $repo->count());
@@ -35,7 +31,7 @@ final class SubscriptionRepositoryTest extends TestCase
 
     public function testFindLooksUpOneEndpointWithinItsEvent(): void
     {
-        $repo = new SubscriptionRepository($this->dbPath);
+        $repo = $this->repo();
         $repo->save(['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']], 'obrok19', 'abc123');
 
         self::assertSame(
@@ -48,25 +44,48 @@ final class SubscriptionRepositoryTest extends TestCase
 
     public function testDelete(): void
     {
-        $repo = new SubscriptionRepository($this->dbPath);
+        $repo = $this->repo();
         $repo->save(['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']], 'obrok19');
 
-        $repo->delete('https://push.example/abc');
+        $repo->delete('obrok19', 'https://push.example/abc');
 
         self::assertSame(0, $repo->count());
     }
 
+    public function testDeleteIsScopedToItsEvent(): void
+    {
+        $repo = $this->repo();
+        $sub = ['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']];
+        $repo->save($sub, 'obrok19');
+        $repo->save($sub, 'korbo26');
+
+        $repo->delete('korbo26', 'https://push.example/abc');
+
+        self::assertSame(1, $repo->count('obrok19'), 'one event cleaning up must not remove another event\'s subscriber');
+        self::assertSame(0, $repo->count('korbo26'));
+    }
+
+    public function testTheSameEndpointMayBelongToTwoEvents(): void
+    {
+        $repo = $this->repo();
+        $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k1', 'auth' => 'a1']], 'korbo26', 'KORBO1');
+        $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k2', 'auth' => 'a2']], 'obrok27');
+
+        self::assertSame(2, $repo->count());
+        self::assertSame('KORBO1', $repo->find('korbo26', 'https://push.example/a')['tieCode']);
+        self::assertSame('k2', $repo->find('obrok27', 'https://push.example/a')['publicKey']);
+        self::assertSame('k1', $repo->find('korbo26', 'https://push.example/a')['publicKey'], 'saving in one event replaces nothing in another');
+    }
+
     public function testInvalidShapeThrows(): void
     {
-        $repo = new SubscriptionRepository($this->dbPath);
-
         $this->expectException(\InvalidArgumentException::class);
-        $repo->save(['endpoint' => 'https://push.example/abc'], 'obrok19');
+        $this->repo()->save(['endpoint' => 'https://push.example/abc'], 'obrok19');
     }
 
     public function testSubscriptionsAreKeptPerEvent(): void
     {
-        $repo = new SubscriptionRepository(':memory:');
+        $repo = $this->repo();
         $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k', 'auth' => 'a']], 'korbo26');
         $repo->save(['endpoint' => 'https://push.example/b', 'keys' => ['p256dh' => 'k', 'auth' => 'a']], 'obrok27');
 
@@ -74,43 +93,9 @@ final class SubscriptionRepositoryTest extends TestCase
         self::assertSame(1, $repo->count('obrok27'));
     }
 
-    public function testResubscribingAnEndpointMovesItToTheNewEvent(): void
-    {
-        $repo = new SubscriptionRepository(':memory:');
-        $sub = ['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k', 'auth' => 'a']];
-        $repo->save($sub, 'korbo26');
-        $repo->save($sub, 'obrok27');
-
-        self::assertSame(1, $repo->count());
-        self::assertSame([], $repo->forEvent('korbo26'));
-        self::assertSame(1, $repo->count('obrok27'));
-    }
-
-    public function testAPreEventDatabaseIsMigratedAndItsRowsGoNowhere(): void
-    {
-        $path = sys_get_temp_dir() . '/push-' . bin2hex(random_bytes(4)) . '.sqlite';
-        try {
-            $pdo = new \PDO('sqlite:' . $path);
-            $pdo->exec('CREATE TABLE subscriptions (endpoint TEXT PRIMARY KEY, public_key TEXT NOT NULL, auth_token TEXT NOT NULL, created_at TEXT NOT NULL)');
-            $pdo->exec("INSERT INTO subscriptions VALUES ('https://push.example/old', 'k', 'a', '2019-01-01')");
-            unset($pdo);
-
-            $repo = new SubscriptionRepository($path);
-
-            self::assertSame([], $repo->forEvent('obrok19'));
-            self::assertSame(1, $repo->count());
-
-            // a second boot on the already migrated file must neither throw nor lose rows
-            $again = new SubscriptionRepository($path);
-            self::assertSame(1, $again->count());
-        } finally {
-            @unlink($path);
-        }
-    }
-
     public function testATieCodeIsStoredAndReplacedWithTheEndpoint(): void
     {
-        $repo = new SubscriptionRepository(':memory:');
+        $repo = $this->repo();
         $sub = ['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k', 'auth' => 'a']];
 
         $repo->save($sub, 'korbo26');
@@ -126,7 +111,7 @@ final class SubscriptionRepositoryTest extends TestCase
 
     public function testForEventFiltersByTieCodeCaseInsensitively(): void
     {
-        $repo = new SubscriptionRepository(':memory:');
+        $repo = $this->repo();
         $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k', 'auth' => 'a']], 'korbo26', 'KORBO1');
         $repo->save(['endpoint' => 'https://push.example/b', 'keys' => ['p256dh' => 'k', 'auth' => 'a']], 'korbo26', 'KORBO2');
         $repo->save(['endpoint' => 'https://push.example/c', 'keys' => ['p256dh' => 'k', 'auth' => 'a']], 'korbo26');
@@ -140,20 +125,13 @@ final class SubscriptionRepositoryTest extends TestCase
         self::assertSame(['KORBO1', 'KORBO2'], $codes);
     }
 
-    public function testAnOlderDatabaseGainsTheTieCodeColumn(): void
+    public function testTheConstructorRunsNoDdl(): void
     {
-        $path = sys_get_temp_dir() . '/push-' . bin2hex(random_bytes(4)) . '.sqlite';
-        try {
-            $pdo = new \PDO('sqlite:' . $path);
-            $pdo->exec("CREATE TABLE subscriptions (endpoint TEXT PRIMARY KEY, public_key TEXT NOT NULL, auth_token TEXT NOT NULL, created_at TEXT NOT NULL, event TEXT NOT NULL DEFAULT '')");
-            $pdo->exec("INSERT INTO subscriptions VALUES ('https://push.example/old', 'k', 'a', '2026-01-01', 'korbo26')");
-            unset($pdo);
+        $pdo = Database::open(':memory:');
 
-            $repo = new SubscriptionRepository($path);
+        new SubscriptionRepository($pdo);
+        new \App\Push\MessageRepository($pdo);
 
-            self::assertNull($repo->forEvent('korbo26')[0]['tieCode']);
-        } finally {
-            @unlink($path);
-        }
+        self::assertSame([], $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll());
     }
 }

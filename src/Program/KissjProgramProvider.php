@@ -43,22 +43,26 @@ final class KissjProgramProvider implements ProgramProviderInterface
     {
         $path = sprintf('v3/programme/participant/tie/%s', rawurlencode($identity->tieCode));
 
+        // the path carries the code, so the messages below name the endpoint instead
+        $where = 'the participant endpoint';
+
         try {
-            $data = $this->getJson($path);
+            $data = $this->getJson($path, 'kissj.participant', 'GET v3/programme/participant/tie', $where);
         } catch (RequestException $e) {
             if ($e->getResponse() && $e->getResponse()->getStatusCode() === 404) {
-                throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode), previous: $e);
+                // the code stays out of the message: messages reach logs and Sentry
+                throw new UnknownParticipantException('Unknown TIE code', previous: $e);
             }
             throw $e;
         }
 
-        return $this->programmes($data, $path);
+        return $this->programmes($data, $where);
     }
 
     public function getTieCodesForProgramme(int $programmeId): array
     {
         $path = sprintf('v3/programme/%d/participants', $programmeId);
-        $codes = $this->getJson($path)['tieCodes'] ?? null;
+        $codes = $this->getJson($path, 'kissj.programme-participants', 'GET v3/programme/{id}/participants')['tieCodes'] ?? null;
         if (!is_array($codes) || !array_is_list($codes)) {
             throw new ProgramDataException(sprintf('kissj sent no list of tieCodes for %s', $path));
         }
@@ -82,7 +86,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
     {
         if ($this->list === null) {
             $path = 'v3/programme/list';
-            $data = $this->getJson($path);
+            $data = $this->getJson($path, 'kissj.list', 'GET v3/programme/list');
             if (!array_key_exists('sections', $data)) {
                 throw new ProgramDataException(sprintf('kissj sent no sections for %s', $path));
             }
@@ -95,12 +99,16 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return $this->list;
     }
 
-    /** @return list<array> */
-    private function programmes(array $data, string $path): array
+    /**
+     * @param string $where what the error message names: the path, or the endpoint when the path carries a TIE code
+     *
+     * @return list<array>
+     */
+    private function programmes(array $data, string $where): array
     {
         $programmes = $data['programmes'] ?? null;
         if (!is_array($programmes) || !array_is_list($programmes)) {
-            throw new ProgramDataException(sprintf('kissj sent no list of programmes for %s', $path));
+            throw new ProgramDataException(sprintf('kissj sent no list of programmes for %s', $where));
         }
 
         return array_map($this->normalize(...), $programmes);
@@ -111,20 +119,27 @@ final class KissjProgramProvider implements ProgramProviderInterface
      * bare array, is a provider error rather than a 500 on /programy. Any status other
      * than 200 — a 401 for a rejected key included — surfaces as Guzzle's own exception.
      *
+     * @param string      $op          the span op, named by the caller
+     * @param string      $description the span description: the endpoint's shape, never a TIE code
+     * @param string|null $where       what an error message names instead of the path — set
+     *                                 whenever the path carries a TIE code
+     *
      * @return array<string, mixed>
      */
-    private function getJson(string $path): array
+    private function getJson(string $path, string $op, string $description, ?string $where = null): array
     {
-        $response = $this->http->request('GET', $path, [
-            'headers' => ['Authorization' => 'Bearer ' . $this->apiKey, 'Accept' => 'application/json'],
-        ]);
+        return \App\Telemetry\Tracer::span($op, $description, function () use ($path, $where): array {
+            $response = $this->http->request('GET', $path, [
+                'headers' => ['Authorization' => 'Bearer ' . $this->apiKey, 'Accept' => 'application/json'],
+            ]);
 
-        $decoded = json_decode((string) $response->getBody(), true);
-        if (!is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
-            throw new ProgramDataException(sprintf('kissj sent something other than a JSON object for %s', $path));
-        }
+            $decoded = json_decode((string) $response->getBody(), true);
+            if (!is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
+                throw new ProgramDataException(sprintf('kissj sent something other than a JSON object for %s', $where ?? $path));
+            }
 
-        return $decoded;
+            return $decoded;
+        });
     }
 
     /**

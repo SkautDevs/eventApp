@@ -182,10 +182,13 @@ final class KissjProgramProviderTest extends TestCase
             new RequestException('Not Found', new Request('GET', 'x'), new Response(404)),
         ]);
 
-        $this->expectException(UnknownParticipantException::class);
-        $this->provider($mock)->getProgramsForIdentity(
-            new Identity(displayName: 'TIE ABC', tieCode: 'ABC'),
-        );
+        try {
+            $this->provider($mock)->getProgramsForIdentity(new Identity(displayName: 'TIE ABC', tieCode: 'ABC'));
+            self::fail('an unknown code must throw');
+        } catch (UnknownParticipantException $e) {
+            // the message reaches logs and Sentry; the code must not
+            self::assertSame('Unknown TIE code', $e->getMessage());
+        }
     }
 
     /**
@@ -338,6 +341,30 @@ final class KissjProgramProviderTest extends TestCase
                 self::fail(sprintf('no provider error for %s', $label));
             } catch (ProgramDataException) {
                 self::assertTrue(true);
+            }
+        }
+    }
+
+    /** The participant path carries the code, and exception messages reach logs and Sentry. */
+    public function testAMalformedParticipantPayloadKeepsTheTieCodeOutOfTheMessage(): void
+    {
+        $bodies = [
+            'not JSON' => 'not json',
+            'bare list' => json_encode([self::programme()]),
+            'no programmes key' => json_encode(['participant' => ['nickname' => 'Jana']]),
+        ];
+
+        foreach ($bodies as $label => $body) {
+            $mock = new MockHandler([new Response(200, [], (string) $body)]);
+
+            try {
+                $this->provider($mock)->getProgramsForIdentity(
+                    new Identity(displayName: 'TIE TAJNY7', tieCode: 'TAJNY7'),
+                );
+                self::fail(sprintf('no provider error for %s', $label));
+            } catch (ProgramDataException $e) {
+                self::assertStringNotContainsString('TAJNY7', $e->getMessage(), $label);
+                self::assertStringContainsString('participant endpoint', $e->getMessage(), $label);
             }
         }
     }

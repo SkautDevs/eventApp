@@ -13,7 +13,7 @@ final class NewsModuleTest extends AppTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->messages = new MessageRepository(':memory:');
+        $this->messages = new MessageRepository(self::memoryDb());
     }
 
     private function korbo(): \Slim\App

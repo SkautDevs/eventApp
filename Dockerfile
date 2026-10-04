@@ -21,5 +21,10 @@ COPY www ./www
 RUN chmod +x /usr/local/bin/app-entrypoint \
  && mkdir -p var && chown www-data:www-data var
 VOLUME /app/var
+# The release Sentry files events under; docker-compose.prod.yml passes the git hash.
+# A value in .env still wins, because env_file is applied at run time. Declared last, so
+# a new hash per deploy does not invalidate the extension build layers above.
+ARG APP_RELEASE=dev
+ENV APP_RELEASE=$APP_RELEASE
 ENTRYPOINT ["app-entrypoint"]
 CMD ["php-fpm"]

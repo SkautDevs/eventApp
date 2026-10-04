@@ -13,6 +13,12 @@ final class EventConfig
      */
     private const REQUIRED_COLORS = ['background', 'link', 'base', 'darker', 'primary', 'text', 'text-invert'];
 
+    /**
+     * The directives an event may extend. The rest (default-src, base-uri, form-action,
+     * frame-ancestors, object-src) are the app's and fixed.
+     */
+    public const CSP_DIRECTIVES = ['script-src', 'style-src', 'img-src', 'font-src', 'connect-src', 'frame-src', 'media-src'];
+
     private function __construct(
         public readonly string $slug,
         public readonly string $name,
@@ -34,6 +40,15 @@ final class EventConfig
          * and its layout shows no mode toggle.
          */
         public readonly array $roles,
+        /**
+         * Extra Content-Security-Policy origins, as ['frame-src' => ['https://…'], …].
+         * Optional: no shipped event needs it — the webfont and the map are derived — it is
+         * the escape hatch for an event that embeds a video or a photo CDN. A script-src
+         * extra is allowed but defeats the nonce; avoid it.
+         *
+         * @var array<string, list<string>>
+         */
+        public readonly array $csp,
         public readonly array $features,
         /** Shown in the picker at `/`. An unlisted event still works at its URL. */
         public readonly bool $listed,
@@ -94,12 +109,32 @@ final class EventConfig
             throw new \RuntimeException(sprintf('Event config "%s" is listed but has no dates', $slug));
         }
 
+        $csp = $data['csp'] ?? [];
+        if (!is_array($csp)) {
+            throw new \RuntimeException(sprintf('Event config "%s" has an invalid csp (expected directive => origins)', $slug));
+        }
+        foreach ($csp as $directive => $origins) {
+            if (!in_array($directive, self::CSP_DIRECTIVES, true)) {
+                throw new \RuntimeException(sprintf('Event config "%s" has csp.%s, which is not one of %s', $slug, $directive, implode(', ', self::CSP_DIRECTIVES)));
+            }
+            if (!is_array($origins) || !array_is_list($origins)) {
+                throw new \RuntimeException(sprintf('Event config "%s" has csp.%s that is not a list of origins', $slug, $directive));
+            }
+            foreach ($origins as $origin) {
+                // an https origin and nothing else: no path, no keyword, no wildcard
+                if (!is_string($origin) || preg_match('~^https://[a-z0-9-]+(\.[a-z0-9-]+)*(:[0-9]{1,5})?\z~i', $origin) !== 1) {
+                    throw new \RuntimeException(sprintf('Event config "%s" has csp.%s with "%s", which is not an https:// origin without a path', $slug, $directive, is_scalar($origin) ? (string) $origin : get_debug_type($origin)));
+                }
+            }
+        }
+
         return new self(
             slug: $slug,
             name: $data['name'],
             colors: $data['colors'],
             theme: $data['theme'] ?? [],
             roles: $data['roles'] ?? [],
+            csp: $csp,
             features: $data['features'],
             listed: $listed,
             dates: $dates,

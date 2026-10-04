@@ -14,7 +14,7 @@
 
 	{% if 'push' in event.features and vapidPublicKey %}
 		<p class="push-enable">
-			<button class="btn btn-primary" onclick="enablePush()">
+			<button type="button" class="btn btn-primary" data-push-toggle>
 				Aktivuj si notifikace o akci!
 			</button>
 		</p>

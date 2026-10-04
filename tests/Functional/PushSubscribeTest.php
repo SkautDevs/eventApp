@@ -8,24 +8,27 @@ use App\Push\SubscriptionRepository;
 
 final class PushSubscribeTest extends AppTestCase
 {
-    private string $dbPath;
+    private \PDO $pdo;
+
+    private SpyPushSender $sender;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->dbPath = sys_get_temp_dir() . '/push-func-' . uniqid() . '.sqlite';
+        $this->pdo = self::memoryDb();
+        // the tests' push service; production allows only the known ones
+        $_ENV['PUSH_ENDPOINT_HOSTS'] = 'push.example';
     }
 
     protected function tearDown(): void
     {
-        @unlink($this->dbPath);
+        unset($_ENV['PUSH_ENDPOINT_HOSTS']);
+        parent::tearDown();
     }
-
-    private SpyPushSender $sender;
 
     private function repo(): SubscriptionRepository
     {
-        return new SubscriptionRepository($this->dbPath);
+        return new SubscriptionRepository($this->pdo);
     }
 
     /** a spy sender: the welcome push must never reach a real push service from a test */
@@ -33,7 +36,7 @@ final class PushSubscribeTest extends AppTestCase
     {
         $this->sender ??= new SpyPushSender();
 
-        return [SubscriptionRepository::class => $this->repo(), \App\Push\PushSenderInterface::class => $this->sender];
+        return [\PDO::class => $this->pdo, \App\Push\PushSenderInterface::class => $this->sender];
     }
 
     public function testSubscribeStoresSubscription(): void
@@ -179,7 +182,7 @@ final class PushSubscribeTest extends AppTestCase
                 throw new \ErrorException('[VAPID] Public key should be 65 bytes long when decoded.');
             }
         };
-        $app = $this->createApp(overrides: [SubscriptionRepository::class => $this->repo(), \App\Push\PushSenderInterface::class => $sender]);
+        $app = $this->createApp(overrides: [\PDO::class => $this->pdo, \App\Push\PushSenderInterface::class => $sender]);
 
         $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
@@ -195,5 +198,30 @@ final class PushSubscribeTest extends AppTestCase
         $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'https://push.example/xyz']);
 
         self::assertSame([], $this->sender->welcomes);
+    }
+
+    public function testAnEndpointOutsideTheKnownPushServicesIs400AndNothingIsSent(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+
+        $response = $this->request($app, 'POST', '/push/subscribe', [
+            'endpoint' => 'https://intranet.example/hook',
+            'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
+        ]);
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame(0, $this->repo()->count());
+        self::assertSame([], $this->sender->welcomes, 'the server must not POST to a host the body chose');
+    }
+
+    public function testTheSameBrowserSubscribedToTwoEventsKeepsBothRows(): void
+    {
+        $overrides = $this->overrides();
+        $this->request($this->createApp('obrok19', overrides: $overrides), 'POST', '/push/subscribe', self::SUB);
+        $this->request($this->createApp('korbo26', overrides: $overrides), 'POST', '/push/subscribe', self::SUB);
+
+        self::assertSame(1, $this->repo()->count('obrok19'));
+        self::assertSame(1, $this->repo()->count('korbo26'));
+        self::assertCount(2, $this->sender->welcomes, 'each event welcomes the browser once');
     }
 }

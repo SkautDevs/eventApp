@@ -106,4 +106,52 @@ final class TieLoginTest extends AppTestCase
         self::assertStringContainsString('TIE KORBO1', (string) $this->request($korbo, 'GET', '/profil')->getBody());
         self::assertStringNotContainsString('TIE ABC123', (string) $this->request($obrok, 'GET', '/profil')->getBody());
     }
+
+    private function counted(): CountingProgramProvider
+    {
+        return new CountingProgramProvider(new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures'));
+    }
+
+    public function testSixtyUnknownCodesFromOneAddressAreThrottled(): void
+    {
+        $provider = $this->counted();
+        $app = $this->createApp(overrides: [\App\Program\ProgramProviderInterface::class => $provider]);
+        for ($i = 1; $i <= 60; $i++) {
+            $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NEZNAMY' . $i]);
+        }
+        self::assertSame(60, $provider->identityCalls);
+
+        $response = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame(60, $provider->identityCalls, 'the 61st attempt must not reach the provider');
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
+        self::assertStringContainsString('Příliš mnoho pokusů, zkus to za chvíli.', $html);
+        self::assertStringNotContainsString('Odhlásit TIE', $html);
+    }
+
+    public function testASuccessfulLoginDoesNotCountTowardsTheLimit(): void
+    {
+        $provider = $this->counted();
+        $app = $this->createApp(overrides: [\App\Program\ProgramProviderInterface::class => $provider]);
+        for ($i = 1; $i <= 59; $i++) {
+            $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NEZNAMY' . $i]);
+        }
+        for ($i = 1; $i <= 3; $i++) {
+            $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        }
+        // an empty code is not a guess either
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => '   ']);
+        // logged in, /profil shows no form and so no error; logging out touches no counter
+        $this->request($app, 'POST', '/profil/tie-logout');
+
+        // the 60th failure still reaches the provider and is answered as a wrong code
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NEZNAMY60']);
+        self::assertSame(63, $provider->identityCalls);
+        self::assertStringContainsString('Neplatný TIE kód.', (string) $this->request($app, 'GET', '/profil')->getBody());
+
+        // and only now is the address over the limit
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        self::assertSame(63, $provider->identityCalls);
+    }
 }

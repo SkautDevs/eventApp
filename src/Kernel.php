@@ -17,6 +17,16 @@ final class Kernel
     /** Every date the app formats or compares is a local one. */
     private const TIMEZONE = 'Europe/Prague';
 
+    /** The container key of the error handler's logger: stdout only, never Sentry. */
+    public const ERRORS_LOGGER = 'logger.errors';
+
+    private const SECURITY_HEADERS = [
+        'X-Content-Type-Options' => 'nosniff',
+        'Referrer-Policy' => 'same-origin',
+        'X-Frame-Options' => 'DENY',
+        'Permissions-Policy' => 'geolocation=(), camera=(), microphone=(), payment=()',
+    ];
+
     /**
      * The front door. The first path segment names the event; anything else — `/`,
      * an unknown slug — is the instance app. The only place `.env` is read.
@@ -27,6 +37,8 @@ final class Kernel
         if (is_file($root . '/.env')) {
             \Dotenv\Dotenv::createImmutable($root)->safeLoad();
         }
+        // right after .env and before the event is picked, so the instance app is covered too
+        Telemetry\Telemetry::init();
         $catalog = new EventCatalog($eventsDir ?? $root . '/events');
         $path = (string) (parse_url($uri, PHP_URL_PATH) ?: '/');
         $first = explode('/', ltrim($path, '/'), 2)[0];
@@ -54,19 +66,30 @@ final class Kernel
      * An explicit whitelist rather than a cast: (bool) "false" and (bool) "off" are both
      * true, so an operator writing the obvious APP_DEBUG=false would turn debug pages on.
      */
-    private static function debug(): bool
+    public static function debug(): bool
     {
         return in_array($_ENV['APP_DEBUG'] ?? '', ['1', 'true', 'on'], true);
     }
 
     /**
-     * Error pages: details only under APP_DEBUG, every real error logged, a 404 or 405 not.
+     * Error pages: details only under APP_DEBUG, every real error filed with Sentry and
+     * logged, a 404 or 405 not.
      */
-    private static function addErrorHandling(App $app): void
+    private static function addErrorHandling(App $app, ContainerInterface $container): void
     {
         $debug = self::debug();
         $middleware = $app->addErrorMiddleware(displayErrorDetails: $debug, logErrors: true, logErrorDetails: true);
-        $middleware->setDefaultErrorHandler(new QuietErrorHandler($app->getCallableResolver(), $app->getResponseFactory()));
+        $middleware->setDefaultErrorHandler(new QuietErrorHandler(
+            $app->getCallableResolver(),
+            $app->getResponseFactory(),
+            $container->get(self::ERRORS_LOGGER),
+        ));
+    }
+
+    /** The error handler's own channel: the exception already went to Sentry through the Collector. */
+    private static function errorsLogger(): \Psr\Log\LoggerInterface
+    {
+        return new \Monolog\Logger('errors', [new \Monolog\Handler\StreamHandler('php://stdout', \Monolog\Level::Info)]);
     }
 
     /**
@@ -81,20 +104,54 @@ final class Kernel
         $builder = new ContainerBuilder();
         $builder->addDefinitions([
             EventCatalog::class => $catalog,
-            Twig::class => fn (): Twig => Twig::create($root . '/templates', ['cache' => false]),
+            Twig::class => function () use ($root): Twig {
+                $twig = Twig::create($root . '/templates', ['cache' => false]);
+                // registered so CspMiddleware may overwrite it per request
+                $twig->getEnvironment()->addGlobal('cspNonce', '');
+
+                return $twig;
+            },
+            self::ERRORS_LOGGER => fn (): \Psr\Log\LoggerInterface => self::errorsLogger(),
         ]);
         $builder->addDefinitions($containerOverrides);
+        $container = $builder->build();
 
-        AppFactory::setContainer($builder->build());
+        AppFactory::setContainer($container);
         $app = AppFactory::create();
         $app->addBodyParsingMiddleware();
         $app->addRoutingMiddleware();
-        self::addErrorHandling($app);
+        self::addErrorHandling($app, $container);
         self::addSecurityHeadersMiddleware($app);
+        // after the security headers, so it too is outside the error middleware
+        $app->add(new Http\CspMiddleware($container->get(Twig::class)));
+        // Last of all, so it is outermost: the error middleware's 500 is measured too.
+        // Keep it the final $app->add() — anything added after it would go unmeasured.
+        $app->add(new Telemetry\TransactionMiddleware());
 
         $app->get('/', function ($request, $response) use ($today) {
             return $this->get(Twig::class)->render($response, 'picker.twig', $this->get(EventCatalog::class)->listed($today));
         })->setName('picker');
+
+        // What the reverse proxy or an uptime probe polls. It opens the push database and
+        // asks it one question; it migrates nothing, logs nothing and reports nothing (the
+        // transaction middleware skips the path and any failure is answered right here).
+        $dbPath = self::pushDbPath($root);
+        $app->get('/health', function ($request, $response) use ($dbPath) {
+            try {
+                Storage\Database::open($dbPath)->query('SELECT 1')->fetchColumn();
+                $status = 200;
+                $body = ['ok' => true];
+            } catch (\Throwable) {
+                $status = 503;
+                $body = ['ok' => false];
+            }
+            $response->getBody()->write((string) json_encode($body));
+
+            return $response
+                ->withStatus($status)
+                ->withHeader('Content-Type', 'application/json')
+                ->withHeader('Cache-Control', 'no-store');
+        })->setName('health');
 
         return $app;
     }
@@ -132,8 +189,28 @@ final class Kernel
             },
             Session::class => fn (): Session => new Session($event->slug),
             Auth\Authenticator::class => \DI\autowire(),
-            \App\Push\SubscriptionRepository::class => fn (): \App\Push\SubscriptionRepository => new \App\Push\SubscriptionRepository(self::pushDbPath($root)),
-            \App\Push\MessageRepository::class => fn (): \App\Push\MessageRepository => new \App\Push\MessageRepository(self::pushDbPath($root)),
+            Auth\LoginThrottle::class => \DI\autowire(),
+            // One connection per request, opened and migrated on first use only: PHP-DI
+            // builds a definition on the first get(), so the homepage, the map, the links
+            // and the handbook never touch the file. A request that does pays one
+            // `PRAGMA user_version` read; it stays per request because the Apache path
+            // has no deploy step to hook a migration into.
+            \PDO::class => function () use ($root): \PDO {
+                $pdo = Storage\Database::open(self::pushDbPath($root));
+                (new Storage\Migrator())->migrate($pdo);
+
+                return $pdo;
+            },
+            \App\Push\SubscriptionRepository::class => \DI\autowire(),
+            \App\Push\MessageRepository::class => \DI\autowire(),
+            \App\Push\EndpointPolicy::class => fn (): \App\Push\EndpointPolicy => \App\Push\EndpointPolicy::fromEnvironment(),
+            // Neither logger has a WebProcessor: request data reaches Sentry through the
+            // SDK's own request integration, where the Scrubber sees it.
+            \Psr\Log\LoggerInterface::class => fn (): \Psr\Log\LoggerInterface => new \Monolog\Logger('eventapp', [
+                new \Monolog\Handler\StreamHandler('php://stdout', \Monolog\Level::Info),
+                new \Sentry\Monolog\Handler(\Sentry\SentrySdk::getCurrentHub(), \Monolog\Level::Info),
+            ]),
+            self::ERRORS_LOGGER => fn (): \Psr\Log\LoggerInterface => self::errorsLogger(),
             \App\Push\PushSenderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
                 repository: $c->get(\App\Push\SubscriptionRepository::class),
                 vapidPublicKey: $_ENV['VAPID_PUBLIC_KEY'] ?? '',
@@ -173,6 +250,8 @@ final class Kernel
                 // twig-view resolves once and then keeps for the life of the app.
                 $env->addGlobal('fragment', false);
                 $env->addGlobal('screenPath', '/');
+                // CspMiddleware writes the request's nonce here; every inline <script> carries it
+                $env->addGlobal('cspNonce', '');
                 // the app bar shows who is logged in. It has to be a function, not a global:
                 // a handler may log the user out (expired TIE code) during the very request
                 // whose response then renders the bar.
@@ -208,17 +287,25 @@ final class Kernel
         // '/obrok19' is what people type; the homepage route is '/obrok19/'
         $app->redirect('', $base . '/', 301);
         $app->addBodyParsingMiddleware();
+        // before the routing middleware means inside it: it runs once the route is known
+        $app->add(new Telemetry\RouteNameMiddleware($event->slug));
         $app->addRoutingMiddleware();
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
-        self::addErrorHandling($app);
-        // Added last, so it is the outermost layer of the stack — outside the error
-        // middleware rather than inside it. A thrown 404 or 500 never reaches the
-        // route, so a header applied further in would be missing from exactly the
-        // responses a shared cache is most likely to keep.
+        self::addErrorHandling($app, $container);
+        // Added after the error middleware, so it sits outside it rather than inside it;
+        // the security headers, the CSP and the transaction middleware wrap it in turn.
+        // A thrown 404 or 500 never reaches the route, so a header applied further in
+        // would be missing from exactly the responses a shared cache is most likely to keep.
         self::addScreenMiddleware($app, $container);
         // For the same reason: an error page is exactly the response that must not be
         // sniffed or framed, and it is the one the error middleware answers on its own.
         self::addSecurityHeadersMiddleware($app);
+        // after the security headers, so it too is outside the error middleware and a 404
+        // or a 500 carries the policy
+        $app->add(new Http\CspMiddleware($container->get(Twig::class), Http\CspMiddleware::extrasFor($event)));
+        // Last of all, so it is outermost: the error middleware's 500 is measured too.
+        // Keep it the final $app->add() — anything added after it would go unmeasured.
+        $app->add(new Telemetry\TransactionMiddleware());
 
         self::registerCoreRoutes($app);
         self::registerModules($app, $container, $event);
@@ -233,8 +320,9 @@ final class Kernel
      * request is byte-identical to what it was before this existed, which is what keeps
      * deep links, crawlers and a no-JS reader working.
      *
-     * It is the outermost middleware, which is what puts `Vary: X-Screen` on an error
-     * response too: Slim's error middleware answers a 404 or a 500 without ever calling
+     * It sits outside the error middleware (the security headers, the CSP and the
+     * transaction middleware wrap it in turn), which is what puts `Vary: X-Screen` on an
+     * error response too: Slim's error middleware answers a 404 or a 500 without ever calling
      * anything further in, so a header set inside it would be skipped for precisely the
      * responses that differ by the header. The loader treats any non-200 as "not a
      * screen" and falls back to a real navigation, so a full error page is never
@@ -256,9 +344,10 @@ final class Kernel
     /**
      * The response headers that cost nothing and break nothing here: the app serves no
      * user-uploaded file, never frames itself, and asks for none of the powerful
-     * features. Deliberately no CSP and no HSTS — the first needs a per-request nonce
-     * for the two inline scripts and the inline style block in `_layout.twig`, the
-     * second needs TLS to exist first; both are decisions, not omissions.
+     * features. The Content-Security-Policy is CspMiddleware's, because it needs a
+     * per-request nonce; www/.htaccess and docker/nginx.conf repeat these four for static
+     * files and deliberately not the CSP, which does nothing on a non-document. Still no
+     * HSTS — that needs TLS to exist first, see docs/deployment.md.
      */
     private static function addSecurityHeadersMiddleware(App $app): void
     {
@@ -266,12 +355,14 @@ final class Kernel
         // container, and a static one cannot be bound at all
         $app->add(function ($request, $handler) {
             $response = $handler->handle($request);
+            foreach (self::SECURITY_HEADERS as $name => $value) {
+                // a route that needs a stricter value (the admin pages' no-referrer) keeps its own
+                if (!$response->hasHeader($name)) {
+                    $response = $response->withHeader($name, $value);
+                }
+            }
 
-            return $response
-                ->withHeader('X-Content-Type-Options', 'nosniff')
-                ->withHeader('Referrer-Policy', 'same-origin')
-                ->withHeader('X-Frame-Options', 'DENY')
-                ->withHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(), payment=()');
+            return $response;
         });
     }
 
@@ -306,18 +397,40 @@ final class Kernel
             $target = ($body['return'] ?? null) === 'programy' ? '/programy#muj-program' : '/profil';
             $session = $this->get(Session::class);
 
-            if ($code !== '') {
+            // the outcome is a tag on the transaction; the code itself never leaves this closure
+            Telemetry\Tracer::span('auth.tie', 'POST /profil/tie', function () use ($request, $code, $session): void {
+                if ($code === '') {
+                    Telemetry\Tracer::tag('tie_outcome', 'empty');
+
+                    return;
+                }
+                $slug = $this->get(EventConfig::class)->slug;
+                $ip = Http\ClientIp::of($request);
+                $throttle = $this->get(Auth\LoginThrottle::class);
+                if ($throttle->tooMany($slug, $ip)) {
+                    // checked before the provider: against kissj every guess is an upstream request
+                    $session->set('tieError', 'Příliš mnoho pokusů, zkus to za chvíli.');
+                    Telemetry\Tracer::tag('tie_outcome', 'rate_limited');
+
+                    return;
+                }
                 $identity = new Auth\Identity(displayName: 'TIE ' . $code, tieCode: $code);
                 try {
                     $this->get(\App\Program\ProgramProviderInterface::class)->getProgramsForIdentity($identity);
                     $this->get(Auth\Authenticator::class)->store($identity);
                     $session->delete('tieError');
+                    Telemetry\Tracer::tag('tie_outcome', 'ok');
                 } catch (Auth\UnknownParticipantException) {
+                    // the only outcome that counts: the limit is against guessing
+                    $throttle->recordFailure($slug, $ip);
                     $session->set('tieError', 'Neplatný TIE kód.');
-                } catch (\GuzzleHttp\Exception\TransferException) {
+                    Telemetry\Tracer::tag('tie_outcome', 'unknown');
+                } catch (\GuzzleHttp\Exception\TransferException|\App\Program\ProgramDataException) {
+                    // never arrived, or arrived but wrong: one notice for both
                     $session->set('tieError', 'Přihlášení se teď nedaří, zkuste to prosím později.');
+                    Telemetry\Tracer::tag('tie_outcome', 'provider_failed');
                 }
-            }
+            });
 
             return $response->withHeader('Location', $base . $target)->withStatus(302);
         })->setName('tie-login');

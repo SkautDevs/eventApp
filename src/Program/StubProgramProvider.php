@@ -36,7 +36,8 @@ final class StubProgramProvider implements ProgramProviderInterface
         $key = 'tie:' . $identity->tieCode;
 
         if (!isset($map[$key])) {
-            throw new UnknownParticipantException(sprintf('Unknown TIE code: %s', $identity->tieCode));
+            // the code stays out of the message: messages reach logs and Sentry
+            throw new UnknownParticipantException('Unknown TIE code');
         }
 
         $ids = $map[$key];

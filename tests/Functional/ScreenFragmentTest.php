@@ -146,8 +146,9 @@ final class ScreenFragmentTest extends AppTestCase
     {
         $app = $this->createApp();
         $_ENV['ADMIN_TOKEN_OBROK19'] = 'test-token';
+        $this->request($app, 'GET', '/admin/notify?token=test-token');
 
-        $html = (string) $this->request($app, 'GET', '/admin/notify?token=test-token', null, ['X-Screen' => '1'])->getBody();
+        $html = (string) $this->request($app, 'GET', '/admin/notify', null, ['X-Screen' => '1'])->getBody();
         $this->assertStringContainsString('<!DOCTYPE html>', $html);
     }
 

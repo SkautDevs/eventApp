@@ -22,82 +22,112 @@ final class PushModule implements ModuleInterface
     public function registerRoutes(App $app): void
     {
         $app->post('/push/subscribe', function ($request, $response) use ($app) {
-            $body = (array) $request->getParsedBody();
             $event = $this->get(\App\EventConfig::class);
-            $repository = $this->get(SubscriptionRepository::class);
-            $endpoint = is_string($body['endpoint'] ?? null) ? $body['endpoint'] : '';
-            $isNew = $repository->find($event->slug, $endpoint) === null;
-            try {
-                // The code comes from the session only: the route is unauthenticated, so a code in the
-                // body would let anyone receive another participant's programme messages.
-                $repository->save(
-                    $body,
-                    $event->slug,
-                    $this->get(\App\Auth\Authenticator::class)->identity()?->tieCode,
-                );
-            } catch (\InvalidArgumentException) {
-                return $response->withStatus(400);
-            }
 
-            // A new subscription gets a welcome at once, so the reader sees on the very first tap
-            // that notifications arrive — rather than finding out at the first real message. The
-            // re-send after a login or logout is not new and stays silent. null: nothing was sent.
-            $welcome = null;
-            if ($isNew) {
+            return \App\Telemetry\Tracer::span('push.subscribe', 'subscribe ' . $event->slug, function () use ($request, $response, $app, $event) {
+                $body = (array) $request->getParsedBody();
+                $repository = $this->get(SubscriptionRepository::class);
+                $endpoint = is_string($body['endpoint'] ?? null) ? $body['endpoint'] : '';
+                // the welcome below is a POST to this URL, so only the known push services may be named
+                if (!$this->get(\App\Push\EndpointPolicy::class)->allows($endpoint)) {
+                    return $response->withStatus(400);
+                }
+                $isNew = $repository->find($event->slug, $endpoint) === null;
                 try {
-                    $welcome = $this->get(\App\Push\PushSenderInterface::class)->sendToSubscription(
-                        event: $event->slug,
-                        endpoint: $endpoint,
-                        title: $event->name,
-                        body: 'Notifikace jsou zapnuté. Novinky z akce ti budou chodit sem.',
-                        icon: $event->get('assets')['notificationIcon'] ?? null,
-                        url: $app->getBasePath() . '/novinky',
+                    // The code comes from the session only: the route is unauthenticated, so a code in the
+                    // body would let anyone receive another participant's programme messages.
+                    $repository->save(
+                        $body,
+                        $event->slug,
+                        $this->get(\App\Auth\Authenticator::class)->identity()?->tieCode,
                     );
-                } catch (\Throwable) {
-                    $welcome = false;
+                } catch (\InvalidArgumentException) {
+                    return $response->withStatus(400);
                 }
-                // A subscription whose welcome did not get through is not kept: the reader is told
-                // it failed and taps again, and that tap is new again, welcome included.
-                if (!$welcome) {
-                    $repository->delete($endpoint);
-                    $response->getBody()->write(json_encode(['ok' => false, 'welcome' => false]));
 
-                    return $response->withHeader('Content-Type', 'application/json')->withStatus(502);
+                // A new subscription gets a welcome at once, so the reader sees on the very first tap
+                // that notifications arrive — rather than finding out at the first real message. The
+                // re-send after a login or logout is not new and stays silent. null: nothing was sent.
+                $welcome = null;
+                if ($isNew) {
+                    try {
+                        $welcome = $this->get(\App\Push\PushSenderInterface::class)->sendToSubscription(
+                            event: $event->slug,
+                            endpoint: $endpoint,
+                            title: $event->name,
+                            body: 'Notifikace jsou zapnuté. Novinky z akce ti budou chodit sem.',
+                            icon: $event->get('assets')['notificationIcon'] ?? null,
+                            url: $app->getBasePath() . '/novinky',
+                        );
+                    } catch (\Throwable) {
+                        $welcome = false;
+                    }
+                    // A subscription whose welcome did not get through is not kept: the reader is told
+                    // it failed and taps again, and that tap is new again, welcome included.
+                    if (!$welcome) {
+                        $repository->delete($event->slug, $endpoint);
+                        $response->getBody()->write(json_encode(['ok' => false, 'welcome' => false]));
+
+                        return $response->withHeader('Content-Type', 'application/json')->withStatus(502);
+                    }
                 }
-            }
 
-            $response->getBody()->write(json_encode(['ok' => true, 'welcome' => $welcome]));
+                $response->getBody()->write(json_encode(['ok' => true, 'welcome' => $welcome]));
 
-            return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(201);
+            });
         })->setName('push-subscribe');
 
-        // Shareable admin link: /admin/notify?token=<ADMIN_TOKEN> (holding the link is the access)
-        $tokenValid = function ($request) use ($app): bool {
-            $expected = $app->getContainer()->get(\App\EventConfig::class)->env('ADMIN_TOKEN');
-            $given = (string) ($request->getQueryParams()['token']
-                ?? ((array) $request->getParsedBody())['token']
-                ?? '');
+        // The shared link /admin/notify?token=<ADMIN_TOKEN_<SLUG>> logs the browser in for a
+        // day and redirects to the bare URL, so the token never sits in history, a referrer
+        // or a Sentry transaction. The forms carry a CSRF token instead.
+        $isAdmin = function () use ($app): bool {
+            $c = $app->getContainer();
+            // removing the token from the config closes the page for sessions already open
+            if ($c->get(\App\EventConfig::class)->env('ADMIN_TOKEN') === '') {
+                return false;
+            }
+            $flag = $c->get(\App\Session::class)->get('admin');
+            if (!is_array($flag) || !is_int($flag['since'] ?? null)) {
+                return false;
+            }
+            $age = time() - $flag['since'];
 
-            return $expected !== '' && hash_equals($expected, $given);
+            return $age >= 0 && $age < self::ADMIN_SESSION_SECONDS;
+        };
+
+        $csrfValid = function ($request) use ($app): bool {
+            $expected = $app->getContainer()->get(\App\Session::class)->get('csrf');
+            $given = ((array) $request->getParsedBody())['csrf'] ?? null;
+
+            return is_string($expected) && $expected !== '' && is_string($given) && hash_equals($expected, $given);
+        };
+
+        // every admin response, a 403 included: nothing of it belongs in a cache, and no
+        // page it links to needs to know where the organiser came from
+        $adminHeaders = function ($request, $handler) {
+            return $handler->handle($request)
+                ->withHeader('Cache-Control', 'no-store')
+                ->withHeader('Referrer-Policy', 'no-referrer');
         };
 
         $render = function ($request, $response, array $context = []) use ($app) {
             $c = $app->getContainer();
             $slug = $c->get(\App\EventConfig::class)->slug;
             $messages = $c->get(\App\Push\MessageRepository::class);
+            $session = $c->get(\App\Session::class);
             $params = $request->getMethod() === 'GET' ? $request->getQueryParams() : (array) $request->getParsedBody();
             $page = max(1, (int) ($params['page'] ?? 1));
             [$programmes, $unavailable] = self::programmes($c);
 
             // the result of a send is flashed by the POST and shown once, on the GET it redirects to
-            $session = $c->get(\App\Session::class);
             $flash = $request->getMethod() === 'GET' ? $session->get('notifyResult') : null;
             if ($flash !== null) {
                 $session->delete('notifyResult');
             }
 
             return $c->get(\Slim\Views\Twig::class)->render($response, 'admin-notify.twig', $context + [
-                'token' => (string) ($params['token'] ?? ''),
+                'csrf' => (string) $session->get('csrf', ''),
                 'result' => $flash['result'] ?? null,
                 'errors' => [],
                 'values' => ['target' => '', 'title' => '', 'body' => '', 'signature' => $flash['signature'] ?? ''],
@@ -109,17 +139,55 @@ final class PushModule implements ModuleInterface
             ]);
         };
 
-        $app->get('/admin/notify', function ($request, $response) use ($tokenValid, $render) {
-            if (!$tokenValid($request)) {
+        // A refused POST (the day is up, or the CSRF token no longer matches) says so in words
+        // and hands back what was typed, because Back cannot: the admin page is no-store, and
+        // its GET is refused for the same reason. The hide/show forms carry no text to return.
+        $refused = function ($request, $response) use ($app) {
+            $body = (array) $request->getParsedBody();
+            $echo = [];
+            foreach (['title', 'body'] as $field) {
+                if (is_string($body[$field] ?? null) && trim($body[$field]) !== '') {
+                    $echo[$field] = $body[$field];
+                }
+            }
+
+            return $app->getContainer()->get(\Slim\Views\Twig::class)
+                ->render($response->withStatus(403), 'admin-expired.twig', ['message' => $echo]);
+        };
+
+        $app->get('/admin/notify', function ($request, $response) use ($isAdmin, $render, $app) {
+            $query = $request->getQueryParams();
+            if (array_key_exists('token', $query)) {
+                $expected = $this->get(\App\EventConfig::class)->env('ADMIN_TOKEN');
+                $given = is_string($query['token']) ? $query['token'] : '';
+                if ($expected === '' || !hash_equals($expected, $given)) {
+                    return $response->withStatus(403);
+                }
+                $session = $this->get(\App\Session::class);
+                // a privilege change, so the session ID changes with it (see Authenticator::store())
+                $session->regenerateId();
+                $session->set('admin', ['since' => time()]);
+                // Re-opening the link (a second tab, the team chat) must not invalidate a form
+                // already open elsewhere, so a well-formed token survives the hop.
+                $csrf = $session->get('csrf');
+                $session->set('csrf', is_string($csrf) && preg_match('/^[0-9a-f]{32}$/', $csrf) === 1
+                    ? $csrf
+                    : bin2hex(random_bytes(16)));
+
+                return $response
+                    ->withHeader('Location', $app->getRouteCollector()->getRouteParser()->urlFor('admin-notify'))
+                    ->withStatus(303);
+            }
+            if (!$isAdmin()) {
                 return $response->withStatus(403);
             }
 
             return $render($request, $response);
-        })->setName('admin-notify');
+        })->setName('admin-notify')->add($adminHeaders);
 
-        $app->post('/admin/notify', function ($request, $response) use ($tokenValid, $render, $app) {
-            if (!$tokenValid($request)) {
-                return $response->withStatus(403);
+        $app->post('/admin/notify', function ($request, $response) use ($isAdmin, $csrfValid, $render, $refused, $app) {
+            if (!$isAdmin() || !$csrfValid($request)) {
+                return $refused($request, $response);
             }
             $body = (array) $request->getParsedBody();
             $values = [
@@ -178,6 +246,13 @@ final class PushModule implements ModuleInterface
                 removed: $result['removed'],
                 unreached: $unreached,
             );
+            // a record on stdout even with Sentry off; no TIE code, no title, no body
+            $this->get(\Psr\Log\LoggerInterface::class)->info('push.sent', [
+                'event' => $event->slug,
+                'sent' => $result['sent'],
+                'removed' => $result['removed'],
+                'programme' => $programme === null ? null : (int) $programme['id'],
+            ]);
 
             // Post/Redirect/Get: a refresh of the result must not send the message again. The
             // next message usually comes from the same person, so only Podpis is kept.
@@ -185,16 +260,15 @@ final class PushModule implements ModuleInterface
                 'result' => ['sent' => $result['sent'], 'removed' => $result['removed'], 'unreached' => $unreached],
                 'signature' => $values['signature'],
             ]);
-            $location = $app->getRouteCollector()->getRouteParser()->urlFor('admin-notify', [], [
-                'token' => (string) ($body['token'] ?? ''),
-            ]);
 
-            return $response->withHeader('Location', $location)->withStatus(303);
-        });
+            return $response
+                ->withHeader('Location', $app->getRouteCollector()->getRouteParser()->urlFor('admin-notify'))
+                ->withStatus(303);
+        })->add($adminHeaders);
 
-        $app->post('/admin/notify/{id:[0-9]+}/hidden', function ($request, $response, array $args) use ($tokenValid, $render, $app) {
-            if (!$tokenValid($request)) {
-                return $response->withStatus(403);
+        $app->post('/admin/notify/{id:[0-9]+}/hidden', function ($request, $response, array $args) use ($isAdmin, $csrfValid, $render, $refused, $app) {
+            if (!$isAdmin() || !$csrfValid($request)) {
+                return $refused($request->withParsedBody([]), $response);
             }
             $body = (array) $request->getParsedBody();
             $signature = trim((string) ($body['signature'] ?? ''));
@@ -213,13 +287,15 @@ final class PushModule implements ModuleInterface
             }
 
             $location = $app->getRouteCollector()->getRouteParser()->urlFor('admin-notify', [], [
-                'token' => (string) ($body['token'] ?? ''),
                 'page' => max(1, (int) ($body['page'] ?? 1)),
             ]);
 
             return $response->withHeader('Location', $location)->withStatus(303);
-        })->setName('admin-notify-hidden');
+        })->setName('admin-notify-hidden')->add($adminHeaders);
     }
+
+    /** How long the shared link keeps a browser logged in: what a phone left on a table can do. */
+    public const ADMIN_SESSION_SECONDS = 86400;
 
     private const LOG_PAGE = 50;
 

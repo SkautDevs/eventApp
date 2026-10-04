@@ -110,7 +110,24 @@ const syncIdentity = async () => {
 	}
 };
 
+// The homepage button has no inline handler (the CSP allows no inline script): it is bound
+// here, on the first document and on every screen the loader shows or morphs later. The
+// WeakSet keeps a button that is shown twice from getting two listeners.
+const boundToggles = new WeakSet();
+const bindPushToggles = scope => {
+	(scope && scope.querySelectorAll ? scope : document).querySelectorAll('[data-push-toggle]').forEach(button => {
+		if (boundToggles.has(button)) {
+			return;
+		}
+		boundToggles.add(button);
+		button.addEventListener('click', () => window.enablePush());
+	});
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+	bindPushToggles(document);
 	syncIdentity().catch(() => {});
 	hideWhenSubscribed().catch(() => {});
 });
+document.addEventListener('screen:shown', event => bindPushToggles(event.target));
+document.addEventListener('screen:morphed', event => bindPushToggles(event.target));

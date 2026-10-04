@@ -6,47 +6,13 @@ namespace App\Push;
 
 final class SubscriptionRepository
 {
-    private \PDO $pdo;
-
-    public function __construct(string $dbPath)
-    {
-        $this->pdo = new \PDO('sqlite:' . $dbPath);
-        $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-        $this->pdo->exec(
-            'CREATE TABLE IF NOT EXISTS subscriptions (
-                endpoint TEXT PRIMARY KEY,
-                public_key TEXT NOT NULL,
-                auth_token TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                event TEXT NOT NULL DEFAULT \'\',
-                tie_code TEXT NULL
-            )'
-        );
-
-        $columns = array_column($this->pdo->query('PRAGMA table_info(subscriptions)')->fetchAll(\PDO::FETCH_ASSOC), 'name');
-        $missing = [
-            // a database from before multi-event: its rows belong to no event and are never sent
-            'event' => "ALTER TABLE subscriptions ADD COLUMN event TEXT NOT NULL DEFAULT ''",
-            // a database from before targeting: its rows belong to nobody and get only event-wide messages
-            'tie_code' => 'ALTER TABLE subscriptions ADD COLUMN tie_code TEXT NULL',
-        ];
-        foreach ($missing as $column => $ddl) {
-            if (in_array($column, $columns, true)) {
-                continue;
-            }
-            try {
-                $this->pdo->exec($ddl);
-            } catch (\PDOException $e) {
-                // a concurrent boot got there first
-                if (!str_contains($e->getMessage(), 'duplicate column')) {
-                    throw $e;
-                }
-            }
-        }
-    }
-
     /** Longest endpoint any push service is known to issue is well under this */
     private const MAX_FIELD_LENGTH = 2048;
+
+    /** The schema is the Migrator's: a row is keyed by (event, endpoint). */
+    public function __construct(private readonly \PDO $pdo)
+    {
+    }
 
     /**
      * The route behind this is unauthenticated, so the body is attacker-controlled:
@@ -75,8 +41,8 @@ final class SubscriptionRepository
         }
 
         $statement = $this->pdo->prepare(
-            'INSERT OR REPLACE INTO subscriptions (endpoint, public_key, auth_token, created_at, event, tie_code)
-             VALUES (:endpoint, :public_key, :auth_token, :created_at, :event, :tie_code)'
+            'INSERT OR REPLACE INTO subscriptions (event, endpoint, public_key, auth_token, created_at, tie_code)
+             VALUES (:event, :endpoint, :public_key, :auth_token, :created_at, :tie_code)'
         );
         $statement->execute([
             'endpoint' => $endpoint,
@@ -143,10 +109,11 @@ final class SubscriptionRepository
         return array_map('strval', $statement->fetchAll(\PDO::FETCH_COLUMN));
     }
 
-    public function delete(string $endpoint): void
+    /** Scoped to the event: the same browser may be subscribed to two events, and each keeps its row. */
+    public function delete(string $event, string $endpoint): void
     {
-        $statement = $this->pdo->prepare('DELETE FROM subscriptions WHERE endpoint = :endpoint');
-        $statement->execute(['endpoint' => $endpoint]);
+        $statement = $this->pdo->prepare('DELETE FROM subscriptions WHERE event = :event AND endpoint = :endpoint');
+        $statement->execute(['event' => $event, 'endpoint' => $endpoint]);
     }
 
     public function count(?string $event = null): int

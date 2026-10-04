@@ -24,10 +24,20 @@ templates or the reverse.
 1. Create `.env` next to `docker-compose.prod.yml` from `.env.example` (see below).
    It is listed in `.dockerignore`: it never enters the image, `env_file: .env` passes
    it to the container's environment at run time.
-2. `docker compose -f docker-compose.prod.yml up -d --build`.
+2. `APP_RELEASE=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build`.
+   `APP_RELEASE` names the release in Sentry; without it the image says `dev`. A value
+   in `.env` wins over the build argument because `env_file` is applied at run time,
+   and so does an empty one: keep `APP_RELEASE` out of `.env` (`.env.example` has it
+   commented out), or Sentry shows `unknown` instead of the hash.
+   **Before the first deploy of this version, back up `var/push.sqlite`** (see the `var`
+   volume below): its first request rewrites the subscriptions table.
 3. **Never publish php-fpm's port 9000** (no `ports:` on `app`): it speaks FastCGI with no authentication, so anyone who reaches it can run PHP. Only nginx reaches it, over the compose network.
 4. The stack publishes port `8080` (`8080:80` in the compose file). Put a reverse
    proxy in front of it; change the left-hand number if something else holds 8080.
+   Set `TRUSTED_PROXY_COUNT=1` in `.env` behind that proxy (it must send
+   `X-Forwarded-For`). Without it every reader shares the proxy's address and the TIE
+   login limit — 60 wrong codes per address and event per 10 minutes — becomes one
+   limit for everybody.
 5. Open `/`, then each event's screens (`/<slug>/`, `/<slug>/programy`, ...).
    Which screens exist depends on `features` in the event's config. On a
    production event check that the programme matches reality and not the demo
@@ -44,6 +54,12 @@ What the image does, and why:
   log of sent messages, which is what News shows) and the compiled Twig cache, and
   `sessions/` (see below). Back up `push.sqlite`; the subscriptions and the message log
   are the only durable state, sessions can be lost at the price of a re-login.
+  The database runs in WAL mode, so `push.sqlite-wal` and `push.sqlite-shm` sit next to
+  it: a backup copies all three, or runs `sqlite3 push.sqlite ".backup /path/push-backup.sqlite"`.
+  The schema is migrated in place by the first request that opens the file after a
+  deploy, one transaction per step (`PRAGMA user_version` records the step reached); a
+  failed step is rolled back whole while the steps before it stay committed, the request
+  answers 500 and reaches Sentry, and the next request tries again from that step.
   `PUSH_DB_PATH` may be relative: it is resolved against the project root, so
   `var/push.sqlite` is `/app/var/push.sqlite` whatever php-fpm's working directory is.
 - **Sessions survive a restart.** `docker/php.ini` sets `session.save_path` to
@@ -60,6 +76,20 @@ What the image does, and why:
 - **opcache** is on with `validate_timestamps=0` (measured: about 4x faster, 35 ms
   against 134 ms on the Program screen). Code changes therefore need a new image, which
   is the only way the code changes anyway.
+- **Capacity.** `docker/php-fpm.conf` runs `pm = dynamic` with `pm.max_children = 20`
+  (`start_servers` 4, spare 2–6) instead of the default 5, so a few readers waiting on
+  a slow kissj cannot stall everybody. nginx waits `fastcgi_read_timeout 45s` for PHP.
+  The app's outbound calls carry their own timeouts (10 s to kissj), so a request
+  normally ends well before that; one that does not — a push send to a large audience
+  can — is answered with nginx's 504 while PHP finishes. PHP's `max_execution_time`
+  (30 s) counts CPU time only and does not guard against a slow network; when it does
+  strike it is a fatal error, not the app's error page. `docker/php.ini` sets
+  `display_errors = Off`, `log_errors = On` and `expose_php = Off`, so a fatal error
+  never reaches the reader: it goes to `docker logs` and, when configured, Sentry.
+- **`GET /health`** answers `200 {"ok":true}` when the push database opens and
+  `503 {"ok":false}` when it does not, with `Cache-Control: no-store`. Point the
+  reverse proxy's health check or an uptime probe at it; it migrates nothing, logs
+  nothing and is not reported to Sentry.
 - **nginx serves `.webmanifest` as `application/manifest+json`** (`types` block in
   `docker/nginx.conf`); its `mime.types` does not know the extension.
 - **nginx mirrors `www/.htaccess`**: versioned assets get a year of `immutable` cache,
@@ -87,6 +117,25 @@ proxy, then HSTS (`Strict-Transport-Security: max-age=31536000` — a browser re
 it for a year, there is no going back). A redirect in front of a certificate that does
 not exist yet is a redirect loop.
 
+### Content-Security-Policy
+
+PHP sends an enforced `Content-Security-Policy` on every page it answers (on Docker and
+on Apache alike), with a fresh nonce per request: a `<script>` without that nonce does
+not run. `connect-src` is `'self'` by default — kissj is called by PHP, never by the
+browser — and an event's `csp` key may extend it like the other directives.
+An event's `theme.font-url` origin is added to `style-src` and `font-src` automatically,
+and a published map's origin to `frame-src`. Anything else an event embeds — photos or
+videos from another site — is named in its `config.php` under `csp`, as `https://`
+origins without a path; an unknown directive or a malformed origin stops the event from
+booting:
+
+```php
+'csp' => [
+    'img-src' => ['https://photos.example'],
+    'frame-src' => ['https://video.example'],
+],
+```
+
 ### `.env`
 
 Instance-wide:
@@ -98,6 +147,12 @@ Instance-wide:
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Push keys: `php bin/generate-vapid.php` (run it in any PHP 8.3 container with the repo mounted; `bin/` is not in the image). One pair for the whole instance. |
 | `VAPID_SUBJECT` | `mailto:` contact for the push services. |
 | `PUSH_DB_PATH` | Defaults to `var/push.sqlite`. Holds the push subscriptions and the message log that News is built from. |
+| `SENTRY_DSN` | Sentry project DSN. Empty (the default) switches error reporting and tracing off entirely. |
+| `SENTRY_TRACES_SAMPLE_RATE` | Share of requests traced, `0`..`1`; `.env.example` suggests `0.2`. Missing or empty means `0`. |
+| `SENTRY_PROFILES_SAMPLE_RATE` | Share of traced requests profiled, `0`..`1`; leave at `0` unless the excimer extension is installed. |
+| `APP_RELEASE` | Release name in Sentry. The Docker build sets it from the deploy command; leave it out of `.env` (it is commented out in `.env.example`), because any line here, even an empty `APP_RELEASE=`, overrides the build's hash. Uncomment it only to override that. |
+| `TRUSTED_PROXY_COUNT` | Reverse proxies in front of the app whose `X-Forwarded-For` entries are trusted. `1` behind the Docker stack's proxy, `0` (default) when PHP sees the readers directly. Wrong here, the TIE login limit is either global (too low) or spoofable (too high). |
+| `PUSH_ENDPOINT_HOSTS` | Extra push-service hosts a browser subscription may name, comma-separated, `*.example` allowed. Empty in production: the known services (Google, Apple, Mozilla, Microsoft, Samsung) are built in. |
 
 Per event, each name suffixed with the slug in upper case and `-` turned into `_`
 (`obrok27` becomes `OBROK27`). Only the events that need a value need a line.
@@ -106,7 +161,7 @@ Per event, each name suffixed with the slug in upper case and `-` turned into `_
 | --- | --- |
 | `PROGRAM_PROVIDER_<SLUG>` | **The most important line per event.** `stub` (the default when the line is missing) serves the demo data from `events/<slug>/fixtures/`; `kissj` reads the real programme from the registration API. A missing line boots fine and shows the demo programme as if it were real, with no error and no log entry. Production events stay on `stub` until kissj serves the contract endpoints (see below). |
 | `KISSJ_API_KEY_<SLUG>` | The event's programme API key. kissj tells the event from the key, so no slug is configured there. Required when the provider is `kissj`. |
-| `ADMIN_TOKEN_<SLUG>` | Long random string (`openssl rand -hex 24`). The organisers send notifications at `/<slug>/admin/notify?token=<token>`; holding the link is the access. Empty means the page is refused. Every event has the page. |
+| `ADMIN_TOKEN_<SLUG>` | Long random string (`openssl rand -hex 24`). The organisers open `/<slug>/admin/notify?token=<token>`; the link logs that browser in for 24 hours and redirects to `/<slug>/admin/notify`, and the pages after it carry no token (the forms carry a CSRF field). Re-open the link after a day. Empty means the page is refused, also for a browser that is already logged in. Every event has the page. |
 
 **Production events stay on `PROGRAM_PROVIDER_<SLUG>=stub` until kissj serves the
 endpoints of `docs/kissj-contract.md`.** Do not switch one to `kissj` before that.
@@ -134,7 +189,7 @@ Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an even
 3. Copy `www/events/obrok27/` to `www/events/<slug>/` and replace the logos, favicons
    and manifest.
 4. Add the per-event variables above to `.env`.
-5. Rebuild: `docker compose -f docker-compose.prod.yml up -d --build`. The new
+5. Rebuild: `APP_RELEASE=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build`. The new
    directory is found on the next request; there is no registry to edit.
 
 To fill the fixtures from kissj's responses use `php bin/kissj-fixtures.php <slug>`.
@@ -146,8 +201,17 @@ Every event is still served by the one instance, so this is a single installatio
 ### Requirements
 
 - PHP >= 8.3 with `json`, `pdo_sqlite` and `gmp` or `bcmath` (push notifications).
+- Once `SENTRY_DSN` is set, `sentry/sentry` also needs the `curl` and `mbstring` extensions
+  (`ext-curl`, `ext-mbstring`).
 - **opcache** on. Without it the app is about 4x slower. Check `opcache.enable=1` in
   `phpinfo()`.
+- **PHP-FPM pool and timeouts**, where the host lets you set them: `pm.max_children`
+  about 20 (the default 5 lets a few slow kissj answers stall everybody), and a
+  FastCGI/proxy timeout of at least 45 s, as in the Docker stack. Set
+  `display_errors = Off` and `log_errors = On` so a PHP fatal error never reaches a
+  reader, and `zend.exception_ignore_args = On` (PHP's production default) so a TIE
+  code passed as a call argument never reaches a Sentry stack trace. `/health`
+  (above) works here too.
 - Apache with mod_rewrite and a docroot you can point at `www/`. mod_headers,
   mod_expires and mod_deflate are recommended: `www/.htaccess` uses them for security
   headers, asset caching and compression. Every block is in `<IfModule>`, so a host
@@ -179,6 +243,10 @@ Every event is still served by the one instance, so this is a single installatio
    Permissions `750` (`700` on shared hosting), **not `775`**: group-writable means
    writable for other tenants of the server. `var/push.sqlite` itself `0600`. The owner
    must be the user PHP runs as.
+   `var/` must stay writable for PHP, not just `var/push.sqlite`: WAL mode creates
+   `push.sqlite-wal` and `push.sqlite-shm` next to the file. A backup copies all three
+   (or runs `sqlite3 push.sqlite ".backup …"`). Back up before deploying this version:
+   its first request rewrites the subscriptions table.
 5. On an **update** of a running instance: if you changed `www/style.css`, `www/app.js`,
    `www/programs.js` or `www/push.js`, bump its `?v=` in `templates/_layout.twig`
    (`www/.htaccess` gives them a year's cache). Twig notices a changed template on
