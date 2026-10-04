@@ -67,6 +67,21 @@ final class ProviderFailureTest extends AppTestCase
         self::assertStringContainsString('Přihlášení se teď nedaří', $html);
     }
 
+    public function testAMalformedParticipantAnswerOnLoginDegradesLikeAnOutage(): void
+    {
+        $provider = new ThrowingProgramProvider(
+            identityException: new ProgramDataException('kissj sent no list of programmes for v3/programme/participant/tie/x'),
+        );
+        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $provider]);
+
+        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+
+        self::assertSame(302, $login->getStatusCode());
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
+        self::assertStringContainsString('Přihlášení se teď nedaří, zkuste to prosím později.', $html);
+        self::assertStringNotContainsString('Odhlásit TIE', $html);
+    }
+
     public function testProgramsLogOutOnUnknownParticipantAfterInitialLogin(): void
     {
         $provider = new ThrowingProgramProvider(

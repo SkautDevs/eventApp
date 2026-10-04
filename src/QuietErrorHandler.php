@@ -10,7 +10,9 @@ use Slim\Handlers\ErrorHandler;
 
 /**
  * Slim's error handler, minus the log line for a 404 or 405: a reader mistyping a URL
- * is not something an operator needs in the error log. Real errors are still logged.
+ * is not something an operator needs in the error log. A real error goes to Sentry
+ * through the Collector and then to the `errors` log channel, which has no Sentry
+ * handler — the exception is already filed once.
  */
 final class QuietErrorHandler extends ErrorHandler
 {
@@ -19,6 +21,7 @@ final class QuietErrorHandler extends ErrorHandler
         if ($this->exception instanceof HttpNotFoundException || $this->exception instanceof HttpMethodNotAllowedException) {
             return;
         }
+        Telemetry\Collector::collect($this->exception);
         parent::writeToErrorLog();
     }
 }

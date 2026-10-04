@@ -1,6 +1,9 @@
 services:
     app:
-        build: .
+        build:
+            context: .
+            args:
+                APP_RELEASE: "${APP_RELEASE:-dev}"
         env_file: .env
         volumes:
             - var:/app/var

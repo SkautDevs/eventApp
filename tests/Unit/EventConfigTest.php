@@ -201,4 +201,44 @@ final class EventConfigTest extends TestCase
             unset($_ENV['ADMIN_TOKEN'], $_ENV['ADMIN_TOKEN_MINIMAL']);
         }
     }
+
+    public function testCspIsOptionalAndAlwaysAnArray(): void
+    {
+        self::assertSame([], EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal')->csp);
+        foreach (glob($this->eventsDir . '/*/config.php') ?: [] as $path) {
+            // no shipped event needs the key: fonts and the map are derived
+            self::assertSame([], EventConfig::load($this->eventsDir, basename(dirname($path)))->csp);
+        }
+    }
+
+    public function testCspCarriesExtraOriginsPerDirective(): void
+    {
+        $event = $this->loadWithConfigLines("    'csp' => ['img-src' => ['https://photos.example'], 'frame-src' => ['https://video.example:8443']],");
+
+        self::assertSame(['img-src' => ['https://photos.example'], 'frame-src' => ['https://video.example:8443']], $event->csp);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function invalidCsp(): array
+    {
+        return [
+            'not an array' => ["'csp' => 'https://x.example',"],
+            'unknown directive' => ["'csp' => ['worker-src' => ['https://x.example']],"],
+            'a directive the app owns' => ["'csp' => ['default-src' => ['https://x.example']],"],
+            'origins not a list' => ["'csp' => ['img-src' => 'https://x.example'],"],
+            'plain http' => ["'csp' => ['img-src' => ['http://x.example']],"],
+            'a path' => ["'csp' => ['img-src' => ['https://x.example/photos']],"],
+            'a trailing slash' => ["'csp' => ['img-src' => ['https://x.example/']],"],
+            'a keyword' => ["'csp' => ['script-src' => [\"'unsafe-inline'\"]],"],
+            'a wildcard' => ["'csp' => ['img-src' => ['https://*']],"],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidCsp')]
+    public function testAnInvalidCspFailsAtBoot(string $line): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('csp');
+        $this->loadWithConfigLines('    ' . $line);
+    }
 }

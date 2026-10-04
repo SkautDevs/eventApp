@@ -58,6 +58,18 @@ final class StubProgramProviderTest extends TestCase
         $this->provider->getProgramsForIdentity($identity);
     }
 
+    public function testTheUnknownCodeStaysOutOfTheMessage(): void
+    {
+        try {
+            $this->provider->getProgramsForIdentity(new Identity(displayName: 'TIE NEZNAMY', tieCode: 'NEZNAMY'));
+            self::fail('an unknown code must throw');
+        } catch (UnknownParticipantException $e) {
+            // the message reaches logs and Sentry; the code must not
+            self::assertSame('Unknown TIE code', $e->getMessage());
+            self::assertStringNotContainsString('NEZNAMY', $e->getMessage());
+        }
+    }
+
     public function testTieCodesForAProgrammeAreRegisteredJsonInverted(): void
     {
         $dir = sys_get_temp_dir() . '/stub-tie-' . uniqid();

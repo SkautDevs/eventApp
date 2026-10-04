@@ -5,10 +5,20 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Push\MessageRepository;
+use App\Storage\Database;
+use App\Storage\Migrator;
 use PHPUnit\Framework\TestCase;
 
 final class MessageRepositoryTest extends TestCase
 {
+    private function repo(): MessageRepository
+    {
+        $pdo = Database::open(':memory:');
+        (new Migrator())->migrate($pdo);
+
+        return new MessageRepository($pdo);
+    }
+
     private function at(string $time): \DateTimeImmutable
     {
         return new \DateTimeImmutable($time, new \DateTimeZone('Europe/Prague'));
@@ -16,7 +26,7 @@ final class MessageRepositoryTest extends TestCase
 
     public function testAMessageIsStoredWithEveryField(): void
     {
-        $repo = new MessageRepository(':memory:');
+        $repo = $this->repo();
         $id = $repo->add('korbo26', 42, 'Vodní hrátky', 'Změna', "Řádek 1\nŘádek 2", 'Lung', 3, 1, 5, $this->at('2026-10-02 14:05:00'));
 
         self::assertSame([[
@@ -28,7 +38,7 @@ final class MessageRepositoryTest extends TestCase
 
     public function testPagesAreNewestFirstAndPerEvent(): void
     {
-        $repo = new MessageRepository(':memory:');
+        $repo = $this->repo();
         foreach (range(1, 3) as $n) {
             $repo->add('korbo26', null, 'Všem', 'Zpráva ' . $n, 'text', 'Lung', 0, 0, null);
         }
@@ -41,7 +51,7 @@ final class MessageRepositoryTest extends TestCase
 
     public function testHidingIsReversibleRecordedAndScopedToTheEvent(): void
     {
-        $repo = new MessageRepository(':memory:');
+        $repo = $this->repo();
         $id = $repo->add('korbo26', null, 'Všem', 'Překlep', 'text', 'Lung', 0, 0, null);
 
         self::assertFalse($repo->setHidden('obrok27', $id, true, 'Cizí'));

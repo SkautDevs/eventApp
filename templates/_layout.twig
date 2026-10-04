@@ -40,7 +40,7 @@
 		   be on the root element by the time the stylesheet applies, or the reader sees a
 		   frame of the wrong theme. A stored choice wins forever once made; until then
 		   the device's own setting decides. #}
-		<script>
+		<script nonce="{{ cspNonce }}">
 			(function () {
 				try {
 					var mode = localStorage.getItem('obrokColorMode');
@@ -104,7 +104,7 @@
 	<meta name="event-base" content="{{ base }}/">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<meta name="push-identity" content="{{ auth_tie_code() }}">
-	<script src="push.js?v=7" defer></script>
+	<script src="push.js?v=8" defer></script>
 	{# the screen loader: without it every link is a plain navigation and the app is
 	   exactly what it was #}
 	<script src="app.js?v=3" defer></script>
@@ -210,7 +210,7 @@
 	{% endfor %}
 </nav>
 {% if hasDark %}
-	<script>
+	<script nonce="{{ cspNonce }}">
 		// The mode itself is already set — the head script did that before first paint.
 		// This only handles the tap, and keys the choice globally rather than per event:
 		// dark is a property of the reader's eyes, not of which Obrok they are looking at.

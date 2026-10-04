@@ -1,0 +1,21 @@
+{% extends "_layout.twig" %}
+
+{% set pageTitle = 'Odeslat notifikaci' %}
+
+{% block content %}
+	<p class="notice" role="alert"><strong>Odkaz vypršel. Otevři prosím sdílený odkaz znovu.</strong></p>
+
+	{% if message %}
+		<div class="stacked-form">
+			<p>Tvoje zpráva (zkopíruj si ji):</p>
+			{% if message.title is defined %}
+				<label for="expired-title">Titulek</label>
+				<textarea id="expired-title" rows="1" readonly>{{ message.title }}</textarea>
+			{% endif %}
+			{% if message.body is defined %}
+				<label for="expired-body">Zpráva</label>
+				<textarea id="expired-body" rows="4" readonly>{{ message.body }}</textarea>
+			{% endif %}
+		</div>
+	{% endif %}
+{% endblock %}

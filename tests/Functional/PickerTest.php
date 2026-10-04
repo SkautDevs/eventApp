@@ -37,13 +37,6 @@ final class PickerTest extends AppTestCase
         self::assertSame('', Kernel::boot('/nope/')->getBasePath());
     }
 
-    public function testTheInstanceAppCarriesTheSecurityHeaders(): void
-    {
-        $response = $this->rawRequest($this->instance(), 'GET', '/nope/programy');
-        self::assertSame('nosniff', $response->getHeaderLine('X-Content-Type-Options'));
-        self::assertFalse($response->hasHeader('Content-Security-Policy'));
-    }
-
     public function testTodayIsTheLocalDayNotTheUtcOne(): void
     {
         // 23:30 UTC on the 20th is 01:30 on the 21st in Prague

@@ -4,23 +4,27 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Push\MessageRepository;
 use App\Push\PushSenderInterface;
 
 final class AdminNotifyTest extends AppTestCase
 {
     private SpyPushSender $sender;
 
-    private \App\Push\MessageRepository $messages;
+    private \PDO $pdo;
 
-    private const SEND = ['token' => 'korbo-token', 'title' => 'Změna', 'body' => 'Začínáme v 15:00', 'signature' => 'Lung'];
+    private MessageRepository $messages;
+
+    private const SEND = ['title' => 'Změna', 'body' => 'Začínáme v 15:00', 'signature' => 'Lung'];
 
     protected function setUp(): void
     {
         parent::setUp();
         $_ENV['ADMIN_TOKEN_OBROK19'] = 'tajny-token';
-        $this->sender = new SpyPushSender();
-        $this->messages = new \App\Push\MessageRepository(':memory:');
         $_ENV['ADMIN_TOKEN_KORBO26'] = 'korbo-token';
+        $this->sender = new SpyPushSender();
+        $this->pdo = self::memoryDb();
+        $this->messages = new MessageRepository($this->pdo);
     }
 
     protected function tearDown(): void
@@ -31,15 +35,24 @@ final class AdminNotifyTest extends AppTestCase
 
     private function app(): \Slim\App
     {
-        return $this->createApp(overrides: [PushSenderInterface::class => $this->sender]);
+        return $this->createApp(overrides: [PushSenderInterface::class => $this->sender, \PDO::class => $this->pdo]);
     }
 
     private function korbo(array $overrides = []): \Slim\App
     {
         return $this->createApp('korbo26', overrides: $overrides + [
             PushSenderInterface::class => $this->sender,
-            \App\Push\MessageRepository::class => $this->messages,
+            \PDO::class => $this->pdo,
         ]);
+    }
+
+    /** Opens the shared link as an organiser does; returns the CSRF token the forms now carry. */
+    private function logIn(\Slim\App $app, string $token): string
+    {
+        $response = $this->request($app, 'GET', '/admin/notify?token=' . $token);
+        self::assertSame(303, $response->getStatusCode());
+
+        return (string) $_SESSION[ltrim($app->getBasePath(), '/')]['csrf'];
     }
 
     /** A programme KORBO1 is registered for, read from the fixture rather than hardcoded. */
@@ -55,29 +68,211 @@ final class AdminNotifyTest extends AppTestCase
         self::fail('fixture programme not found');
     }
 
-    public function testFormRendersWithValidToken(): void
+    public function testTheLinkLogsTheBrowserInAndRedirectsToTheBareUrl(): void
     {
-        $response = $this->request($this->app(), 'GET', '/admin/notify?token=tajny-token');
+        $app = $this->app();
 
-        self::assertSame(200, $response->getStatusCode());
-        $html = (string) $response->getBody();
-        self::assertStringContainsString('Odeslat notifikaci', $html);
-        // the token is carried into the form by a hidden field
-        self::assertStringContainsString('name="token" value="tajny-token"', $html);
+        $response = $this->request($app, 'GET', '/admin/notify?token=tajny-token');
+
+        self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/obrok19/admin/notify', $response->getHeaderLine('Location'));
+        $page = $this->request($app, 'GET', '/admin/notify');
+        self::assertSame(200, $page->getStatusCode());
+        self::assertStringContainsString('Odeslat notifikaci', (string) $page->getBody());
     }
 
-    public function testFormWithoutTokenIs403(): void
+    public function testTheBareUrlWithoutTheFlagIs403(): void
     {
         self::assertSame(403, $this->request($this->app(), 'GET', '/admin/notify')->getStatusCode());
     }
 
-    public function testWrongTokenPostIs403AndNothingSent(): void
+    public function testTheFormCarriesACsrfFieldAndNoToken(): void
     {
-        $response = $this->request($this->app(), 'POST', '/admin/notify', [
-            'token' => 'spatny', 'title' => 'Test', 'body' => 'Zprava',
+        $app = $this->app();
+        $csrf = $this->logIn($app, 'tajny-token');
+
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
+
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $csrf);
+        self::assertStringContainsString('name="csrf" value="' . $csrf . '"', $html);
+        self::assertStringNotContainsString('name="token"', $html);
+        self::assertStringNotContainsString('tajny-token', $html);
+    }
+
+    public function testAWrongTokenIs403AndFlagsNothing(): void
+    {
+        $app = $this->app();
+
+        self::assertSame(403, $this->request($app, 'GET', '/admin/notify?token=spatny')->getStatusCode());
+        self::assertArrayNotHasKey('admin', $_SESSION['obrok19'] ?? []);
+        self::assertSame(403, $this->request($app, 'GET', '/admin/notify')->getStatusCode());
+    }
+
+    public function testAPostWithoutCsrfIs403AndNothingIsSent(): void
+    {
+        $app = $this->app();
+        $this->logIn($app, 'tajny-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND);
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertSame([], $this->sender->calls);
+    }
+
+    public function testAPostWithTheWrongCsrfIs403AndNothingIsSent(): void
+    {
+        $app = $this->app();
+        $this->logIn($app, 'tajny-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => str_repeat('0', 32)]);
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertSame([], $this->sender->calls);
+    }
+
+    public function testReopeningTheLinkKeepsTheCsrfTokenOfTheFormAlreadyOpen(): void
+    {
+        $app = $this->app();
+        $this->logIn($app, 'tajny-token');
+        $first = $this->csrfOnPage($app);
+
+        $this->logIn($app, 'tajny-token');
+        $second = $this->csrfOnPage($app);
+
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $first);
+        self::assertSame($first, $second);
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $first, 'target' => '']);
+        self::assertSame(303, $response->getStatusCode());
+        self::assertCount(1, $this->sender->calls);
+    }
+
+    public function testAMalformedCsrfInTheSessionIsReplacedOnTheHop(): void
+    {
+        $app = $this->app();
+        $_SESSION['obrok19'] = ['csrf' => 'abc'];
+
+        $csrf = $this->logIn($app, 'tajny-token');
+
+        self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $csrf);
+    }
+
+    public function testARefusedSendEchoesTheMessageOnAnExpiredLinkPage(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $_SESSION['korbo26']['admin']['since'] = time() - 86400;
+
+        $response = $this->request($app, 'POST', '/admin/notify', [
+            'title' => 'Bouřka <b>', 'body' => 'Schovejte se & čekejte', 'signature' => 'Lung', 'target' => '', 'csrf' => $csrf,
         ]);
 
         self::assertSame(403, $response->getStatusCode());
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        self::assertSame('no-referrer', $response->getHeaderLine('Referrer-Policy'));
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('Odkaz vypršel. Otevři prosím sdílený odkaz znovu.', $html);
+        self::assertStringContainsString('Tvoje zpráva (zkopíruj si ji):', $html);
+        self::assertStringContainsString('Bouřka &lt;b&gt;', $html);
+        self::assertStringNotContainsString('Bouřka <b>', $html);
+        self::assertStringContainsString('Schovejte se &amp; čekejte', $html);
+        self::assertStringNotContainsString('name="csrf"', $html);
+        self::assertSame([], $this->sender->calls);
+    }
+
+    public function testASendWithoutAnySessionShowsTheExpiredLinkPage(): void
+    {
+        $response = $this->request($this->app(), 'POST', '/admin/notify', self::SEND + ['csrf' => 'abc']);
+
+        self::assertSame(403, $response->getStatusCode());
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('Odkaz vypršel. Otevři prosím sdílený odkaz znovu.', $html);
+        self::assertStringContainsString('Změna', $html);
+        self::assertStringContainsString('Začínáme v 15:00', $html);
+    }
+
+    public function testACsrfMismatchShowsTheExpiredLinkPageWithTheMessage(): void
+    {
+        $app = $this->app();
+        $this->logIn($app, 'tajny-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => str_repeat('0', 32)]);
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        self::assertSame('no-referrer', $response->getHeaderLine('Referrer-Policy'));
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('Odkaz vypršel. Otevři prosím sdílený odkaz znovu.', $html);
+        self::assertStringContainsString('Tvoje zpráva (zkopíruj si ji):', $html);
+        self::assertStringContainsString('Začínáme v 15:00', $html);
+        self::assertSame([], $this->sender->calls);
+    }
+
+    public function testARefusedHideShowsTheExpiredLinkPageWithoutAnEcho(): void
+    {
+        $id = $this->messages->add(event: 'obrok19', programmeId: null, targetLabel: 'Všem', title: 'T', body: 'B', signature: 'Lung', sent: 1, removed: 0, unreached: null);
+
+        $response = $this->request($this->app(), 'POST', '/admin/notify/' . $id . '/hidden', ['csrf' => 'abc', 'hidden' => '1', 'signature' => 'Lung']);
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        self::assertSame('no-referrer', $response->getHeaderLine('Referrer-Policy'));
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('Odkaz vypršel. Otevři prosím sdílený odkaz znovu.', $html);
+        self::assertStringNotContainsString('Tvoje zpráva', $html);
+    }
+
+    /** The CSRF token the rendered admin page carries in its send form. */
+    private function csrfOnPage(\Slim\App $app): string
+    {
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
+        self::assertSame(1, preg_match('/name="csrf" value="([^"]*)"/', $html, $m));
+
+        return $m[1];
+    }
+
+    public function testAPostWithoutTheFlagIs403(): void
+    {
+        $_SESSION['obrok19'] = ['csrf' => 'abc'];
+
+        $response = $this->request($this->app(), 'POST', '/admin/notify', self::SEND + ['csrf' => 'abc']);
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertSame([], $this->sender->calls);
+    }
+
+    public function testAFlagOlderThanADayIs403(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $_SESSION['korbo26']['admin']['since'] = time() - 86400;
+
+        self::assertSame(403, $this->request($app, 'GET', '/admin/notify')->getStatusCode());
+        self::assertSame(403, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => ''])->getStatusCode());
+        self::assertSame([], $this->sender->calls);
+
+        $_SESSION['korbo26']['admin']['since'] = time() - 86000;
+        self::assertSame(200, $this->request($app, 'GET', '/admin/notify')->getStatusCode());
+    }
+
+    /** @return iterable<string, array{mixed}> */
+    public static function malformedFlags(): iterable
+    {
+        yield 'since as a string' => [['since' => (string) time()]];
+        yield 'a bare true' => [true];
+        yield 'since missing' => [[]];
+        yield 'since null' => [['since' => null]];
+        yield 'since in the future' => [['since' => time() + 3600]];
+    }
+
+    /** Review Focus 4 */
+    #[\PHPUnit\Framework\Attributes\DataProvider('malformedFlags')]
+    public function testAMalformedFlagIs403(mixed $flag): void
+    {
+        $_SESSION['korbo26'] = ['admin' => $flag, 'csrf' => 'abc'];
+        $app = $this->korbo();
+
+        self::assertSame(403, $this->request($app, 'GET', '/admin/notify')->getStatusCode());
+        self::assertSame(403, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => 'abc', 'target' => ''])->getStatusCode());
         self::assertSame([], $this->sender->calls);
     }
 
@@ -85,20 +280,36 @@ final class AdminNotifyTest extends AppTestCase
     {
         $_ENV['ADMIN_TOKEN_OBROK19'] = '';
 
-        $response = $this->request($this->app(), 'POST', '/admin/notify', [
-            'token' => '', 'title' => 'Test', 'body' => 'Zprava',
-        ]);
-
-        self::assertSame(403, $response->getStatusCode());
+        self::assertSame(403, $this->request($this->app(), 'GET', '/admin/notify?token=')->getStatusCode());
     }
 
-    public function testCorrectTokenSends(): void
+    public function testUnsetAdminTokenConfigIs403(): void
     {
-        $response = $this->request($this->app(), 'POST', '/admin/notify', [
-            'token' => 'tajny-token', 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung',
+        unset($_ENV['ADMIN_TOKEN_OBROK19']);
+
+        self::assertSame(403, $this->request($this->app(), 'GET', '/admin/notify?token=')->getStatusCode());
+    }
+
+    public function testAFlagStopsWorkingWhenTheTokenIsRemovedFromTheConfig(): void
+    {
+        $app = $this->app();
+        $this->logIn($app, 'tajny-token');
+        $_ENV['ADMIN_TOKEN_OBROK19'] = '';
+
+        self::assertSame(403, $this->request($app, 'GET', '/admin/notify')->getStatusCode());
+    }
+
+    public function testALoggedInSessionSends(): void
+    {
+        $app = $this->app();
+        $csrf = $this->logIn($app, 'tajny-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', [
+            'csrf' => $csrf, 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung',
         ]);
 
         self::assertSame(303, $response->getStatusCode());
+        self::assertSame('/obrok19/admin/notify', $response->getHeaderLine('Location'));
         self::assertCount(1, $this->sender->calls);
         self::assertSame('Zmena programu', $this->sender->calls[0][0]);
         self::assertSame('obrok19', $this->sender->calls[0][3]);
@@ -107,18 +318,15 @@ final class AdminNotifyTest extends AppTestCase
     public function testOneEventsTokenDoesNotOpenAnother(): void
     {
         $_ENV['ADMIN_TOKEN_OBROK27'] = 'other-token';
-        $response = $this->request($this->createApp('obrok19'), 'GET', '/admin/notify?token=other-token');
 
-        self::assertSame(403, $response->getStatusCode());
+        self::assertSame(403, $this->request($this->app(), 'GET', '/admin/notify?token=other-token')->getStatusCode());
     }
 
-    public function testUnsetAdminTokenConfigIs403(): void
+    public function testOneEventsFlagDoesNotOpenAnother(): void
     {
-        unset($_ENV['ADMIN_TOKEN_OBROK19']);
+        $this->logIn($this->korbo(), 'korbo-token');
 
-        $response = $this->request($this->app(), 'GET', '/admin/notify?token=');
-
-        self::assertSame(403, $response->getStatusCode());
+        self::assertSame(403, $this->request($this->app(), 'GET', '/admin/notify')->getStatusCode());
     }
 
     /** @return iterable<string, array{string}> */
@@ -133,9 +341,10 @@ final class AdminNotifyTest extends AppTestCase
     {
         $_ENV['ADMIN_TOKEN_' . strtoupper($slug)] = 'event-token';
         $app = $this->createApp($slug, overrides: [PushSenderInterface::class => $this->sender]);
+        $csrf = $this->logIn($app, 'event-token');
 
         $response = $this->request($app, 'POST', '/admin/notify', [
-            'token' => 'event-token', 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung',
+            'csrf' => $csrf, 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung',
         ]);
 
         self::assertSame(303, $response->getStatusCode());
@@ -145,7 +354,9 @@ final class AdminNotifyTest extends AppTestCase
     public function testAnEventWideSendIsLoggedAndLinksToNews(): void
     {
         $app = $this->korbo();
-        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '']);
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf]);
 
         self::assertSame(303, $response->getStatusCode());
         self::assertNull($this->sender->calls[0][5]);
@@ -153,7 +364,7 @@ final class AdminNotifyTest extends AppTestCase
         $logged = $this->messages->page('korbo26', 1)[0];
         self::assertSame(['Změna', 'Lung', null, 'Všem'], [$logged['title'], $logged['signature'], $logged['programmeId'], $logged['targetLabel']]);
         self::assertNull($logged['unreached']);
-        $html = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Odesláno: 2', $html);
         self::assertStringNotContainsString('přihlášených bez notifikací', $html);
         // the form comes back empty except Podpis
@@ -164,9 +375,10 @@ final class AdminNotifyTest extends AppTestCase
     public function testAProgrammeSendReachesOnlyItsRegisteredParticipants(): void
     {
         $programme = $this->korboProgramme();
-
         $app = $this->korbo();
-        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id']]);
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf]);
 
         self::assertSame(303, $response->getStatusCode());
         self::assertContains('KORBO1', $this->sender->calls[0][5]);
@@ -176,23 +388,24 @@ final class AdminNotifyTest extends AppTestCase
         self::assertSame($programme['name'], $logged['targetLabel']);
         // the in-memory subscription store is empty, so every registered participant is unreached
         self::assertSame(count($this->sender->calls[0][5]), $logged['unreached']);
-        self::assertStringContainsString('přihlášených bez notifikací', (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody());
+        self::assertStringContainsString('přihlášených bez notifikací', (string) $this->request($app, 'GET', '/admin/notify')->getBody());
     }
 
     public function testTheResultIsShownOnceAfterTheRedirectAndARefreshSendsNothing(): void
     {
         $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
 
-        $post = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '']);
+        $post = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf]);
         self::assertSame(303, $post->getStatusCode());
-        self::assertStringContainsString('/korbo26/admin/notify?token=korbo-token', $post->getHeaderLine('Location'));
+        self::assertSame('/korbo26/admin/notify', $post->getHeaderLine('Location'));
 
-        $first = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $first = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         // the result line is the <strong> one; the log below carries the same numbers in plain text
         self::assertStringContainsString('<strong>Odesláno: 2</strong>', $first);
         self::assertStringContainsString('value="Lung"', $first);
 
-        $second = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $second = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringNotContainsString('<strong>Odesláno: 2</strong>', $second);
         self::assertStringContainsString('Odesláno: 2', $second);
         self::assertStringNotContainsString('value="Lung"', $second);
@@ -202,7 +415,10 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testAForgedProgrammeIsRejectedAndNothingIsSentOrLogged(): void
     {
-        $response = $this->request($this->korbo(), 'POST', '/admin/notify', self::SEND + ['target' => '999999']);
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '999999', 'csrf' => $csrf]);
 
         self::assertSame(422, $response->getStatusCode());
         self::assertStringContainsString('Vybraný program neexistuje.', (string) $response->getBody());
@@ -212,7 +428,10 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testTheLimitsAreEnforcedAndTheTextIsKept(): void
     {
-        $response = $this->request($this->korbo(), 'POST', '/admin/notify', ['title' => str_repeat('a', 61), 'target' => ''] + self::SEND);
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', ['title' => str_repeat('a', 61), 'target' => '', 'csrf' => $csrf] + self::SEND);
 
         self::assertSame(422, $response->getStatusCode());
         $html = (string) $response->getBody();
@@ -226,7 +445,10 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testPodpisIsRequired(): void
     {
-        $response = $this->request($this->korbo(), 'POST', '/admin/notify', ['signature' => '', 'target' => ''] + self::SEND);
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', ['signature' => '', 'target' => '', 'csrf' => $csrf] + self::SEND);
 
         self::assertSame(422, $response->getStatusCode());
         self::assertStringContainsString('Podpis je povinný a smí mít nejvýš 40 znaků.', (string) $response->getBody());
@@ -262,13 +484,10 @@ final class AdminNotifyTest extends AppTestCase
             }
         };
         $programme = $this->korboProgramme();
+        $app = $this->korbo([\App\Program\ProgramProviderInterface::class => $provider]);
+        $csrf = $this->logIn($app, 'korbo-token');
 
-        $response = $this->request(
-            $this->korbo([\App\Program\ProgramProviderInterface::class => $provider]),
-            'POST',
-            '/admin/notify',
-            self::SEND + ['target' => (string) $programme['id']],
-        );
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf]);
 
         self::assertSame(502, $response->getStatusCode());
         $html = (string) $response->getBody();
@@ -284,12 +503,13 @@ final class AdminNotifyTest extends AppTestCase
             programsException: new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x')),
         );
         $app = $this->korbo([\App\Program\ProgramProviderInterface::class => $provider]);
+        $csrf = $this->logIn($app, 'korbo-token');
 
-        $html = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Programy se nepodařilo načíst, lze poslat jen všem.', $html);
         self::assertStringNotContainsString('<optgroup', $html);
 
-        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '1']);
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '1', 'csrf' => $csrf]);
         self::assertSame(422, $response->getStatusCode());
         self::assertStringContainsString('Vybraný program neexistuje.', (string) $response->getBody());
         self::assertSame([], $this->sender->calls);
@@ -297,7 +517,10 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testTheProgrammePickerListsTheEventsProgrammes(): void
     {
-        $html = (string) $this->request($this->korbo(), 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $app = $this->korbo();
+        $this->logIn($app, 'korbo-token');
+
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
 
         self::assertStringContainsString('<optgroup', $html);
         self::assertStringContainsString('<option value="">Všem odběratelům</option>', $html);
@@ -313,15 +536,17 @@ final class AdminNotifyTest extends AppTestCase
             $this->messages->add('korbo26', null, 'Všem', 'Zpráva č. ' . $i . '.', 'text', 'Lung', 1, 0, null);
         }
         $app = $this->korbo();
+        $this->logIn($app, 'korbo-token');
 
-        $first = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $first = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Starší', $first);
-        self::assertStringContainsString('page=2', $first);
+        self::assertStringContainsString('href="/korbo26/admin/notify?page=2"', $first);
+        self::assertStringNotContainsString('token=', $first);
         self::assertStringContainsString('Zpráva č. 51.', $first);
         self::assertStringNotContainsString('Zpráva č. 1.', $first);
         self::assertStringNotContainsString('Novější', $first);
 
-        $second = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token&page=2')->getBody();
+        $second = (string) $this->request($app, 'GET', '/admin/notify?page=2')->getBody();
         self::assertStringContainsString('Zpráva č. 1.', $second);
         self::assertStringNotContainsString('Zpráva č. 2.', $second);
         self::assertStringContainsString('Novější', $second);
@@ -332,20 +557,21 @@ final class AdminNotifyTest extends AppTestCase
     {
         $id = $this->messages->add('korbo26', null, 'Všem', 'Změna', 'text', 'Lung', 1, 0, null);
         $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
 
-        $hide = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['token' => 'korbo-token', 'hidden' => '1', 'signature' => 'Jana']);
+        $hide = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['csrf' => $csrf, 'hidden' => '1', 'signature' => 'Jana', 'page' => '1']);
         self::assertSame(303, $hide->getStatusCode());
-        self::assertStringContainsString('/korbo26/admin/notify?token=korbo-token', $hide->getHeaderLine('Location'));
+        self::assertSame('/korbo26/admin/notify?page=1', $hide->getHeaderLine('Location'));
         self::assertSame([], $this->messages->visible('korbo26'));
 
-        $html = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Zobrazit v Novinkách', $html);
         self::assertStringContainsString('Skryto z Novinek (Jana', $html);
 
-        $show = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['token' => 'korbo-token', 'hidden' => '0', 'signature' => 'Petr']);
+        $show = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['csrf' => $csrf, 'hidden' => '0', 'signature' => 'Petr']);
         self::assertSame(303, $show->getStatusCode());
         self::assertCount(1, $this->messages->visible('korbo26'));
-        $html = (string) $this->request($app, 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Znovu zobrazeno (Petr', $html);
         self::assertStringContainsString('Skrýt z Novinek', $html);
     }
@@ -353,25 +579,28 @@ final class AdminNotifyTest extends AppTestCase
     public function testHidingNeedsAPodpis(): void
     {
         $id = $this->messages->add('korbo26', null, 'Všem', 'Změna', 'text', 'Lung', 1, 0, null);
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
 
-        $response = $this->request($this->korbo(), 'POST', '/admin/notify/' . $id . '/hidden', ['token' => 'korbo-token', 'hidden' => '1', 'signature' => '']);
+        $response = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['csrf' => $csrf, 'hidden' => '1', 'signature' => '']);
 
         self::assertSame(422, $response->getStatusCode());
         self::assertStringContainsString('Podpis je povinný a smí mít nejvýš 40 znaků.', (string) $response->getBody());
         self::assertCount(1, $this->messages->visible('korbo26'));
     }
 
-    public function testHidingNeedsTheTokenAndTheEventsOwnMessage(): void
+    public function testHidingNeedsTheSessionAndTheEventsOwnMessage(): void
     {
         $id = $this->messages->add('korbo26', null, 'Všem', 'Změna', 'text', 'Lung', 1, 0, null);
         $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
 
-        $forged = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['token' => 'spatny', 'hidden' => '1', 'signature' => 'Jana']);
+        $forged = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['csrf' => 'spatny', 'hidden' => '1', 'signature' => 'Jana']);
         self::assertSame(403, $forged->getStatusCode());
         self::assertCount(1, $this->messages->visible('korbo26'));
 
         $foreign = $this->messages->add('obrok27', null, 'Všem', 'Cizí', 'text', 'Lung', 1, 0, null);
-        $response = $this->request($app, 'POST', '/admin/notify/' . $foreign . '/hidden', ['token' => 'korbo-token', 'hidden' => '1', 'signature' => 'Jana']);
+        $response = $this->request($app, 'POST', '/admin/notify/' . $foreign . '/hidden', ['csrf' => $csrf, 'hidden' => '1', 'signature' => 'Jana']);
         self::assertSame(404, $response->getStatusCode());
         self::assertCount(1, $this->messages->visible('obrok27'));
     }
@@ -379,10 +608,47 @@ final class AdminNotifyTest extends AppTestCase
     public function testMarkupInTheLogIsShownAsText(): void
     {
         $this->messages->add('korbo26', null, 'Všem', '<b>x</b>', 'text', 'Lung', 1, 0, null);
+        $app = $this->korbo();
+        $this->logIn($app, 'korbo-token');
 
-        $html = (string) $this->request($this->korbo(), 'GET', '/admin/notify?token=korbo-token')->getBody();
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
 
         self::assertStringContainsString('&lt;b&gt;x&lt;/b&gt;', $html);
         self::assertStringNotContainsString('<b>x</b>', $html);
+    }
+
+    public function testTheAdminResponsesAreNotCachedNorReferred(): void
+    {
+        $app = $this->korbo();
+        $denied = $this->request($app, 'GET', '/admin/notify');
+        $redirect = $this->request($app, 'GET', '/admin/notify?token=korbo-token');
+        $csrf = (string) $_SESSION['korbo26']['csrf'];
+        $page = $this->request($app, 'GET', '/admin/notify');
+        $sent = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf]);
+
+        foreach (['403 denial' => $denied, 'token redirect' => $redirect, 'page' => $page, 'send redirect' => $sent] as $what => $response) {
+            self::assertSame('no-store', $response->getHeaderLine('Cache-Control'), $what);
+            self::assertSame('no-referrer', $response->getHeaderLine('Referrer-Policy'), $what);
+        }
+        $news = $this->request($app, 'GET', '/novinky');
+        self::assertSame('same-origin', $news->getHeaderLine('Referrer-Policy'));
+        self::assertNotSame('no-store', $news->getHeaderLine('Cache-Control'));
+    }
+
+    public function testASendWritesOneLogLineWithoutItsText(): void
+    {
+        $log = new \Monolog\Handler\TestHandler();
+        $app = $this->korbo([\Psr\Log\LoggerInterface::class => new \Monolog\Logger('eventapp', [$log])]);
+        $csrf = $this->logIn($app, 'korbo-token');
+        $programme = $this->korboProgramme();
+
+        $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf]);
+
+        $records = $log->getRecords();
+        self::assertCount(1, $records);
+        self::assertSame('push.sent', $records[0]->message);
+        self::assertSame(\Monolog\Level::Info, $records[0]->level);
+        // no TIE code, no title, no body
+        self::assertSame(['event' => 'korbo26', 'sent' => 2, 'removed' => 1, 'programme' => $programme['id']], $records[0]->context);
     }
 }

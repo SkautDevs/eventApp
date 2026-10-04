@@ -25,13 +25,24 @@ abstract class AppTestCase extends TestCase
             : $this->eventsDir();
         $event = EventConfig::load($dir, $slug);
 
-        // every app gets throwaway push storage; a test that needs to look inside passes its own
+        // every app gets throwaway push storage and silent loggers; a test that needs to
+        // look inside passes its own
         $overrides += [
-            \App\Push\SubscriptionRepository::class => new \App\Push\SubscriptionRepository(':memory:'),
-            \App\Push\MessageRepository::class => new \App\Push\MessageRepository(':memory:'),
+            \PDO::class => self::memoryDb(),
+            \Psr\Log\LoggerInterface::class => new \Psr\Log\NullLogger(),
+            Kernel::ERRORS_LOGGER => new \Psr\Log\NullLogger(),
         ];
 
         return Kernel::create($event, $overrides);
+    }
+
+    /** An in-memory database in the current schema. Pass it as \PDO::class to look inside. */
+    public static function memoryDb(): \PDO
+    {
+        $pdo = \App\Storage\Database::open(':memory:');
+        (new \App\Storage\Migrator())->migrate($pdo);
+
+        return $pdo;
     }
 
     protected function eventsDir(): string

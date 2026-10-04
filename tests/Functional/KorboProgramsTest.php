@@ -319,7 +319,7 @@ final class KorboProgramsTest extends AppTestCase
 
     public function testAProgrammeSheetShowsItsMessagesToEveryone(): void
     {
-        $messages = new \App\Push\MessageRepository(':memory:');
+        $messages = new \App\Push\MessageRepository(self::memoryDb());
         $id = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/events/korbo26/fixtures/registered.json'), true)['tie:KORBO1'][0];
         $messages->add('korbo26', $id, 'Program', 'Přesun na 15:00', 'Kvůli dešti', 'Lung', 0, 0, 0);
 

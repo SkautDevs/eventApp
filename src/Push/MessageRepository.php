@@ -11,30 +11,9 @@ namespace App\Push;
  */
 final class MessageRepository
 {
-    private \PDO $pdo;
-
-    public function __construct(string $dbPath)
+    /** The schema is the Migrator's. */
+    public function __construct(private readonly \PDO $pdo)
     {
-        $this->pdo = new \PDO('sqlite:' . $dbPath);
-        $this->pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-        $this->pdo->exec(
-            'CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                event TEXT NOT NULL,
-                sent_at TEXT NOT NULL,
-                programme_id INTEGER NULL,
-                target_label TEXT NOT NULL,
-                title TEXT NOT NULL,
-                body TEXT NOT NULL,
-                signature TEXT NOT NULL,
-                sent INTEGER NOT NULL,
-                removed INTEGER NOT NULL,
-                unreached INTEGER NULL,
-                hidden INTEGER NOT NULL DEFAULT 0,
-                toggled_at TEXT NULL,
-                toggled_by TEXT NULL
-            )'
-        );
     }
 
     public function add(

@@ -25,7 +25,17 @@ final class WebPushSender implements PushSenderInterface
         ?string $url = null,
         ?array $tieCodes = null,
     ): array {
-        return $this->deliver($this->repository->forEvent($event, $tieCodes), $title, $body, $icon, $url);
+        $rows = $this->repository->forEvent($event, $tieCodes);
+
+        return \App\Telemetry\Tracer::span(
+            'push.send',
+            'event ' . $event,
+            fn (): array => $this->deliver($event, $rows, $title, $body, $icon, $url),
+            [
+                'rows' => count($rows),
+                \App\Telemetry\Tracer::FROM_RESULT => static fn (array $result): array => ['sent' => $result['sent'], 'removed' => $result['removed']],
+            ],
+        );
     }
 
     public function sendToSubscription(
@@ -36,17 +46,21 @@ final class WebPushSender implements PushSenderInterface
         ?string $icon = null,
         ?string $url = null,
     ): bool {
-        $row = $this->repository->find($event, $endpoint);
+        // the op's name is fixed now; Round B adds its outcome tag
+        return \App\Telemetry\Tracer::span('push.welcome', 'welcome ' . $event, function () use ($event, $endpoint, $title, $body, $icon, $url): bool {
+            $row = $this->repository->find($event, $endpoint);
 
-        return $row !== null && $this->deliver([$row], $title, $body, $icon, $url)['sent'] === 1;
+            return $row !== null && $this->deliver($event, [$row], $title, $body, $icon, $url)['sent'] === 1;
+        });
     }
 
     /**
+     * @param string $event every row belongs to it, and a dead row is removed from it only
      * @param list<array{endpoint: string, publicKey: string, authToken: string, tieCode: ?string}> $rows
      *
      * @return array{sent: int, removed: int}
      */
-    private function deliver(array $rows, string $title, string $body, ?string $icon, ?string $url): array
+    private function deliver(string $event, array $rows, string $title, string $body, ?string $icon, ?string $url): array
     {
         // Without GMP or BCMath — the bare php:8.3-alpine dev container; the image installs GMP —
         // the library raises a notice that a displaying dev server prints into the response,
@@ -76,7 +90,7 @@ final class WebPushSender implements PushSenderInterface
             // with it and never reaches the cleanup below — so the row is checked, and
             // dropped, before it is ever queued.
             if (!self::isDeliverable($row)) {
-                $this->repository->delete($row['endpoint']);
+                $this->repository->delete($event, $row['endpoint']);
                 $removed++;
                 continue;
             }
@@ -103,7 +117,7 @@ final class WebPushSender implements PushSenderInterface
                 if ($report->isSuccess()) {
                     $sent++;
                 } elseif ($report->isSubscriptionExpired()) {
-                    $this->repository->delete((string) $report->getRequest()->getUri());
+                    $this->repository->delete($event, (string) $report->getRequest()->getUri());
                     $removed++;
                 }
             }

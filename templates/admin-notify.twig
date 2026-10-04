@@ -12,7 +12,7 @@
 	{% endfor %}
 
 	<form method="post" action="{{ url_for('admin-notify') }}" class="stacked-form" id="notify-form">
-		<input type="hidden" name="token" value="{{ token }}">
+		<input type="hidden" name="csrf" value="{{ csrf }}">
 		<label for="target">Komu</label>
 		<select id="target" name="target">
 			<option value="">Všem odběratelům</option>
@@ -48,7 +48,7 @@
 				<p>{{ entry.hidden ? 'Skryto z Novinek' : 'Znovu zobrazeno' }} ({{ entry.toggledBy }}, {{ entry.toggledAt|date('j. n. Y H:i') }})</p>
 			{% endif %}
 			<form method="post" action="{{ url_for('admin-notify-hidden', {id: entry.id}) }}" class="stacked-form">
-				<input type="hidden" name="token" value="{{ token }}">
+				<input type="hidden" name="csrf" value="{{ csrf }}">
 				<input type="hidden" name="page" value="{{ page }}">
 				<input type="hidden" name="hidden" value="{{ entry.hidden ? '0' : '1' }}">
 				<label for="signature-{{ entry.id }}">Podpis</label>
@@ -62,12 +62,12 @@
 
 	{% if page > 1 or hasOlder %}
 		<p>
-			{% if page > 1 %}<a href="{{ url_for('admin-notify', {}, {token: token, page: page - 1}) }}">Novější</a>{% endif %}
-			{% if hasOlder %}<a href="{{ url_for('admin-notify', {}, {token: token, page: page + 1}) }}">Starší</a>{% endif %}
+			{% if page > 1 %}<a href="{{ url_for('admin-notify', {}, {page: page - 1}) }}">Novější</a>{% endif %}
+			{% if hasOlder %}<a href="{{ url_for('admin-notify', {}, {page: page + 1}) }}">Starší</a>{% endif %}
 		</p>
 	{% endif %}
 
-	<script>
+	<script nonce="{{ cspNonce }}">
 		(function () {
 			// Podpis is the admin's name; this browser remembers it so it need not be typed every time
 			var stored = '';
