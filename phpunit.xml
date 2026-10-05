@@ -11,6 +11,12 @@
         <testsuite name="functional">
             <directory>tests/Functional</directory>
         </testsuite>
+        <!-- Panther + Chrome. Every class is #[Group('browser')] and skips itself without a
+             Chrome (tests/Browser/BrowserTestCase.php); the fast run leaves the group
+             out (PHPUnit's exclude-group option, value browser). -->
+        <testsuite name="browser">
+            <directory>tests/Browser</directory>
+        </testsuite>
     </testsuites>
     <php>
         <!-- Kernel::boot() is called by some tests and initialises Sentry from the

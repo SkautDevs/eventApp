@@ -111,20 +111,40 @@ What the image does, and why:
   `sw.js` is `no-cache`, static files carry the same security headers PHP sets on
   everything it answers, directories are never listed, `*.php` other than the front
   controller is a 404, and text types are gzipped.
-- **Assets are versioned by hand.** When you change `www/style.css`, `www/app.js`,
-  `www/programs.js` or `www/push.js`, bump its `?v=` in `templates/_layout.twig`;
-  otherwise a returning visitor keeps last year's copy. Event logos and favicons are
-  not versioned either: upload a replacement under a new name and change `assets` in the
-  event's config.
+- **Assets carry a content hash.** `templates/_layout.twig` links the stylesheet and
+  every script through `asset_version()`, which appends `?v=` and the first 8 hex
+  characters of the file's sha256 (`App\Http\AssetVersion`, memoised per PHP process by
+  path, mtime and size). A changed file gets a new URL on its own; there is nothing to
+  bump. Event logos and favicons are not versioned: one replaced in place reaches a
+  returning visitor only because the service worker revalidates it past the year-long
+  HTTP cache (its fetch bypasses that cache), never through the cache itself. Upload a
+  replacement under a new name and change `assets` in the event's config.
 - `www/sw.js` must stay at the docroot root. The worker is registered with scope
   `/<slug>/`, which is only allowed for a script at or above that path.
+- **The service worker is the offline copy.** It precaches what `/<slug>/precache.json`
+  lists into `eventapp-<slug>-<version>`. A deploy that changes any stylesheet or
+  script (or adds or removes a listed file) changes the version, and a returning
+  reader picks it up one of two ways, neither needing a reload. A changed `sw.js` goes
+  the browser's way: `sw.js` is `no-cache`, so the browser sees the new script, installs
+  it, and `skipWaiting` + `clients.claim` let it take over. A changed list under an
+  unchanged `sw.js` — the usual deploy, since `sw.js` is never versioned — never makes
+  the browser reinstall; instead the running worker, once per lifetime, after a page
+  came from the network, fetches `precache.json` past the HTTP cache, fills a cache for
+  the new version, switches to it and deletes the old one. Either way a failed fill
+  keeps the reader on the previous cache. `precache.json` and `/<slug>/offline` are app
+  routes; nothing in nginx or `.htaccess` names them. If the worker misbehaves, the
+  rollback is a `sw.js` with only the `push` and `notificationclick` handlers, an
+  `install` that calls `self.skipWaiting()`, and an `activate` that deletes every
+  `eventapp-<slug>-*` cache and then calls `self.clients.claim()`. Without those two
+  calls the rollback waits until every window of the event is closed — in an installed
+  app that can be days — while the misbehaving worker keeps serving.
 
 ### TLS
 
 nginx speaks plain HTTP. Terminate TLS in the reverse proxy in front of it and have it
 send `X-Forwarded-Proto: https`; nginx turns that into `HTTPS=on` for PHP, which is
-what makes the session cookie `Secure`. **HTTPS is required for push notifications**:
-a service worker registers only on a secure origin.
+what makes the session cookie `Secure`. **HTTPS is required for push notifications**,
+the offline copy and the install offer: a service worker registers only on a secure origin.
 
 Order matters when you switch HTTPS on. Issue the certificate and check that
 `https://<domain>/` answers first, then enable the HTTP to HTTPS redirect in the
@@ -196,6 +216,24 @@ Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an even
 | `navigamus25` | `PROGRAM_PROVIDER_NAVIGAMUS25`, `KISSJ_API_KEY_NAVIGAMUS25`, `ADMIN_TOKEN_NAVIGAMUS25` |
 | `miquik26` | `ADMIN_TOKEN_MIQUIK26` only (unlisted; dev fixtures from the lecture workbook, no kissj data yet) |
 
+## Tests and CI
+
+`.github/workflows/ci.yml` runs `vendor/bin/phpunit` on PHP 8.3 and 8.4 on
+`ubuntu-latest`, including the `browser` suite: `symfony/panther` drives the runner's own
+Chrome through its `chromedriver` (`PANTHER_CHROME_DRIVER_BINARY`, found with `command -v
+chromedriver`, falling back to `$CHROMEWEBDRIVER/chromedriver`), and `PANTHER_NO_SKIP=1`
+makes a missing Chrome a failure instead of a skip. Locally the browser tests run against
+`selenium/standalone-chrome`:
+`docker compose --profile browser run --rm --use-aliases test vendor/bin/phpunit --group browser`
+(`docker compose --profile browser stop chrome` afterwards). The `test` service runs as
+root, as `slim` does, so a browser run leaves root-owned compiled templates under
+`var/twig/`; if a later run as your own user cannot write there, remove them from a
+container: `docker run --rm -v "$PWD":/app -w /app php:8.3-alpine rm -rf var/twig/*`.
+There is no Node anywhere in the project. Composer under the `php:8.3-alpine` image
+needs `--ignore-platform-req=ext-gmp --ignore-platform-req=ext-zip` (php-webdriver
+declares `ext-zip`, which Chrome never needs); the production image installs
+`--no-dev` and is unaffected.
+
 ## Adding an event
 
 1. Copy `events/obrok27/` to `events/<slug>/` and edit `config.php` and `content/`.
@@ -203,7 +241,15 @@ Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an even
 2. Set `listed` (shown in the picker or not) and `dates` (`start`, `end` as
    `YYYY-MM-DD`; the picker splits upcoming from past on `end`) in the config.
 3. Copy `www/events/obrok27/` to `www/events/<slug>/` and replace the logos, favicons
-   and manifest.
+   and manifest (its `id`, `start_url`, `scope` and `shortcuts` name the slug; a shortcut
+   only for a screen the event enables). Generate the maskable icon from the 512 one on
+   the manifest's `background_color` — ImageMagick in a throwaway container, there is no
+   image library in the PHP image:
+   `docker run --rm -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" -v "$PWD/www/events/<slug>":/w -w /w alpine:3 sh -c 'apk add --no-cache imagemagick >/dev/null && magick android-chrome-512x512.png -resize 80% -background "<background_color>" -gravity center -extent 512x512 -flatten -strip maskable-512.png && chown "$HOST_UID:$HOST_GID" maskable-512.png'`
+   (`apk add` needs root, hence the `chown` rather than `--user`)
+   and look at it: Android crops it to a circle, so the mark must sit inside the middle
+   80 %. The copied config's `assets.pinnedTab` names obrok27's `safari-pinned-tab.svg`:
+   point it at your own file or remove the key.
 4. Add the per-event variables above to `.env`.
 5. Rebuild: `APP_RELEASE=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build`. The new
    directory is found on the next request; there is no registry to edit.
@@ -263,10 +309,10 @@ Every event is still served by the one instance, so this is a single installatio
    `push.sqlite-wal` and `push.sqlite-shm` next to the file. A backup copies all three
    (or runs `sqlite3 push.sqlite ".backup …"`). Back up before deploying this version:
    its first request rewrites the subscriptions table.
-5. On an **update** of a running instance: if you changed `www/style.css`, `www/app.js`,
-   `www/programs.js` or `www/push.js`, bump its `?v=` in `templates/_layout.twig`
-   (`www/.htaccess` gives them a year's cache). Twig notices a changed template on
-   its own, so `var/twig/` needs no clearing.
+5. On an **update** of a running instance there is nothing to bump: a changed stylesheet
+   or script gets a new `?v=` content hash by itself, which is what makes
+   `www/.htaccess`'s year of `immutable` safe. Twig notices a changed template on its
+   own, so `var/twig/` needs no clearing.
    Sessions: PHP's defaults (`session.gc_maxlifetime=1440`, often a shared `/tmp`) drop a
    login after 24 idle minutes although the cookie lasts 7 days. Set
    `session.gc_maxlifetime` to at least `604800` and, if the host shares `/tmp`, a

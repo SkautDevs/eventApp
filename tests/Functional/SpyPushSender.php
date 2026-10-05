@@ -24,8 +24,9 @@ final class SpyPushSender implements PushSenderInterface
         ?string $icon = null,
         ?string $url = null,
         ?array $tieCodes = null,
+        ?int $programme = null,
     ): array {
-        $this->calls[] = [$title, $body, $icon, $event, $url, $tieCodes];
+        $this->calls[] = [$title, $body, $icon, $event, $url, $tieCodes, $programme];
 
         return ['sent' => 2, 'removed' => 1];
     }

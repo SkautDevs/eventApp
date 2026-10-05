@@ -16,4 +16,4 @@
 	data-doc-title="{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}"
 	data-tab="{{ activeTab }}"
 	data-fetched-at="{{ data_freshness().fetchedAt }}"{% if data_freshness().stale %} data-stale="1"{% endif %}
-	tabindex="-1"><h1 class="sr-only">{{ pageTitle }}</h1>{% block content %}{% endblock %}</section>
+	tabindex="-1"><h1 class="sr-only">{{ pageTitle }}</h1>{% if showFreshness ?? true %}<p class="freshness" data-freshness hidden></p>{% endif %}{% block content %}{% endblock %}</section>

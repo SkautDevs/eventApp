@@ -2,6 +2,8 @@
 
 {% set pageTitle = 'Programy' %}
 {% set activeTab = 'programs' %}
+{# with no programme list at all the outage notice says it; "aktualizováno" beside it would lie #}
+{% set showFreshness = not programmesUnavailable %}
 
 {% block content %}
 	{# data-morph-keep names the attributes on this element that belong to the reader

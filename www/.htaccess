@@ -3,6 +3,8 @@ RewriteEngine On
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L,E=PHP_ROUTED:1]
+# /<slug>/precache.json and /<slug>/offline are app routes like any other: not files,
+# so the rule above hands them to PHP.
 
 # There is no index file under www/events/ or www/events/<slug>/, so with Apache's
 # default listing left on both directories enumerate themselves — which is how an
@@ -34,12 +36,13 @@ Options -Indexes
 	</FilesMatch>
 </IfModule>
 
-# The assets are hand-versioned in templates/_layout.twig (style.css?v=13, app.js?v=3,
-# programs.js?v=3, push.js?v=2), which is the precondition for an immutable lifetime:
-# a changed asset gets a new URL. Bump the query when you change one, or a returning
-# visitor keeps last year's copy.
-# Anything served from here that is NOT versioned — an event logo replaced in place,
-# for instance — will not reach a returning visitor. Give it a new filename instead.
+# The stylesheet and the scripts are linked with a content hash (?v=<first 8 hex of
+# their sha256>, asset_version() in templates/_layout.twig), which is the precondition
+# for an immutable lifetime: a changed file gets a new URL by itself, with nothing to
+# bump. Anything served from here that is NOT versioned — an event logo replaced in
+# place, for instance — reaches a returning visitor only because the service worker
+# revalidates it past this cache (its fetch bypasses the HTTP cache), never through
+# this cache itself. Give it a new filename instead.
 <IfModule mod_expires.c>
 	ExpiresActive On
 	ExpiresByType text/css "access plus 1 year"

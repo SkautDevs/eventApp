@@ -1,0 +1,14 @@
+{% extends fragment ? "_screen.twig" : "_layout.twig" %}
+
+{% set pageTitle = 'Offline' %}
+{% set showFreshness = false %}
+
+{% block content %}
+	{# Shown by the service worker for a page it never cached while there is no network.
+	   It is in the precache list, in both forms, so it is always there. #}
+	<div class="offline">
+		<p>Jsi offline a tahle stránka ještě není uložená.</p>
+		<p>Zkus to znovu, až budeš mít signál.</p>
+		<p><a class="highlight" href="{{ url_for('homepage') }}">Zpět na úvod</a></p>
+	</div>
+{% endblock %}

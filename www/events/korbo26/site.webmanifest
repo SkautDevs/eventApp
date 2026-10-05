@@ -1,13 +1,21 @@
 {
+    "id": "/korbo26/",
     "name": "Korbo 2026",
     "short_name": "Korbo",
+    "lang": "cs",
     "start_url": "/korbo26/",
     "scope": "/korbo26/",
+    "display": "standalone",
+    "orientation": "portrait",
     "icons": [
         { "src": "/events/korbo26/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
-        { "src": "/events/korbo26/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" }
+        { "src": "/events/korbo26/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
+        { "src": "/events/korbo26/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ],
+    "shortcuts": [
+        { "name": "Program", "url": "/korbo26/programy" },
+        { "name": "Novinky", "url": "/korbo26/novinky" }
     ],
     "theme_color": "#ede9e6",
-    "background_color": "#ede9e6",
-    "display": "standalone"
+    "background_color": "#ede9e6"
 }

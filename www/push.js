@@ -73,9 +73,12 @@
 			body: JSON.stringify(subscription.toJSON()),
 		});
 		const result = await response.json().catch(() => ({}));
-		// a 502 subscription-rejected: the push service disowned it and the server dropped the row
 		if (!response.ok || result.saved !== true) {
-			throw new Error('push subscribe failed');
+			const error = new Error('push subscribe failed');
+			// 502 subscription-rejected: the push service disowned it and the server dropped
+			// the row. Nothing else — no network, a 500 — proves anything about it.
+			error.rejected = response.status === 502 && result.error === 'subscription-rejected';
+			throw error;
 		}
 		try {
 			localStorage.setItem(identityKey(), meta('push-identity'));
@@ -181,8 +184,25 @@
 		}
 		const registration = await navigator.serviceWorker.getRegistration(meta('event-base'));
 		const subscription = registration && await registration.pushManager.getSubscription();
-		if (subscription) {
+		if (!subscription) {
+			return;
+		}
+		try {
 			await sendSubscription(subscription);
+		} catch (e) {
+			// Only the push service's refusal proves the subscription dead; a network error
+			// or a 500 proves nothing, and dropping a working one over it would be worse.
+			if (e.rejected === true) {
+				await subscription.unsubscribe().catch(() => {});
+				try {
+					localStorage.removeItem(identityKey());
+				} catch (ignored) {
+					// private mode: nothing was stored
+				}
+				subscribed = false;
+				status = TEXT.off;
+				render();
+			}
 		}
 	};
 
@@ -203,8 +223,9 @@
 	document.addEventListener('DOMContentLoaded', () => {
 		bindPushToggles(document);
 		render();
-		syncIdentity().catch(() => {});
-		detectSubscription().catch(() => {});
+		// one after the other: a re-sync that finds the subscription dead lets go of it,
+		// and only then is the browser asked whether it is still subscribed
+		syncIdentity().catch(() => {}).then(() => detectSubscription()).catch(() => {});
 	});
 	// the morph writes the server's label, class and hidden back; render() puts the state back
 	document.addEventListener('screen:shown', event => {

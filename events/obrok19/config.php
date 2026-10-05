@@ -118,6 +118,9 @@ return [
         'menuLogoOnState' => 'events/obrok19/Obrok19_bily_stit_160.png',
         'mainLogo' => 'events/obrok19/Obrok19_tmave_logo_800.png',
         'notificationIcon' => 'events/obrok19/Obrok19_minilogo.png',
+        // Safari's pinned-tab mask; an event without the drawing leaves the key out and the
+        // layout links nothing (rather than a 404 on every page)
+        'pinnedTab' => 'events/obrok19/safari-pinned-tab.svg',
     ],
 
     'homepage' => [

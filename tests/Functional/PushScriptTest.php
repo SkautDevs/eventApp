@@ -81,11 +81,27 @@ final class PushScriptTest extends TestCase
         self::assertStringNotContainsString('nepodporuje', self::script());
     }
 
+    /** Only the push service's own refusal proves a subscription dead. */
+    public function testARejectedResyncLetsGoOfTheBrowserSubscription(): void
+    {
+        $js = self::code();
+
+        self::assertStringContainsString("error.rejected = response.status === 502 && result.error === 'subscription-rejected';", $js);
+        self::assertStringContainsString('if (e.rejected === true) {', $js);
+        // enablePush() drops half a subscription, syncIdentity() a rejected one
+        self::assertSame(2, substr_count($js, 'await subscription.unsubscribe().catch(() => {});'));
+    }
+
+    public function testTheSubscriptionIsDetectedAfterTheResync(): void
+    {
+        self::assertStringContainsString('syncIdentity().catch(() => {}).then(() => detectSubscription()).catch(() => {});', self::code());
+    }
+
     public function testTheLayoutShipsTheNewScript(): void
     {
         $layout = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig');
 
-        self::assertStringContainsString('<script src="push.js?v=10" defer></script>', $layout);
-        self::assertSame(1, preg_match_all('/push\.js\?v=\d+/', $layout));
+        self::assertStringContainsString('<script src="{{ asset_version(\'push.js\') }}" defer></script>', $layout);
+        self::assertSame(1, substr_count($layout, "asset_version('push.js')"));
     }
 }

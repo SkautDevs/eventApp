@@ -86,11 +86,14 @@ final class ProgramsModule implements ModuleInterface
 
             $all = [];
             $sections = [];
+            // no list at all, not even a stale one: the template then shows no freshness line
+            $unavailable = false;
             try {
                 $all = $provider->getPrograms();
                 $sections = $provider->getSections();
             } catch (TransferException | ProgramDataException) {
                 $notices[] = 'Programy se nepodařilo načíst, zkuste to prosím později.';
+                $unavailable = true;
             }
 
             $model = ProgramsModule::buildViewModel($sections, $all, $mine, $auth->isLogged());
@@ -117,6 +120,7 @@ final class ProgramsModule implements ModuleInterface
 
             return $this->get(Twig::class)->render($response, 'programs.twig', $model + [
                 'notice' => $notices === [] ? null : implode(' ', $notices),
+                'programmesUnavailable' => $unavailable,
                 'isLogged' => $auth->isLogged(),
                 'identity' => $auth->identity()?->displayName,
                 'tieError' => $tieError,

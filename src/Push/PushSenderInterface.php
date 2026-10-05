@@ -11,6 +11,8 @@ interface PushSenderInterface
      *                         only honours one inside the event's own scope
      * @param list<string>|null $tieCodes null reaches every subscriber of the event, a list
      *                                    only the subscriptions of those TIE codes
+     * @param int|null $programme the programme a message is about, or null; it travels in
+     *                            the payload so the open app can refresh that screen too
      *
      * @return array{sent: int, removed: int}
      */
@@ -21,6 +23,7 @@ interface PushSenderInterface
         ?string $icon = null,
         ?string $url = null,
         ?array $tieCodes = null,
+        ?int $programme = null,
     ): array;
 
     /**

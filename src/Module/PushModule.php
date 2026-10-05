@@ -257,6 +257,7 @@ final class PushModule implements ModuleInterface
                     ? $base . '/novinky'
                     : sprintf('%s/programy#section-%d-program-%d', $base, $programme['section']['id'] ?? 0, $programme['id']),
                 tieCodes: $tieCodes,
+                programme: $programme === null ? null : (int) $programme['id'],
             );
             $unreached = $tieCodes === null
                 ? null

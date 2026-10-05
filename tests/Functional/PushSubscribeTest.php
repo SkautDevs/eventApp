@@ -192,7 +192,7 @@ final class PushSubscribeTest extends AppTestCase
     public function testASenderThatThrowsIsAFailedWelcome(): void
     {
         $sender = new class implements \App\Push\PushSenderInterface {
-            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $tieCodes = null): array
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $tieCodes = null, ?int $programme = null): array
             {
                 return ['sent' => 0, 'removed' => 0];
             }
