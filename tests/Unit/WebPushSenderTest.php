@@ -295,6 +295,16 @@ final class WebPushSenderTest extends TestCase
         $claims = json_decode((string) base64_decode(strtr(explode('.', $request->getHeaderLine('Authorization'))[1], '-_', '+/')), true);
         self::assertSame('https://example.org/kontakt', $claims['sub']);
     }
+
+    /** The worker forwards `programme` to the open app, which then refreshes the Program screen too. */
+    public function testThePayloadCarriesTheProgrammeOrNull(): void
+    {
+        self::assertSame(
+            ['title' => 'Změna', 'body' => 'Nástup v 18:00', 'icon' => 'events/korbo26/logo.png', 'url' => '/korbo26/novinky', 'programme' => null],
+            json_decode(WebPushSender::payload('Změna', 'Nástup v 18:00', 'events/korbo26/logo.png', '/korbo26/novinky', null), true),
+        );
+        self::assertSame(7, json_decode(WebPushSender::payload('T', 'B', null, null, 7), true)['programme']);
+    }
 }
 
 /** The log lines a test needs to see, nothing more. */

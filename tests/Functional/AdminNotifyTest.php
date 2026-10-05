@@ -361,6 +361,8 @@ final class AdminNotifyTest extends AppTestCase
         self::assertSame(303, $response->getStatusCode());
         self::assertNull($this->sender->calls[0][5]);
         self::assertSame('/korbo26/novinky', $this->sender->calls[0][4]);
+        self::assertCount(7, $this->sender->calls[0]);
+        self::assertNull($this->sender->calls[0][6], 'a message for everyone names no programme');
         $logged = $this->messages->page('korbo26', 1)[0];
         self::assertSame(['Změna', 'Lung', null, 'Všem'], [$logged['title'], $logged['signature'], $logged['programmeId'], $logged['targetLabel']]);
         self::assertNull($logged['unreached']);
@@ -383,6 +385,8 @@ final class AdminNotifyTest extends AppTestCase
         self::assertSame(303, $response->getStatusCode());
         self::assertContains('KORBO1', $this->sender->calls[0][5]);
         self::assertSame(sprintf('/korbo26/programy#section-%d-program-%d', $programme['section']['id'], $programme['id']), $this->sender->calls[0][4]);
+        self::assertCount(7, $this->sender->calls[0]);
+        self::assertSame($programme['id'], $this->sender->calls[0][6], 'the payload names the programme');
         $logged = $this->messages->page('korbo26', 1)[0];
         self::assertSame($programme['id'], $logged['programmeId']);
         self::assertSame($programme['name'], $logged['targetLabel']);

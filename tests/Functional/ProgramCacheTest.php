@@ -103,4 +103,21 @@ final class ProgramCacheTest extends AppTestCase
         self::assertStringNotContainsString('data-stale', $html);
         self::assertSame([], $this->reported);
     }
+
+    /**
+     * Carry-over: with nothing cached the screen carries the request time and no data-stale
+     * beside the outage notice — any freshness wording would be a lie, so there is none.
+     * A stale entry keeps the line ("naposledy načteno", from its data-stale).
+     */
+    public function testAnOutageWithoutAnEntryCarriesNoFreshnessLine(): void
+    {
+        foreach ([[], ['X-Screen' => '1']] as $headers) {
+            $html = (string) $this->request($this->appDuringAnOutage(withEntry: false), 'GET', '/programy', null, $headers)->getBody();
+            self::assertStringContainsString('Programy se nepodařilo načíst', $html);
+            self::assertStringNotContainsString('data-freshness', $html);
+        }
+
+        $stale = (string) $this->request($this->appDuringAnOutage(), 'GET', '/programy')->getBody();
+        self::assertStringContainsString('<p class="freshness" data-freshness hidden></p>', $stale);
+    }
 }

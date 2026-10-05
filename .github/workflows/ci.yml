@@ -20,11 +20,18 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version-file: .github/php-version
-          extensions: pdo_sqlite, curl, mbstring, openssl, gmp
+          extensions: pdo_sqlite, curl, mbstring, openssl, gmp, zip
           coverage: none
           tools: composer:v2
       - run: composer install --no-progress --prefer-dist --no-interaction
+      # ubuntu-latest ships Chrome and a matching chromedriver; the browser suite runs in
+      # local mode against it, and PANTHER_NO_SKIP turns a missing driver into a failure,
+      # so the deploy gate (deploy.yml calls this workflow) never passes on skipped tests
+      - name: Locate chromedriver
+        run: echo "PANTHER_CHROME_DRIVER_BINARY=$(command -v chromedriver || echo "$CHROMEWEBDRIVER/chromedriver")" >> "$GITHUB_ENV"
       - run: composer test
+        env:
+          PANTHER_NO_SKIP: '1'
 
   # Its own job so an advisory shows up as a distinct failed check rather than
   # being lost at the tail of a test run. No `|| true` and no continue-on-error:

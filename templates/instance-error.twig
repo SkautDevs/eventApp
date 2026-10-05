@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>{{ notFound ? 'Nenalezeno' : 'Chyba' }}</title>
+	{# no event, so no theme: the picker's own neutral palette #}
+	<style>
+		:root { --bg: #f7f7f5; --fg: #1f2320; --muted: #5c5f5a; }
+		@media (prefers-color-scheme: dark) { :root { --bg: #121412; --fg: #e8e9e6; --muted: #a9aca6; } }
+		body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, sans-serif; }
+		main { max-width: 30rem; margin: 0 auto; padding: 24px 16px; }
+		a { color: inherit; }
+		pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; color: var(--muted); }
+	</style>
+</head>
+<body>
+<main>
+	<p>{{ notFound ? 'Tohle tady není.' : 'Něco se pokazilo. Zkus to za chvíli.' }}</p>
+	<p><a href="/">Zpět na úvod</a></p>
+	{% if details %}
+		<details class="error-details">
+			<summary>Podrobnosti chyby</summary>
+			<pre>{{ details }}</pre>
+		</details>
+	{% endif %}
+</main>
+</body>
+</html>

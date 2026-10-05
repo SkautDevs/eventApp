@@ -105,7 +105,9 @@ final class ScreenFragmentTest extends AppTestCase
         $app = $this->createApp();
 
         $html = (string) $this->request($app, 'GET', '/tohle-tady-neni', null, ['X-Screen' => '1'])->getBody();
-        self::assertStringNotContainsString('<section class="screen"', $html);
+        // the whole document, shell and all — never a bare section the loader could insert
+        self::assertStringStartsWith('<!DOCTYPE html>', trim($html));
+        self::assertStringContainsString('class="appbar"', $html);
 
         $loader = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
         self::assertStringContainsString('if (!response.ok) {', $loader);
@@ -177,5 +179,43 @@ final class ScreenFragmentTest extends AppTestCase
     {
         unset($_ENV['ADMIN_TOKEN_OBROK19']);
         parent::tearDown();
+    }
+
+    /** shell.js fills it; the server only states where it goes. */
+    public function testEveryScreenHasAnEmptyFreshnessLineRightAfterItsHeading(): void
+    {
+        $app = $this->createApp();
+
+        foreach (array_keys(self::SCREENS) as $path) {
+            foreach ([[], ['X-Screen' => '1']] as $headers) {
+                $html = (string) $this->request($app, 'GET', $path, null, $headers)->getBody();
+                $mode = $path . ($headers === [] ? ' (page)' : ' (fragment)');
+
+                self::assertSame(1, substr_count($html, 'data-freshness'), $mode);
+                self::assertMatchesRegularExpression('~<section class="screen"[^>]*\sdata-fetched-at="[^"]+"[^>]*><h1 class="sr-only">[^<]*</h1><p class="freshness" data-freshness hidden></p>~', $html, $mode);
+            }
+        }
+    }
+
+    public function testTheNoscriptNoticeIsInTheDocumentOnly(): void
+    {
+        $app = $this->createApp();
+
+        self::assertStringContainsString(
+            '<main id="obsah" tabindex="-1">' . "\n\t" . '<noscript><p class="noscript">Aplikace potřebuje zapnutý JavaScript.</p></noscript>',
+            (string) $this->request($app, 'GET', '/')->getBody(),
+        );
+        self::assertStringNotContainsString('<noscript>', (string) $this->request($app, 'GET', '/', null, ['X-Screen' => '1'])->getBody());
+    }
+
+    public function testTheTabBarCarriesTheLoadingBar(): void
+    {
+        $app = $this->createApp();
+
+        self::assertMatchesRegularExpression(
+            '~<nav class="tabbar" aria-label="Hlavní menu">\s*<span class="progress" data-progress aria-hidden="true"></span>~',
+            (string) $this->request($app, 'GET', '/novinky')->getBody(),
+        );
+        self::assertStringNotContainsString('data-progress', (string) $this->request($app, 'GET', '/novinky', null, ['X-Screen' => '1'])->getBody());
     }
 }

@@ -35,6 +35,8 @@
 	/** path -> {section, html, fetchedAt, shownAt, scrollTop, pending, checking} */
 	var screens = new Map();
 	var currentPath = first.dataset.screen || location.pathname;
+	/** Paths the worker reported as changed before the loader had them (see the messages below). */
+	var staleOnArrival = new Set();
 
 	function pathOf(href) {
 		return new URL(href, location.href).pathname;
@@ -117,7 +119,8 @@
 				var entry = {
 					section: section,
 					html: section.innerHTML,
-					fetchedAt: Date.now(),
+					// the worker may already have said this copy is old
+					fetchedAt: staleOnArrival.delete(path) ? 0 : Date.now(),
 					shownAt: 0,
 					scrollTop: 0,
 					pending: null,
@@ -214,14 +217,24 @@
 	 * server stopped sending.
 	 */
 	function syncFreshness(section, fresh) {
+		var changed = false;
 		['data-fetched-at', 'data-stale'].forEach(function (name) {
 			var value = fresh.getAttribute(name);
 			if (value === null) {
-				section.removeAttribute(name);
+				if (section.hasAttribute(name)) {
+					section.removeAttribute(name);
+					changed = true;
+				}
 			} else if (section.getAttribute(name) !== value) {
 				section.setAttribute(name, value);
+				changed = true;
 			}
 		});
+		// the unchanged path dispatches nothing else, and the freshness line (shell.js)
+		// still has to learn the new time
+		if (changed) {
+			section.dispatchEvent(new CustomEvent('screen:freshness', {bubbles: true}));
+		}
 	}
 
 	function patch(from, to) {
@@ -394,7 +407,9 @@
 			return;
 		}
 		entry.checking = true;
-		fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin'})
+		// no-cache: the worker answers this from the network (www/sw.js); its cached copy
+		// is what the reader is already looking at
+		fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})
 			.then(function (response) {
 				// the same two rules as load(): a non-200 and a redirect are both
 				// something other than this screen. A revalidation that finds one
@@ -566,10 +581,15 @@
 		wantedPath = path;
 		var entry = screens.get(path);
 		if (entry) {
+			// an earlier tap may still be loading; this one is not, so the bar goes
+			document.dispatchEvent(new CustomEvent('screen:loaded'));
 			show(path, entry);
 
 			return;
 		}
+		// the loading bar (shell.js): only for a fetch the reader is waiting for, never
+		// for a background revalidation
+		document.dispatchEvent(new CustomEvent('screen:loading'));
 		load(path).then(function (loaded) {
 			// An overtaken screen that did arrive is kept: it is a warm cache entry
 			// either way, and the next visit to it is then instant. It is only not
@@ -577,6 +597,7 @@
 			if (token !== navigation) {
 				return;
 			}
+			document.dispatchEvent(new CustomEvent('screen:loaded'));
 			if (!loaded) {
 				// The fallback throws the whole app away — the cache, the map's live
 				// iframe, the timeline's zoom — so it may only fire for the
@@ -587,6 +608,46 @@
 			}
 			show(path, loaded);
 		});
+	}
+
+	// --- the worker's messages ---------------------------------------------
+
+	/**
+	 * The service worker (www/sw.js) knows two things the loader does not: that the copy
+	 * of a screen it served differs from the server's (screen-updated), and that a push
+	 * has just arrived (news-updated). Either way the cached screen is marked stale and,
+	 * if it is the one on show, revalidated now; the morph does the rest. A screen not
+	 * shown yet is revalidated by show() the next time it is.
+	 */
+	function refreshNow(entry, path) {
+		entry.fetchedAt = 0;
+		if (path === currentPath) {
+			revalidate(path, entry);
+		}
+	}
+
+	if ('serviceWorker' in navigator) {
+		navigator.serviceWorker.addEventListener('message', function (event) {
+			var data = event.data || {};
+			if (data.type === 'screen-updated' && typeof data.path === 'string') {
+				var entry = screens.get(data.path);
+				if (entry) {
+					refreshNow(entry, data.path);
+				} else {
+					// still in flight: load() files it as stale when it lands
+					staleOnArrival.add(data.path);
+				}
+			} else if (data.type === 'news-updated') {
+				screens.forEach(function (candidate, path) {
+					var tab = candidate.section.dataset.tab;
+					if (tab === 'news' || (tab === 'programs' && typeof data.programme === 'number')) {
+						refreshNow(candidate, path);
+					}
+				});
+			}
+		});
+		// messages wait in a queue until this is called (or onmessage is set)
+		navigator.serviceWorker.startMessages();
 	}
 
 	// --- links ------------------------------------------------------------

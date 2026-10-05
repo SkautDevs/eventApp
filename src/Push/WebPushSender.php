@@ -58,17 +58,18 @@ final class WebPushSender implements PushSenderInterface
         ?string $icon = null,
         ?string $url = null,
         ?array $tieCodes = null,
+        ?int $programme = null,
     ): array {
         $rows = $this->repository()->forEvent($event, $tieCodes);
 
         $result = Tracer::span(
             'push.send',
             'event ' . $event,
-            function () use ($event, $rows, $title, $body, $icon, $url, $tieCodes): array {
+            function () use ($event, $rows, $title, $body, $icon, $url, $tieCodes, $programme): array {
                 $target = $tieCodes === null ? 'event' : 'programme';
                 Tracer::spanTag('push.target', $target);
 
-                $result = $this->deliver($event, $rows, $title, $body, $icon, $url);
+                $result = $this->deliver($event, $rows, $title, $body, $icon, $url, $programme);
                 if ($result['failed'] > 0) {
                     // counts only: no endpoint, no key, no text of the message
                     $this->logger->warning('push.failed', [
@@ -134,6 +135,16 @@ final class WebPushSender implements PushSenderInterface
         }
     }
 
+    /**
+     * What the service worker receives. `programme` is the id of the programme a message is
+     * for, or null for everyone: the worker forwards it to the open app (`news-updated`),
+     * which then refreshes the Program screen as well as Novinky.
+     */
+    public static function payload(string $title, string $body, ?string $icon, ?string $url, ?int $programme): string
+    {
+        return (string) json_encode(['title' => $title, 'body' => $body, 'icon' => $icon, 'url' => $url, 'programme' => $programme]);
+    }
+
     private function welcome(string $event, string $endpoint, string $title, string $body, ?string $icon, ?string $url): SendOutcome
     {
         $row = $this->repository()->find($event, $endpoint);
@@ -170,7 +181,7 @@ final class WebPushSender implements PushSenderInterface
      * @return array{sent: int, removed: int, failed: int} failed: neither delivered nor
      *         removed — a refusal other than 404/410 (a VAPID mismatch is a 403), or a throw
      */
-    private function deliver(string $event, array $rows, string $title, string $body, ?string $icon, ?string $url): array
+    private function deliver(string $event, array $rows, string $title, string $body, ?string $icon, ?string $url, ?int $programme = null): array
     {
         $webPush = self::webPush([
             'subject' => $this->vapidSubject,
@@ -178,7 +189,7 @@ final class WebPushSender implements PushSenderInterface
             'privateKey' => $this->vapidPrivateKey,
         ], $this->clientOptions);
 
-        $payload = json_encode(['title' => $title, 'body' => $body, 'icon' => $icon, 'url' => $url]);
+        $payload = self::payload($title, $body, $icon, $url, $programme);
         $removed = 0;
         $failed = 0;
         $queued = 0;

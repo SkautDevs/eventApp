@@ -90,16 +90,22 @@ final class Session
     }
 
     /**
-     * Issues a fresh session ID and destroys the old one, keeping the session data.
-     * Called on every privilege change so a planted or leaked ID stops being the
-     * one the logged-in session answers to. A no-op under CLI, where no session
-     * is ever started and $_SESSION is a plain array.
+     * Issues a fresh session ID, carrying the session data over, and leaves the old
+     * session behind holding the data as it is at this moment. Called on every privilege
+     * change, *before* the privilege is granted and *after* it is revoked, so the old ID
+     * only ever holds the less privileged state: a planted or leaked ID never becomes the
+     * logged-in session. The old session is not destroyed, because under strict mode a
+     * request that still carries its ID — the service worker's install and refill bursts
+     * send a couple of dozen with the cookie of the moment — would get a new empty session
+     * and a Set-Cookie that replaces the one the login just set. Left alone, it answers
+     * logged out and sets nothing, and the session GC removes it like any idle one.
+     * A no-op under CLI, where no session is ever started and $_SESSION is a plain array.
      */
     public function regenerateId(): void
     {
         $this->start();
         if (session_status() === \PHP_SESSION_ACTIVE) {
-            session_regenerate_id(true);
+            session_regenerate_id(false);
         }
     }
 }

@@ -32,7 +32,11 @@
 	<link rel="apple-touch-icon" sizes="180x180" href="events/{{ event.slug }}/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="events/{{ event.slug }}/favicon-32x32.png">
 	<link rel="icon" type="image/png" sizes="16x16" href="events/{{ event.slug }}/favicon-16x16.png">
-	<link rel="mask-icon" href="events/{{ event.slug }}/safari-pinned-tab.svg" color="{{ event.colors.base }}">
+	{# only for an event that ships the drawing: korbo26, miquik26 and navigamus25 do not,
+	   and the old unconditional link was a 404 on every page there #}
+	{% if event.assets.pinnedTab ?? false %}
+		<link rel="mask-icon" href="{{ event.assets.pinnedTab }}" color="{{ event.colors.base }}">
+	{% endif %}
 	<meta name="theme-color" content="{{ hasDark ? event.roles.light.structure|default(event.colors.base) : event.colors.base }}"
 		{% if hasDark %}data-light="{{ event.roles.light.structure|default(event.colors.base) }}" data-dark="{{ event.roles.dark.structure }}"{% endif %}>
 	{% if hasDark %}
@@ -99,19 +103,21 @@
 		}
 	{% endif %}
 	</style>
-	<link rel="stylesheet" href="style.css?v=15">
+	<link rel="stylesheet" href="{{ asset_version('style.css') }}">
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="event-base" content="{{ base }}/">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
 	<meta name="push-identity" content="{{ auth_tie_code() }}">
-	<script src="push.js?v=10" defer></script>
+	<script src="{{ asset_version('push.js') }}" defer></script>
+	{# the installed-app concerns: the offline worker on every page #}
+	<script src="{{ asset_version('shell.js') }}" defer></script>
 	{# the screen loader: without it every link is a plain navigation and the app is
 	   exactly what it was #}
-	<script src="app.js?v=5" defer></script>
+	<script src="{{ asset_version('app.js') }}" defer></script>
 	{% if 'programs' in event.features %}
 		{# the Program screen's behaviour used to be inline in <head>, which no screen swap
 		   could ever reach; it lives here now and the loader calls into it #}
-		<script src="programs.js?v=4" defer></script>
+		<script src="{{ asset_version('programs.js') }}" defer></script>
 	{% endif %}
 	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}
@@ -164,6 +170,11 @@
    one it leaves. The wrapper is emitted identically by _screen.twig, so a screen that
    arrived over the wire is indistinguishable from this one. #}
 <main id="obsah" tabindex="-1">
+	<noscript><p class="noscript">Aplikace potřebuje zapnutý JavaScript.</p></noscript>
+	{# The freshness line after the <h1> is filled by www/shell.js ("aktualizováno 14:05")
+	   from the two attributes below. A template that has nothing fresh to report — the
+	   Program screen when the programme list could not be read at all, the error and
+	   offline pages — sets showFreshness to false. #}
 	{# data-fetched-at is when the provider data on this screen was fetched (the request
 	   time when it used none); data-stale marks an old copy served because kissj failed.
 	   The handler has already run when this renders, so both are final here. #}
@@ -174,7 +185,7 @@
 		data-doc-title="{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}"
 		data-tab="{{ activeTab }}"
 		data-fetched-at="{{ data_freshness().fetchedAt }}"{% if data_freshness().stale %} data-stale="1"{% endif %}
-		tabindex="-1"><h1 class="sr-only">{{ pageTitle }}</h1>{% block content %}{% endblock %}</section>
+		tabindex="-1"><h1 class="sr-only">{{ pageTitle }}</h1>{% if showFreshness ?? true %}<p class="freshness" data-freshness hidden></p>{% endif %}{% block content %}{% endblock %}</section>
 </main>
 
 {# The one live region in the app. A screen swap changes the document title and the
@@ -185,6 +196,9 @@
 <p class="sr-only" role="status" aria-live="polite" data-screen-live></p>
 
 <nav class="tabbar" aria-label="Hlavní menu">
+	{# the loading bar along the bar's top edge; www/shell.js shows it while the loader
+	   waits for a screen it has never shown #}
+	<span class="progress" data-progress aria-hidden="true"></span>
 	{# aria-current is the only thing that tells a screen reader which of the five you
 	   are on: the fill and the chip are pixels, and .is-active is a class name. #}
 	<a class="tab{{ activeTab == 'homepage' ? ' is-active' }}" href="{{ url_for('homepage') }}"{% if activeTab == 'homepage' %} aria-current="page"{% endif %}>

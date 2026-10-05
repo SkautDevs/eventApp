@@ -2,8 +2,37 @@ services:
     slim:
         image: php:8.3-alpine
         working_dir: /var/www
-        command: php -S 0.0.0.0:8080 -t www
+        # bin/router.php: without it the built-in server 404s /<slug>/precache.json
+        command: php -S 0.0.0.0:8080 -t www bin/router.php
         ports:
             - 8080:8080
         volumes:
             - .:/var/www
+
+    # Browser tests (tests/Browser), never started by a plain `docker compose up`:
+    #   docker compose --profile browser run --rm --use-aliases test vendor/bin/phpunit --group browser
+    # --use-aliases is what makes this container reachable as `test` from Chrome.
+    # Stop Chrome afterwards: docker compose --profile browser stop chrome
+    chrome:
+        image: selenium/standalone-chrome:latest
+        profiles: [browser]
+        shm_size: 2g
+        healthcheck:
+            test: ["CMD-SHELL", "curl -sf http://localhost:4444/status | grep -Eq '\"ready\": ?true'"]
+            interval: 2s
+            timeout: 3s
+            retries: 30
+
+    test:
+        image: php:8.3-alpine
+        profiles: [browser]
+        working_dir: /app
+        volumes:
+            - .:/app
+        environment:
+            PANTHER_SELENIUM_URL: http://chrome:4444/wd/hub
+            BROWSER_TEST_HOST: test
+        depends_on:
+            chrome:
+                condition: service_healthy
+        command: vendor/bin/phpunit --group browser

@@ -104,6 +104,49 @@ final class ScreenMorphTest extends AppTestCase
         self::assertSame(1, preg_match_all('/^\s*syncFreshness\(entry\.section, fresh\);/m', $code), 'the unchanged path');
         // and the unchanged path drops a held older morph, or it would re-apply over this fetch
         self::assertSame(1, preg_match_all('/^\s*entry\.pending = null;\s*\n\s*syncFreshness\(entry\.section, fresh\);/m', $code), 'the unchanged path clears pending');
-        self::assertStringContainsString('app.js?v=5', (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig'));
+        self::assertStringContainsString("asset_version('app.js')", (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig'));
+    }
+
+    /** The worker serves load() from its cache and sends revalidate() to the network (Task 7). */
+    public function testABackgroundRevalidationAsksTheNetwork(): void
+    {
+        $js = $this->loader();
+
+        self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})"), 'revalidate()');
+        self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin'})"), 'load()');
+    }
+
+    public function testAFetchTheReaderWaitsForIsAnnounced(): void
+    {
+        $js = $this->loader();
+
+        self::assertSame(1, substr_count($js, "document.dispatchEvent(new CustomEvent('screen:loading'));"));
+        // the fetch settled for this navigation, or a later tap was answered from the cache
+        self::assertSame(2, substr_count($js, "document.dispatchEvent(new CustomEvent('screen:loaded'));"));
+    }
+
+    /** Review Focus 4: a change reported before the screen arrived is not forgotten. */
+    public function testTheWorkersMessagesMarkScreensStale(): void
+    {
+        $js = $this->loader();
+
+        self::assertStringContainsString("navigator.serviceWorker.addEventListener('message', function (event) {", $js);
+        self::assertStringContainsString('navigator.serviceWorker.startMessages();', $js);
+        self::assertStringContainsString("data.type === 'screen-updated'", $js);
+        self::assertStringContainsString("data.type === 'news-updated'", $js);
+        self::assertStringContainsString("tab === 'news' || (tab === 'programs' && typeof data.programme === 'number')", $js);
+        self::assertStringContainsString('staleOnArrival.add(data.path);', $js);
+        self::assertStringContainsString('fetchedAt: staleOnArrival.delete(path) ? 0 : Date.now(),', $js);
+    }
+
+    public function testAFreshnessChangeIsAnnounced(): void
+    {
+        $js = $this->loader();
+        $start = strpos($js, 'function syncFreshness(section, fresh) {');
+        self::assertNotFalse($start);
+        $body = substr($js, $start, (int) strpos($js, "\n\t}\n", $start) - $start);
+
+        self::assertStringContainsString("section.dispatchEvent(new CustomEvent('screen:freshness', {bubbles: true}));", $body);
+        self::assertStringContainsString('if (changed) {', $body);
     }
 }

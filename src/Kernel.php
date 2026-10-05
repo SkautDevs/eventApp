@@ -85,17 +85,23 @@ final class Kernel
 
     /**
      * Error pages: details only under APP_DEBUG, every real error filed with Sentry and
-     * logged, a 404 or 405 not.
+     * logged, a 404 or 405 not. HTML errors are rendered by $template (TwigErrorRenderer);
+     * a client that asks for JSON or XML keeps Slim's own renderer.
      */
-    private static function addErrorHandling(App $app, ContainerInterface $container): void
+    private static function addErrorHandling(App $app, ContainerInterface $container, string $template): void
     {
         $debug = self::debug();
         $middleware = $app->addErrorMiddleware(displayErrorDetails: $debug, logErrors: true, logErrorDetails: true);
-        $middleware->setDefaultErrorHandler(new QuietErrorHandler(
+        $handler = new QuietErrorHandler(
             $app->getCallableResolver(),
             $app->getResponseFactory(),
             $container->get(self::ERRORS_LOGGER),
-        ));
+        );
+        $renderer = new Http\TwigErrorRenderer($container->get(Twig::class), $template);
+        $handler->registerErrorRenderer('text/html', $renderer);
+        // Accept: */* (and a fragment request) picks the default, which is the page too
+        $handler->setDefaultErrorRenderer('text/html', $renderer);
+        $middleware->setDefaultErrorHandler($handler);
     }
 
     /** The error handler's own channel: the exception already went to Sentry through the Collector. */
@@ -135,7 +141,7 @@ final class Kernel
         // "GET /", and only an unmatched path keeps the name "unmatched"
         $app->add(new Telemetry\RouteNameMiddleware(null));
         $app->addRoutingMiddleware();
-        self::addErrorHandling($app, $container);
+        self::addErrorHandling($app, $container, 'instance-error.twig');
         self::addSecurityHeadersMiddleware($app);
         // after the security headers, so it too is outside the error middleware
         $app->add(new Http\CspMiddleware($container->get(Twig::class)));
@@ -213,6 +219,9 @@ final class Kernel
             },
             // how old this request's provider data is; the screen middleware resets it per request
             Program\Freshness::class => fn (): Program\Freshness => new Program\Freshness(),
+            // content hashes for the stylesheet and the scripts: asset_version() in the
+            // layout, and the service worker's precache list (Task 5)
+            Http\AssetVersion::class => fn (): Http\AssetVersion => new Http\AssetVersion($root . '/www'),
             Session::class => fn (): Session => new Session($event->slug),
             Auth\Authenticator::class => \DI\autowire(),
             Auth\LoginThrottle::class => \DI\autowire(),
@@ -301,6 +310,12 @@ final class Kernel
                     'data_freshness',
                     fn (): array => $c->get(Program\Freshness::class)->forView(),
                 ));
+                // `style.css` → `style.css?v=<first 8 hex of its sha256>`: the URL changes
+                // exactly when the bytes do, so nothing is bumped by hand
+                $env->addFunction(new \Twig\TwigFunction(
+                    'asset_version',
+                    fn (string $path): string => $c->get(Http\AssetVersion::class)->url($path),
+                ));
                 $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
                     $day = (new \DateTime($datetimeArray['date']))->format('D');
 
@@ -337,7 +352,7 @@ final class Kernel
         $app->add(new Telemetry\RouteNameMiddleware($event->slug));
         $app->addRoutingMiddleware();
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
-        self::addErrorHandling($app, $container);
+        self::addErrorHandling($app, $container, 'error.twig');
         // Added after the error middleware, so it sits outside it rather than inside it;
         // the security headers, the CSP and the transaction middleware wrap it in turn.
         // A thrown 404 or 500 never reaches the route, so a header applied further in
@@ -489,20 +504,57 @@ final class Kernel
 
             return $response->withHeader('Location', $base . '/profil')->withStatus(302);
         })->setName('tie-logout');
+
+        // The worker's last fallback for a page that is neither cached nor reachable. It is
+        // in the precache list, so every installed worker holds it.
+        $app->get('/offline', function ($request, $response) {
+            return $this->get(Twig::class)->render($response, 'offline.twig');
+        })->setName('offline');
+
+        // What the service worker keeps (www/sw.js install): the screens, the content-hashed
+        // assets, the optional handbook. no-cache: the worker must see a new list the moment
+        // an asset changes. A path with a dot: bin/router.php gets it past `php -S`.
+        $app->get('/precache.json', function ($request, $response) use ($app) {
+            $event = $this->get(EventConfig::class);
+            $body = Http\Precache::build(
+                $event,
+                $app->getRouteCollector()->getRouteParser(),
+                $this->get(Http\AssetVersion::class),
+                array_column(Kernel::menu($this, $event), 'route'),
+                dirname(__DIR__) . '/www',
+            );
+            $response->getBody()->write((string) json_encode($body, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withHeader('Cache-Control', 'no-cache');
+        })->setName('precache');
     }
 
     private static function registerModules(App $app, ContainerInterface $container, EventConfig $event): void
     {
+        foreach ($event->features as $feature) {
+            $container->get(Module\ModuleRegistry::classFor($feature))->registerRoutes($app);
+        }
+        $container->get(Twig::class)->getEnvironment()->addGlobal('menu', self::menu($container, $event));
+    }
+
+    /**
+     * The tab bar: every enabled module's menu item, in its own order rather than the
+     * order the features happen to be listed in. The precache list reads it too.
+     *
+     * @return list<array{label: string, route: string, icon: string, order: int, key: string}>
+     */
+    public static function menu(ContainerInterface $container, EventConfig $event): array
+    {
         $menu = [];
         foreach ($event->features as $feature) {
-            $module = $container->get(Module\ModuleRegistry::classFor($feature));
-            $module->registerRoutes($app);
-            if (($item = $module->menuItem()) !== null) {
+            if (($item = $container->get(Module\ModuleRegistry::classFor($feature))->menuItem()) !== null) {
                 $menu[] = $item + ['key' => $feature];
             }
         }
-        // the tab bar reads left to right in its own order, not in the order features are listed
         usort($menu, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
-        $container->get(Twig::class)->getEnvironment()->addGlobal('menu', $menu);
+
+        return $menu;
     }
 }

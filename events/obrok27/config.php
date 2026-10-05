@@ -248,6 +248,8 @@ return [
         // drawn for the black menu bar, is what carries the homepage at night
         'mainLogoDark' => 'events/obrok27/ghost-lime.png',
         'notificationIcon' => 'events/obrok27/ghost.png',
+        // Safari's pinned-tab mask; an event without the drawing leaves the key out
+        'pinnedTab' => 'events/obrok27/safari-pinned-tab.svg',
     ],
 
     'homepage' => [
