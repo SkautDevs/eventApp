@@ -222,4 +222,54 @@ final class ProgramsTest extends AppTestCase
             '/programy',
         )->getBody();
     }
+
+    /** The two views are named for what they are to a reader: the whole schedule, and theirs. */
+    public function testTheViewTabsAreNamedHarmonogramAndMujProgram(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('<span class="tabs-label">Harmonogram</span>', $html);
+        self::assertStringContainsString('<span class="tabs-label">Můj program</span>', $html);
+        self::assertStringNotContainsString('>Timeline<', $html);
+        self::assertStringNotContainsString('>Seznam<', $html);
+        // the keys the script and the stylesheet read are not copy, and stay
+        self::assertStringContainsString('data-pg-view="timeline"', $html);
+        self::assertStringContainsString('data-pg-view="list"', $html);
+    }
+
+    /** Every reader-facing line on the screen addresses the reader as ty. */
+    public function testTheScreenSpeaksInTheTyRegister(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('Přihlas se TIE kódem a uvidíš tady svůj vlastní program.', $html);
+        foreach (['Přihlaste', 'uvidíte', 'nemáte', 'Váš program', 'zkuste'] as $vy) {
+            self::assertStringNotContainsString($vy, $html);
+        }
+    }
+
+    /** The sheet is named by the programme it shows, not by a constant. */
+    public function testTheSheetIsLabelledByAProgrammeName(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+
+        self::assertSame(1, preg_match('/<div class="sheet-card"[^>]*>/', $html, $card));
+        self::assertStringContainsString('role="dialog"', $card[0]);
+        self::assertStringContainsString('aria-modal="true"', $card[0]);
+        self::assertStringNotContainsString('aria-label=', $card[0]);
+        self::assertSame(1, preg_match('/aria-labelledby="(sheet-name-\d+)"/', $card[0], $ref));
+        self::assertStringContainsString('<h2 class="sheet-name" id="' . $ref[1] . '">', $html);
+        self::assertSame(substr_count($html, 'class="sheet-body"'), substr_count($html, '<h2 class="sheet-name" id="sheet-name-'));
+    }
+
+    /** The day panel is a modal like the sheet, and says so. */
+    public function testTheDayMenuIsADialog(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+
+        self::assertGreaterThan(0, preg_match_all('/<div class="pager-menu-card"[^>]*>/', $html, $cards));
+        foreach ($cards[0] as $card) {
+            self::assertStringContainsString('role="dialog" aria-modal="true" aria-label="Výběr dne"', $card);
+        }
+    }
 }

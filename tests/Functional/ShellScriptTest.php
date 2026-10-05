@@ -78,10 +78,10 @@ final class ShellScriptTest extends AppTestCase
         self::assertStringContainsString("root.removeAttribute('data-loading');", $js);
     }
 
-    public function testTheLoadingBarIsDrawnInTheStateRole(): void
+    public function testTheLoadingBarIsDrawnInTheTabBarsInk(): void
     {
         self::assertSame(1, preg_match('/^\.progress \{([^}]*)\}/m', self::stylesheet(), $block));
-        self::assertStringContainsString('background: var(--state);', $block[1]);
+        self::assertStringContainsString('background: var(--on-structure);', $block[1]);
         self::assertStringContainsString(':root[data-loading] .progress {', self::stylesheet());
     }
 

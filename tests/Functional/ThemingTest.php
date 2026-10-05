@@ -22,6 +22,42 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('events/obrok19/site.webmanifest', $html);
     }
 
+    /** Rules for markup that no longer exists are deleted, not kept "just in case". */
+    public function testRetiredRulesAreGone(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+
+        foreach (['border-table', 'harmonogram', 'login-hint', 'h3 + table', '.hide {'] as $retired) {
+            self::assertStringNotContainsString($retired, $css, $retired);
+        }
+    }
+
+    /** The bare-button reset is said once; each control states only what differs. */
+    public function testTheButtonResetIsSaidOnce(): void
+    {
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
+        $buttons = ['.appbar-mode', '.pager-arrow', '.pager-label', '.pager-zoom-btn', '.pager-menu-item', '.pager-menu-close', '.tabs-tab', '.pl-open'];
+
+        self::assertSame(1, preg_match('/(\.appbar-mode,[^{]*)\{([^}]*)\}/', $css, $reset));
+        $members = array_map('trim', explode(',', (string) preg_replace('/\s+/', ' ', $reset[1])));
+        sort($members);
+        $expected = $buttons;
+        sort($expected);
+        self::assertSame($expected, $members);
+        foreach (['padding: 0;', 'border: none;', 'background-color: transparent;', 'font-family: inherit;', 'cursor: pointer;'] as $declaration) {
+            self::assertStringContainsString($declaration, $reset[2]);
+        }
+
+        foreach ($buttons as $button) {
+            if (preg_match('/(?:^|\})\s*' . preg_quote($button, '/') . '\s*\{([^}]*)\}/', $css, $own) !== 1) {
+                continue;
+            }
+            foreach (['border: none;', 'background-color: transparent;', 'font-family: inherit;', 'cursor: pointer;'] as $declaration) {
+                self::assertStringNotContainsString($declaration, $own[1], $button . ' repeats the reset');
+            }
+        }
+    }
+
     public function testCoreStylesheetHasNoColorLiterals(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
@@ -283,7 +319,7 @@ final class ThemingTest extends AppTestCase
         $light = (string) $this->request($this->createApp(), 'GET', '/')->getBody();
 
         self::assertStringContainsString('data-mode-toggle', $dark);
-        self::assertStringContainsString('aria-label="Přepnout světlý a tmavý režim"', $dark);
+        self::assertStringContainsString('aria-label="Tmavý režim"', $dark);
         self::assertStringContainsString(':root[data-mode="dark"]', $dark);
 
         self::assertStringContainsString('--role-ground: #f7f7f5', $light);
@@ -523,6 +559,123 @@ final class ThemingTest extends AppTestCase
     }
 
     /**
+     * Type is a seven-step rem scale, so a reader's own text size reaches it. Two kinds of
+     * rule keep px, by name: chrome glyphs in the fixed-height bars, whose heights
+     * www/programs.js reads as plain pixel numbers, and the timeline grid, whose geometry
+     * is frozen. Anything else in px is a regression.
+     */
+    public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
+    {
+        $allowed = ['.appbar-profile', '.appbar-mode', '.tab i', '.pager-arrow', '.pager-arrow-day', '.pager-zoom-btn', '.tl-tick', '.tl-stage', '.tl-card'];
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
+
+        $offenders = [];
+        $sizes = 0;
+        foreach (explode('}', $css) as $block) {
+            $open = strrpos($block, '{');
+            if ($open === false) {
+                continue;
+            }
+            $selectors = substr($block, 0, $open);
+            $wrapper = strrpos($selectors, '{');
+            if ($wrapper !== false) {
+                $selectors = substr($selectors, $wrapper + 1);
+            }
+            $selectors = trim((string) preg_replace('/\s+/', ' ', $selectors));
+            if (preg_match_all('/(?<![-a-z])font-size:\s*([^;]+);/', substr($block, $open + 1), $values) === 0) {
+                continue;
+            }
+            foreach ($values[1] as $value) {
+                $sizes++;
+                $value = trim($value);
+                if (preg_match('/^var\(--fs-(?:2xs|xs|sm|md|lg|xl|2xl)\)$/', $value) === 1) {
+                    continue;
+                }
+                if (in_array($selectors, $allowed, true) && preg_match('/^\d+px$/', $value) === 1) {
+                    continue;
+                }
+                $offenders[] = $selectors . ' { font-size: ' . $value . ' }';
+            }
+        }
+
+        self::assertGreaterThan(30, $sizes, 'the stylesheet lost its font sizes');
+        self::assertSame([], $offenders, 'these sizes are neither on the scale nor allowlisted');
+        // the shorthand must not carry a px size past the check above
+        self::assertDoesNotMatchRegularExpression('/(?<![-a-z])font:\s*[^;]*\d+px/', $css);
+        foreach (['2xs' => '0.6875rem', 'xs' => '0.8125rem', 'sm' => '0.875rem', 'md' => '1rem', 'lg' => '1.0625rem', 'xl' => '1.25rem', '2xl' => '1.5rem'] as $step => $value) {
+            self::assertSame(1, substr_count($css, '--fs-' . $step . ': ' . $value . ';'), '--fs-' . $step);
+        }
+        self::assertStringContainsString('font-size: var(--fs-md);', self::declarationsFor($css, 'body'));
+
+        // the two instance-level pages carry their own two values, in rem
+        foreach (['picker.twig', 'instance-error.twig'] as $template) {
+            $source = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/' . $template);
+            self::assertDoesNotMatchRegularExpression('/font(?:-size)?:\s*[^;]*\d+px/', $source, $template);
+        }
+    }
+
+    /**
+     * One ring for every control, in the ground pair: ink on ground clears AA in every set,
+     * and a halo in the ground separates it from any fill it lands on. The only rings of
+     * their own are the three inset ones whose boxes clip, and the only rules without one
+     * are the two dialog containers and the screen section, which take focus programmatically.
+     */
+    public function testTheFocusRingIsOneGlobalRule(): void
+    {
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
+
+        self::assertSame(1, preg_match_all('/(?:^|\})\s*:focus-visible\s*\{([^}]*)\}/', $css, $ring));
+        self::assertStringContainsString('outline: 2px solid var(--on-ground);', $ring[1][0]);
+        self::assertStringContainsString('outline-offset: 2px;', $ring[1][0]);
+        self::assertStringContainsString('box-shadow: 0 0 0 4px var(--ground);', $ring[1][0]);
+
+        preg_match_all('/([^{}]+)\{[^}]*outline:\s*none/', $css, $none);
+        $selectors = array_map(static fn (string $s): string => trim((string) preg_replace('/\s+/', ' ', $s)), $none[1]);
+        sort($selectors);
+        $exempt = ['.pager-menu-card:focus', '.screen:focus-visible', '.sheet-card:focus'];
+        self::assertSame($exempt, $selectors);
+        foreach ($exempt as $container) {
+            self::assertStringContainsString('box-shadow: none;', self::declarationsFor($css, $container), $container . ' still draws the halo');
+        }
+
+        // the three inset rings take the global ink; they only move it inside the box
+        foreach (['.tabs-tab:focus-visible', '.tl-card:focus-visible', '.sheet-close:focus-visible'] as $inset) {
+            $rule = self::declarationsFor($css, $inset);
+            self::assertStringNotContainsString('var(--on-structure)', $rule, $inset);
+            self::assertMatchesRegularExpression('/box-shadow: inset 0 0 0 \d+px var\(--ground\);/', $rule, $inset);
+        }
+
+        // the ring never animates
+        $motion = strpos($css, '@media (prefers-reduced-motion: no-preference)');
+        self::assertIsInt($motion);
+        self::assertDoesNotMatchRegularExpression('/outline|box-shadow/', substr($css, $motion));
+    }
+
+    /**
+     * The loading bar is 2px on the tab bar's top edge, so it has to read against that bar.
+     * `state` did not: obrok27's lime on its pale light-mode bar is 1.39:1. The bar's own
+     * ink is held to the non-text minimum in every set that declares one.
+     */
+    public function testTheLoadingBarClearsThreeToOneOnTheTabBar(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        self::assertMatchesRegularExpression('/(?<![-a-z])background(?:-color)?:\s*var\(--on-structure\);/', self::declarationsFor($css, '.progress'));
+        self::assertStringContainsString('background-color: var(--structure);', self::declarationsFor($css, '.tabbar'));
+
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                self::assertArrayHasKey('structure', $set, $slug . '/' . $mode);
+                self::assertArrayHasKey('on-structure', $set, $slug . '/' . $mode);
+                $checked++;
+                self::assertGreaterThanOrEqual(3.0, self::contrast($set['on-structure'], $set['structure']), sprintf('%s/%s: the loading bar is under 3:1 on the tab bar', $slug, $mode));
+            }
+        }
+        self::assertSame(9, $checked);
+    }
+
+    /**
      * Every declaration of every rule whose selector list names $selector — the rule
      * itself, its pseudo-class variants and its descendants — with comments stripped.
      *
@@ -597,5 +750,53 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('Novinky', $html);
         self::assertStringNotContainsString('Odkazy', $html);
         self::assertStringNotContainsString('Mapa', $html);
+    }
+
+    public function testNoInlineHandlersInTemplates(): void
+    {
+        foreach (glob(dirname(__DIR__, 2) . '/templates/*.twig') ?: [] as $template) {
+            self::assertDoesNotMatchRegularExpression('/\son[a-z]+\s*=/i', (string) file_get_contents($template), basename($template));
+        }
+    }
+
+    /** The head script has to be inline (it runs before the stylesheet); the tap handler does not. */
+    public function testADarkEventRendersOneInlineScript(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        self::assertSame(1, preg_match_all('~<script\b(?![^>]*\bsrc=)[^>]*>~i', $html));
+    }
+
+    /** APG toggle: a constant name, and aria-pressed carries the state. */
+    public function testTheToggleLabelIsConstant(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+        $app = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        $layout = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig');
+
+        self::assertStringContainsString('data-mode-toggle aria-pressed="false" aria-label="Tmavý režim"', $html);
+        foreach (['app.js' => $app, '_layout.twig' => $layout] as $name => $source) {
+            self::assertStringNotContainsString('Přepnout', $source, $name);
+        }
+        self::assertStringNotContainsString("setAttribute('aria-label'", $app);
+        self::assertStringContainsString("setAttribute('aria-pressed'", $app);
+    }
+
+    /**
+     * The loader's IIFE returns early on a page without a screen or without Map; the
+     * toggle must not share that fate, so it is its own IIFE and comes first.
+     */
+    public function testTheToggleIsWiredOutsideTheLoader(): void
+    {
+        $app = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        $toggle = strpos($app, "document.querySelector('[data-mode-toggle]')");
+        $loader = strpos($app, "var main = document.querySelector('main');");
+
+        self::assertIsInt($toggle);
+        self::assertIsInt($loader);
+        self::assertLessThan($loader, $toggle);
+        // the toggle's IIFE is closed before the loader's opens (app.js already holds
+        // nested `(function () {` openers, so counting those would prove nothing)
+        self::assertSame(1, substr_count(substr($app, $toggle, $loader - $toggle), '})();'), 'the toggle must close its own IIFE before the loader opens');
     }
 }

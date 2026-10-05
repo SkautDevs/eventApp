@@ -1,4 +1,48 @@
 /**
+ * The colour-mode toggle. The mode itself is already on the root: the inline script in
+ * <head> set it before first paint. This handles only the tap, and keys the choice
+ * globally rather than per event, because dark is a property of the reader's eyes, not
+ * of which event they are looking at. The name is the constant "Tmavý režim"
+ * (server-rendered) and aria-pressed is the state, as the APG toggle pattern has it.
+ * Its own IIFE, ahead of the loader's, which returns early on pages it cannot drive.
+ */
+(function () {
+	'use strict';
+
+	var root = document.documentElement;
+	var button = document.querySelector('[data-mode-toggle]');
+	if (!button) {
+		return;
+	}
+
+	function describe() {
+		button.setAttribute('aria-pressed', root.getAttribute('data-mode') === 'dark' ? 'true' : 'false');
+	}
+
+	// no data-mode means the head script had neither storage nor matchMedia; read
+	// what the media query is actually rendering so the first tap inverts it
+	if (root.getAttribute('data-mode') === null) {
+		root.setAttribute('data-mode', window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+	}
+	describe();
+
+	button.addEventListener('click', function () {
+		var next = root.getAttribute('data-mode') === 'dark' ? 'light' : 'dark';
+		root.setAttribute('data-mode', next);
+		try {
+			localStorage.setItem('obrokColorMode', next);
+		} catch (e) {
+			// private browsing: the choice lasts as long as the page does
+		}
+		var meta = document.querySelector('meta[name=theme-color]');
+		if (meta) {
+			meta.setAttribute('content', meta.getAttribute(next === 'dark' ? 'data-dark' : 'data-light'));
+		}
+		describe();
+	});
+})();
+
+/**
  * The screen loader.
  *
  * Switching tabs does not load a document any more: <main> is a stack of screens, a

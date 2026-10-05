@@ -549,12 +549,14 @@ final class AdminNotifyTest extends AppTestCase
         self::assertStringContainsString('Zpráva č. 51.', $first);
         self::assertStringNotContainsString('Zpráva č. 1.', $first);
         self::assertStringNotContainsString('Novější', $first);
+        self::assertMatchesRegularExpression('/<a class="btn" href="[^"]*page=2[^"]*">Starší<\/a>/', $first);
 
         $second = (string) $this->request($app, 'GET', '/admin/notify?page=2')->getBody();
         self::assertStringContainsString('Zpráva č. 1.', $second);
         self::assertStringNotContainsString('Zpráva č. 2.', $second);
         self::assertStringContainsString('Novější', $second);
         self::assertStringNotContainsString('Starší', $second);
+        self::assertMatchesRegularExpression('/<a class="btn" href="[^"]*">Novější<\/a>/', $second);
     }
 
     public function testHidingIsRecordedAndReversible(): void

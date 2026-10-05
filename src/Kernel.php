@@ -491,7 +491,7 @@ final class Kernel
                     Telemetry\Tracer::tag('tie_outcome', 'unknown');
                 } catch (\GuzzleHttp\Exception\TransferException|\App\Program\ProgramDataException) {
                     // never arrived, or arrived but wrong: one notice for both
-                    $session->set('tieError', 'Přihlášení se teď nedaří, zkuste to prosím později.');
+                    $session->set('tieError', 'Přihlášení se teď nedaří, zkus to prosím později.');
                     Telemetry\Tracer::tag('tie_outcome', 'provider_failed');
                 }
             });

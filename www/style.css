@@ -170,6 +170,19 @@
 	--radius-pill: var(--theme-radius-pill, 999px);
 	--radius-sheet: var(--theme-radius-sheet, 18px);
 	--radius-card: var(--theme-radius-card, 4px);
+	/* Type, as a seven-step rem scale fitted to the sizes the app already used, so at a
+	   16px root nothing moves by more than a pixel and a reader's own text size reaches
+	   every line of copy. Two kinds of rule stay in px on purpose, and ThemingTest names
+	   them: the chrome glyphs in the fixed-height bars (www/programs.js reads those bar
+	   heights as plain pixel numbers) and the timeline grid's own type, whose geometry is
+	   frozen. Můj program is the large-type path through the schedule. */
+	--fs-2xs: 0.6875rem; /* 11: tab bar labels */
+	--fs-xs: 0.8125rem; /* 13: credit, who, section line, freshness */
+	--fs-sm: 0.875rem; /* 14: list meta, sheet meta */
+	--fs-md: 1rem; /* 16: body, buttons, fields, strips */
+	--fs-lg: 1.0625rem; /* 17: h3, list item name */
+	--fs-xl: 1.25rem; /* 20: app bar title, sheet close */
+	--fs-2xl: 1.5rem; /* 24: h2, sheet name */
 	--appbar-height: 52px;
 	/* The notch, on a standalone install with viewport-fit=cover. Every other fixed
 	   element in the app already clears the bottom inset; this is the app bar's half
@@ -241,14 +254,49 @@
 	transform: translate(-50%, 0);
 }
 
+/* --- focus --------------------------------------------------------------- */
+
+/* One ring for every control, in the ground pair. Ink on ground clears AA in every
+   role set; on a fill that is not the ground (the state app bar, a structure bar,
+   the sheet) the halo in --ground is what separates the ring from the fill. Three
+   rings move inside their box because the box clips (.tabs-tab, .tl-card,
+   .sheet-close); the two dialog containers and the screen section take focus
+   programmatically and draw none. Nothing in the motion block touches it, so the
+   ring never animates. The ring owns box-shadow while a control has focus: a
+   control's own shadow is lost. */
+:focus-visible {
+	outline: 2px solid var(--on-ground);
+	outline-offset: 2px;
+	box-shadow: 0 0 0 4px var(--ground);
+}
+
 body {
 	font-family: var(--theme-font, themix, sans-serif);
+	font-size: var(--fs-md);
 	background-color: var(--ground);
 	color: var(--on-ground);
 	text-align: center;
 	margin: 0;
 	min-height: var(--app-height);
 	overflow-x: hidden;
+}
+
+/* --- bare buttons -------------------------------------------------------- */
+
+/* The controls that are a glyph or a label on whatever is under them, rather than a
+   filled button: one reset, and each rule below states only what differs. .tl-card
+   (hairline) and .sheet-close (filled) are not bare and are not in it. */
+.appbar-mode,
+.pager-arrow, .pager-label,
+.pager-zoom-btn,
+.pager-menu-item, .pager-menu-close,
+.tabs-tab,
+.pl-open {
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	font-family: inherit;
+	cursor: pointer;
 }
 
 /* --- app bar ------------------------------------------------------------- */
@@ -260,7 +308,15 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 8px;
+	/* The bar's geometry, named once so the brand's cap below can be derived from it
+	   rather than restated: the gap between the two ends, every control's touch
+	   target, the gap between the controls, and the controls' floor — the link alone,
+	   or the toggle, its gap and the link. */
+	--appbar-gap: 8px;
+	--appbar-target: 44px;
+	--appbar-tools-gap: 2px;
+	--appbar-tools-floor: var(--appbar-target);
+	gap: var(--appbar-gap);
 	max-width: var(--app-width);
 	margin: 0 auto;
 	/* the notch is the bar's own band: the fill runs up under it and the row of
@@ -287,12 +343,24 @@ body {
 	text-decoration: none;
 }
 
-/* The brand end keeps its automatic minimum — the mark plus the title's own floor —
-   so that when the bar runs out of room the title ellipsises inside it rather than
-   spilling out of a box squeezed narrower than its contents and landing on top of
-   the profile link. */
+.appbar:has(.appbar-mode) {
+	--appbar-tools-floor: calc(2 * var(--appbar-target) + var(--appbar-tools-gap));
+}
+
+/* The brand end never takes part in the bar's shrinking: it keeps its natural width,
+   exactly as it did when its automatic minimum (the WHOLE title — an item's
+   min-content ignores its overflow) held it there, so at an ordinary width the
+   title is never trimmed by even a fraction of a pixel. A proportional share would
+   have done that, and a fraction is all an ellipsis needs. What it may not do is
+   push into the controls' floor: with the 44 × 44 targets that put the bar 38–55px
+   past a 195px viewport. So it is capped at what the floor leaves, and only there
+   does the title ellipsise, down to its own 4ch floor. */
 .appbar-brand {
 	gap: 10px;
+	min-height: var(--appbar-target);
+	flex-shrink: 0;
+	min-width: 0;
+	max-width: calc(100% - var(--appbar-tools-floor) - var(--appbar-gap));
 }
 
 .appbar-logo {
@@ -307,7 +375,7 @@ body {
 	/* skautbold is a one-weight family, so the default is the body's weight; a
 	   variable face put in its place has to say which weight is the display one */
 	font-weight: var(--theme-font-display-weight, 400);
-	font-size: 20px;
+	font-size: var(--fs-xl);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -322,37 +390,50 @@ body {
 .appbar-tools {
 	display: flex;
 	align-items: center;
-	gap: 2px;
+	gap: var(--appbar-tools-gap);
 	/* Shrinkable, now that the title next to it refuses to disappear. At 200% zoom
 	   the bar is 195px wide and the two ends together want more than that; something
 	   has to give, and it is the identity's own text — the screen's name is the one
 	   thing on this bar the reader cannot get anywhere else. Without this the two
-	   ends simply overlapped. */
+	   ends simply overlapped. It is the only end that shrinks (the brand does not),
+	   so it takes the whole shortfall... */
 	flex: 0 1 auto;
-	min-width: 0;
+	/* ...but never below its own targets. Its automatic minimum would count the
+	   identity's whole name. */
+	min-width: var(--appbar-tools-floor);
 }
 
-/* the identity, on the other hand, is the end of the bar that gives way */
+/* At 200% zoom of a 390px phone (195px) the mark, its gap, a 4ch title and two 44px
+   targets need 202px. The mark is decoration (alt="") and the title is the one thing
+   the reader cannot get elsewhere, so below 250px the mark steps aside and the title
+   keeps the room: 73px at 195px instead of its 44px floor. */
+@media (max-width: 249px) {
+	.appbar-logo {
+		display: none;
+	}
+}
+
+/* the identity's text is the end of the bar that gives way (.appbar-who ellipsises);
+   the link itself keeps a 44 × 44 target */
 .appbar-profile {
 	gap: 6px;
+	/* px on purpose: chrome glyph, see --fs-* in :root */
 	font-size: 22px;
-	min-width: 0;
+	min-width: var(--appbar-target);
+	min-height: var(--appbar-target);
+	justify-content: center;
 }
 
-/* 44x44 of target around a 20px glyph — the padding is the target, and the box
-   is as narrow as it can be because this bar is full at 320px */
+/* 44x44 of target around a 20px glyph — the padding is the target */
 .appbar-mode {
 	flex: 0 0 auto;
-	width: 40px;
-	height: 44px;
-	padding: 0;
-	border: none;
-	background-color: transparent;
+	width: var(--appbar-target);
+	height: var(--appbar-target);
 	/* on the app bar's fill, like everything else on it */
 	color: var(--on-state);
+	/* px on purpose: chrome glyph, see --fs-* in :root */
 	font-size: 20px;
 	line-height: 1;
-	cursor: pointer;
 }
 
 /* the icon names the mode you would switch TO, so light shows a moon */
@@ -395,7 +476,7 @@ body {
 }
 
 .appbar-who {
-	font-size: 13px;
+	font-size: var(--fs-xs);
 	max-width: 96px;
 	white-space: nowrap;
 	overflow: hidden;
@@ -433,6 +514,14 @@ main > .screen[hidden] {
 	display: none;
 }
 
+/* www/app.js focuses the section after a swap so a screen reader lands on it; the
+   section is not a control, and after a keyboard tap it would otherwise match
+   :focus-visible and ring the whole screen */
+.screen:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
+
 /* --- error pages --------------------------------------------------------- */
 
 .error-page {
@@ -448,7 +537,7 @@ main > .screen[hidden] {
 .error-details pre {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
-	font-size: 12px;
+	font-size: var(--fs-xs);
 }
 
 /* --- freshness, no-JS, install ------------------------------------------- */
@@ -469,7 +558,7 @@ main > .screen[hidden] {
 	padding: 0 16px;
 	height: var(--freshness-height);
 	line-height: var(--freshness-height);
-	font-size: 12px;
+	font-size: var(--fs-xs);
 	text-align: right;
 	color: var(--on-ground);
 }
@@ -503,15 +592,16 @@ main > .screen[hidden] {
 }
 
 /* 2px along the tab bar's top edge while the loader waits for a screen it has never shown
-   (data-loading, set by www/shell.js). The event's own colour: the one fill that means
-   "this is happening now". Without motion it is a static full-width bar. */
+   (data-loading, set by www/shell.js). In the bar's own ink, because a 2px line has to
+   read against the bar it sits on: `state` measured 1.39:1 on obrok27's pale light-mode
+   bar. Without motion it is a static full-width bar. */
 .progress {
 	position: absolute;
 	top: 0;
 	left: 0;
 	width: 100%;
 	height: 2px;
-	background: var(--state);
+	background: var(--on-structure);
 	visibility: hidden;
 	pointer-events: none;
 }
@@ -530,7 +620,7 @@ main > .screen[hidden] {
 	gap: 3px;
 	min-height: var(--tabbar-height);
 	padding: 6px 2px;
-	font-size: 11px;
+	font-size: var(--fs-2xs);
 	line-height: 1.15;
 	text-decoration: none;
 	color: var(--on-structure);
@@ -543,6 +633,7 @@ main > .screen[hidden] {
 }
 
 .tab i {
+	/* px on purpose: chrome glyph, see --fs-* in :root */
 	font-size: 20px;
 }
 
@@ -604,7 +695,7 @@ a, a:visited {
 }
 
  /* A page-level action fills the column. Not the width of the screen: the 8px
-   side margin is the same gutter div.news and div.border-table already use, so
+   side margin is the same gutter div.news already uses, so
    a button lines up with the content blocks above it rather than bleeding to
    the edge. auto margins rather than a wider box, so the rule works the same on
    a <button> (which is shrink-to-fit even as a block) and on an <a>.
@@ -637,11 +728,11 @@ a, a:visited {
 	color: var(--on-tonal);
 }
 
-/* padding plus line-height make the box 44px on a one-line label, so the tap
+/* padding plus a 1.25 line make the box 44px on a one-line label at a 16px root, so the tap
    target is the type's own frame rather than a min-height it floats inside */
 .highlight, .highlight:visited {
 	padding: 12px 18px;
-	line-height: 20px;
+	line-height: 1.25;
 	border-radius: var(--radius);
 }
 
@@ -649,7 +740,7 @@ a, a:visited {
 	border-radius: var(--radius-pill);
 	min-height: 44px;
 	padding: 11px 22px;
-	font-size: 16px;
+	font-size: var(--fs-md);
 }
 
 .btn-primary, .btn-primary:visited {
@@ -677,8 +768,9 @@ input[type=text], textarea, .stacked-form select {
 	--surface: var(--role-field, var(--color-text-invert));
 	--on-surface: var(--role-on-field, var(--color-text));
 	font-family: inherit;
-	font-size: 16px;
+	font-size: var(--fs-md);
 	max-width: 100%;
+	min-height: 44px;
 	padding: 10px 12px;
 	border: 2px solid var(--edge);
 	border-radius: var(--radius);
@@ -713,32 +805,24 @@ input[type=text], textarea, .stacked-form select {
 
 h2 {
 	font-weight: 700;
-	font-size: 24px;
+	font-size: var(--fs-2xl);
 	color: var(--heading);
 }
 
 h3 {
 	font-weight: 700;
-	font-size: 17px;
+	font-size: var(--fs-lg);
 	color: var(--emphasis);
-}
-
-h3 + table {
-	margin-top: -0.83em;
 }
 
 p {
 	font-weight: 400;
 	font-style: normal;
-	font-size: 16px;
+	font-size: var(--fs-md);
 }
 
 b {
 	font-weight: 700;
-}
-
-.hide {
-	display: none;
 }
 
 /* --- screens ------------------------------------------------------------- */
@@ -841,14 +925,13 @@ img.mainLogo {
    out at 4.24:1 on the pale ground — the line still reads as a credit at 0.8, and
    the worst pairing in either event is then 4.68:1. */
 .credit {
-	font-size: 13px;
+	font-size: var(--fs-xs);
 	opacity: 0.8;
 }
 
-/* schedule login hint and the notification opt-in — centred */
+/* the notification opt-in and the login box: centred */
 p.push-enable,
 p.push-status,
-p.login-hint,
 div.login-box {
 	text-align: center;
 }
@@ -907,30 +990,6 @@ div.news {
 /* A message is plain text whose line breaks are meant, like a perex */
 .news-body {
 	white-space: pre-line;
-}
-
-div.border-table {
-	border: 1px solid var(--edge);
-	border-radius: var(--radius);
-	margin: 0 8px 12px;
-	overflow: hidden;
-	background-color: var(--surface);
-	color: var(--on-surface);
-}
-
-table.harmonogram {
-	width: 100%;
-	border-collapse: collapse;
-}
-
-table.harmonogram td {
-	border-top: 1px solid var(--edge);
-	padding: 8px 10px;
-	text-align: left;
-}
-
-table.harmonogram tr:first-child td {
-	border-top: none;
 }
 
 
@@ -1051,22 +1110,17 @@ table.harmonogram tr:first-child td {
 }
 
 .pager-arrow, .pager-label {
-	border: none;
 	border-radius: var(--radius-pill);
-	background-color: transparent;
-	font-family: inherit;
-	cursor: pointer;
 }
 
 .pager-arrow {
-	/* narrower than it was, and taller by the same amount — the glyph sits in a
-	   lot of its own whitespace, so the target loses nothing it was using */
-	flex: 0 0 34px;
+	/* a full 44px target; the label beside it is what gives width back */
+	flex: 0 0 44px;
 	height: 44px;
 	color: var(--emphasis);
+	/* px on purpose: chrome glyph, see --fs-* in :root */
 	font-size: 28px;
 	line-height: 1;
-	padding: 0;
 }
 
 .pager-arrow[disabled] {
@@ -1074,12 +1128,10 @@ table.harmonogram tr:first-child td {
 	cursor: default;
 }
 
-/* The personal list's strip carries no zoom pair, so its two arrows can be the full
-   44px wide the touch target asks for instead of the 34px the timeline's row has to
-   squeeze them into. The glyph is smaller than the timeline's chevrons because ↑ and ↓
-   draw much more ink than ‹ and › at the same size. */
+/* The glyph is smaller than the timeline's chevrons because ↑ and ↓ draw much more
+   ink than ‹ and › at the same size. */
 .pager-arrow-day {
-	flex: 0 0 44px;
+	/* px on purpose: chrome glyph, see --fs-* in :root */
 	font-size: 21px;
 }
 
@@ -1094,7 +1146,7 @@ table.harmonogram tr:first-child td {
 	/* the label is the widest thing here and the first to be squeezed, so its own
 	   padding is the minimum that keeps the text off the arrows */
 	padding: 0 4px;
-	font-size: 16px;
+	font-size: var(--fs-md);
 	color: var(--on-ground);
 }
 
@@ -1119,15 +1171,11 @@ table.harmonogram tr:first-child td {
 .pager-zoom-btn {
 	width: 44px;
 	height: 44px;
-	padding: 0;
-	border: none;
 	border-radius: var(--radius);
-	background-color: transparent;
 	color: var(--emphasis);
-	font-family: inherit;
+	/* px on purpose: chrome glyph, see --fs-* in :root */
 	font-size: 21px;
 	line-height: 1;
-	cursor: pointer;
 }
 
 /* disabled rather than silent, so the end of the range is visible */
@@ -1196,20 +1244,18 @@ table.harmonogram tr:first-child td {
 
 .pager-menu-card:focus {
 	outline: none;
+	box-shadow: none;
 }
 
 .pager-menu-item, .pager-menu-close {
 	display: block;
 	width: 100%;
-	border: none;
-	background-color: transparent;
-	font-family: inherit;
-	font-size: 16px;
+	font-size: var(--fs-md);
 	color: var(--on-ground);
 	text-align: left;
 	padding: 12px 14px;
+	min-height: 44px;
 	border-radius: var(--radius);
-	cursor: pointer;
 }
 
 /* the day you are on: the same tonal vocabulary as a secondary button, not a
@@ -1292,12 +1338,8 @@ table.harmonogram tr:first-child td {
 	justify-content: center;
 	gap: 6px;
 	padding: 8px 10px;
-	border: none;
-	background-color: transparent;
 	color: var(--on-structure);
-	font-family: inherit;
-	font-size: 15px;
-	cursor: pointer;
+	font-size: var(--fs-md);
 	/* same arithmetic as .tab in the bottom bar: what a faded label owes AA on is
 	   the ink it is painted with, not the ink it declares. 0.6 was 3.31:1 on
 	   obrok19's pale switcher. */
@@ -1323,8 +1365,8 @@ table.harmonogram tr:first-child td {
 }
 
 .tabs-tab:focus-visible {
-	outline: 2px solid var(--on-structure);
 	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
 }
 
 /* --- timeline ------------------------------------------------------------ */
@@ -1414,6 +1456,7 @@ table.harmonogram tr:first-child td {
 	position: absolute;
 	bottom: 7px;
 	padding-left: 5px;
+	/* px on purpose: grid instrument, see --fs-* in :root */
 	font-size: 14px;
 	font-weight: 700;
 	line-height: 1;
@@ -1467,6 +1510,7 @@ table.harmonogram tr:first-child td {
 	padding: 6px 10px;
 	background-color: var(--stage);
 	color: var(--on-stage);
+	/* px on purpose: grid instrument, see --fs-* in :root */
 	font-size: 14px;
 	font-weight: 700;
 	line-height: 1.15;
@@ -1509,6 +1553,11 @@ table.harmonogram tr:first-child td {
 	height: var(--tl-row-height);
 }
 
+/* Accepted target exceptions. The card is 36px tall (46px wide at least) because the
+   grid's geometry is the Figma card and is frozen; it clears the WCAG 2.5.8 24px floor.
+   .pl-open is a one-line button, but the pointer target is the whole .pl-item card
+   (44px and up), which is what the handler matches on. Inline text links (colophon,
+   .credit, the sheet attachment) are exempt by the standard. */
 .tl-card {
 	position: absolute;
 	top: 4px;
@@ -1525,6 +1574,7 @@ table.harmonogram tr:first-child td {
 	background-color: var(--structure);
 	color: var(--on-structure);
 	font-family: inherit;
+	/* px on purpose: grid instrument, see --fs-* in :root */
 	font-size: 14px;
 	font-weight: 400;
 	line-height: 1.1;
@@ -1553,8 +1603,8 @@ table.harmonogram tr:first-child td {
 }
 
 .tl-card:focus-visible {
-	outline: 2px solid var(--on-structure);
 	outline-offset: -3px;
+	box-shadow: inset 0 0 0 5px var(--ground);
 }
 
 /* --- personal list ------------------------------------------------------- */
@@ -1595,7 +1645,7 @@ table.harmonogram tr:first-child td {
 	background-color: var(--structure);
 	color: var(--on-structure);
 	border-bottom: 1px solid var(--edge);
-	font-size: 15px;
+	font-size: var(--fs-md);
 	line-height: 1.2;
 }
 
@@ -1614,36 +1664,32 @@ table.harmonogram tr:first-child td {
 .pl-open {
 	display: block;
 	width: 100%;
-	padding: 0;
-	border: none;
-	background-color: transparent;
 	color: inherit;
 	font: inherit;
 	text-align: left;
-	cursor: pointer;
 }
 
 .pl-time {
 	margin: 0 0 2px;
-	font-size: 14px;
+	font-size: var(--fs-sm);
 	opacity: 0.75;
 }
 
 .pl-name {
 	margin: 0 0 4px;
-	font-size: 17px;
+	font-size: var(--fs-lg);
 }
 
 .pl-loc {
 	margin: 0 0 4px;
-	font-size: 14px;
+	font-size: var(--fs-sm);
 	font-weight: 700;
 }
 
 /* a description is plain text whose line breaks are meant (docs/kissj-contract.md) */
 .pl-perex {
 	margin: 0;
-	font-size: 14px;
+	font-size: var(--fs-sm);
 	line-height: 1.35;
 	white-space: pre-line;
 }
@@ -1711,6 +1757,7 @@ table.harmonogram tr:first-child td {
 
 .sheet-card:focus {
 	outline: none;
+	box-shadow: none;
 }
 
 .sheet-scroll {
@@ -1745,7 +1792,7 @@ table.harmonogram tr:first-child td {
 	min-width: 0;
 	margin: 0;
 	color: var(--on-surface);
-	font-size: 24px;
+	font-size: var(--fs-2xl);
 	font-weight: 700;
 	line-height: 1.1;
 	overflow-wrap: anywhere;
@@ -1758,13 +1805,13 @@ table.harmonogram tr:first-child td {
 
 .sheet-when {
 	margin: 0 0 2px;
-	font-size: 14px;
+	font-size: var(--fs-sm);
 	font-weight: 700;
 }
 
 .sheet-where {
 	margin: 0;
-	font-size: 16px;
+	font-size: var(--fs-md);
 	font-weight: 700;
 }
 
@@ -1773,7 +1820,7 @@ table.harmonogram tr:first-child td {
    line above the description. */
 .sheet-section {
 	margin: 0 0 8px;
-	font-size: 13px;
+	font-size: var(--fs-xs);
 	opacity: 0.75;
 }
 
@@ -1781,7 +1828,7 @@ table.harmonogram tr:first-child td {
    dark ground, and Figma sets every line of sheet type to the same light colour */
 .sheet-mine {
 	margin: 0 0 8px;
-	font-size: 14px;
+	font-size: var(--fs-sm);
 }
 
 .sheet-perex {
@@ -1828,10 +1875,17 @@ table.harmonogram tr:first-child td {
 	background-color: var(--action);
 	color: var(--on-action);
 	font-family: inherit;
-	font-size: 19px;
+	font-size: var(--fs-xl);
 	font-weight: 700;
 	text-align: center;
 	cursor: pointer;
+}
+
+/* inset like .tabs-tab and .tl-card: the button runs to the card's edges and
+   .sheet-card clips (overflow: hidden), so an outset ring would keep only its top */
+.sheet-close:focus-visible {
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
 }
 
 /* --- motion --------------------------------------------------------------

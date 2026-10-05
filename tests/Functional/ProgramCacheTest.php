@@ -99,7 +99,7 @@ final class ProgramCacheTest extends AppTestCase
     {
         $html = (string) $this->request($this->appDuringAnOutage(withEntry: false), 'GET', '/programy')->getBody();
 
-        self::assertStringContainsString('Programy se nepodařilo načíst, zkuste to prosím později.', $html);
+        self::assertStringContainsString('Programy se nepodařilo načíst, zkus to prosím později.', $html);
         self::assertStringNotContainsString('data-stale', $html);
         self::assertSame([], $this->reported);
     }
