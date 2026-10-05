@@ -259,6 +259,9 @@
 				other.classList.remove('is-open');
 			});
 			body.classList.add('is-open');
+			// the dialog is named by the programme it shows, not by a constant
+			sheetCard.setAttribute('aria-labelledby', 'sheet-name-' + id);
+			sheetCard.removeAttribute('aria-label');
 			if (followPage && body.dataset.page) {
 				showView('timeline');
 				showPageByKey('timeline', body.dataset.page);

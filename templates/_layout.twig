@@ -111,8 +111,8 @@
 	<script src="{{ asset_version('push.js') }}" defer></script>
 	{# the installed-app concerns: the offline worker on every page #}
 	<script src="{{ asset_version('shell.js') }}" defer></script>
-	{# the screen loader: without it every link is a plain navigation and the app is
-	   exactly what it was #}
+	{# the screen loader (without it every link is a plain navigation and the app is
+	   exactly what it was) and the colour-mode toggle's tap #}
 	<script src="{{ asset_version('app.js') }}" defer></script>
 	{% if 'programs' in event.features %}
 		{# the Program screen's behaviour used to be inline in <head>, which no screen swap
@@ -145,9 +145,8 @@
 	</a>
 	<div class="appbar-tools">
 		{% if hasDark %}
-			{# the icon shows what you would switch TO; the label is rewritten to match by
-			   the script below, and stays truthful in both states without it #}
-			<button type="button" class="appbar-mode" data-mode-toggle aria-pressed="false" aria-label="Přepnout světlý a tmavý režim">
+			{# the icon shows what you would switch TO; the name is constant and aria-pressed carries the state (www/app.js) #}
+			<button type="button" class="appbar-mode" data-mode-toggle aria-pressed="false" aria-label="Tmavý režim">
 				<i class="fas fa-moon mode-icon mode-moon" aria-hidden="true"></i>
 				<i class="fas fa-sun mode-icon mode-sun" aria-hidden="true"></i>
 			</button>
@@ -227,47 +226,5 @@
 		</a>
 	{% endfor %}
 </nav>
-{% if hasDark %}
-	<script nonce="{{ cspNonce }}">
-		// The mode itself is already set — the head script did that before first paint.
-		// This only handles the tap, and keys the choice globally rather than per event:
-		// dark is a property of the reader's eyes, not of which Obrok they are looking at.
-		(function () {
-			var root = document.documentElement;
-			var button = document.querySelector('[data-mode-toggle]');
-			if (!button) {
-				return;
-			}
-
-			function describe() {
-				var dark = root.getAttribute('data-mode') === 'dark';
-				button.setAttribute('aria-pressed', dark ? 'true' : 'false');
-				button.setAttribute('aria-label', dark ? 'Přepnout na světlý režim' : 'Přepnout na tmavý režim');
-			}
-
-			// no data-mode means the head script had neither storage nor matchMedia; read
-			// what the media query is actually rendering so the first tap inverts it
-			if (root.getAttribute('data-mode') === null) {
-				root.setAttribute('data-mode', window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-			}
-			describe();
-
-			button.addEventListener('click', function () {
-				var next = root.getAttribute('data-mode') === 'dark' ? 'light' : 'dark';
-				root.setAttribute('data-mode', next);
-				try {
-					localStorage.setItem('obrokColorMode', next);
-				} catch (e) {
-					// private browsing: the choice lasts as long as the page does
-				}
-				var meta = document.querySelector('meta[name=theme-color]');
-				if (meta) {
-					meta.setAttribute('content', meta.getAttribute(next === 'dark' ? 'data-dark' : 'data-light'));
-				}
-				describe();
-			});
-		})();
-	</script>
-{% endif %}
 </body>
 </html>

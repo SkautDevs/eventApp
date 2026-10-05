@@ -76,7 +76,7 @@ final class ProgramsModule implements ModuleInterface
                     $mine = $provider->getProgramsForIdentity($auth->identity());
                 } catch (UnknownParticipantException) {
                     $auth->logout();
-                    $notices[] = 'Váš TIE kód už není platný, byli jste odhlášeni.';
+                    $notices[] = 'Tvůj TIE kód už neplatí, odhlásili jsme tě.';
                 } catch (TransferException | ProgramDataException) {
                     // never arrived, or arrived as something that is not programme data —
                     // the reader is told the same thing either way
@@ -92,7 +92,7 @@ final class ProgramsModule implements ModuleInterface
                 $all = $provider->getPrograms();
                 $sections = $provider->getSections();
             } catch (TransferException | ProgramDataException) {
-                $notices[] = 'Programy se nepodařilo načíst, zkuste to prosím později.';
+                $notices[] = 'Programy se nepodařilo načíst, zkus to prosím později.';
                 $unavailable = true;
             }
 

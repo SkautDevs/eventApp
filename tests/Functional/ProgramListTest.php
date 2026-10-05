@@ -68,15 +68,17 @@ final class ProgramListTest extends AppTestCase
     }
 
     /**
-     * 44px minimum, and the list's row has the width to give: it carries no zoom pair,
-     * where the timeline's row has to fit two more controls on a 320px phone.
+     * 44px minimum on both strips: the timeline's row gave the width back from its
+     * label, which keeps 144px on a 320px phone.
      */
     public function testTheDayArrowsAreFullSizedTouchTargets(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
 
-        self::assertMatchesRegularExpression('/\.pager-arrow-day \{[^}]*flex: 0 0 44px;/', $css);
+        // both strips' arrows are 44px wide now; the day arrows only keep their own glyph size
+        self::assertMatchesRegularExpression('/\.pager-arrow \{[^}]*flex: 0 0 44px;/', $css);
         self::assertMatchesRegularExpression('/\.pager-arrow \{[^}]*height: 44px;/', $css);
+        self::assertDoesNotMatchRegularExpression('/\.pager-arrow-day \{[^}]*flex:/', $css);
     }
 
     /** Every day is visible: nothing in the list is display:none any more. */
@@ -103,7 +105,7 @@ final class ProgramListTest extends AppTestCase
 
         self::assertStringNotContainsString('class="pl-day"', $html);
         self::assertStringNotContainsString('data-pg-pager="list"', $html);
-        self::assertStringContainsString('Přihlaste se', $html);
+        self::assertStringContainsString('Přihlas se TIE kódem', $html);
     }
 
     /** Logged out, the list asks for the TIE code in place instead of sending the reader to /profil. */

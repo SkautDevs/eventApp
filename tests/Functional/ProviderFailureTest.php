@@ -23,7 +23,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString(
-            'Programy se nepodařilo načíst, zkuste to prosím později.',
+            'Programy se nepodařilo načíst, zkus to prosím později.',
             (string) $response->getBody(),
         );
     }
@@ -77,7 +77,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertSame(302, $login->getStatusCode());
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
-        self::assertStringContainsString('Přihlášení se teď nedaří, zkuste to prosím později.', $html);
+        self::assertStringContainsString('Přihlášení se teď nedaří, zkus to prosím později.', $html);
         self::assertStringNotContainsString('Odhlásit TIE', $html);
     }
 
@@ -99,9 +99,9 @@ final class ProviderFailureTest extends AppTestCase
         $html = (string) $response->getBody();
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('Váš TIE kód už není platný, byli jste odhlášeni.', $html);
+        self::assertStringContainsString('Tvůj TIE kód už neplatí, odhlásili jsme tě.', $html);
         self::assertStringNotContainsString('TIE ABC123', $html);
-        self::assertStringContainsString('Přihlaste se', $html);
+        self::assertStringContainsString('Přihlas se TIE kódem', $html);
     }
 
     /**
@@ -125,8 +125,8 @@ final class ProviderFailureTest extends AppTestCase
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
         self::assertStringNotContainsString('TIE ABC123', $html, 'the participant was not logged out');
-        self::assertStringContainsString('Váš TIE kód už není platný, byli jste odhlášeni.', $html);
-        self::assertStringContainsString('Programy se nepodařilo načíst, zkuste to prosím později.', $html);
+        self::assertStringContainsString('Tvůj TIE kód už neplatí, odhlásili jsme tě.', $html);
+        self::assertStringContainsString('Programy se nepodařilo načíst, zkus to prosím později.', $html);
     }
 
     /**
@@ -144,7 +144,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString(
-            'Programy se nepodařilo načíst, zkuste to prosím později.',
+            'Programy se nepodařilo načíst, zkus to prosím později.',
             (string) $response->getBody(),
         );
     }

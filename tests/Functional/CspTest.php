@@ -71,11 +71,11 @@ final class CspTest extends AppTestCase
         }
     }
 
-    public function testTheLayoutsTwoInlineScriptsAreNonced(): void
+    public function testTheLayoutsInlineScriptIsNonced(): void
     {
         $response = $this->request($this->createApp('obrok27'), 'GET', '/');
 
-        self::assertSame(2, substr_count((string) $response->getBody(), '<script nonce="' . self::nonceOf($response) . '">'));
+        self::assertSame(1, substr_count((string) $response->getBody(), '<script nonce="' . self::nonceOf($response) . '">'));
     }
 
     public function testTheAdminPageCarriesItToo(): void
@@ -89,7 +89,7 @@ final class CspTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
         $nonce = self::nonceOf($response);
-        self::assertSame(3, substr_count($html, '<script nonce="' . $nonce . '">'));
+        self::assertSame(2, substr_count($html, '<script nonce="' . $nonce . '">'));
         self::assertEveryInlineScriptCarries($nonce, $html, '/admin/notify');
     }
 

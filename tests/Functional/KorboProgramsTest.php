@@ -328,4 +328,27 @@ final class KorboProgramsTest extends AppTestCase
         self::assertStringContainsString('Přesun na 15:00', $html);
         self::assertStringContainsString('Oznámení', $html);
     }
+
+    /** A registered card says so to a screen reader; the fill alone is pixels. */
+    public function testARegisteredCardSaysSoInItsLabel(): void
+    {
+        $html = $this->loggedInScreen();
+        preg_match_all('/<button type="button" class="tl-card([^"]*)" data-key="(\d+)"[^>]*aria-label="([^"]*)"/', $html, $cards, PREG_SET_ORDER);
+        self::assertNotEmpty($cards);
+
+        $registered = 0;
+        foreach ($cards as [, $classes, $id, $label]) {
+            if (str_contains($classes, 'is-registered')) {
+                $registered++;
+                self::assertStringEndsWith(', přihlášeno', $label, "programme {$id}");
+            } else {
+                self::assertStringEndsNotWith(', přihlášeno', $label, "programme {$id}");
+            }
+        }
+        self::assertGreaterThan(0, $registered);
+
+        // the sheet's own line for a registered programme, in the ty register
+        self::assertStringContainsString('Tvůj program', $html);
+        self::assertStringNotContainsString('Váš program', $html);
+    }
 }

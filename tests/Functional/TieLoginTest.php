@@ -154,4 +154,12 @@ final class TieLoginTest extends AppTestCase
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         self::assertSame(63, $provider->identityCalls);
     }
+
+    public function testTheProfileInvitesTheReaderInTheTyRegister(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/profil')->getBody();
+
+        self::assertStringContainsString('Přihlas se a v programu se ti zvýrazní, na co máš registraci.', $html);
+        self::assertStringNotContainsString('Přihlaste', $html);
+    }
 }

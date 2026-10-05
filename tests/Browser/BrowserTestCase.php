@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
+use Facebook\WebDriver\Chrome\ChromeDevToolsDriver;
 use Facebook\WebDriver\Chrome\ChromeOptions;
 use Facebook\WebDriver\Remote\DesiredCapabilities;
+use Facebook\WebDriver\Remote\RemoteWebDriver;
 use Facebook\WebDriver\WebDriverBy;
 use Symfony\Component\Panther\Client;
 use Symfony\Component\Panther\PantherTestCase;
@@ -33,6 +35,11 @@ abstract class BrowserTestCase extends PantherTestCase
 {
     protected const PORT = 9080;
 
+    /** A phone: the app is laid out as one at every width, and this is its shape. */
+    protected const VIEWPORT_WIDTH = 412;
+
+    protected const VIEWPORT_HEIGHT = 915;
+
     /** The server's PUSH_DB_PATH, relative to the repository root; created by the app, removed here. */
     protected const DATABASE = 'var/browser-test.sqlite';
 
@@ -57,6 +64,7 @@ abstract class BrowserTestCase extends PantherTestCase
         self::startServer();
         self::$browser = $mode === 'remote' ? self::remoteClient() : self::localClient();
         self::$browser->manage()->timeouts()->setScriptTimeout(30);
+        self::ensureViewport();
     }
 
     public static function tearDownAfterClass(): void
@@ -187,7 +195,7 @@ abstract class BrowserTestCase extends PantherTestCase
     }
 
     /** 'remote', 'local', or null when there is no Chrome to drive */
-    private static function mode(): ?string
+    protected static function mode(): ?string
     {
         if (self::env('PANTHER_SELENIUM_URL') !== '') {
             return 'remote';
@@ -227,6 +235,7 @@ abstract class BrowserTestCase extends PantherTestCase
             'SENTRY_DSN' => '',
             'PROGRAM_PROVIDER_KORBO26' => 'stub',
             'PROGRAM_PROVIDER_OBROK19' => 'stub',
+            'PROGRAM_PROVIDER_NAVIGAMUS25' => 'stub',
             'PUSH_DB_PATH' => self::DATABASE,
             // the worker's install fetches a dozen files at once; one PHP worker would queue them
             'PHP_CLI_SERVER_WORKERS' => '4',
@@ -237,20 +246,68 @@ abstract class BrowserTestCase extends PantherTestCase
         ];
     }
 
+    /** The window as `width,height`. A phone; bin/baseline.php narrows it to the baseline's 390 × 844. */
+    protected static function windowSize(): string
+    {
+        return self::VIEWPORT_WIDTH . ',' . self::VIEWPORT_HEIGHT;
+    }
+
     /** @return list<string> */
     private static function chromeArguments(): array
     {
         return [
             '--headless=new',
-            // a phone: the app is laid out as one at every width, and this is its shape
-            '--window-size=412,915',
+            '--window-size=' . static::windowSize(),
+            // no classic scrollbar eating into the width, so clientWidth is the viewport's
+            '--hide-scrollbars',
             '--disable-gpu',
             // the screen slide and the sheet animate otherwise, and a test would wait them out
             '--force-prefers-reduced-motion',
+            // Only the test server resolves, so every third-party request (Font Awesome,
+            // the event webfont CDNs, Google Fonts, the Maps iframe, Chrome's own Google
+            // traffic) fails at once. Otherwise one request that hangs after it is sent
+            // blocks the load event. Chrome has no timeout for that case, so the WebDriver
+            // navigate never returns and php-webdriver's 180 s curl timeout errors the
+            // test. The lane is hermetic: the app bar's controls keep a 44 × 44 box of
+            // their own, so they stay tappable without the icon font.
+            '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ' . self::host(),
         ];
     }
 
-    private static function localClient(): Client
+    /**
+     * Headless Chrome clamps its window to a minimum of 500px wide, so --window-size alone
+     * does not give a phone: where the page reports another width, the device metrics are
+     * overridden over CDP (chromedriver's goog/cdp endpoint, which Selenium forwards too).
+     * The override belongs to the tab and outlives every navigation in it.
+     */
+    private static function ensureViewport(): void
+    {
+        if (self::script('return window.innerWidth;') === self::VIEWPORT_WIDTH) {
+            return;
+        }
+        self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
+    }
+
+    /**
+     * Sets the page's viewport over CDP, the only way below headless Chrome's 500px
+     * window minimum. A test that narrows it puts it back to VIEWPORT_WIDTH × _HEIGHT,
+     * since the browser is shared by the whole class.
+     */
+    protected static function overrideViewport(int $width, int $height): void
+    {
+        $driver = self::$browser->getWebDriver();
+        if (!$driver instanceof RemoteWebDriver) {
+            throw new \RuntimeException('Cannot reach CDP to set the viewport');
+        }
+        (new ChromeDevToolsDriver($driver))->execute('Emulation.setDeviceMetricsOverride', [
+            'width' => $width,
+            'height' => $height,
+            'deviceScaleFactor' => 1,
+            'mobile' => false,
+        ]);
+    }
+
+    protected static function localClient(): Client
     {
         return Client::createChromeClient(self::chromeDriver(), [
             ...self::chromeArguments(),
@@ -262,7 +319,7 @@ abstract class BrowserTestCase extends PantherTestCase
         ], [], self::baseUri());
     }
 
-    private static function remoteClient(): Client
+    protected static function remoteClient(): Client
     {
         $options = new ChromeOptions();
         $options->addArguments([
@@ -277,7 +334,7 @@ abstract class BrowserTestCase extends PantherTestCase
         return Client::createSeleniumClient(self::env('PANTHER_SELENIUM_URL'), $capabilities, self::baseUri());
     }
 
-    private static function removeDatabase(): void
+    protected static function removeDatabase(): void
     {
         $file = dirname(__DIR__, 2) . '/' . self::DATABASE;
         foreach ([$file, $file . '-wal', $file . '-shm'] as $path) {

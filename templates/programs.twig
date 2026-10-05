@@ -40,7 +40,7 @@
 				</div>
 				<div class="pager-menu" data-pg-menu-panel="{{ pager.kind }}" aria-hidden="true">
 					<div class="pager-menu-backdrop" data-pg-close></div>
-					<div class="pager-menu-card" tabindex="-1" data-pg-menu-card>
+					<div class="pager-menu-card" role="dialog" aria-modal="true" aria-label="Výběr dne" tabindex="-1" data-pg-menu-card>
 						{% for item in pager.items %}
 							<button type="button" class="pager-menu-item{{ item.key == pager.active ? ' is-active' }}" data-morph-keep="class" data-pg-page="{{ item.key }}" data-pg-kind="{{ pager.kind }}">{{ item.label }}</button>
 						{% endfor %}
@@ -76,7 +76,7 @@
 										{% for track in row.tracks %}
 											<div class="tl-track">
 												{% for card in track %}
-													<button type="button" class="tl-card{{ card.registered ? ' is-registered' }}{{ card.dimmed ? ' is-dimmed' }}" data-key="{{ card.id }}" style="left: calc(var(--hour-width) * {{ card.offset }}); width: calc(var(--hour-width) * {{ card.span }})" data-pg-open="{{ card.id }}" aria-label="{{ card.name }}, {{ card.time }}">
+													<button type="button" class="tl-card{{ card.registered ? ' is-registered' }}{{ card.dimmed ? ' is-dimmed' }}" data-key="{{ card.id }}" style="left: calc(var(--hour-width) * {{ card.offset }}); width: calc(var(--hour-width) * {{ card.span }})" data-pg-open="{{ card.id }}" aria-label="{{ card.name }}, {{ card.time }}{% if card.registered %}, přihlášeno{% endif %}">
 														<span class="tl-card-name">{{ card.name }}</span>
 													</button>
 												{% endfor %}
@@ -97,11 +97,11 @@
 		<div class="view view-list" id="pg-view-list" role="tabpanel" aria-labelledby="pg-tab-list">
 			{% if not isLogged %}
 				<div class="login-box">
-					<p>Přihlaste se TIE kódem a uvidíte tady svůj vlastní program.</p>
+					<p>Přihlas se TIE kódem a uvidíš tady svůj vlastní program.</p>
 					{% include '_tie_form.twig' with {'return': 'programy'} %}
 				</div>
 			{% elseif days is empty %}
-				<p class="empty">Zatím nemáte přihlášený žádný program.</p>
+				<p class="empty">Zatím nemáš přihlášený žádný program.</p>
 			{% else %}
 				{# the top of the scroll, watched by the same observer as the days: it is
 				   what tells the strip that the up arrow has nowhere left to go #}
@@ -134,29 +134,32 @@
 		<div class="tabs-wrap">
 			<div class="tabs" role="tablist" aria-label="Zobrazení programu">
 				<span class="tabs-indicator" aria-hidden="true"></span>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="true" data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Timeline</span></button>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="false" tabindex="-1" data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Seznam</span></button>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="true" data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></button>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="false" tabindex="-1" data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Můj program</span></button>
 			</div>
 		</div>
 
 		{# the programme detail, as a bottom sheet #}
 		<div class="sheet" data-pg-sheet aria-hidden="true">
 			<div class="sheet-backdrop" data-pg-close></div>
-			<div class="sheet-card" role="dialog" aria-modal="true" aria-label="Detail programu" tabindex="-1" data-pg-sheet-card>
+			{# The server names the first programme so the dialog is never nameless, and
+			   openSheet() points it at the open one. A background morph rewrites it only
+			   while the sheet is closed, because an open sheet defers the morph. #}
+			<div class="sheet-card" role="dialog" aria-modal="true"{% if details is not empty %} aria-labelledby="sheet-name-{{ (details|first).id }}"{% endif %} tabindex="-1" data-pg-sheet-card>
 				<div class="sheet-scroll" data-pg-sheet-scroll>
 					{% for detail in details %}
 						{# data-key is the morph's handle on this row: a programme added to the
 						   middle of the day must not shift every detail after it #}
 						<div class="sheet-body" data-key="{{ detail.id }}" data-pg-detail="{{ detail.id }}" data-page="{{ detail.page }}">
 							<div class="sheet-head">
-								<h2 class="sheet-name">{{ detail.name }}</h2>
+								<h2 class="sheet-name" id="sheet-name-{{ detail.id }}">{{ detail.name }}</h2>
 								<div class="sheet-meta">
 									<p class="sheet-when">{{ detail.when }}</p>
 									{% if detail.location %}<p class="sheet-where">{{ detail.location }}</p>{% endif %}
 								</div>
 							</div>
 							{% if detail.section %}<p class="sheet-section">{{ detail.section }}</p>{% endif %}
-							{% if detail.registered %}<p class="sheet-mine"><i class="fas fa-star" aria-hidden="true"></i> Váš program</p>{% endif %}
+							{% if detail.registered %}<p class="sheet-mine"><i class="fas fa-star" aria-hidden="true"></i> Tvůj program</p>{% endif %}
 							{% if detail.messages %}
 								<div class="sheet-messages">
 									<h3>Oznámení</h3>
