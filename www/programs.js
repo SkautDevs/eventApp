@@ -22,9 +22,15 @@
 		}
 		root.dataset.pgReady = '1';
 
-		const sheet = root.querySelector('[data-pg-sheet]');
-		const sheetCard = root.querySelector('[data-pg-sheet-card]');
-		const sheetScroll = root.querySelector('[data-pg-sheet-scroll]');
+		// Looked up on every use: a background morph may have replaced or moved them, and a
+		// reference held from the first render is how a tap once opened the day panel.
+		function sheetParts() {
+			return {
+				sheet: root.querySelector('[data-pg-sheet]'),
+				card: root.querySelector('[data-pg-sheet-card]'),
+				scroll: root.querySelector('[data-pg-sheet-scroll]'),
+			};
+		}
 		// where focus goes back to when the sheet, and the day panel, close
 		let opener = null;
 		let menuOpener = null;
@@ -131,7 +137,9 @@
 					tab.tabIndex = active ? 0 : -1;
 				}
 			});
-			closeMenus();
+			// a view switch happens only with no dialog open, or from openSheet(), which
+			// takes the panel's history entry over for the sheet
+			closeMenus(true);
 			if (view === 'list') {
 				// The saved offset is only written when the reader leaves the list, so
 				// it is older than where they are as soon as they scroll again. It is
@@ -209,7 +217,66 @@
 			}
 		}
 
-		function closeMenus() {
+		// --- Back closes the open dialog ------------------------------------
+		// Opening the sheet or the day panel pushes a history entry, so Android's Back (and
+		// the browser's) closes it instead of leaving the screen with every other part of
+		// the app still inert. Closing it any other way goes back over that entry once.
+		//
+		// Chrome's history-manipulation intervention may let the browser's own Back skip
+		// an entry pushed without a user gesture — the sheet a deep link opens on landing
+		// is one. The entry is then no guarantee; the popstate and screen:hidden listeners
+		// below are: whatever entry Back lands on, and whatever screen is hidden, the
+		// dialog closes and the trap lets go. Such a path can leave an orphan overlay
+		// entry behind, which costs one extra Back that does nothing, and is accepted.
+		let leaving = false;
+		let afterLeave = null;
+		// The browser restores the scroll it saved for an entry when Back lands on it —
+		// after popstate has run, so a day picked from the panel would be scrolled straight
+		// back to where the panel was opened. While an overlay entry is up the screen owns
+		// its scroll instead. The mode belongs to each entry and a pushed entry copies the
+		// current one's, so it is set before the push (covering both entries) and handed
+		// back only once the traversal has finished restoring nothing.
+		let savedRestoration = null;
+
+		function enterOverlay() {
+			if (savedRestoration === null && 'scrollRestoration' in history) {
+				savedRestoration = history.scrollRestoration;
+				history.scrollRestoration = 'manual';
+			}
+			const state = Object.assign({}, history.state || {}, {pgOverlay: true});
+			if (history.state && history.state.pgOverlay) {
+				history.replaceState(state, '');
+			} else {
+				history.pushState(state, '');
+			}
+		}
+
+		function restoreScrollRestoration() {
+			if (savedRestoration === null) {
+				return;
+			}
+			const mode = savedRestoration;
+			savedRestoration = null;
+			// a task later: the traversal's own scroll restoration comes after popstate
+			window.setTimeout(function () {
+				if (savedRestoration === null) {
+					history.scrollRestoration = mode;
+				}
+			}, 0);
+		}
+
+		/** Goes back over the dialog's entry; `then` runs once the traversal has landed. */
+		function leaveOverlay(then) {
+			if (!leaving && history.state && history.state.pgOverlay) {
+				leaving = true;
+				afterLeave = then || null;
+				history.back();
+			} else if (then) {
+				then();
+			}
+		}
+
+		function closeMenus(fromHistory) {
 			let wasOpen = false;
 			root.querySelectorAll('[data-pg-menu-panel]').forEach(function (menu) {
 				if (!menu.classList.contains('is-open')) {
@@ -231,15 +298,44 @@
 				menuOpener.focus();
 			}
 			menuOpener = null;
+			if (wasOpen && !fromHistory) {
+				leaveOverlay();
+			}
+		}
+
+		/**
+		 * A close's history.back() is still in flight: its popstate has not landed yet,
+		 * and when it does it closes whatever is open. An open asked for in that gap
+		 * waits for the traversal, then pushes its own entry on the base one.
+		 */
+		function deferWhileLeaving(open) {
+			if (!leaving) {
+				return false;
+			}
+			const before = afterLeave;
+			afterLeave = function () {
+				if (before) {
+					before();
+				}
+				open();
+			};
+
+			return true;
 		}
 
 		function openMenu(kind, trigger) {
+			if (deferWhileLeaving(function () {
+				openMenu(kind, trigger);
+			})) {
+				return;
+			}
 			const menu = root.querySelector('[data-pg-menu-panel="' + kind + '"]');
 			if (!menu) {
 				return;
 			}
-			closeMenus();
+			closeMenus(true);
 			menu.classList.add('is-open');
+			enterOverlay();
 			menu.setAttribute('aria-hidden', 'false');
 			trigger.setAttribute('aria-expanded', 'true');
 			menuOpener = trigger;
@@ -251,8 +347,14 @@
 		}
 
 		function openSheet(id, followPage, trigger) {
+			if (deferWhileLeaving(function () {
+				openSheet(id, followPage, trigger);
+			})) {
+				return;
+			}
 			const body = root.querySelector('[data-pg-detail="' + id + '"]');
-			if (!body) {
+			const parts = sheetParts();
+			if (!body || !parts.sheet || !parts.card) {
 				return;
 			}
 			root.querySelectorAll('[data-pg-detail]').forEach(function (other) {
@@ -260,8 +362,8 @@
 			});
 			body.classList.add('is-open');
 			// the dialog is named by the programme it shows, not by a constant
-			sheetCard.setAttribute('aria-labelledby', 'sheet-name-' + id);
-			sheetCard.removeAttribute('aria-label');
+			parts.card.setAttribute('aria-labelledby', 'sheet-name-' + id);
+			parts.card.removeAttribute('aria-label');
 			if (followPage && body.dataset.page) {
 				showView('timeline');
 				showPageByKey('timeline', body.dataset.page);
@@ -269,27 +371,34 @@
 				// Můj program after a deep link lands on it rather than at the top
 				pendingListTarget = id;
 			}
-			closeMenus();
+			closeMenus(true);
 			opener = trigger || null;
-			sheet.classList.add('is-open');
-			sheet.setAttribute('aria-hidden', 'false');
-			sheetScroll.scrollTop = 0;
-			trapFocus(sheet, sheetCard);
-			sheetCard.focus();
+			parts.sheet.classList.add('is-open');
+			enterOverlay();
+			parts.sheet.setAttribute('aria-hidden', 'false');
+			if (parts.scroll) {
+				parts.scroll.scrollTop = 0;
+			}
+			trapFocus(parts.sheet, parts.card);
+			parts.card.focus();
 		}
 
-		function closeSheet() {
-			if (!sheet.classList.contains('is-open')) {
+		function closeSheet(fromHistory) {
+			const parts = sheetParts();
+			if (!parts.sheet || !parts.sheet.classList.contains('is-open')) {
 				return;
 			}
-			sheet.classList.remove('is-open');
-			sheet.setAttribute('aria-hidden', 'true');
+			parts.sheet.classList.remove('is-open');
+			parts.sheet.setAttribute('aria-hidden', 'true');
 			// before the focus goes back: an inert element cannot take it
 			releaseFocus();
 			if (opener && document.contains(opener)) {
 				opener.focus();
 			}
 			opener = null;
+			if (!fromHistory) {
+				leaveOverlay();
+			}
 		}
 
 		// --- hour-scale zoom ---------------------------------------------
@@ -758,12 +867,18 @@
 					openMenu(data.pgMenu, el);
 				}
 			} else if (data.pgPage !== undefined) {
-				closeMenus();
-				if (data.pgKind === 'list') {
-					scrollToDay(data.pgPage);
-				} else {
-					showPageByKey(data.pgKind, data.pgPage);
-				}
+				// the panel's history entry goes first; the scroll runs after the traversal,
+				// which would otherwise restore the scroll position it saved
+				const kind = data.pgKind;
+				const page = data.pgPage;
+				closeMenus(true);
+				leaveOverlay(function () {
+					if (kind === 'list') {
+						scrollToDay(page);
+					} else {
+						showPageByKey(kind, page);
+					}
+				});
 			} else if (data.pgClose !== undefined) {
 				closeMenus();
 				closeSheet();
@@ -844,6 +959,30 @@
 		window.addEventListener('hashchange', function () {
 			if (document.contains(root) && !root.closest('[data-screen][hidden]')) {
 				fromHash();
+			}
+		});
+
+		// Back (or Forward) on any entry: whatever is open closes and the trap lets go —
+		// also the backstop for an entry this screen did not push.
+		window.addEventListener('popstate', function () {
+			leaving = false;
+			closeMenus(true);
+			closeSheet(true);
+			restoreScrollRestoration();
+			const run = afterLeave;
+			afterLeave = null;
+			if (run) {
+				run();
+			}
+		});
+
+		document.addEventListener('screen:hidden', function (event) {
+			if (event.target.contains && event.target.contains(root)) {
+				// nothing deferred may open on a screen nobody is looking at
+				afterLeave = null;
+				closeMenus(true);
+				closeSheet(true);
+				restoreScrollRestoration();
 			}
 		});
 		// a webfont landing changes what a label measures, and with it the scale

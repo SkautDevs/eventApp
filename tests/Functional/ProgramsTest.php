@@ -48,7 +48,7 @@ final class ProgramsTest extends AppTestCase
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
         $twig = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/programs.twig');
 
-        self::assertStringContainsString('<p class="notice">{{ notice }}</p>', $twig);
+        self::assertStringContainsString('<p class="notice" data-key="notice">{{ notice }}</p>', $twig);
         self::assertStringNotContainsString('class="highlight"', $twig);
         // the notice keeps the shrink-to-fit box the class used to have
         self::assertMatchesRegularExpression('/\.notice \{[^}]*display: inline-block;/', $css);
@@ -271,5 +271,53 @@ final class ProgramsTest extends AppTestCase
         foreach ($cards[0] as $card) {
             self::assertStringContainsString('role="dialog" aria-modal="true" aria-label="Výběr dne"', $card);
         }
+    }
+
+    /** U-M4: a personal list that could not be read dims nothing and claims nothing. */
+    public function testAFailedPersonalListDimsNothing(): void
+    {
+        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures');
+        $failing = new class ($stub) implements ProgramProviderInterface {
+            public function __construct(private ProgramProviderInterface $inner)
+            {
+            }
+
+            public function getPrograms(): array
+            {
+                return $this->inner->getPrograms();
+            }
+
+            public function getSections(): array
+            {
+                return $this->inner->getSections();
+            }
+
+            public function getProgramsForIdentity(Identity $identity): array
+            {
+                throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
+            }
+
+            public function getTieCodesForProgramme(int $programmeId): array
+            {
+                return [];
+            }
+        };
+        $app = $this->createApp('obrok19', [ProgramProviderInterface::class => $failing]);
+        $_SESSION['obrok19']['identity'] = ['displayName' => 'TIE ABC123', 'tieCode' => 'ABC123'];
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
+        self::assertStringNotContainsString('is-dimmed', $html);
+        self::assertStringNotContainsString('Zatím nemáš přihlášený žádný program.', $html);
+    }
+
+    /** U-M5: with no programme list the outage notice speaks alone. */
+    public function testAnOutageShowsNoEmptyLine(): void
+    {
+        $down = new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
+        $app = $this->createApp('obrok19', [ProgramProviderInterface::class => new ThrowingProgramProvider(programsException: $down)]);
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+        self::assertStringContainsString('Programy se nepodařilo načíst', $html);
+        self::assertStringNotContainsString('Program zatím není k dispozici.', $html);
     }
 }

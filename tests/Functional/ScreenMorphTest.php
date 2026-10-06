@@ -53,6 +53,22 @@ final class ScreenMorphTest extends AppTestCase
         self::assertMatchesRegularExpression('/<section class="pl-day" data-key="day-\d+"/', $html);
     }
 
+    /** C-I1: .pg's children appear and disappear; positional matching turned the sheet into a day panel. */
+    public function testEveryChildOfTheProgramRootCarriesAKey(): void
+    {
+        $app = $this->createApp();
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+
+        foreach (['pager-timeline', 'pager-list', 'menu-timeline', 'menu-list', 'tabs', 'sheet'] as $key) {
+            self::assertStringContainsString('data-key="' . $key . '"', $html);
+        }
+        self::assertMatchesRegularExpression('/<div class="sheet" data-key="sheet"/', $html);
+        // the loader's own handle on the dialog is looked up per use, never held
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/programs.js');
+        self::assertStringNotContainsString("const sheet = root.querySelector('[data-pg-sheet]');", $js);
+    }
+
     /**
      * The other half of the contract: the markup says which of its own attributes the
      * server writes but does not own. Without it a background morph would put the
@@ -79,7 +95,7 @@ final class ScreenMorphTest extends AppTestCase
         $html = (string) $this->request($this->createApp(), 'GET', '/mapa', null, ['X-Screen' => '1'])->getBody();
 
         self::assertSame(1, substr_count($html, '<iframe'));
-        self::assertMatchesRegularExpression('/<div class="map">\s*<iframe /', $html);
+        self::assertMatchesRegularExpression('~<div class="map" data-map>\s*<iframe [^>]*></iframe>\s*</div>~', $html);
     }
 
     /**
@@ -113,7 +129,8 @@ final class ScreenMorphTest extends AppTestCase
         $js = $this->loader();
 
         self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})"), 'revalidate()');
-        self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin'})"), 'load()');
+        // load() carries no cache mode, only the deadline's abort signal
+        self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', signal: controller ? controller.signal : undefined})"), 'load()');
     }
 
     public function testAFetchTheReaderWaitsForIsAnnounced(): void
@@ -137,6 +154,14 @@ final class ScreenMorphTest extends AppTestCase
         self::assertStringContainsString("tab === 'news' || (tab === 'programs' && typeof data.programme === 'number')", $js);
         self::assertStringContainsString('staleOnArrival.add(data.path);', $js);
         self::assertStringContainsString('fetchedAt: staleOnArrival.delete(path) ? 0 : Date.now(),', $js);
+    }
+
+    public function testAFetchTheReaderWaitsForGivesUpAfterEightSeconds(): void
+    {
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        self::assertStringContainsString('var LOAD_TIMEOUT = 8000;', $js);
+        self::assertStringContainsString('controller.abort();', $js);
+        self::assertStringContainsString("if (link.classList.contains('skip-link')) {", $js);
     }
 
     public function testAFreshnessChangeIsAnnounced(): void

@@ -195,6 +195,15 @@ final class KissjProgramProviderTest extends TestCase
         }
     }
 
+    public function testA404WithABodyIsAnOutageNotAnUnknownCode(): void
+    {
+        $provider = $this->provider(new MockHandler([new Response(404, ['Content-Type' => 'text/html'], '<html><body>Maintenance</body></html>')]));
+
+        $this->expectException(KissjTransferException::class);
+        $this->expectExceptionMessage('kissj answered HTTP 404 on the participant endpoint');
+        $provider->getProgramsForIdentity(new Identity('TIE X', 'KORBO1'));
+    }
+
     /**
      * A rejected key answers 401 with a plain-text body. That is not a 404, so it is
      * neither "unknown participant" nor "no registrations" — it is the provider failing.

@@ -51,7 +51,11 @@ final class KissjProgramProvider implements ProgramProviderInterface
             $data = $this->getJson($path, 'kissj.participant', 'GET v3/programme/participant/tie', $where);
         } catch (TransferException $e) {
             $status = $e instanceof RequestException ? $e->getResponse()?->getStatusCode() : null;
-            if ($status === 404) {
+            // The contract's "unknown code" is a 404 with an empty body. Any other 404 — a
+            // maintenance page, a wrong base path, an event switched to kissj before the
+            // endpoints exist — is an outage: treating it as "unknown" would log readers out
+            // en masse and count their logins against the NAT's limit.
+            if ($status === 404 && trim((string) $e->getResponse()?->getBody()) === '') {
                 // the code stays out of the message and out of the chain: both reach logs and Sentry
                 throw new UnknownParticipantException('Unknown TIE code');
             }

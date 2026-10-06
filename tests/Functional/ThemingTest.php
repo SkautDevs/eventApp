@@ -708,6 +708,52 @@ final class ThemingTest extends AppTestCase
         return false;
     }
 
+    /** U-I1: the registered card's name sits on --reg-bg, and owes AA there in every set. */
+    public function testTheRegisteredCardCarriesItsNameAtAA(): void
+    {
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                if (!isset($set['registered-bg'])) {
+                    continue;
+                }
+                $ink = $set['on-registered'] ?? $set['on-grid-structure'];
+                $checked++;
+                self::assertGreaterThanOrEqual(4.5, self::contrast($set['registered-bg'], $ink), sprintf('%s/%s: registered card %s under %s', $slug, $mode, $set['registered-bg'], $ink));
+            }
+        }
+        self::assertGreaterThan(0, $checked);
+        self::assertStringContainsString('color: var(--reg-fg)', self::declarationsFor($this->css(), '.tl-card.is-registered'));
+    }
+
+    /** U-M8: heading, emphasis and link ink on the grounds they are set on. */
+    public function testAccentInkClearsAAOnItsGrounds(): void
+    {
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                foreach (['heading', 'emphasis', 'action-link'] as $ink) {
+                    foreach (['surface', 'ground', 'sheet'] as $ground) {
+                        if (!isset($set[$ink], $set[$ground]) || !preg_match('/^#[0-9a-f]{6}$/i', $set[$ink]) || !preg_match('/^#[0-9a-f]{6}$/i', $set[$ground])) {
+                            continue;
+                        }
+                        $checked++;
+                        self::assertGreaterThanOrEqual(4.5, self::contrast($set[$ink], $set[$ground]), sprintf('%s/%s: %s %s on %s %s', $slug, $mode, $ink, $set[$ink], $ground, $set[$ground]));
+                    }
+                }
+            }
+        }
+        self::assertGreaterThan(0, $checked);
+    }
+
+    /** The shared stylesheet, as written. */
+    private function css(): string
+    {
+        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+    }
+
     /** WCAG 2.1 relative-luminance contrast ratio between two #rrggbb values. */
     private static function contrast(string $a, string $b): float
     {

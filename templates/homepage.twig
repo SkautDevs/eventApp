@@ -30,7 +30,9 @@
 		{% if event.homepage.footerLogo ?? false %}
 			<p><img class="logo" src="{{ event.homepage.footerLogo }}" alt=""></p>
 		{% endif %}
-		<p>{{ event.homepage.footerText }} <a href="{{ event.homepage.footerLinkHref }}">{{ event.homepage.footerLinkLabel }}</a></p>
+		{% if event.homepage.footerLinkHref ?? false %}
+			<p>{{ event.homepage.footerText }} <a href="{{ event.homepage.footerLinkHref }}">{{ event.homepage.footerLinkLabel }}</a></p>
+		{% endif %}
 		<p class="credit"><a href="https://devs.skauting.cz/" target="_blank">S ❤ vybrousil Lung</a></p>
 	</div>
 {% endblock %}

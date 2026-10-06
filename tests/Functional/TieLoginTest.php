@@ -162,4 +162,46 @@ final class TieLoginTest extends AppTestCase
         self::assertStringContainsString('Přihlas se a v programu se ti zvýrazní, na co máš registraci.', $html);
         self::assertStringNotContainsString('Přihlaste', $html);
     }
+
+    public function testACrossSiteLoginIs403AndLogsNobodyIn(): void
+    {
+        $app = $this->createApp();
+        $response = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'], ['Sec-Fetch-Site' => 'cross-site']);
+        self::assertSame(403, $response->getStatusCode());
+        self::assertStringNotContainsString('TIE ABC123', (string) $this->request($app, 'GET', '/profil')->getBody());
+    }
+
+    public function testACrossSiteLogoutIs403AndKeepsTheReaderLoggedIn(): void
+    {
+        $app = $this->createApp();
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'], ['Sec-Fetch-Site' => 'same-origin']);
+        self::assertSame(403, $this->request($app, 'POST', '/profil/tie-logout', [], ['Origin' => 'https://evil.example'])->getStatusCode());
+        self::assertStringContainsString('TIE ABC123', (string) $this->request($app, 'GET', '/profil')->getBody());
+    }
+
+    /** T2-b: the refusal is a page of the app that says what to do, not an empty body. */
+    public function testACrossSiteLoginExplainsItselfInCzech(): void
+    {
+        $response = $this->request($this->createApp(), 'POST', '/profil/tie', ['tieCode' => 'ABC123'], ['Sec-Fetch-Site' => 'cross-site']);
+        $html = (string) $response->getBody();
+
+        self::assertSame(403, $response->getStatusCode());
+        self::assertStringContainsString('text/html', $response->getHeaderLine('Content-Type'));
+        self::assertStringContainsString('Přihlášení se nepodařilo. Načti stránku a zkus to znovu.', $html);
+        self::assertMatchesRegularExpression('#<a [^>]*href="/obrok19/profil"#', $html);
+        self::assertStringContainsString('class="tabbar', $html, 'the page wears the app shell');
+        self::assertStringNotContainsString('Tohle tady není.', $html);
+    }
+
+    public function testACrossSiteLogoutExplainsItselfInCzech(): void
+    {
+        $response = $this->request($this->createApp(), 'POST', '/profil/tie-logout', [], ['Origin' => 'https://evil.example']);
+        $html = (string) $response->getBody();
+
+        self::assertSame(403, $response->getStatusCode());
+        // the reader was logging out, so the page names that, not a login
+        self::assertStringContainsString('Odhlášení se nepodařilo. Načti stránku a zkus to znovu.', $html);
+        self::assertStringNotContainsString('Přihlášení se nepodařilo', $html);
+        self::assertMatchesRegularExpression('#<a [^>]*href="/obrok19/profil"#', $html);
+    }
 }

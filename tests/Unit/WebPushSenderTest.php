@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Push\EndpointPolicy;
+use App\Push\IsolatingWebPush;
 use App\Push\SendOutcome;
 use App\Push\SubscriptionRepository;
 use App\Push\WebPushSender;
@@ -16,6 +17,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Psr\Http\Message\RequestInterface;
 use Minishlink\WebPush\VAPID;
 use PHPUnit\Framework\TestCase;
 
@@ -73,16 +75,28 @@ final class WebPushSenderTest extends TestCase
         $this->repository->save(['endpoint' => $endpoint, 'keys' => self::$browser], 'korbo26', $tieCode);
     }
 
-    /** @param list<Response|\Throwable> $answers what the push service answers, in order */
-    private function sender(array $answers): WebPushSender
+    /**
+     * @param list<Response|\Throwable>|\Closure(\Psr\Http\Message\RequestInterface): (Response|\Throwable) $answers
+     *        what the push service answers, in order, or per request
+     * @param bool $checkKeys false lets an unusable key reach the library's encryption
+     */
+    private function sender(array|\Closure $answers, bool $checkKeys = true): WebPushSender
     {
-        $stack = HandlerStack::create(new MockHandler($answers));
+        $stack = HandlerStack::create($answers instanceof \Closure
+            ? static function (\Psr\Http\Message\RequestInterface $request) use ($answers): \GuzzleHttp\Promise\PromiseInterface {
+                $answer = $answers($request);
+
+                return $answer instanceof \Throwable
+                    ? \GuzzleHttp\Promise\Create::rejectionFor($answer)
+                    : \GuzzleHttp\Promise\Create::promiseFor($answer);
+            }
+            : new MockHandler($answers));
         $stack->push(Middleware::history($this->history));
         $repository = $this->repository;
 
         return new WebPushSender(
             repository: static fn (): SubscriptionRepository => $repository,
-            endpoints: new EndpointPolicy(['push.example']),
+            endpoints: new EndpointPolicy(['push.example', '*.push.example']),
             vapidPublicKey: self::$vapid['publicKey'],
             vapidPrivateKey: self::$vapid['privateKey'],
             vapidSubject: 'mailto:tests@example.invalid',
@@ -91,6 +105,7 @@ final class WebPushSenderTest extends TestCase
             report: function (\Throwable $e): void {
                 $this->reported[] = $e;
             },
+            checkKeys: $checkKeys,
         );
     }
 
@@ -160,7 +175,7 @@ final class WebPushSenderTest extends TestCase
 
         $result = $this->sender([new Response(201)])->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
 
-        self::assertSame(['sent' => 1, 'removed' => 1], $result);
+        self::assertSame(['recipients' => 2, 'sent' => 1, 'removed' => 1, 'failed' => 0], $result);
         self::assertCount(1, $this->history);
         self::assertSame('https://push.example/a', (string) $this->history[0]['request']->getUri());
         self::assertNull($this->repository->find('korbo26', 'https://intranet.example/hook'));
@@ -176,7 +191,7 @@ final class WebPushSenderTest extends TestCase
         $result = $this->sender([new Response(201), new Response(500), new Response(403)])
             ->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', tieCodes: null);
 
-        self::assertSame(['sent' => 1, 'removed' => 0], $result, 'the interface still answers sent and removed');
+        self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], $result);
         self::assertSame([], $this->reported, 'an HTTP answer is not an exception');
         self::assertSame([[
             'level' => 'warning',
@@ -203,7 +218,7 @@ final class WebPushSenderTest extends TestCase
         // not a Guzzle exception: the library's rejection handler cannot map it and flush() throws
         $result = $this->sender([new \RuntimeException('handler broke')])->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', tieCodes: ['KORBO1']);
 
-        self::assertSame(['sent' => 0, 'removed' => 0], $result);
+        self::assertSame(['recipients' => 1, 'sent' => 0, 'removed' => 0, 'failed' => 1], $result);
         self::assertCount(1, $this->reported);
         self::assertCount(1, $this->logger->records);
         self::assertSame(
@@ -211,6 +226,152 @@ final class WebPushSenderTest extends TestCase
             $this->logger->records[0]['context'],
             'a programme send: recipients counts the rows the TIE codes matched',
         );
+    }
+
+    /** NEW-C1: one subscription whose key is not on the curve used to cost every reader the message. */
+    public function testAPoisonedRowAmongValidOnesIsDroppedAndTheRestAreSent(): void
+    {
+        foreach (['a', 'b', 'c', 'd', 'e'] as $name) {
+            $this->subscribe('https://push.example/' . $name);
+        }
+        $this->repository->save(['endpoint' => 'https://push.example/poison', 'keys' => ['p256dh' => SubscriptionKeysTest::OFF_CURVE_PUBLIC, 'auth' => self::$browser['auth']]], 'korbo26');
+
+        $result = $this->sender(array_fill(0, 5, new Response(201)))->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
+
+        self::assertSame(['recipients' => 6, 'sent' => 5, 'removed' => 1, 'failed' => 0], $result);
+        self::assertNull($this->repository->find('korbo26', 'https://push.example/poison'));
+        self::assertCount(5, $this->history, 'the poisoned row was never sent');
+    }
+
+    /**
+     * The same batch with the key check out of the way: the row reaches the library, its
+     * encryption throws inside flush(), and the batch still goes out without it.
+     */
+    public function testARowWhoseEncryptionThrowsInsideTheBatchIsDroppedAndTheRestAreSent(): void
+    {
+        foreach (['a', 'b', 'c'] as $name) {
+            $this->subscribe('https://push.example/' . $name);
+        }
+        $this->repository->save(['endpoint' => 'https://push.example/poison', 'keys' => ['p256dh' => SubscriptionKeysTest::OFF_CURVE_PUBLIC, 'auth' => self::$browser['auth']]], 'korbo26');
+
+        $result = $this->sender(array_fill(0, 3, new Response(201)), checkKeys: false)->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
+
+        self::assertSame(['recipients' => 4, 'sent' => 3, 'removed' => 1, 'failed' => 0], $result);
+        self::assertNull($this->repository->find('korbo26', 'https://push.example/poison'));
+        self::assertCount(3, $this->history);
+        self::assertSame([], $this->reported, 'one unusable row is the row, not a fault');
+    }
+
+    /** Every row failing to prepare inside the batch: counted as failed, reported once, nothing deleted. */
+    public function testWhenEveryRowOfTheBatchThrowsInsideItNothingIsDeleted(): void
+    {
+        foreach (['x', 'y'] as $name) {
+            $this->repository->save(['endpoint' => 'https://push.example/' . $name, 'keys' => ['p256dh' => SubscriptionKeysTest::OFF_CURVE_PUBLIC, 'auth' => self::$browser['auth']]], 'korbo26');
+        }
+
+        $result = $this->sender([], checkKeys: false)->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
+
+        self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], $result);
+        self::assertSame(2, $this->repository->count('korbo26'));
+        self::assertCount(1, $this->reported);
+        self::assertSame([], $this->history);
+    }
+
+    /** A throw while preparing every row is the library or the platform, not the rows: nothing is deleted. */
+    public function testWhenEveryQueuedRowFailsToPrepareNothingIsDeleted(): void
+    {
+        $error = new \ErrorException('boom');
+        $all = [['endpoint' => 'https://push.example/a', 'error' => $error], ['endpoint' => 'https://push.example/b', 'error' => $error]];
+
+        self::assertSame(['delete' => [], 'failed' => 2, 'report' => $error], WebPushSender::settleUnprepared(2, $all));
+        self::assertSame(['delete' => ['https://push.example/b'], 'failed' => 0, 'report' => null], WebPushSender::settleUnprepared(3, [$all[1]]));
+        self::assertSame(['delete' => [], 'failed' => 0, 'report' => null], WebPushSender::settleUnprepared(3, []));
+    }
+
+    /**
+     * A strike needs a delivery on the same push service in the same batch: `a` always
+     * arrives, so `b`'s refusals are about `b`.
+     */
+    public function testFiveFailedSendsInARowDropASubscriptionAndADeliveryResetsTheCount(): void
+    {
+        $this->subscribe('https://push.example/a');
+        $this->subscribe('https://push.example/b');
+        $bFails = static fn (RequestInterface $r): Response => new Response(str_ends_with((string) $r->getUri(), '/b') ? 500 : 201);
+        for ($i = 1; $i <= 4; $i++) {
+            $this->sender($bFails)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
+        }
+        $this->sender(static fn (): Response => new Response(201))->sendToEvent('korbo26', 'Korbo', 'Doručeno');
+        for ($i = 1; $i <= 4; $i++) {
+            $this->sender($bFails)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
+        }
+        self::assertSame(2, $this->repository->count('korbo26'), 'the delivery in the middle reset the strikes');
+
+        $this->sender($bFails)->sendToEvent('korbo26', 'Korbo', 'Pátá');
+        self::assertNull($this->repository->find('korbo26', 'https://push.example/b'));
+        self::assertNotNull($this->repository->find('korbo26', 'https://push.example/a'));
+        self::assertSame(5, WebPushSender::MAX_FAILURES);
+    }
+
+    /** FF-I1: the server's own outage (no route out, DNS, a throttled sender) is not the readers' fault. */
+    public function testSendsWhereNothingWasDeliveredStrikeNobody(): void
+    {
+        $this->subscribe('https://push.example/a');
+        $this->subscribe('https://apple.push.example/b');
+        $down = static fn (RequestInterface $r): \Throwable => new ConnectException('no route to host', $r);
+        for ($i = 1; $i <= WebPushSender::MAX_FAILURES + 1; $i++) {
+            $result = $this->sender($down)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
+            self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], $result);
+        }
+
+        self::assertSame(2, $this->repository->count('korbo26'));
+    }
+
+    /** FF-I1: one push service down while the others deliver strikes none of its rows. */
+    public function testAnOutageOfOnePushServiceStrikesNoneOfItsRows(): void
+    {
+        $this->subscribe('https://push.example/a');
+        $this->subscribe('https://apple.push.example/x');
+        $this->subscribe('https://apple.push.example/y');
+        $appleDown = static fn (RequestInterface $r): Response => new Response($r->getUri()->getHost() === 'apple.push.example' ? 503 : 201);
+        for ($i = 1; $i <= WebPushSender::MAX_FAILURES + 1; $i++) {
+            $result = $this->sender($appleDown)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
+            self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], $result);
+        }
+
+        self::assertSame(3, $this->repository->count('korbo26'));
+    }
+
+    public function testOnlyRowsOnAServiceThatDeliveredInTheBatchAreStruck(): void
+    {
+        self::assertSame(
+            ['https://push.example/b'],
+            WebPushSender::strikable(
+                ['https://PUSH.example/a'],
+                ['https://push.example/b', 'https://apple.push.example/x', 'not a url'],
+            ),
+        );
+        self::assertSame([], WebPushSender::strikable([], ['https://push.example/b']));
+    }
+
+    /** The library's "GMP or BCMath" advice reaches neither PHP's error handler nor the log. */
+    public function testTheLibrarysPlatformAdviceGoesToTheLogger(): void
+    {
+        $logger = new RecordingLogger();
+        $raised = [];
+        set_error_handler(static function (int $errno, string $message) use (&$raised): bool {
+            $raised[] = $message;
+
+            return true;
+        });
+        try {
+            $webPush = WebPushSender::webPush(['subject' => 'mailto:t@example.invalid'] + self::$vapid, [], $logger);
+        } finally {
+            restore_error_handler();
+        }
+
+        self::assertInstanceOf(IsolatingWebPush::class, $webPush);
+        self::assertSame([], $raised);
+        self::assertSame([], $logger->records);
     }
 
     public function testAThrowableInTheWelcomeIsCollected(): void

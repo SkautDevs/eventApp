@@ -72,7 +72,7 @@ final class MigratorTest extends TestCase
         self::assertContains('subscriptions', self::tables($pdo));
         self::assertContains('messages', self::tables($pdo));
         self::assertSame(
-            ['event' => 1, 'endpoint' => 2, 'public_key' => 0, 'auth_token' => 0, 'created_at' => 0, 'tie_code' => 0],
+            ['event' => 1, 'endpoint' => 2, 'public_key' => 0, 'auth_token' => 0, 'created_at' => 0, 'tie_code' => 0, 'failures' => 0],
             self::primaryKey($pdo, 'subscriptions'),
         );
     }
@@ -174,7 +174,7 @@ final class MigratorTest extends TestCase
         $setup->exec("INSERT INTO subscriptions VALUES ('https://push.example/a', 'PK', 'AT', '2026-09-01', 'korbo26', NULL)");
         unset($setup);
 
-        $readOnly = new \PDO('sqlite:' . $this->path, null, null, [\PDO::SQLITE_ATTR_OPEN_FLAGS => \PDO::SQLITE_OPEN_READONLY]);
+        $readOnly = new \PDO('sqlite:' . $this->path, null, null, [self::sqlite('ATTR_OPEN_FLAGS') => self::sqlite('OPEN_READONLY')]);
         $readOnly->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         try {
             (new Migrator())->migrate($readOnly);
@@ -199,7 +199,7 @@ final class MigratorTest extends TestCase
 
         (new Migrator())->migrate($pdo);
 
-        self::assertSame(2, Migrator::VERSION);
+        self::assertGreaterThanOrEqual(2, Migrator::VERSION);
         self::assertContains('tie_attempts', self::tables($pdo));
         self::assertSame(
             ['event', 'ip', 'attempted_at'],
@@ -207,18 +207,88 @@ final class MigratorTest extends TestCase
         );
     }
 
-    public function testAVersionOneFileGainsOnlyStepTwo(): void
+    public function testAFreshFileHasTheSubscribeAttemptsTableAndItsIndex(): void
+    {
+        $pdo = Database::open($this->path);
+
+        (new Migrator())->migrate($pdo);
+
+        self::assertGreaterThanOrEqual(4, Migrator::VERSION);
+        self::assertContains('subscribe_attempts', self::tables($pdo));
+        self::assertSame(
+            ['event', 'ip', 'attempted_at'],
+            $pdo->query('PRAGMA index_info(subscribe_attempts_lookup)')->fetchAll(\PDO::FETCH_COLUMN, 2),
+        );
+    }
+
+    public function testAVersionOneFileGainsTheLaterStepsOnly(): void
     {
         $pdo = Database::open($this->path);
         $pdo->exec("CREATE TABLE subscriptions (event TEXT NOT NULL, endpoint TEXT NOT NULL, public_key TEXT NOT NULL, auth_token TEXT NOT NULL, created_at TEXT NOT NULL, tie_code TEXT NULL, PRIMARY KEY (event, endpoint)) WITHOUT ROWID");
         $pdo->exec("INSERT INTO subscriptions VALUES ('korbo26', 'https://push.example/a', 'k', 'a', '2026-01-01', NULL)");
+        // step 1 would drop an eventless row, so its survival shows step 1 did not run again
+        $pdo->exec("INSERT INTO subscriptions VALUES ('', 'https://push.example/old', 'k', 'a', '2019-01-01', NULL)");
         $pdo->exec('PRAGMA user_version = 1');
 
         (new Migrator())->migrate($pdo);
 
-        self::assertSame(2, Migrator::version($pdo));
+        self::assertSame(Migrator::VERSION, Migrator::version($pdo));
         self::assertContains('tie_attempts', self::tables($pdo));
-        self::assertSame(1, (int) $pdo->query('SELECT COUNT(*) FROM subscriptions')->fetchColumn());
-        self::assertNotContains('messages', self::tables($pdo), 'step 1 did not run again');
+        self::assertSame(2, (int) $pdo->query('SELECT COUNT(*) FROM subscriptions')->fetchColumn(), 'step 1 did not run again');
+        // the file had no messages table; step 5 creates it in its final shape
+        self::assertContains('failed', array_column($pdo->query('PRAGMA table_info(messages)')->fetchAll(\PDO::FETCH_ASSOC), 'name'));
+    }
+
+    public function testStepThreeGivesEverySubscriptionAFailureCountOfZero(): void
+    {
+        $pdo = Database::open($this->path);
+        $this->createTodaysSchema($pdo);
+        $pdo->exec("INSERT INTO subscriptions VALUES ('https://push.example/a', 'PK', 'AT', '2026-09-01', 'korbo26', NULL)");
+        (new Migrator())->migrate($pdo);
+
+        self::assertSame(0, (int) $pdo->query("SELECT failures FROM subscriptions WHERE endpoint = 'https://push.example/a'")->fetchColumn());
+    }
+
+    public function testStepFiveKeepsTheMessagesAndMakesTheCountsNullable(): void
+    {
+        $pdo = Database::open($this->path);
+        $this->createTodaysSchema($pdo);
+        $pdo->exec("INSERT INTO messages (event, sent_at, target_label, title, body, signature, sent, removed, unreached, hidden, toggled_by) VALUES ('korbo26', '2026-09-01 10:00:00', 'Všem', 'Změna', 'text', 'Lung', 3, 1, 4, 1, 'Jana')");
+        $pdo->exec("INSERT INTO messages (event, sent_at, target_label, title, body, signature, sent, removed, unreached) VALUES ('korbo26', '2026-09-02 10:00:00', 'Všem', 'Smazaná', 'text', 'Lung', 0, 0, NULL)");
+        // AUTOINCREMENT remembers the highest id ever handed out, not only the highest one left
+        $pdo->exec("DELETE FROM messages WHERE title = 'Smazaná'");
+        (new Migrator())->migrate($pdo);
+        self::assertSame(Migrator::VERSION, Migrator::version($pdo));
+
+        $old = $pdo->query("SELECT * FROM messages WHERE title = 'Změna'")->fetch(\PDO::FETCH_ASSOC);
+        self::assertSame(
+            ['id' => 1, 'title' => 'Změna', 'sent' => 3, 'removed' => 1, 'failed' => null, 'unreached' => 4, 'hidden' => 1, 'toggled_by' => 'Jana'],
+            ['id' => (int) $old['id'], 'title' => $old['title'], 'sent' => (int) $old['sent'], 'removed' => (int) $old['removed'], 'failed' => $old['failed'], 'unreached' => (int) $old['unreached'], 'hidden' => (int) $old['hidden'], 'toggled_by' => $old['toggled_by']],
+        );
+
+        $id = (new \App\Push\MessageRepository($pdo))->begin('korbo26', null, 'Všem', 'Další', 'text', 'Lung');
+        self::assertGreaterThan(2, $id);
+        self::assertNull($pdo->query('SELECT sent FROM messages WHERE id = ' . $id)->fetchColumn(), 'sent accepts NULL now');
+        self::assertNotContains('messages_new', self::tables($pdo));
+    }
+
+    /** PF2: a file whose messages table is gone gets the new one rather than a failed rebuild. */
+    public function testStepFiveCreatesTheMessagesTableWhenItIsMissing(): void
+    {
+        $pdo = Database::open($this->path);
+        (new Migrator())->migrate($pdo);
+        $pdo->exec('DROP TABLE messages');
+        $pdo->exec('PRAGMA user_version = 4');
+
+        (new Migrator())->migrate($pdo);
+
+        self::assertSame(Migrator::VERSION, Migrator::version($pdo));
+        self::assertContains('failed', array_column($pdo->query('PRAGMA table_info(messages)')->fetchAll(\PDO::FETCH_ASSOC), 'name'));
+    }
+
+    /** Pdo\Sqlite's constant where it exists (PHP ≥ 8.4; PDO::SQLITE_* is deprecated in 8.5), else PDO's. */
+    private static function sqlite(string $name): int
+    {
+        return class_exists(\Pdo\Sqlite::class) ? constant(\Pdo\Sqlite::class . '::' . $name) : constant('PDO::SQLITE_' . $name);
     }
 }

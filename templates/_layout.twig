@@ -110,6 +110,8 @@
 <a class="skip-link" href="{{ screenPath }}#obsah">Přeskočit na obsah</a>
 <header class="appbar">
 	<a class="appbar-brand" href="{{ url_for('homepage') }}">
+		{# the logo is decorative and the title names the screen: without this the link to the homepage is announced as the current screen #}
+		<span class="sr-only">{{ event.name }} – úvod</span>
 		{# The bar is filled with `state`, and `state` is the one fill that does NOT
 		   flip with the mode — so the mark on it must not flip either. The mode pair
 		   belongs on a surface that follows the mode; here it put obrok27's lime

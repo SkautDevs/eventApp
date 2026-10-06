@@ -24,7 +24,10 @@
 		off: 'Notifikace jsou vypnuté.',
 		denied: 'Notifikace máš v prohlížeči zakázané. Povol je v nastavení stránky a zkus to znovu.',
 		enableFailed: 'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
+		tooMany: 'Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.',
+		invalidKey: 'Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.',
 		disableFailed: 'Notifikace se nepodařilo vypnout. Zkus to znovu.',
+		preparing: 'Připravuji…',
 		ios: 'Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.',
 	};
 
@@ -78,6 +81,10 @@
 			// 502 subscription-rejected: the push service disowned it and the server dropped
 			// the row. Nothing else — no network, a 500 — proves anything about it.
 			error.rejected = response.status === 502 && result.error === 'subscription-rejected';
+			// 429 too-many: the address has subscribed a lot just now (a camp behind one NAT);
+			// 400 invalid-key: the browser's keys are unusable and a fresh subscription is needed
+			error.tooMany = response.status === 429;
+			error.invalidKey = response.status === 400 && result.error === 'invalid-key';
 			throw error;
 		}
 		try {
@@ -86,6 +93,18 @@
 			// private mode: the next page simply sends it again
 		}
 		return result;
+	};
+
+	/** The browser subscribes only through an active worker; on a first visit it may still be installing. */
+	const READY_TIMEOUT = 10000;
+	const workerReady = () => {
+		let timer = null;
+		return Promise.race([
+			navigator.serviceWorker.ready,
+			new Promise((resolve, reject) => {
+				timer = setTimeout(() => reject(new Error('the worker did not become active')), READY_TIMEOUT);
+			}),
+		]).finally(() => clearTimeout(timer));
 	};
 
 	const enablePush = async () => {
@@ -98,7 +117,10 @@
 			}
 			let subscription = null;
 			try {
-				const registration = await navigator.serviceWorker.register('sw.js', {scope: meta('event-base')});
+				await navigator.serviceWorker.register('sw.js', {scope: meta('event-base')});
+				status = TEXT.preparing;
+				render();
+				const registration = await workerReady();
 				subscription = await registration.pushManager.subscribe({
 					userVisibleOnly: true,
 					applicationServerKey: urlB64ToUint8Array(meta('vapid-public-key')),
@@ -108,12 +130,18 @@
 				// welcome false: saved, but the welcome did not get through — say only what is true
 				status = result.welcome === true ? TEXT.welcome : TEXT.on;
 			} catch (e) {
+				if (e.tooMany === true) {
+					// The browser's subscription is fine and is kept: the next page re-sends it
+					// (nothing was remembered as sent), and so does the next tap.
+					status = TEXT.tooMany;
+					return;
+				}
 				// Half a subscription is worse than none: the next page would believe it is on.
 				// Dropping it here makes the next tap start over, welcome included.
 				if (subscription) {
 					await subscription.unsubscribe().catch(() => {});
 				}
-				status = TEXT.enableFailed;
+				status = e.invalidKey === true ? TEXT.invalidKey : TEXT.enableFailed;
 			}
 		} finally {
 			setBusy(false);

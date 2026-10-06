@@ -5,9 +5,10 @@
     "require": {
         "php": ">=8.3",
         "ext-json": "*",
+        "ext-mbstring": "*",
         "ext-pdo": "*",
         "guzzlehttp/guzzle": "^7.9",
-        "minishlink/web-push": "^9.0",
+        "minishlink/web-push": "~10.1.0",
         "monolog/monolog": "^3.7",
         "php-di/php-di": "^7.0",
         "sentry/sentry": "^4.1",

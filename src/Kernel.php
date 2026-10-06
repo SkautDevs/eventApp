@@ -20,6 +20,9 @@ final class Kernel
     /** The container key of the error handler's logger: stdout only, never Sentry. */
     public const ERRORS_LOGGER = 'logger.errors';
 
+    /** Every HTML page and fragment without a policy of its own (addScreenMiddleware()). */
+    public const PAGE_CACHE_CONTROL = 'no-store, no-cache, must-revalidate';
+
     private const SECURITY_HEADERS = [
         'X-Content-Type-Options' => 'nosniff',
         'Referrer-Policy' => 'same-origin',
@@ -58,6 +61,21 @@ final class Kernel
     private static function pushDbPath(string $root): string
     {
         $path = $_ENV['PUSH_DB_PATH'] ?? 'var/push.sqlite';
+
+        return str_starts_with($path, '/') ? $path : $root . '/' . $path;
+    }
+
+    /**
+     * SESSION_PATH: the session store's directory, var/sessions unless set; relative paths
+     * are resolved against the project root like PUSH_DB_PATH. The browser tests point it
+     * at a temporary directory of their own.
+     */
+    public static function sessionPath(string $root): string
+    {
+        $path = $_ENV['SESSION_PATH'] ?? '';
+        if ($path === '') {
+            return $root . '/var/sessions';
+        }
 
         return str_starts_with($path, '/') ? $path : $root . '/' . $path;
     }
@@ -102,6 +120,11 @@ final class Kernel
         // Accept: */* (and a fragment request) picks the default, which is the page too
         $handler->setDefaultErrorRenderer('text/html', $renderer);
         $middleware->setDefaultErrorHandler($handler);
+        // A route middleware that must put its headers on the error page too (the admin
+        // pages' no-store) renders the exception through this itself; see PushModule.
+        if ($container instanceof \DI\Container) {
+            $container->set(\Slim\Middleware\ErrorMiddleware::class, $middleware);
+        }
     }
 
     /** The error handler's own channel: the exception already went to Sentry through the Collector. */
@@ -222,9 +245,12 @@ final class Kernel
             // content hashes for the stylesheet and the scripts: asset_version() in the
             // layout, and the service worker's precache list (Task 5)
             Http\AssetVersion::class => fn (): Http\AssetVersion => new Http\AssetVersion($root . '/www'),
-            Session::class => fn (): Session => new Session($event->slug),
+            // var/sessions (or SESSION_PATH), created 0700 on first use: nothing about sessions
+            // depends on the host's ini (the FTP host's handler and defaults are unknown)
+            Session::class => fn (): Session => new Session($event->slug, self::sessionPath($root), appRoot: $root),
             Auth\Authenticator::class => \DI\autowire(),
             Auth\LoginThrottle::class => \DI\autowire(),
+            \App\Push\SubscribeThrottle::class => \DI\autowire(),
             // One connection per request, opened and migrated on first use only: PHP-DI
             // builds a definition on the first get(), so the homepage, the map, the links
             // and the handbook never touch the file. A request that does pays one
@@ -353,6 +379,7 @@ final class Kernel
         $app->addRoutingMiddleware();
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
         self::addErrorHandling($app, $container, 'error.twig');
+        self::addSessionCookieMiddleware($app, $container);
         // Added after the error middleware, so it sits outside it rather than inside it;
         // the security headers, the CSP and the transaction middleware wrap it in turn.
         // A thrown 404 or 500 never reaches the route, so a header applied further in
@@ -372,6 +399,29 @@ final class Kernel
         self::registerModules($app, $container, $event);
 
         return $app;
+    }
+
+    /**
+     * The login cookie slides: every full page a logged-in reader gets re-issues it with a
+     * fresh 30-day expiry (same ID). A fragment, a redirect, JSON or an error page does not.
+     * Outside the error middleware like the screen middleware, so it sees the final response.
+     */
+    private static function addSessionCookieMiddleware(App $app, ContainerInterface $container): void
+    {
+        $app->add(function ($request, $handler) use ($container) {
+            $response = $handler->handle($request);
+            $type = $response->getHeaderLine('Content-Type');
+            if ($request->getMethod() === 'GET'
+                && $request->getHeaderLine('X-Screen') !== '1'
+                && $response->getStatusCode() === 200
+                && ($type === '' || str_starts_with($type, 'text/html'))
+                && $container->get(Auth\Authenticator::class)->isLogged()
+            ) {
+                $container->get(Session::class)->refreshCookie();
+            }
+
+            return $response;
+        });
     }
 
     /**
@@ -401,7 +451,19 @@ final class Kernel
 
             // the two responses differ for the same URL, so anything caching them has to
             // key on the header as well
-            return $handler->handle($request)->withHeader('Vary', 'X-Screen');
+            $response = $handler->handle($request)->withHeader('Vary', 'X-Screen');
+            // A page carries the identity (the app bar, the registered marking), so no shared
+            // or HTTP cache keeps it: stated here for every page and fragment, cookie or not,
+            // because Session leaves PHP's cache limiter off. A route with its own policy
+            // (the admin pages' no-store) keeps it. The worker's Cache API copy is unaffected.
+            // An untyped response counts as a page, so a redirect or a 204 gets the header
+            // too — harmless, neither has a body worth caching.
+            $type = $response->getHeaderLine('Content-Type');
+            if (!$response->hasHeader('Cache-Control') && ($type === '' || str_starts_with($type, 'text/html'))) {
+                $response = $response->withHeader('Cache-Control', self::PAGE_CACHE_CONTROL);
+            }
+
+            return $response;
         });
     }
 
@@ -454,6 +516,10 @@ final class Kernel
         })->setName('profile');
 
         $app->post('/profil/tie', function ($request, $response) use ($base) {
+            // a cross-site form must neither log the reader in as somebody else nor out
+            if (!Http\SameOrigin::allows($request)) {
+                return self::loginRefused($this->get(Twig::class), $response, $base);
+            }
             $body = (array) $request->getParsedBody();
             $code = strtoupper(trim((string) ($body['tieCode'] ?? '')));
             // Můj program carries its own form and wants the reader back on the list;
@@ -469,7 +535,7 @@ final class Kernel
                     return;
                 }
                 $slug = $this->get(EventConfig::class)->slug;
-                $ip = Http\ClientIp::of($request);
+                $ip = Http\ClientIp::throttleKey($request);
                 $throttle = $this->get(Auth\LoginThrottle::class);
                 if ($throttle->tooMany($slug, $ip)) {
                     // checked before the provider: against kissj every guess is an upstream request
@@ -500,6 +566,10 @@ final class Kernel
         })->setName('tie-login');
 
         $app->post('/profil/tie-logout', function ($request, $response) use ($base) {
+            // a cross-site form must neither log the reader in as somebody else nor out
+            if (!Http\SameOrigin::allows($request)) {
+                return self::loginRefused($this->get(Twig::class), $response, $base, logout: true);
+            }
             $this->get(Auth\Authenticator::class)->logout();
 
             return $response->withHeader('Location', $base . '/profil')->withStatus(302);
@@ -529,6 +599,22 @@ final class Kernel
                 ->withHeader('Content-Type', 'application/json')
                 ->withHeader('Cache-Control', 'no-cache');
         })->setName('precache');
+    }
+
+    /**
+     * The cross-site refusal of the TIE login or logout, as a page of the app: a reader
+     * who hits it (a form left open across a deploy, a privacy extension stripping the
+     * headers) is told what to do and given the way back, with the 403 kept.
+     */
+    private static function loginRefused(Twig $twig, \Psr\Http\Message\ResponseInterface $response, string $base, bool $logout = false): \Psr\Http\Message\ResponseInterface
+    {
+        return $twig->render($response->withStatus(403)->withHeader('Content-Type', 'text/html; charset=utf-8'), 'error.twig', [
+            'notFound' => false,
+            'details' => null,
+            // the reader is told which of the two it was: a refused logout leaves them logged in
+            'message' => ($logout ? 'Odhlášení' : 'Přihlášení') . ' se nepodařilo. Načti stránku a zkus to znovu.',
+            'back' => ['href' => $base . '/profil', 'label' => 'Zpět na profil'],
+        ]);
     }
 
     private static function registerModules(App $app, ContainerInterface $container, EventConfig $event): void

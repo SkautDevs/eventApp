@@ -7,7 +7,6 @@ namespace App\Push;
 use App\Telemetry\Collector;
 use App\Telemetry\Tracer;
 use Minishlink\WebPush\Subscription;
-use Minishlink\WebPush\WebPush;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -19,6 +18,12 @@ final class WebPushSender implements PushSenderInterface
      * nginx's 45 s fastcgi_read_timeout, or the organiser sees a 504 and sends again.
      */
     public const TIMEOUT_SECONDS = 5;
+
+    /**
+     * Consecutive failed sends (not 404/410) after which a row is deleted: an endpoint on an
+     * allowed host that never answers would otherwise be kept and retried forever.
+     */
+    public const MAX_FAILURES = 5;
 
     /** @var \Closure(): SubscriptionRepository */
     private readonly \Closure $repositoryFactory;
@@ -35,6 +40,8 @@ final class WebPushSender implements PushSenderInterface
      * @param array<string, mixed> $clientOptions extra Guzzle options; tests pass a mock handler
      * @param LoggerInterface $logger where a batch with failures leaves its one warning
      * @param (\Closure(\Throwable): void)|null $report where a swallowed throwable goes; Sentry by default
+     * @param bool $checkKeys @internal a test seam: false lets a row whose key is unusable
+     *        reach the library, so the batch isolation behind the check can be tested
      */
     public function __construct(
         \Closure $repository,
@@ -45,6 +52,7 @@ final class WebPushSender implements PushSenderInterface
         private readonly array $clientOptions = [],
         private readonly LoggerInterface $logger = new NullLogger(),
         ?\Closure $report = null,
+        private readonly bool $checkKeys = true,
     ) {
         self::assertVapid($vapidPublicKey, $vapidPrivateKey, $vapidSubject);
         $this->repositoryFactory = $repository;
@@ -94,7 +102,7 @@ final class WebPushSender implements PushSenderInterface
             ],
         );
 
-        return ['sent' => $result['sent'], 'removed' => $result['removed']];
+        return ['recipients' => count($rows)] + $result;
     }
 
     public function sendToSubscription(
@@ -114,25 +122,20 @@ final class WebPushSender implements PushSenderInterface
     }
 
     /**
-     * The library with this sender's timeout. Without GMP or BCMath — the bare
-     * php:8.3-alpine dev container; the image installs GMP — its constructor raises a
-     * notice that a displaying dev server prints into the response and Sentry's error
-     * listener would file. It is advice, not a fault, so it is swallowed here.
+     * The library, in its batch-isolating form, with this sender's timeout. Its constructor
+     * checks the platform: without GMP or BCMath — the bare php:8.3-alpine dev container —
+     * it advises installing one. Given a logger it says so there instead of raising an
+     * E_USER_NOTICE that a displaying dev server prints into the response and Sentry's
+     * error listener would file; PlatformAdviceFilter then drops that one message, which
+     * would otherwise repeat on every send. A real fault — no curl, no P-256 in OpenSSL —
+     * is a warning, passes the filter and reaches Sentry as one.
      *
      * @param array{subject: string, publicKey: string, privateKey: string} $vapid
      * @param array<string, mixed> $clientOptions
      */
-    public static function webPush(array $vapid, array $clientOptions = []): WebPush
+    public static function webPush(array $vapid, array $clientOptions = [], LoggerInterface $logger = new NullLogger()): IsolatingWebPush
     {
-        set_error_handler(
-            static fn (int $errno, string $message): bool => str_contains($message, 'GMP or BCMath'),
-            \E_USER_NOTICE,
-        );
-        try {
-            return new WebPush(['VAPID' => $vapid], [], self::TIMEOUT_SECONDS, $clientOptions);
-        } finally {
-            restore_error_handler();
-        }
+        return new IsolatingWebPush(['VAPID' => $vapid], [], self::TIMEOUT_SECONDS, $clientOptions, new PlatformAdviceFilter($logger));
     }
 
     /**
@@ -187,7 +190,7 @@ final class WebPushSender implements PushSenderInterface
             'subject' => $this->vapidSubject,
             'publicKey' => $this->vapidPublicKey,
             'privateKey' => $this->vapidPrivateKey,
-        ], $this->clientOptions);
+        ], $this->clientOptions, $this->logger);
 
         $payload = self::payload($title, $body, $icon, $url, $programme);
         $removed = 0;
@@ -201,7 +204,7 @@ final class WebPushSender implements PushSenderInterface
             // dropped, before it is ever queued. So is a row whose host is not a known
             // push service: rows saved before the allow-list existed may name any URL,
             // and the server must not POST to it.
-            if (!$this->endpoints->allows($row['endpoint']) || !self::isDeliverable($row)) {
+            if (!$this->endpoints->allows($row['endpoint']) || ($this->checkKeys && !self::isDeliverable($row))) {
                 $this->repository()->delete($event, $row['endpoint']);
                 $removed++;
                 continue;
@@ -228,26 +231,95 @@ final class WebPushSender implements PushSenderInterface
 
         $sent = 0;
         $answered = 0;
+        $delivered = [];
+        $undelivered = [];
+        $thrown = null;
         try {
             foreach ($webPush->flush() as $report) {
                 $answered++;
+                $endpoint = $report->getEndpoint();
                 if ($report->isSuccess()) {
                     $sent++;
+                    $delivered[] = $endpoint;
                 } elseif ($report->isSubscriptionExpired()) {
-                    $this->repository()->delete($event, (string) $report->getRequest()->getUri());
+                    $this->repository()->delete($event, $endpoint);
                     $removed++;
                 } else {
                     $failed++;
+                    $undelivered[] = $endpoint;
                 }
             }
         } catch (\Throwable $e) {
-            // whatever the batch managed is still worth reporting; the alternative is a
-            // 500 on the admin form with no indication of what did go out
-            ($this->report)($e);
-            $failed += $queued - $answered;
+            $thrown = $e;
         }
 
+        $unprepared = $webPush->takeUnprepared();
+        if ($thrown !== null) {
+            // whatever the batch managed is still worth reporting; the alternative is a 500
+            // on the admin form with no indication of what did go out
+            ($this->report)($thrown);
+            $failed += $queued - count($unprepared) - $answered;
+        }
+        $settled = self::settleUnprepared($queued, $unprepared);
+        if ($settled['report'] !== null) {
+            ($this->report)($settled['report']);
+        }
+        $failed += $settled['failed'];
+        foreach ($settled['delete'] as $endpoint) {
+            $this->repository()->delete($event, $endpoint);
+            $removed++;
+        }
+
+        // A failure proves nothing about one subscription, five in a row do — but only when
+        // its push service was reachable and delivering in the same batch. A batch where
+        // nothing arrived is the server's outage (no route out, DNS, a throttled sender), and
+        // one service down while the others deliver is that service's outage: striking either
+        // would delete every reader of it after five sends while their browsers still believe
+        // they are subscribed. A row dropped here still counts as failed for this send.
+        $this->repository()->clearFailures($event, $delivered);
+        $this->repository()->noteFailures($event, self::strikable($delivered, $undelivered), self::MAX_FAILURES);
+
         return ['sent' => $sent, 'removed' => $removed, 'failed' => $failed];
+    }
+
+    /**
+     * The undelivered endpoints that may take a strike: those whose push service (the URL's
+     * host) delivered at least one other notification of the same batch.
+     *
+     * @param list<string> $delivered
+     * @param list<string> $undelivered
+     * @return list<string>
+     */
+    public static function strikable(array $delivered, array $undelivered): array
+    {
+        $host = static fn (string $endpoint): string => strtolower((string) parse_url($endpoint, \PHP_URL_HOST));
+        $reachable = array_flip(array_filter(array_map($host, $delivered), static fn (string $h): bool => $h !== ''));
+        if ($reachable === []) {
+            return [];
+        }
+
+        return array_values(array_filter($undelivered, static fn (string $endpoint): bool => isset($reachable[$host($endpoint)])));
+    }
+
+    /**
+     * What to do with the notifications IsolatingWebPush set aside. Some of them: those rows
+     * are unusable and go (a 410 by other means). All of them: that is the library or the
+     * platform, not the subscriptions — deleting would wipe every reader — so they count as
+     * failed and the first error is reported once.
+     *
+     * @param list<array{endpoint: string, error: \Throwable}> $unprepared
+     * @return array{delete: list<string>, failed: int, report: ?\Throwable}
+     */
+    public static function settleUnprepared(int $queued, array $unprepared): array
+    {
+        if ($unprepared === []) {
+            return ['delete' => [], 'failed' => 0, 'report' => null];
+        }
+        if (count($unprepared) === $queued) {
+            return ['delete' => [], 'failed' => count($unprepared), 'report' => $unprepared[0]['error']];
+        }
+
+        return ['delete' => array_column($unprepared, 'endpoint'), 'failed' => 0, 'report' => null];
     }
 
     /**
@@ -276,21 +348,18 @@ final class WebPushSender implements PushSenderInterface
     }
 
     /**
-     * The shape the encryption in `flush()` insists on: a base64url P-256 public key in
-     * uncompressed form and an auth secret of 16 bytes. Every real browser subscription
-     * has it; a row that does not can never receive a notification, so it is dead weight
-     * rather than a subscriber.
+     * What the encryption in `flush()` insists on: a point on P-256 in uncompressed form and
+     * an auth secret of 16 bytes. Every real browser subscription has it; a row that does
+     * not can never receive a notification, so it is dead weight rather than a subscriber.
      *
      * @param array{endpoint: string, publicKey: string, authToken: string} $row
      */
     private static function isDeliverable(array $row): bool
     {
-        $authToken = self::base64Url($row['authToken']);
-
-        return self::isP256PublicKey($row['publicKey']) && $authToken !== null && strlen($authToken) === 16;
+        return SubscriptionKeys::valid($row['publicKey'], $row['authToken']);
     }
 
-    /** 65 bytes, a leading 0x04: the VAPID public key and every subscriber's key alike. */
+    /** 65 bytes, a leading 0x04: the shape of the VAPID public key. */
     private static function isP256PublicKey(string $value): bool
     {
         $bytes = self::base64Url($value);

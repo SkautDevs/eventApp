@@ -16,7 +16,7 @@ final class KernelProviderSelectionTest extends TestCase
 {
     protected function tearDown(): void
     {
-        unset($_ENV['PROGRAM_PROVIDER_OBROK27'], $_ENV['PROGRAM_PROVIDER_OBROK19'], $_ENV['KISSJ_BASE_URL'], $_ENV['KISSJ_API_KEY_OBROK27'], $_ENV['PROGRAM_CACHE_TTL']);
+        unset($_ENV['PROGRAM_PROVIDER_OBROK27'], $_ENV['PROGRAM_PROVIDER_OBROK19'], $_ENV['KISSJ_BASE_URL'], $_ENV['KISSJ_API_KEY_OBROK27'], $_ENV['PROGRAM_CACHE_TTL'], $_ENV['SESSION_PATH']);
     }
 
     private function providerFor(): ProgramProviderInterface
@@ -55,6 +55,20 @@ final class KernelProviderSelectionTest extends TestCase
 
             self::assertSame($expected, Kernel::programCacheTtl(), var_export($value, true));
         }
+    }
+
+    public function testTheSessionStoreIsVarSessionsUnlessSessionPathSaysOtherwise(): void
+    {
+        self::assertSame('/app/var/sessions', Kernel::sessionPath('/app'));
+
+        $_ENV['SESSION_PATH'] = '';
+        self::assertSame('/app/var/sessions', Kernel::sessionPath('/app'));
+
+        $_ENV['SESSION_PATH'] = 'var/elsewhere';
+        self::assertSame('/app/var/elsewhere', Kernel::sessionPath('/app'));
+
+        $_ENV['SESSION_PATH'] = '/tmp/eventapp-test-sessions';
+        self::assertSame('/tmp/eventapp-test-sessions', Kernel::sessionPath('/app'));
     }
 
     public function testKissjWithoutBaseUrlThrows(): void

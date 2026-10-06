@@ -17,6 +17,18 @@ final class EventCatalog
             && is_file($this->eventsDir . '/' . $slug . '/config.php');
     }
 
+    /** @return list<string> every event's slug, listed or not, sorted */
+    public function slugs(): array
+    {
+        $slugs = array_values(array_filter(
+            array_map(static fn (string $file): string => basename(dirname($file)), glob($this->eventsDir . '/*/config.php') ?: []),
+            $this->has(...),
+        ));
+        sort($slugs);
+
+        return $slugs;
+    }
+
     public function load(string $slug): EventConfig
     {
         return EventConfig::load($this->eventsDir, $slug);
