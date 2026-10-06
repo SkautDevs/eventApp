@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Push\SendOutcome;
+use App\Push\SubscribeThrottle;
 use App\Push\SubscriptionRepository;
+use Tests\Unit\SubscriptionKeysTest;
 
 final class PushSubscribeTest extends AppTestCase
 {
@@ -46,7 +48,7 @@ final class PushSubscribeTest extends AppTestCase
 
         $response = $this->request($app, 'POST', '/push/subscribe', [
             'endpoint' => 'https://push.example/xyz',
-            'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
+            'keys' => AppTestCase::BROWSER_KEYS,
         ]);
 
         self::assertSame(201, $response->getStatusCode());
@@ -68,7 +70,7 @@ final class PushSubscribeTest extends AppTestCase
 
         $response = $this->request($app, 'POST', '/push/subscribe', [
             'endpoint' => 'https://push.example/xyz',
-            'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
+            'keys' => AppTestCase::BROWSER_KEYS,
             'event' => 'obrok27',
         ]);
 
@@ -77,7 +79,7 @@ final class PushSubscribeTest extends AppTestCase
         self::assertSame(0, $this->repo()->count('obrok27'));
     }
 
-    private const SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']];
+    private const SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => AppTestCase::BROWSER_KEYS];
 
     public function testASubscriptionCarriesTheLoggedInTieCode(): void
     {
@@ -226,7 +228,7 @@ final class PushSubscribeTest extends AppTestCase
 
         $response = $this->request($app, 'POST', '/push/subscribe', [
             'endpoint' => 'https://intranet.example/hook',
-            'keys' => ['p256dh' => 'PK', 'auth' => 'AT'],
+            'keys' => AppTestCase::BROWSER_KEYS,
         ]);
 
         self::assertSame(400, $response->getStatusCode());
@@ -243,5 +245,52 @@ final class PushSubscribeTest extends AppTestCase
         self::assertSame(1, $this->repo()->count('obrok19'));
         self::assertSame(1, $this->repo()->count('korbo26'));
         self::assertCount(2, $this->sender->welcomes, 'each event welcomes the browser once');
+    }
+
+    public function testAKeyThatIsNotAP256PointIs400AndSavesNothing(): void
+    {
+        $repository = new SubscriptionRepository($pdo = AppTestCase::memoryDb());
+        $app = $this->createApp('korbo26', [\PDO::class => $pdo]);
+        $response = $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'https://push.example/xyz', 'keys' => ['p256dh' => SubscriptionKeysTest::OFF_CURVE_PUBLIC, 'auth' => AppTestCase::BROWSER_KEYS['auth']]]);
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame(['saved' => false, 'error' => 'invalid-key'], json_decode((string) $response->getBody(), true));
+        self::assertSame(0, $repository->count('korbo26'));
+    }
+
+    public function testKeysThatAreNotAnObjectAre400(): void
+    {
+        $app = $this->createApp(overrides: $this->overrides());
+
+        $response = $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'https://push.example/xyz', 'keys' => 'PK']);
+
+        self::assertSame(400, $response->getStatusCode());
+        self::assertSame(0, $this->repo()->count());
+    }
+
+    public function testTheThreeHundredAndFirstNewSubscriptionFromOneAddressIs429(): void
+    {
+        $pdo = AppTestCase::memoryDb();
+        $app = $this->createApp('korbo26', [\PDO::class => $pdo]);
+        self::assertSame(300, SubscribeThrottle::LIMIT, 'FF-I2: room for a camp behind one address');
+        for ($i = 1; $i <= SubscribeThrottle::LIMIT; $i++) {
+            $ok = $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'https://push.example/n' . $i, 'keys' => AppTestCase::BROWSER_KEYS]);
+            self::assertSame(201, $ok->getStatusCode(), 'subscription ' . $i);
+        }
+        $refused = $this->request($app, 'POST', '/push/subscribe', ['endpoint' => 'https://push.example/over', 'keys' => AppTestCase::BROWSER_KEYS]);
+
+        self::assertSame(429, $refused->getStatusCode());
+        self::assertSame(['saved' => false, 'error' => 'too-many'], json_decode((string) $refused->getBody(), true));
+        self::assertNull((new SubscriptionRepository($pdo))->find('korbo26', 'https://push.example/over'));
+    }
+
+    /** A camp behind one NAT re-sends after every login and logout: known subscriptions never count. */
+    public function testReSendingAKnownSubscriptionNeverCounts(): void
+    {
+        $app = $this->createApp('korbo26');
+        $sub = ['endpoint' => 'https://push.example/same', 'keys' => AppTestCase::BROWSER_KEYS];
+        for ($i = 0; $i < 40; $i++) {
+            self::assertSame(201, $this->request($app, 'POST', '/push/subscribe', $sub)->getStatusCode());
+        }
     }
 }

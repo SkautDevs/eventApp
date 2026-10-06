@@ -4,7 +4,11 @@
 
 {% block content %}
 	{% if result %}
-		<p><strong>Odesláno: {{ result.sent }}</strong>, odstraněno neplatných odběrů: {{ result.removed }}{% if result.unreached is not null %}, přihlášených bez notifikací: {{ result.unreached }}{% endif %}</p>
+		<p><strong>Odesláno: {{ result.sent }}</strong>, odstraněno neplatných odběrů: {{ result.removed }}{% if result.failed > 0 %}, nedoručeno: {{ result.failed }}{% endif %}{% if result.unreached is not null %}, přihlášených bez notifikací: {{ result.unreached }}{% endif %}</p>
+	{% endif %}
+
+	{% if notice %}
+		<p class="notice" role="status">{{ notice }}</p>
 	{% endif %}
 
 	{% for error in errors %}
@@ -13,6 +17,7 @@
 
 	<form method="post" action="{{ url_for('admin-notify') }}" class="stacked-form" id="notify-form">
 		<input type="hidden" name="csrf" value="{{ csrf }}">
+		<input type="hidden" name="nonce" value="{{ nonce }}">
 		<label for="target">Komu</label>
 		<select id="target" name="target">
 			<option value="">Všem odběratelům</option>
@@ -43,7 +48,7 @@
 			<h3>{{ entry.title }}</h3>
 			<p class="notify-log-body">{{ entry.body }}</p>
 			<p>Podpis: {{ entry.signature }}</p>
-			<p>Odesláno: {{ entry.sent }}, odstraněno neplatných odběrů: {{ entry.removed }}{% if entry.unreached is not null %}, přihlášených bez notifikací: {{ entry.unreached }}{% endif %}</p>
+			<p>Odesláno: {{ entry.sent ?? '–' }}, odstraněno neplatných odběrů: {{ entry.removed ?? '–' }}{% if entry.failed > 0 %}, nedoručeno: {{ entry.failed }}{% endif %}{% if entry.unreached is not null %}, přihlášených bez notifikací: {{ entry.unreached }}{% endif %}</p>
 			{% if entry.toggledAt %}
 				<p>{{ entry.hidden ? 'Skryto z Novinek' : 'Znovu zobrazeno' }} ({{ entry.toggledBy }}, {{ entry.toggledAt|date('j. n. Y H:i') }})</p>
 			{% endif %}
@@ -90,6 +95,19 @@
 						localStorage.setItem('notifySignature', form.elements.signature.value);
 					} catch (e) {
 						// storage blocked: nothing to remember
+					}
+					// a second tap while the first send runs would be a second message
+					var submit = form.querySelector('button[type="submit"]');
+					if (submit) {
+						submit.disabled = true;
+					}
+				});
+				// a page restored from the back-forward cache keeps its document, the disabled
+				// button included: it has to work again
+				window.addEventListener('pageshow', function () {
+					var submit = form.querySelector('button[type="submit"]');
+					if (submit) {
+						submit.disabled = false;
 					}
 				});
 			}

@@ -66,7 +66,7 @@ final class CachingProgramProviderTest extends TestCase
         return new FileCache($this->dir, $this->clock());
     }
 
-    private function provider(FakeProgramProvider $inner, ?Freshness $freshness = null, int $ttl = 300, ?FileCache $cache = null): CachingProgramProvider
+    private function provider(FakeProgramProvider $inner, ?Freshness $freshness = null, int $ttl = 300, ?FileCache $cache = null, float $lockWait = 12.0): CachingProgramProvider
     {
         return new CachingProgramProvider(
             inner: $inner,
@@ -77,6 +77,7 @@ final class CachingProgramProviderTest extends TestCase
             report: function (\Throwable $e): void {
                 $this->reported[] = $e;
             },
+            lockWait: $lockWait,
         );
     }
 
@@ -213,7 +214,8 @@ final class CachingProgramProviderTest extends TestCase
 
         $expected = 'tie-' . substr(hash('sha256', 'KORBO1'), 0, 32);
         self::assertSame($expected, CachingProgramProvider::tieKey('KORBO1'));
-        self::assertSame([$expected . '.json'], array_map('basename', glob($this->dir . '/*') ?: []));
+        // the entry and the lock that serialises fetching it: both named by the hash
+        self::assertSame([$expected . '.json', $expected . '.lock'], array_map('basename', glob($this->dir . '/*') ?: []));
         self::assertStringNotContainsString('KORBO1', (string) file_get_contents($this->dir . '/' . $expected . '.json'));
         self::assertSame(self::PROGRAMMES, $this->cache()->get($expected)->data);
     }
@@ -261,7 +263,9 @@ final class CachingProgramProviderTest extends TestCase
         $provider->getSections();
         self::assertSame(1, $inner->listCalls, 'getSections() threw once; getPrograms() was never asked again');
 
-        // the next request tries again, at once: recovery is noticed on the first request after it
+        // the next request tries again once the breaker has closed: recovery is noticed on
+        // the first request after it
+        $this->now = $this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1));
         $freshness->reset($this->now);
         $provider->getPrograms();
         self::assertSame(2, $inner->listCalls);
@@ -325,6 +329,8 @@ final class CachingProgramProviderTest extends TestCase
         $provider->getPrograms();
         self::assertSame(0, $inner->listCalls);
 
+        // past the breaker: within it the expired entry would be served without asking
+        $this->now = $this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1));
         $freshness->reset($this->now);
         self::assertSame(self::PROGRAMMES, $provider->getPrograms());
         self::assertSame(2, $inner->listCalls, 'kissj is asked again on the next request');
@@ -387,6 +393,205 @@ final class CachingProgramProviderTest extends TestCase
         } finally {
             unlink($blocker);
         }
+    }
+
+    public function testALoserServesTheExpiredEntryWithoutAskingKissj(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        $held = $this->cache()->tryLock(CachingProgramProvider::LIST_KEY);
+        self::assertNotNull($held);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $freshness = new Freshness($this->now);
+
+        try {
+            self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
+            self::assertSame(0, $inner->listCalls, 'another request is fetching it right now');
+            self::assertFalse($freshness->isStale(), 'being refreshed is not kissj failing');
+        } finally {
+            $held();
+        }
+    }
+
+    public function testALoserWithNothingToShowWaitsThenAsksItself(): void
+    {
+        $held = $this->cache()->tryLock(CachingProgramProvider::LIST_KEY);
+        self::assertNotNull($held);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+
+        try {
+            $start = microtime(true);
+            self::assertSame(self::PROGRAMMES, $this->provider($inner, lockWait: 0.2)->getPrograms());
+            self::assertGreaterThanOrEqual(0.2, microtime(true) - $start);
+            // one inner call is getSections() + getPrograms()
+            self::assertSame(2, $inner->listCalls);
+        } finally {
+            $held();
+        }
+    }
+
+    public function testAFailureKeepsEveryRequestOffKissjForSixtySecondsWhileAnEntryExists(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $inner->failure = self::down();
+        $freshness = new Freshness($this->now);
+
+        self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
+        self::assertSame(1, $inner->listCalls);
+        self::assertTrue($freshness->isStale());
+
+        $start = $this->now;
+        $this->now = $start->modify('+30 seconds');
+        $freshness->reset($this->now);
+        $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        self::assertSame(self::OLD_PROGRAMMES, $this->provider($healthy, $freshness)->getPrograms());
+        self::assertSame(0, $healthy->listCalls, 'the breaker is open');
+        self::assertTrue($freshness->isStale());
+
+        $this->now = $start->modify('+61 seconds');
+        $freshness->reset($this->now);
+        $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        self::assertSame(self::PROGRAMMES, $this->provider($healthy, $freshness)->getPrograms());
+        self::assertSame(2, $healthy->listCalls, 'one inner fetch: getSections() + getPrograms()');
+        self::assertSame(self::PROGRAMMES, $this->cache()->get(CachingProgramProvider::LIST_KEY)->data['programmes']);
+        self::assertFalse($freshness->isStale());
+    }
+
+    public function testTheBreakerNeverHoldsBackAMissingEntry(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $inner->failure = self::down();
+        $this->provider($inner)->getPrograms();
+        self::assertNotNull($this->cache()->get(CachingProgramProvider::DOWN_KEY), 'the breaker is open');
+
+        $freshness = new Freshness($this->now);
+        $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
+        self::assertSame(self::PROGRAMMES, $this->provider($healthy, $freshness)->getProgramsForIdentity(self::identity()));
+        self::assertSame(1, $healthy->identityCalls);
+    }
+
+    public function testASuccessClosesTheBreaker(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $inner->failure = self::down();
+        $this->provider($inner)->getPrograms();
+        self::assertNotNull($this->cache()->get(CachingProgramProvider::DOWN_KEY));
+
+        $this->now = $this->now->modify('+61 seconds');
+        $this->provider(new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES))->getPrograms();
+
+        self::assertNull($this->cache()->get(CachingProgramProvider::DOWN_KEY));
+        self::assertNotNull($this->cache()->get(CachingProgramProvider::REPORTED_KEY), 'a success forgets the outage, not the report');
+    }
+
+    public function testAHiddenFailureIsReportedAtMostOncePerFiveMinutes(): void
+    {
+        $start = $this->now;
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        foreach ([0, 61, 122] as $offset) {
+            $this->now = $start->modify(sprintf('+%d seconds', $offset));
+            $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+            $inner->failure = self::down();
+            self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner)->getPrograms());
+            self::assertSame(1, $inner->listCalls, sprintf('asked at +%d s', $offset));
+        }
+        self::assertCount(1, $this->reported);
+
+        $this->now = $start->modify('+305 seconds');
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $inner->failure = self::down();
+        $this->provider($inner)->getPrograms();
+        self::assertCount(2, $this->reported);
+    }
+
+    /** A flapping kissj: a success in between does not reset the five minutes. */
+    public function testASuccessInBetweenDoesNotReopenReporting(): void
+    {
+        $start = $this->now;
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        $failing = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $failing->failure = self::down();
+        $this->provider($failing)->getPrograms();
+
+        $this->now = $start->modify('+61 seconds');
+        $this->provider(new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES))->getPrograms();
+
+        // within five minutes of the first report: the entry is old again and kissj fails again
+        $this->now = $start->modify('+200 seconds');
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        $failing = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $failing->failure = self::down();
+        $this->provider($failing)->getPrograms();
+        self::assertSame(1, $failing->listCalls);
+
+        self::assertCount(1, $this->reported);
+    }
+
+    /** Review T6-M1: during an outage a `locked` read is an old copy like any other. */
+    public function testALockedReadIsStaleWhileKissjIsMarkedDown(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS, 'programmes' => self::OLD_PROGRAMMES], 400);
+        // a failure long enough ago that the breaker has closed, and nothing has succeeded since
+        $this->seed(CachingProgramProvider::DOWN_KEY, null, 3600);
+        $held = $this->cache()->tryLock(CachingProgramProvider::LIST_KEY);
+        self::assertNotNull($held);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $freshness = new Freshness($this->now);
+
+        try {
+            self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
+            self::assertSame(0, $inner->listCalls);
+            self::assertTrue($freshness->isStale(), 'the probe holding the lock may well fail too');
+        } finally {
+            $held();
+        }
+    }
+
+    /** A FileCache whose lock is held on the first try and, while this request waits, $during runs. */
+    private function contendedCache(\Closure $during): FileCache
+    {
+        $tries = 0;
+
+        return new FileCache($this->dir, $this->clock(), static function ($handle, int $operation, &$wouldBlock = null) use (&$tries, $during): bool {
+            if ($tries++ === 0) {
+                $wouldBlock = 1;
+
+                return false;
+            }
+            $during();
+
+            return flock($handle, $operation, $wouldBlock);
+        });
+    }
+
+    /** Review T6-M2: the holder failed while this request waited, so this one does not pay a timeout too. */
+    public function testAWaiterWhoseHolderFailedDoesNotAskKissjAgain(): void
+    {
+        $cache = $this->contendedCache(fn () => $this->cache()->set(CachingProgramProvider::DOWN_KEY, null));
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $provider = $this->provider($inner, cache: $cache);
+
+        try {
+            $provider->getPrograms();
+            self::fail('there is nothing to show and the holder failed');
+        } catch (\GuzzleHttp\Exception\TransferException $e) {
+            self::assertStringNotContainsString('KORBO', $e->getMessage());
+        }
+        self::assertSame(0, $inner->listCalls);
+        self::assertSame([], $this->reported, 'a rethrown failure is the module\'s notice');
+    }
+
+    public function testAWaiterAsksItselfWhenTheFailureWasBeforeItsWait(): void
+    {
+        $this->seed(CachingProgramProvider::DOWN_KEY, null, 30);
+        $cache = $this->contendedCache(static function (): void {
+        });
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+
+        self::assertSame(self::PROGRAMMES, $this->provider($inner, cache: $cache)->getPrograms());
+        self::assertSame(2, $inner->listCalls, 'one inner fetch: getSections() + getPrograms()');
     }
 }
 

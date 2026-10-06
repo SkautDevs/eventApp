@@ -36,4 +36,11 @@ final class EventCatalogTest extends TestCase
 
         self::assertContains('listed-past', array_map(fn ($e) => $e->slug, $listed['upcoming']));
     }
+
+    public function testSlugsListsEveryEventIncludingTheUnlisted(): void
+    {
+        $catalog = new EventCatalog(dirname(__DIR__, 2) . '/events');
+
+        self::assertSame(['korbo26', 'miquik26', 'navigamus25', 'obrok19', 'obrok27'], $catalog->slugs());
+    }
 }

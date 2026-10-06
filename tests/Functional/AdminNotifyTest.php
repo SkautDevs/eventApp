@@ -15,6 +15,8 @@ final class AdminNotifyTest extends AppTestCase
 
     private MessageRepository $messages;
 
+    private const STALE_FORM = 'Tento formulář už byl jednou odeslán, nebo je zastaralý';
+
     private const SEND = ['title' => 'Změna', 'body' => 'Začínáme v 15:00', 'signature' => 'Lung'];
 
     protected function setUp(): void
@@ -53,6 +55,14 @@ final class AdminNotifyTest extends AppTestCase
         self::assertSame(303, $response->getStatusCode());
 
         return (string) $_SESSION[ltrim($app->getBasePath(), '/')]['csrf'];
+    }
+
+    private function nonceOnPage(\Slim\App $app): string
+    {
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
+        self::assertSame(1, preg_match('/name="nonce" value="([0-9a-f]{32})"/', $html, $m), 'the send form carries a one-time nonce');
+
+        return $m[1];
     }
 
     /** A programme KORBO1 is registered for, read from the fixture rather than hardcoded. */
@@ -141,7 +151,7 @@ final class AdminNotifyTest extends AppTestCase
 
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $first);
         self::assertSame($first, $second);
-        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $first, 'target' => '']);
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $first, 'target' => '', 'nonce' => $this->nonceOnPage($app)]);
         self::assertSame(303, $response->getStatusCode());
         self::assertCount(1, $this->sender->calls);
     }
@@ -305,7 +315,7 @@ final class AdminNotifyTest extends AppTestCase
         $csrf = $this->logIn($app, 'tajny-token');
 
         $response = $this->request($app, 'POST', '/admin/notify', [
-            'csrf' => $csrf, 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung',
+            'csrf' => $csrf, 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung', 'nonce' => $this->nonceOnPage($app),
         ]);
 
         self::assertSame(303, $response->getStatusCode());
@@ -344,7 +354,7 @@ final class AdminNotifyTest extends AppTestCase
         $csrf = $this->logIn($app, 'event-token');
 
         $response = $this->request($app, 'POST', '/admin/notify', [
-            'csrf' => $csrf, 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung',
+            'csrf' => $csrf, 'title' => 'Zmena programu', 'body' => 'Koncert na stagi!', 'signature' => 'Lung', 'nonce' => $this->nonceOnPage($app),
         ]);
 
         self::assertSame(303, $response->getStatusCode());
@@ -356,7 +366,7 @@ final class AdminNotifyTest extends AppTestCase
         $app = $this->korbo();
         $csrf = $this->logIn($app, 'korbo-token');
 
-        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf]);
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf, 'nonce' => $this->nonceOnPage($app)]);
 
         self::assertSame(303, $response->getStatusCode());
         self::assertNull($this->sender->calls[0][5]);
@@ -380,7 +390,7 @@ final class AdminNotifyTest extends AppTestCase
         $app = $this->korbo();
         $csrf = $this->logIn($app, 'korbo-token');
 
-        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf]);
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf, 'nonce' => $this->nonceOnPage($app)]);
 
         self::assertSame(303, $response->getStatusCode());
         self::assertContains('KORBO1', $this->sender->calls[0][5]);
@@ -400,7 +410,7 @@ final class AdminNotifyTest extends AppTestCase
         $app = $this->korbo();
         $csrf = $this->logIn($app, 'korbo-token');
 
-        $post = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf]);
+        $post = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf, 'nonce' => $this->nonceOnPage($app)]);
         self::assertSame(303, $post->getStatusCode());
         self::assertSame('/korbo26/admin/notify', $post->getHeaderLine('Location'));
 
@@ -630,7 +640,7 @@ final class AdminNotifyTest extends AppTestCase
         $redirect = $this->request($app, 'GET', '/admin/notify?token=korbo-token');
         $csrf = (string) $_SESSION['korbo26']['csrf'];
         $page = $this->request($app, 'GET', '/admin/notify');
-        $sent = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf]);
+        $sent = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '', 'csrf' => $csrf, 'nonce' => $this->nonceOnPage($app)]);
 
         foreach (['403 denial' => $denied, 'token redirect' => $redirect, 'page' => $page, 'send redirect' => $sent] as $what => $response) {
             self::assertSame('no-store', $response->getHeaderLine('Cache-Control'), $what);
@@ -648,13 +658,177 @@ final class AdminNotifyTest extends AppTestCase
         $csrf = $this->logIn($app, 'korbo-token');
         $programme = $this->korboProgramme();
 
-        $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf]);
+        $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf, 'nonce' => $this->nonceOnPage($app)]);
 
         $records = $log->getRecords();
         self::assertCount(1, $records);
         self::assertSame('push.sent', $records[0]->message);
         self::assertSame(\Monolog\Level::Info, $records[0]->level);
         // no TIE code, no title, no body
-        self::assertSame(['event' => 'korbo26', 'sent' => 2, 'removed' => 1, 'programme' => $programme['id']], $records[0]->context);
+        self::assertSame(['event' => 'korbo26', 'sent' => 2, 'removed' => 1, 'failed' => 0, 'programme' => $programme['id']], $records[0]->context);
+    }
+
+    public function testAReusedNonceSendsNothingAndReturnsTheTypedMessage(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $post = self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $this->nonceOnPage($app)];
+
+        self::assertSame(303, $this->request($app, 'POST', '/admin/notify', $post)->getStatusCode());
+        $again = $this->request($app, 'POST', '/admin/notify', $post);
+
+        self::assertSame(409, $again->getStatusCode());
+        $html = (string) $again->getBody();
+        self::assertStringContainsString(self::STALE_FORM, $html);
+        self::assertStringContainsString('value="Změna"', $html, 'the typed text comes back');
+        self::assertStringContainsString('Začínáme v 15:00</textarea>', $html);
+        self::assertMatchesRegularExpression('/name="nonce" value="[0-9a-f]{32}"/', $html, 'with a fresh nonce for a deliberate re-send');
+        self::assertSame('no-store', $again->getHeaderLine('Cache-Control'));
+        self::assertCount(1, $this->sender->calls);
+        self::assertSame(1, $this->messages->count('korbo26'));
+    }
+
+    public function testAMissingNonceSendsNothing(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '']);
+
+        self::assertSame(409, $response->getStatusCode());
+        self::assertStringContainsString(self::STALE_FORM, (string) $response->getBody());
+        self::assertSame([], $this->sender->calls);
+        self::assertSame(0, $this->messages->count('korbo26'));
+    }
+
+    /** PF3: only a real send attempt consumes the nonce; a refused form keeps it usable. */
+    public function testARejectedFormKeepsItsNonce(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $nonce = $this->nonceOnPage($app);
+
+        $invalid = $this->request($app, 'POST', '/admin/notify', ['signature' => ''] + self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $nonce]);
+        self::assertSame(422, $invalid->getStatusCode());
+
+        self::assertSame(303, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $nonce])->getStatusCode());
+        self::assertCount(1, $this->sender->calls);
+    }
+
+    /** Review Focus 3 */
+    public function testTwoOpenFormsEachSendOnce(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $first = $this->nonceOnPage($app);
+        $second = $this->nonceOnPage($app);
+
+        foreach ([$first, $second] as $nonce) {
+            self::assertSame(303, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $nonce])->getStatusCode());
+        }
+        self::assertCount(2, $this->sender->calls);
+    }
+
+    public function testTheMessageIsLoggedBeforeTheSendAndKeptWhenTheSendThrows(): void
+    {
+        $pdo = AppTestCase::memoryDb();
+        $throwing = new class implements \App\Push\PushSenderInterface {
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $tieCodes = null, ?int $programme = null): array
+            {
+                throw new \RuntimeException('push service exploded');
+            }
+
+            public function sendToSubscription(string $event, string $endpoint, string $title, string $body, ?string $icon = null, ?string $url = null): \App\Push\SendOutcome
+            {
+                return \App\Push\SendOutcome::Failed;
+            }
+        };
+        $app = $this->korbo([\PDO::class => $pdo, \App\Push\PushSenderInterface::class => $throwing]);
+        $csrf = $this->logIn($app, 'korbo-token');
+        $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $this->nonceOnPage($app)]);
+
+        self::assertSame(500, $response->getStatusCode());
+        // the error page is an admin response too
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        self::assertSame('no-referrer', $response->getHeaderLine('Referrer-Policy'));
+        self::assertStringContainsString('Něco se pokazilo', (string) $response->getBody());
+        $log = (new \App\Push\MessageRepository($pdo))->page('korbo26', 1);
+        self::assertCount(1, $log, 'on News even though the send blew up');
+        self::assertNull($log[0]['sent']);
+        self::assertStringContainsString('Odesláno: –', (string) $this->request($app, 'GET', '/admin/notify')->getBody());
+    }
+
+    public function testUndeliveredRecipientsAreShownOnlyWhenThereAreAny(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $this->sender->result = ['recipients' => 5, 'sent' => 2, 'removed' => 1, 'failed' => 2];
+        $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $this->nonceOnPage($app)]);
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
+        self::assertStringContainsString('nedoručeno: 2', $html);
+        self::assertSame(2, $this->messages->page('korbo26', 1)[0]['failed']);
+
+        $this->sender->result = ['recipients' => 3, 'sent' => 2, 'removed' => 1, 'failed' => 0];
+        $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $this->nonceOnPage($app)]);
+        // the newest result line carries no "nedoručeno"; the older log entry still does
+        self::assertSame(1, substr_count((string) $this->request($app, 'GET', '/admin/notify')->getBody(), 'nedoručeno:'));
+    }
+
+    public function testTheSubmitButtonIsDisabledOnSubmitAndEnabledOnPageshow(): void
+    {
+        $app = $this->korbo();
+        $this->logIn($app, 'korbo-token');
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
+        self::assertStringContainsString('submit.disabled = true;', $html);
+        self::assertStringContainsString("addEventListener('pageshow'", $html);
+        self::assertStringContainsString('submit.disabled = false;', $html);
+    }
+
+    public function testAForgedProgrammeKeepsTheNonce(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+        $nonce = $this->nonceOnPage($app);
+
+        self::assertSame(422, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '999999', 'nonce' => $nonce])->getStatusCode());
+        self::assertSame(303, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $nonce])->getStatusCode());
+        self::assertCount(1, $this->sender->calls);
+    }
+
+    public function testKissjDownKeepsTheNonce(): void
+    {
+        $programme = $this->korboProgramme();
+        $failing = new class ($programme) implements \App\Program\ProgramProviderInterface {
+            public function __construct(private readonly array $programme)
+            {
+            }
+
+            public function getPrograms(): array
+            {
+                return [$this->programme];
+            }
+
+            public function getSections(): array
+            {
+                return [];
+            }
+
+            public function getProgramsForIdentity(\App\Auth\Identity $identity): array
+            {
+                return [];
+            }
+
+            public function getTieCodesForProgramme(int $programmeId): array
+            {
+                throw new \GuzzleHttp\Exception\ConnectException('kissj down', new \GuzzleHttp\Psr7\Request('GET', 'https://kissj.example/'));
+            }
+        };
+        $app = $this->korbo([\App\Program\ProgramProviderInterface::class => $failing]);
+        $csrf = $this->logIn($app, 'korbo-token');
+        $nonce = $this->nonceOnPage($app);
+
+        self::assertSame(502, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => (string) $programme['id'], 'nonce' => $nonce])->getStatusCode());
+        self::assertSame(303, $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $nonce])->getStatusCode());
+        self::assertCount(1, $this->sender->calls);
     }
 }

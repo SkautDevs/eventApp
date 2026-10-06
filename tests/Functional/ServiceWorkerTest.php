@@ -49,8 +49,8 @@ final class ServiceWorkerTest extends TestCase
         self::assertStringContainsString('cache.addAll(list.assets)', $sw);
         // optional entries one by one, a failure ignored
         self::assertStringContainsString('list.optional.reduce(', $sw);
-        // a fill that fails takes its half-filled cache with it
-        self::assertStringContainsString('.catch(e => caches.delete(name).then(() => { throw e; }));', $sw);
+        // a fill that fails takes its half-filled cache with it (unless another fill completed it)
+        self::assertStringContainsString(": caches.delete(name)))\n\t\t\t\t.then(() => { throw e; }));", $sw);
         // the stored list is the completion marker: written after every document and asset
         $fill = strpos($sw, 'function fill(name, list) {');
         self::assertNotFalse($fill);
@@ -68,7 +68,7 @@ final class ServiceWorkerTest extends TestCase
         $guard = strpos($sw, 'if (complete) {', $fill);
         self::assertNotFalse($guard);
         self::assertLessThan($all, $guard);
-        self::assertLessThan(strpos($sw, '.catch(e => caches.delete(name)', $fill), $guard);
+        self::assertLessThan(strpos($sw, '.catch(e => cache.match(', $fill), $guard);
         // finding nothing complete deletes nothing
         self::assertStringContainsString("function adopt(name) {\n\tif (name === null) {\n", $sw);
     }
@@ -92,7 +92,7 @@ final class ServiceWorkerTest extends TestCase
         // a new list version under an unchanged sw.js: checked once, after a page from the network
         self::assertStringContainsString("fetchList('no-cache')", $sw);
         self::assertStringContainsString('let versionChecked = false;', $sw);
-        self::assertStringContainsString('return fill(name, fresh).then(() => (superseded() ? null : adopt(name).then(announce)));', $sw);
+        self::assertStringContainsString('return fill(name, fresh).then(() => (superseded() ? null : adopt(name).then(adopted => (adopted ? announce() : null))));', $sw);
         self::assertStringContainsString('return Boolean(self.serviceWorker && self.registration.active !== self.serviceWorker);', $sw);
         self::assertStringContainsString('(storable(result.response) ? checkVersion() : null)', $sw);
         self::assertStringNotContainsString('.reload(', $sw);
@@ -106,7 +106,7 @@ final class ServiceWorkerTest extends TestCase
         self::assertStringContainsString("const MINE = new RegExp('^' + PREFIX + '[0-9a-f]{8}$');", $sw);
         self::assertStringContainsString('keys.filter(key => MINE.test(key))', $sw);
         self::assertStringNotContainsString('startsWith(PREFIX)', $sw);
-        self::assertStringContainsString('mine.filter(key => key !== cacheName).map(key => caches.delete(key))', $sw);
+        self::assertStringContainsString('keys.filter(key => MINE.test(key) && key !== cacheName).map(key => caches.delete(key))', $sw);
     }
 
     public function testAdminPushAndOtherOriginsAreLeftToTheBrowser(): void
@@ -136,7 +136,7 @@ final class ServiceWorkerTest extends TestCase
 
         // purged once the server has answered, before the answer reaches the page: a POST
         // that fails offline leaves the offline copy alone
-        self::assertStringContainsString('event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response)));', $sw);
+        self::assertStringContainsString('event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));', $sw);
         self::assertStringNotContainsString('purgeHtml().catch(() => null).then(() => fetch(request))', $sw);
         // a subscribe or unsubscribe changes no rendered HTML, so it purges nothing
         self::assertStringContainsString("if (inScope && !url.pathname.startsWith(BASE + 'admin/') && !url.pathname.startsWith(BASE + 'push/'))", $sw);
@@ -186,5 +186,46 @@ final class ServiceWorkerTest extends TestCase
         self::assertStringContainsString('cache && unpurged(generation) ? cache.put(key, response) : undefined', $sw);
         self::assertStringContainsString('return unpurged(generation) ? cache.put(cacheKey(request), response) : null;', $sw);
         self::assertSame(4, substr_count($sw, 'const generation = purges;'), 'storeBoth, page, and both fragment strategies');
+    }
+
+    public function testAWriteWithoutNetworkGetsTheOfflinePageAsA503(): void
+    {
+        $sw = $this->source();
+        self::assertStringContainsString('event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));', $sw);
+        self::assertStringContainsString("new Response(OFFLINE_WRITE, {status: 503, headers: {'Content-Type': 'text/html; charset=utf-8'}})", $sw);
+        self::assertStringContainsString('Přihlášení i odhlášení potřebuje signál.', $sw);
+        // always the inline page: the cached /offline says "this page is not saved yet", which is not what happened
+        self::assertStringNotContainsString("match(SCOPE + 'offline').then(hit => (hit ? hit.text()", $sw);
+    }
+
+    public function testOnlyACompleteCacheThatStillExistsIsAdopted(): void
+    {
+        $sw = $this->source();
+        self::assertStringContainsString('return caches.has(name).then(exists => (exists', $sw);
+        self::assertStringContainsString('return isComplete(name).then(complete => {', $sw);
+        self::assertStringContainsString('if (self.registration.installing || self.registration.waiting) {', $sw);
+        self::assertStringContainsString('adopt(name).then(adopted => (adopted ? announce() : null))', $sw);
+    }
+
+    public function testAPurgeEmptiesEveryCacheOfTheEvent(): void
+    {
+        $sw = $this->source();
+        self::assertStringContainsString('return caches.keys().then(keys => Promise.all(keys.filter(key => MINE.test(key)).map(key => caches.open(key)', $sw);
+    }
+
+    public function testARevalidationAnsweredFromTheCacheSaysSo(): void
+    {
+        self::assertStringContainsString("headers.set('X-From-Cache', '1');", $this->source());
+        self::assertStringContainsString("response.headers.get('X-From-Cache') !== '1'", (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js'));
+    }
+
+    /** Review M1: a failed fill spares a cache another fill completed, and activate forgets a name it could not adopt. */
+    public function testAFailedFillOrAdoptionNeverLeavesTheWorkerOnAnEmptyCache(): void
+    {
+        $sw = $this->source();
+        self::assertStringContainsString(".catch(e => cache.match(SCOPE + 'precache.json')\n\t\t\t\t.then(marker => (marker ? null : caches.delete(name)))", $sw);
+        self::assertStringNotContainsString('.catch(e => caches.delete(name).then(() => { throw e; }))', $sw);
+        self::assertStringContainsString(".then(name => adopt(name))\n\t\t.then(adopted => {\n\t\t\tif (!adopted) {", $sw);
+        self::assertStringContainsString("\t\t\t\tcacheName = null;\n", $sw);
     }
 }

@@ -70,10 +70,13 @@ final class ProgramsModule implements ModuleInterface
             // so the notices accumulate and the template renders them as one line.
             $notices = [];
             $mine = [];
+            // only a list that was actually read can say "not registered" or "nothing yet"
+            $mineRead = false;
 
             if ($auth->isLogged()) {
                 try {
                     $mine = $provider->getProgramsForIdentity($auth->identity());
+                    $mineRead = true;
                 } catch (UnknownParticipantException) {
                     $auth->logout();
                     $notices[] = 'Tvůj TIE kód už neplatí, odhlásili jsme tě.';
@@ -96,7 +99,7 @@ final class ProgramsModule implements ModuleInterface
                 $unavailable = true;
             }
 
-            $model = ProgramsModule::buildViewModel($sections, $all, $mine, $auth->isLogged());
+            $model = ProgramsModule::buildViewModel($sections, $all, $mine, $mineRead);
 
             // the organisers' messages about a programme are in its sheet, for everybody
             $messages = [];
@@ -122,6 +125,7 @@ final class ProgramsModule implements ModuleInterface
                 'notice' => $notices === [] ? null : implode(' ', $notices),
                 'programmesUnavailable' => $unavailable,
                 'isLogged' => $auth->isLogged(),
+                'mineRead' => $mineRead,
                 'identity' => $auth->identity()?->displayName,
                 'tieError' => $tieError,
             ]);
@@ -176,8 +180,10 @@ final class ProgramsModule implements ModuleInterface
      * @param array<int, array> $sections from getSections(), keyed by id in display order
      * @param list<array> $all programmes from getPrograms()
      * @param list<array> $mine programmes from getProgramsForIdentity()
+     * @param bool $mineRead whether the personal list was read: only then is "not
+     *                       registered" true, and only then is anything dimmed
      */
-    private static function buildViewModel(array $sections, array $all, array $mine, bool $isLogged): array
+    private static function buildViewModel(array $sections, array $all, array $mine, bool $mineRead): array
     {
         // everything below reads the dates and the ids as given, so both are made sound
         // once, here, rather than guarded at every use
@@ -206,7 +212,7 @@ final class ProgramsModule implements ModuleInterface
         $pages = [];
         $pageOfProgram = [];
         foreach ($grouped as $day => $segments) {
-            $page = self::buildPage($day, $segments, $registeredIds, $isLogged);
+            $page = self::buildPage($day, $segments, $registeredIds, $mineRead);
             // the days run in order, so the first page a programme is met on is the
             // one it starts on — the page its sheet and its deep link belong to
             foreach ($segments as $segment) {
@@ -241,7 +247,7 @@ final class ProgramsModule implements ModuleInterface
      * @param list<array{program: array, day: string, start: int, end: int}> $segments this day's pieces
      * @param array<int, true> $registeredIds
      */
-    private static function buildPage(string $day, array $segments, array $registeredIds, bool $isLogged): array
+    private static function buildPage(string $day, array $segments, array $registeredIds, bool $mineRead): array
     {
         // the axis is measured against the ends the bars are actually drawn to, so a
         // programme running on past midnight widens this page no further than the day —
@@ -281,7 +287,7 @@ final class ProgramsModule implements ModuleInterface
         foreach ($byLocation as $location => $items) {
             $rows[] = [
                 'location' => $location === '' ? self::NO_LOCATION_LABEL : $location,
-                'tracks' => self::packTracks($items, $axisStart, $registeredIds, $isLogged),
+                'tracks' => self::packTracks($items, $axisStart, $registeredIds, $mineRead),
             ];
         }
         // the unlocated stage sorts by time like the rest, but it belongs at the bottom
@@ -306,7 +312,7 @@ final class ProgramsModule implements ModuleInterface
      * @param array<int, true> $registeredIds
      * @return list<list<array>>
      */
-    private static function packTracks(array $items, int $axisStart, array $registeredIds, bool $isLogged): array
+    private static function packTracks(array $items, int $axisStart, array $registeredIds, bool $mineRead): array
     {
         usort($items, static fn (array $a, array $b): int => [$a['start'], -$a['end']] <=> [$b['start'], -$b['end']]);
 
@@ -321,7 +327,7 @@ final class ProgramsModule implements ModuleInterface
                 $index++;
             }
             $trackEnds[$index] = self::barEnd($segment);
-            $tracks[$index][] = self::buildCard($segment, $axisStart, $registeredIds, $isLogged);
+            $tracks[$index][] = self::buildCard($segment, $axisStart, $registeredIds, $mineRead);
         }
         ksort($tracks);
 
@@ -335,7 +341,7 @@ final class ProgramsModule implements ModuleInterface
      * @param array{program: array, day: string, start: int, end: int} $segment
      * @param array<int, true> $registeredIds
      */
-    private static function buildCard(array $segment, int $axisStart, array $registeredIds, bool $isLogged): array
+    private static function buildCard(array $segment, int $axisStart, array $registeredIds, bool $mineRead): array
     {
         $program = $segment['program'];
         $start = $segment['start'];
@@ -351,8 +357,8 @@ final class ProgramsModule implements ModuleInterface
             'offset' => self::hours($start - $axisStart),
             'span' => self::hours($end - $start),
             'registered' => $registered,
-            // logged in, the programmes that are not yours step back so yours stand out
-            'dimmed' => $isLogged && !$registered,
+            // with the personal list read, the programmes that are not yours step back so yours stand out
+            'dimmed' => $mineRead && !$registered,
         ];
     }
 

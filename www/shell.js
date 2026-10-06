@@ -65,6 +65,48 @@
 		});
 	}
 
+	// --- the map offline -------------------------------------------------------
+	// Google's map cannot load without a network and is a blank box then. The note says so;
+	// a map that never loaded is hidden behind it and loaded again once the signal is back.
+	// One that did load stays as it is: it still shows what it fetched, and needs no note.
+	//
+	// load does not bubble, so one capture-phase listener sees every map iframe, including
+	// one on a screen the loader inserts later. An iframe that fails during lie-fi gets
+	// Chrome's error page, which fires load too and so counts as loaded — accepted: the
+	// reader then sees the browser's own offline page in the box rather than a blank one.
+	document.addEventListener('load', function (event) {
+		var iframe = event.target;
+		if (!iframe || iframe.tagName !== 'IFRAME' || !iframe.matches('[data-map] iframe')) {
+			return;
+		}
+		if (navigator.onLine !== false) {
+			iframe.closest('[data-map]').dataset.mapLoaded = '1';
+		}
+	}, true);
+
+	function drawMap() {
+		var offline = navigator.onLine === false;
+		document.querySelectorAll('[data-map]').forEach(function (map) {
+			var iframe = map.querySelector('iframe');
+			var loaded = map.dataset.mapLoaded === '1';
+			if (!offline && map.hidden && iframe) {
+				iframe.src = iframe.src;
+			}
+			map.hidden = offline && !loaded;
+		});
+		// the note stands in for its map, the element right before it, only while that is hidden
+		document.querySelectorAll('[data-map-offline]').forEach(function (note) {
+			var map = note.previousElementSibling;
+			note.hidden = !(map && map.hasAttribute('data-map') && map.hidden);
+		});
+	}
+
+	document.addEventListener('DOMContentLoaded', drawMap);
+	document.addEventListener('screen:shown', drawMap);
+	document.addEventListener('screen:morphed', drawMap);
+	window.addEventListener('online', drawMap);
+	window.addEventListener('offline', drawMap);
+
 	// --- loading ---------------------------------------------------------------
 	// The bar at the tab bar's top edge, while the loader waits for a screen it has never
 	// shown. A background revalidation dispatches neither event and shows nothing.

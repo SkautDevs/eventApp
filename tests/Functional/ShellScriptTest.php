@@ -28,6 +28,20 @@ final class ShellScriptTest extends AppTestCase
         return (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
     }
 
+    public function testAMapThatCannotLoadOfflineSaysSo(): void
+    {
+        $shell = self::script();
+        self::assertStringContainsString("document.querySelectorAll('[data-map-offline]')", $shell);
+        self::assertStringContainsString("window.addEventListener('online', drawMap);", $shell);
+        // one capture-phase listener marks a map loaded, whichever screen it arrives on
+        self::assertStringContainsString("document.addEventListener('load', function (event) {", $shell);
+        self::assertStringContainsString("iframe.matches('[data-map] iframe')", $shell);
+        self::assertStringContainsString('}, true);', $shell);
+        self::assertStringNotContainsString('mapWatched', $shell);
+        // a loaded map offline needs no note
+        self::assertStringContainsString("note.hidden = !(map && map.hasAttribute('data-map') && map.hidden);", $shell);
+    }
+
     public function testTheProfileOffersAHiddenInstallButton(): void
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/profil')->getBody();

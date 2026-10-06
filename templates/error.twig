@@ -7,12 +7,19 @@
 
 {% block content %}
 	<div class="error-page">
-		{% if notFound %}
+		{% if message is defined %}
+			{# a refusal a route words itself (the cross-site TIE login and logout) #}
+			<p>{{ message }}</p>
+		{% elseif notFound %}
 			<p>Tohle tady není.</p>
 		{% else %}
 			<p>Něco se pokazilo. Zkus to za chvíli.</p>
 		{% endif %}
-		<p><a class="highlight" href="{{ url_for('homepage') }}">Zpět na úvod</a></p>
+		{% if back is defined %}
+			<p><a class="highlight" href="{{ back.href }}">{{ back.label }}</a></p>
+		{% else %}
+			<p><a class="highlight" href="{{ url_for('homepage') }}">Zpět na úvod</a></p>
+		{% endif %}
 		{% if details %}
 			{# APP_DEBUG only: Slim's detail set, on our page #}
 			<details class="error-details">

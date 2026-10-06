@@ -134,4 +134,57 @@ final class SubscriptionRepositoryTest extends TestCase
 
         self::assertSame([], $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table'")->fetchAll());
     }
+
+    public function testNoteFailuresDeletesRowsThatReachTheLimitWithinTheirEventOnly(): void
+    {
+        $repo = $this->repo();
+        foreach (['a', 'b'] as $name) {
+            $repo->save(['endpoint' => 'https://push.example/' . $name, 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']], 'korbo26');
+        }
+        $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']], 'obrok27');
+
+        self::assertSame(0, $repo->noteFailures('korbo26', ['https://push.example/a', 'https://push.example/b'], 2));
+        self::assertSame(0, $repo->noteFailures('korbo26', [], 2));
+        self::assertSame(1, $repo->noteFailures('korbo26', ['https://push.example/a', 'https://push.example/a'], 2), 'a duplicate counts once');
+
+        self::assertNull($repo->find('korbo26', 'https://push.example/a'));
+        self::assertNotNull($repo->find('korbo26', 'https://push.example/b'));
+        self::assertNotNull($repo->find('obrok27', 'https://push.example/a'), 'another event\'s row keeps its own count');
+    }
+
+    public function testClearFailuresStartsTheCountAgain(): void
+    {
+        $repo = $this->repo();
+        $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']], 'korbo26');
+
+        $repo->noteFailures('korbo26', ['https://push.example/a'], 2);
+        $repo->clearFailures('korbo26', ['https://push.example/a']);
+        $repo->clearFailures('korbo26', []);
+
+        self::assertSame(0, $repo->noteFailures('korbo26', ['https://push.example/a'], 2));
+        self::assertSame(1, $repo->count('korbo26'));
+    }
+
+    /** Review T3-I1: re-posting the same body must not wipe the strikes; new keys are a new subscription. */
+    public function testAReSubscribeKeepsTheStrikesUnlessTheKeysChange(): void
+    {
+        $pdo = Database::open(':memory:');
+        (new Migrator())->migrate($pdo);
+        $repo = new SubscriptionRepository($pdo);
+        $failures = static fn (): int => (int) $pdo->query("SELECT failures FROM subscriptions WHERE endpoint = 'https://push.example/a'")->fetchColumn();
+        $sub = ['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']];
+        $repo->save($sub, 'korbo26');
+        for ($i = 0; $i < 3; $i++) {
+            $repo->noteFailures('korbo26', ['https://push.example/a'], 5);
+        }
+
+        $repo->save($sub, 'korbo26', 'korbo1');
+        self::assertSame(3, $failures(), 'same keys: the count stays');
+        self::assertSame('KORBO1', $repo->find('korbo26', 'https://push.example/a')['tieCode'], 'the rest of the row is updated');
+
+        $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'PK2', 'auth' => 'AT']], 'korbo26');
+        self::assertSame(0, $failures(), 'new keys: the count starts again');
+        self::assertSame(1, $repo->count('korbo26'));
+        self::assertNull($repo->find('korbo26', 'https://push.example/a')['tieCode'], 'a logged-out re-send clears the code, as before');
+    }
 }

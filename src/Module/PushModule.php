@@ -35,7 +35,18 @@ final class PushModule implements ModuleInterface
                 if (!$this->get(\App\Push\EndpointPolicy::class)->allows($endpoint)) {
                     return $response->withStatus(400);
                 }
+                // A key that is not a P-256 point passes every shape check and then throws inside
+                // the library's batch encryption — it used to cost every reader the next message.
+                $keys = is_array($body['keys'] ?? null) ? $body['keys'] : [];
+                if (!\App\Push\SubscriptionKeys::valid($keys['p256dh'] ?? null, $keys['auth'] ?? null)) {
+                    return self::json($response, 400, ['saved' => false, 'error' => 'invalid-key']);
+                }
                 $isNew = $repository->find($event->slug, $endpoint) === null;
+                $throttle = $this->get(\App\Push\SubscribeThrottle::class);
+                $address = \App\Http\ClientIp::throttleKey($request);
+                if ($isNew && $throttle->tooMany($event->slug, $address)) {
+                    return self::json($response, 429, ['saved' => false, 'error' => 'too-many']);
+                }
                 try {
                     // The code comes from the session only: the route is unauthenticated, so a code in the
                     // body would let anyone receive another participant's programme messages.
@@ -46,6 +57,9 @@ final class PushModule implements ModuleInterface
                     );
                 } catch (\InvalidArgumentException) {
                     return $response->withStatus(400);
+                }
+                if ($isNew) {
+                    $throttle->record($event->slug, $address);
                 }
 
                 \App\Telemetry\Tracer::spanTag('push.new', $isNew ? '1' : '0');
@@ -131,8 +145,17 @@ final class PushModule implements ModuleInterface
 
         // every admin response, a 403 included: nothing of it belongs in a cache, and no
         // page it links to needs to know where the organiser came from
-        $adminHeaders = function ($request, $handler) {
-            return $handler->handle($request)
+        $adminHeaders = function ($request, $handler) use ($app) {
+            try {
+                $response = $handler->handle($request);
+            } catch (\Throwable $e) {
+                // An exception would pass this middleware by and reach the app's error middleware
+                // without these headers — the sender throwing is an expected path since the message
+                // is logged first. The same handler renders it here, so it is reported once.
+                $response = $app->getContainer()->get(\Slim\Middleware\ErrorMiddleware::class)->handleException($request, $e);
+            }
+
+            return $response
                 ->withHeader('Cache-Control', 'no-store')
                 ->withHeader('Referrer-Policy', 'no-referrer');
         };
@@ -152,8 +175,18 @@ final class PushModule implements ModuleInterface
                 $session->delete('notifyResult');
             }
 
+            // One per rendered send form, consumed by the send it carries: a double tap, or a
+            // re-send after a 504 whose first send did complete, must not notify everybody twice.
+            // Several stay valid at once (two open tabs); the oldest go after fifty.
+            $nonce = bin2hex(random_bytes(16));
+            $session->transact(static function (array &$bag) use ($nonce): void {
+                $bag['notifyNonces'] = array_slice([...(array) ($bag['notifyNonces'] ?? []), $nonce], -50);
+            });
+
             return $c->get(\Slim\Views\Twig::class)->render($response, 'admin-notify.twig', $context + [
                 'csrf' => (string) $session->get('csrf', ''),
+                'nonce' => $nonce,
+                'notice' => null,
                 'result' => $flash['result'] ?? null,
                 'errors' => [],
                 'values' => ['target' => '', 'title' => '', 'body' => '', 'signature' => $flash['signature'] ?? ''],
@@ -248,6 +281,44 @@ final class PushModule implements ModuleInterface
                 }
             }
 
+            // Consumed only now, right before the send: a form refused above keeps its nonce,
+            // so only a real send attempt uses one up. Checked and removed under the session
+            // lock, so two requests carrying the same nonce cannot both get through.
+            $given = $body['nonce'] ?? null;
+            $fresh = is_string($given) && $this->get(\App\Session::class)->transact(static function (array &$bag) use ($given): bool {
+                $nonces = (array) ($bag['notifyNonces'] ?? []);
+                $at = array_search($given, $nonces, true);
+                if ($at === false) {
+                    return false;
+                }
+                unset($nonces[$at]);
+                $bag['notifyNonces'] = array_values($nonces);
+
+                return true;
+            });
+            if (!$fresh) {
+                // The form was sent already (a double tap, a retry after a timeout) or is from
+                // before the session: nothing goes out, and the text comes back for a deliberate re-send.
+                return $render($request, $response->withStatus(409), [
+                    'notice' => 'Tento formulář už byl jednou odeslán, nebo je zastaralý, a tentokrát se nic neodeslalo. '
+                        . 'Pokud zpráva v seznamu níže chybí, lze ji odeslat znovu.',
+                    'values' => $values,
+                ]);
+            }
+
+            // Logged before the send, so a send that dies half-way still leaves the message on
+            // News; the counts follow when it returns. An exception is not caught: it ends in the
+            // error page, and the log shows the message without counts.
+            $messages = $this->get(\App\Push\MessageRepository::class);
+            $messageId = $messages->begin(
+                event: $event->slug,
+                programmeId: $programme === null ? null : (int) $programme['id'],
+                targetLabel: $programme === null ? 'Všem' : (string) $programme['name'],
+                title: $values['title'],
+                body: $values['body'],
+                signature: $values['signature'],
+            );
+
             $result = $this->get(\App\Push\PushSenderInterface::class)->sendToEvent(
                 event: $event->slug,
                 title: $values['title'],
@@ -262,29 +333,20 @@ final class PushModule implements ModuleInterface
             $unreached = $tieCodes === null
                 ? null
                 : count(array_diff($tieCodes, $this->get(SubscriptionRepository::class)->subscribedTieCodes($event->slug)));
-            $this->get(\App\Push\MessageRepository::class)->add(
-                event: $event->slug,
-                programmeId: $programme === null ? null : (int) $programme['id'],
-                targetLabel: $programme === null ? 'Všem' : (string) $programme['name'],
-                title: $values['title'],
-                body: $values['body'],
-                signature: $values['signature'],
-                sent: $result['sent'],
-                removed: $result['removed'],
-                unreached: $unreached,
-            );
+            $messages->finish($event->slug, $messageId, $result['sent'], $result['removed'], $result['failed'], $unreached);
             // a record on stdout even with Sentry off; no TIE code, no title, no body
             $this->get(\Psr\Log\LoggerInterface::class)->info('push.sent', [
                 'event' => $event->slug,
                 'sent' => $result['sent'],
                 'removed' => $result['removed'],
+                'failed' => $result['failed'],
                 'programme' => $programme === null ? null : (int) $programme['id'],
             ]);
 
             // Post/Redirect/Get: a refresh of the result must not send the message again. The
             // next message usually comes from the same person, so only Podpis is kept.
             $this->get(\App\Session::class)->set('notifyResult', [
-                'result' => ['sent' => $result['sent'], 'removed' => $result['removed'], 'unreached' => $unreached],
+                'result' => ['sent' => $result['sent'], 'removed' => $result['removed'], 'failed' => $result['failed'], 'unreached' => $unreached],
                 'signature' => $values['signature'],
             ]);
 

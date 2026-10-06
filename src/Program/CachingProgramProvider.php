@@ -18,6 +18,23 @@ use GuzzleHttp\Exception\TransferException;
  * kissj fails, and the failure goes to Sentry instead of the reader. Only a missing entry
  * lets kissj's trouble through to the modules' notices.
  *
+ * Under load, three more rules keep kissj from being asked by every request at once:
+ * - single-flight per entry: one request holds `<key>.lock` and fetches; another that has
+ *   an expired entry serves it as it is (`cache.result` `locked` — being refreshed, not
+ *   stale, so no "naposledy načteno" — unless `kissj-down` exists, when the probe holding
+ *   the lock may well fail too and the copy is marked stale), and one with nothing to show
+ *   waits up to $lockWait seconds for the holder's answer before asking itself — unless the
+ *   holder failed meanwhile, when it rethrows without a timeout of its own;
+ * - a breaker across requests: a failure writes the `kissj-down` entry, and for
+ *   BREAKER_SECONDS after it an expired entry is served stale without asking. A missing
+ *   entry still asks — the breaker never turns a slow page into an empty one. A success
+ *   deletes the marker;
+ * - a hidden failure reaches Sentry at most once per REPORT_SECONDS across all requests,
+ *   remembered in `kissj-reported`, which a success leaves alone — a flapping kissj would
+ *   otherwise be reported on every flap.
+ * Where the cache directory cannot be written all three quietly do nothing, and the
+ * provider behaves as it did without them.
+ *
  * Installed by Kernel around KissjProgramProvider only: the stub's fixture files are
  * already a local copy.
  */
@@ -25,6 +42,18 @@ final class CachingProgramProvider implements ProgramProviderInterface
 {
     /** sections and programmes together, as one list response brings them */
     public const LIST_KEY = 'list';
+
+    /** how long after a failure an expired entry is served without asking kissj */
+    public const BREAKER_SECONDS = 60;
+
+    /** at most one report of a hidden failure per this many seconds */
+    public const REPORT_SECONDS = 300;
+
+    /** the breaker's marker: its fetchedAt is the last failure */
+    public const DOWN_KEY = 'kissj-down';
+
+    /** when a hidden failure was last reported: its fetchedAt; a success keeps it */
+    public const REPORTED_KEY = 'kissj-reported';
 
     /** @var \Closure(): \DateTimeImmutable */
     private readonly \Closure $now;
@@ -46,6 +75,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
      * @param int $ttl seconds an entry is served without asking; 0 asks every time
      * @param (\Closure(): \DateTimeImmutable)|null $now the clock; tests pass a fixed one
      * @param (\Closure(\Throwable): void)|null $report where a hidden failure goes; Sentry by default
+     * @param float $lockWait seconds a request with no entry waits for another one fetching it
      */
     public function __construct(
         private readonly ProgramProviderInterface $inner,
@@ -54,6 +84,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
         private readonly int $ttl,
         ?\Closure $now = null,
         ?\Closure $report = null,
+        private readonly float $lockWait = 12.0,
     ) {
         $this->now = $now ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable();
         $this->report = $report ?? Collector::collect(...);
@@ -140,23 +171,19 @@ final class CachingProgramProvider implements ProgramProviderInterface
                 static fn (mixed $value): bool => $value !== null,
             ),
         ]);
-        $this->freshness->note($outcome['fetchedAt'], $outcome['result'] === 'stale');
+        $this->freshness->note($outcome['fetchedAt'], $outcome['stale']);
         $this->memo[$key] = ['generation' => $this->freshness->generation(), 'data' => $outcome['data']];
 
         return $outcome['data'];
     }
 
     /**
-     * @return array{data: array, result: 'hit'|'miss'|'stale', age: ?int, fetchedAt: \DateTimeImmutable}
+     * @return array{data: array, result: 'hit'|'miss'|'stale'|'locked', age: ?int, fetchedAt: \DateTimeImmutable, stale: bool}
      */
     private function resolve(string $key, \Closure $fetch, \Closure $usable): array
     {
         $now = ($this->now)();
-        $entry = $this->cache->get($key);
-        if ($entry !== null && !$usable($entry->data)) {
-            $entry = null;
-        }
-
+        $entry = $this->usableEntry($key, $usable);
         if ($entry !== null && $entry->isFresh($this->ttl, $now)) {
             return self::served($entry, 'hit', $now);
         }
@@ -166,31 +193,124 @@ final class CachingProgramProvider implements ProgramProviderInterface
             return $this->fallBack($entry, $now);
         }
 
-        try {
-            $data = $fetch();
-        } catch (TransferException|ProgramDataException $e) {
-            // UnknownParticipantException is an answer and passes by without tripping this
-            $this->failure = ['generation' => $generation, 'error' => $e, 'reported' => false];
+        // kissj failed moments ago, in this request or another: an entry that exists is
+        // served as it is rather than costing this request a timeout too. A missing one asks.
+        if ($entry !== null && $this->breakerOpen($now)) {
+            return self::served($entry, 'stale', $now);
+        }
 
-            return $this->fallBack($entry, $now);
+        $release = $this->cache->tryLock($key);
+        $waitedSince = null;
+        if ($release === null) {
+            // Another request is fetching this very entry right now. While kissj is marked
+            // down that probe may well fail too, so the copy is as old as any stale one.
+            if ($entry !== null) {
+                return self::served($entry, 'locked', $now, stale: $this->cache->get(self::DOWN_KEY) !== null);
+            }
+            $waitedSince = ($this->now)();
+            $release = $this->cache->waitLock($key, $this->lockWait);
         }
 
         try {
-            $this->cache->set($key, $data);
-        } catch (\RuntimeException $e) {
-            // the reader has the fresh answer; only the next request pays for the lost write
-            ($this->report)($e);
+            $current = $this->usableEntry($key, $usable);
+            // the request we waited for, or one that finished between our read and our lock
+            // (only a request with no entry waits, so after a wait any entry is the holder's)
+            if ($current !== null && ($waitedSince !== null || $current->isFresh($this->ttl, $now))) {
+                return self::served($current, 'hit', $now);
+            }
+            // the request we waited for failed: one timeout per cold entry, not one per waiter
+            if ($waitedSince !== null && $this->failedSince($waitedSince)) {
+                $this->failure = [
+                    'generation' => $generation,
+                    'error' => new TransferException('kissj failed for the request this one waited for'),
+                    'reported' => false,
+                ];
+
+                return $this->fallBack($current, $now);
+            }
+
+            try {
+                $data = $fetch();
+            } catch (TransferException|ProgramDataException $e) {
+                // UnknownParticipantException is an answer and passes by without tripping this
+                $this->failure = ['generation' => $generation, 'error' => $e, 'reported' => false];
+                $this->markDown();
+
+                return $this->fallBack($current ?? $entry, $now);
+            }
+
+            $this->cache->delete(self::DOWN_KEY);
+            try {
+                $this->cache->set($key, $data);
+            } catch (\RuntimeException $e) {
+                // the reader has the fresh answer; only the next request pays for the lost write
+                ($this->report)($e);
+            }
+
+            return ['data' => $data, 'result' => 'miss', 'age' => null, 'fetchedAt' => $now, 'stale' => false];
+        } finally {
+            $release();
+        }
+    }
+
+    private function usableEntry(string $key, \Closure $usable): ?CacheEntry
+    {
+        $entry = $this->cache->get($key);
+
+        return $entry !== null && $usable($entry->data) ? $entry : null;
+    }
+
+    private function breakerOpen(\DateTimeImmutable $now): bool
+    {
+        return self::within($this->cache->get(self::DOWN_KEY), $now, self::BREAKER_SECONDS);
+    }
+
+    /** Whether a failure was marked at or after $since (whole seconds, as the marker keeps them). */
+    private function failedSince(\DateTimeImmutable $since): bool
+    {
+        $down = $this->cache->get(self::DOWN_KEY);
+
+        return $down !== null && $down->fetchedAt->getTimestamp() >= $since->getTimestamp();
+    }
+
+    private function markDown(): void
+    {
+        try {
+            $this->cache->set(self::DOWN_KEY, null);
+        } catch (\RuntimeException) {
+            // an unwritable cache directory: the breaker simply stays shut
+        }
+    }
+
+    /** At most one report of a hidden kissj failure per REPORT_SECONDS across all requests. */
+    private function mayReport(\DateTimeImmutable $now): bool
+    {
+        if (self::within($this->cache->get(self::REPORTED_KEY), $now, self::REPORT_SECONDS)) {
+            return false;
+        }
+        try {
+            $this->cache->set(self::REPORTED_KEY, null);
+        } catch (\RuntimeException) {
+            // unwritable: every request reports, as before the throttle
         }
 
-        return ['data' => $data, 'result' => 'miss', 'age' => null, 'fetchedAt' => $now];
+        return true;
+    }
+
+    /** Whether a marker entry was written less than $seconds before $now (a future one counts as not). */
+    private static function within(?CacheEntry $marker, \DateTimeImmutable $now, int $seconds): bool
+    {
+        $age = $marker?->ageAt($now);
+
+        return $age !== null && $age >= 0 && $age < $seconds;
     }
 
     /**
      * After this request's failure: the expired entry, however old, or the failure itself.
-     * It reaches Sentry once, and only when an entry hid it — a rethrown one is the module's
+     * It reaches Sentry at most once per request and once per REPORT_SECONDS overall, and only when an entry hid it — a rethrown one is the module's
      * notice.
      *
-     * @return array{data: array, result: string, age: int, fetchedAt: \DateTimeImmutable}
+     * @return array{data: array, result: string, age: int, fetchedAt: \DateTimeImmutable, stale: bool}
      */
     private function fallBack(?CacheEntry $entry, \DateTimeImmutable $now): array
     {
@@ -199,16 +319,28 @@ final class CachingProgramProvider implements ProgramProviderInterface
             throw $this->failure['error'];
         }
         if (!$this->failure['reported']) {
-            ($this->report)($this->failure['error']);
             $this->failure['reported'] = true;
+            if ($this->mayReport($now)) {
+                ($this->report)($this->failure['error']);
+            }
         }
 
         return self::served($entry, 'stale', $now);
     }
 
-    /** @return array{data: array, result: string, age: int, fetchedAt: \DateTimeImmutable} */
-    private static function served(CacheEntry $entry, string $result, \DateTimeImmutable $now): array
+    /**
+     * @param bool|null $stale whether the reader is told it is an old copy; by default exactly when the result is `stale`
+     *
+     * @return array{data: array, result: string, age: int, fetchedAt: \DateTimeImmutable, stale: bool}
+     */
+    private static function served(CacheEntry $entry, string $result, \DateTimeImmutable $now, ?bool $stale = null): array
     {
-        return ['data' => $entry->data, 'result' => $result, 'age' => $entry->ageAt($now), 'fetchedAt' => $entry->fetchedAt];
+        return [
+            'data' => $entry->data,
+            'result' => $result,
+            'age' => $entry->ageAt($now),
+            'fetchedAt' => $entry->fetchedAt,
+            'stale' => $stale ?? $result === 'stale',
+        ];
     }
 }

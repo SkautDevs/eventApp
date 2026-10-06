@@ -142,6 +142,32 @@ final class PushToggleTest extends BrowserTestCase
         self::assertSame(1, self::script('return window.__calls.unsubscribe;'));
     }
 
+    /** FF-I2: a camp behind one address hit the limit — say so, and keep the browser's subscription for the retry. */
+    public function testTooManySaysSoAndKeepsTheBrowserSubscription(): void
+    {
+        self::visit('/korbo26/');
+        self::fake(['status' => 429, 'body' => ['saved' => false, 'error' => 'too-many']]);
+
+        self::tap('[data-push-toggle]');
+
+        self::waitForStatus('Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.');
+        self::assertSame(['label' => self::ENABLE, 'primary' => true, 'visible' => true, 'disabled' => false], self::button());
+        self::assertSame(0, self::script('return window.__calls.unsubscribe;'));
+        self::assertTrue(self::script('return window.__sub !== null;'));
+    }
+
+    public function testAnInvalidKeySaysSoAndDropsTheHalfSubscription(): void
+    {
+        self::visit('/korbo26/');
+        self::fake(['status' => 400, 'body' => ['saved' => false, 'error' => 'invalid-key']]);
+
+        self::tap('[data-push-toggle]');
+
+        self::waitForStatus('Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.');
+        self::assertSame(['label' => self::ENABLE, 'primary' => true, 'visible' => true, 'disabled' => false], self::button());
+        self::assertSame(1, self::script('return window.__calls.unsubscribe;'));
+    }
+
     /** The morph writes the server's label and class back; push.js puts the state back. */
     public function testAMorphPutsTheButtonStateBack(): void
     {

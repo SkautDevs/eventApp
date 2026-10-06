@@ -5,15 +5,36 @@ services:
             args:
                 APP_RELEASE: "${APP_RELEASE:-dev}"
         env_file: .env
+        restart: unless-stopped
         volumes:
             - var:/app/var
+        # an unbounded log fills the disk, and then the cache and SQLite writes fail too
+        logging:
+            driver: json-file
+            options:
+                max-size: 20m
+                max-file: "5"
     web:
         image: nginx:1.27-alpine
         depends_on: [app]
+        restart: unless-stopped
+        # loopback only: Docker's published ports bypass ufw, and a port open to the world
+        # would let anyone send X-Forwarded-For past the reverse proxy
         ports:
-            - 8080:80
+            - 127.0.0.1:8080:80
+        healthcheck:
+            # /health opens the push database through php-fpm, so it covers both containers
+            test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/health || exit 1"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
         volumes:
             - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
             - ./www:/app/www:ro
+        logging:
+            driver: json-file
+            options:
+                max-size: 20m
+                max-file: "5"
 volumes:
     var:

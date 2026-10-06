@@ -19,6 +19,11 @@ final class SubscriptionRepository
      * anything that is not a string of plausible length, or an endpoint that is not an
      * https URL, is rejected here rather than stored and handed to the push library
      * later. `PushModule` turns the exception into a 400.
+     *
+     * A known (event, endpoint) is updated in place and keeps its failure count: a re-send
+     * proves the browser is alive, not that its endpoint is deliverable, and anyone can
+     * re-post a body. Only new keys — a different subscription behind the same URL —
+     * start the count again.
      */
     public function save(array $subscription, string $event, ?string $tieCode = null): void
     {
@@ -41,8 +46,16 @@ final class SubscriptionRepository
         }
 
         $statement = $this->pdo->prepare(
-            'INSERT OR REPLACE INTO subscriptions (event, endpoint, public_key, auth_token, created_at, tie_code)
-             VALUES (:event, :endpoint, :public_key, :auth_token, :created_at, :tie_code)'
+            'INSERT INTO subscriptions (event, endpoint, public_key, auth_token, created_at, tie_code)
+             VALUES (:event, :endpoint, :public_key, :auth_token, :created_at, :tie_code)
+             ON CONFLICT (event, endpoint) DO UPDATE SET
+                 failures = CASE
+                     WHEN subscriptions.public_key = excluded.public_key AND subscriptions.auth_token = excluded.auth_token
+                     THEN subscriptions.failures ELSE 0 END,
+                 public_key = excluded.public_key,
+                 auth_token = excluded.auth_token,
+                 created_at = excluded.created_at,
+                 tie_code = excluded.tie_code'
         );
         $statement->execute([
             'endpoint' => $endpoint,
@@ -114,6 +127,45 @@ final class SubscriptionRepository
     {
         $statement = $this->pdo->prepare('DELETE FROM subscriptions WHERE event = :event AND endpoint = :endpoint');
         $statement->execute(['event' => $event, 'endpoint' => $endpoint]);
+    }
+
+    /**
+     * One more failed send for each endpoint; rows that reach $limit are deleted.
+     *
+     * @param list<string> $endpoints
+     * @return int how many rows were deleted
+     */
+    public function noteFailures(string $event, array $endpoints, int $limit): int
+    {
+        if ($endpoints === []) {
+            return 0;
+        }
+        $deleted = 0;
+        $this->pdo->beginTransaction();
+        try {
+            foreach (array_chunk(array_values(array_unique($endpoints)), 500) as $chunk) {
+                $in = implode(',', array_fill(0, count($chunk), '?'));
+                $this->pdo->prepare("UPDATE subscriptions SET failures = failures + 1 WHERE event = ? AND endpoint IN ($in)")->execute([$event, ...$chunk]);
+                $delete = $this->pdo->prepare("DELETE FROM subscriptions WHERE event = ? AND failures >= ? AND endpoint IN ($in)");
+                $delete->execute([$event, $limit, ...$chunk]);
+                $deleted += $delete->rowCount();
+            }
+            $this->pdo->commit();
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+
+        return $deleted;
+    }
+
+    /** @param list<string> $endpoints delivered just now: their strike count starts again */
+    public function clearFailures(string $event, array $endpoints): void
+    {
+        foreach (array_chunk(array_values(array_unique($endpoints)), 500) as $chunk) {
+            $in = implode(',', array_fill(0, count($chunk), '?'));
+            $this->pdo->prepare("UPDATE subscriptions SET failures = 0 WHERE event = ? AND failures > 0 AND endpoint IN ($in)")->execute([$event, ...$chunk]);
+        }
     }
 
     public function count(?string $event = null): int

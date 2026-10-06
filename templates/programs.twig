@@ -11,19 +11,20 @@
 	   timeline because that is what a fresh render defaults to. #}
 	<div class="pg" data-pg-root data-morph-keep="data-view data-step" data-pg-event="{{ event.slug }}" data-view="timeline" data-step="next">
 		{% if notice %}
-			<p class="notice">{{ notice }}</p>
+			<p class="notice" data-key="notice">{{ notice }}</p>
 		{% endif %}
 
 		{# One strip per view, and they are not the same instrument. The timeline's is a
 		   pager: it steps through day pages with ‹ ›. The list's is an
 		   orientation strip over one continuous scroll: ↑ ↓ jump between day headings and
 		   the label names the day being read rather than the page being shown. #}
+		{# every child of .pg carries a data-key or an id (the two views): they come and go with the data, and the morph matches unkeyed siblings by position — which once turned the sheet into the day panel #}
 		{% for pager in [
 			{'kind': 'timeline', 'items': pages, 'active': activePage, 'back': '‹', 'forward': '›', 'backLabel': 'Předchozí', 'forwardLabel': 'Další'},
 			{'kind': 'list', 'items': days, 'active': activeDay, 'back': '↑', 'forward': '↓', 'backLabel': 'Předchozí den', 'forwardLabel': 'Další den'}
 		] %}
 			{% if pager.items is not empty %}
-				<div class="pager" data-pg-pager="{{ pager.kind }}">
+				<div class="pager" data-key="pager-{{ pager.kind }}" data-pg-pager="{{ pager.kind }}">
 					<button type="button" class="pager-arrow{{ pager.kind == 'list' ? ' pager-arrow-day' }}" data-pg-step="-1" data-pg-kind="{{ pager.kind }}" aria-label="{{ pager.backLabel }}"{{ pager.kind == 'list' ? ' disabled' }}>{{ pager.back }}</button>
 					<button type="button" class="pager-label" data-pg-menu="{{ pager.kind }}" aria-haspopup="true" aria-expanded="false">
 						<span data-pg-title="{{ pager.kind }}">{{ (pager.items|filter(p => p.key == pager.active)|first).label }}</span>
@@ -38,7 +39,7 @@
 						</span>
 					{% endif %}
 				</div>
-				<div class="pager-menu" data-pg-menu-panel="{{ pager.kind }}" aria-hidden="true">
+				<div class="pager-menu" data-key="menu-{{ pager.kind }}" data-pg-menu-panel="{{ pager.kind }}" aria-hidden="true">
 					<div class="pager-menu-backdrop" data-pg-close></div>
 					<div class="pager-menu-card" role="dialog" aria-modal="true" aria-label="Výběr dne" tabindex="-1" data-pg-menu-card>
 						{% for item in pager.items %}
@@ -52,7 +53,7 @@
 
 		{# --- timeline: every programme of the active day, from every section --- #}
 		<div class="view view-timeline" id="pg-view-timeline" role="tabpanel" aria-labelledby="pg-tab-timeline">
-			{% if pages is empty %}
+			{% if pages is empty and not programmesUnavailable %}
 				<p class="empty">Program zatím není k dispozici.</p>
 			{% endif %}
 			{% for page in pages %}
@@ -100,6 +101,8 @@
 					<p>Přihlas se TIE kódem a uvidíš tady svůj vlastní program.</p>
 					{% include '_tie_form.twig' with {'return': 'programy'} %}
 				</div>
+			{% elseif not mineRead %}
+				{# the notice above says the personal list could not be read; "nothing registered" would be a guess #}
 			{% elseif days is empty %}
 				<p class="empty">Zatím nemáš přihlášený žádný program.</p>
 			{% else %}
@@ -131,7 +134,7 @@
 		</div>
 
 		{# both views are named at once, in a bar docked on top of the main tab bar #}
-		<div class="tabs-wrap">
+		<div class="tabs-wrap" data-key="tabs">
 			<div class="tabs" role="tablist" aria-label="Zobrazení programu">
 				<span class="tabs-indicator" aria-hidden="true"></span>
 				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="true" data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></button>
@@ -140,7 +143,7 @@
 		</div>
 
 		{# the programme detail, as a bottom sheet #}
-		<div class="sheet" data-pg-sheet aria-hidden="true">
+		<div class="sheet" data-key="sheet" data-pg-sheet aria-hidden="true">
 			<div class="sheet-backdrop" data-pg-close></div>
 			{# The server names the first programme so the dialog is never nameless, and
 			   openSheet() points it at the open one. A background morph rewrites it only

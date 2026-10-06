@@ -956,6 +956,11 @@ div.map iframe {
 	border: 0;
 }
 
+/* offline, a map that never loaded is hidden behind this note (www/shell.js) */
+.map-offline {
+	margin-bottom: 12px;
+}
+
 .empty {
 	padding: 32px 24px;
 	opacity: 0.8;
@@ -980,6 +985,8 @@ div.news {
 /* A message is plain text whose line breaks are meant, like a perex */
 .news-body {
 	white-space: pre-line;
+	/* a long URL wraps instead of being clipped by body's overflow-x: hidden */
+	overflow-wrap: anywhere;
 }
 
 
@@ -1404,6 +1411,9 @@ div.news {
 	--reg-bg: var(--role-registered-bg, var(--color-primary));
 	--reg-line: var(--role-registered-line, var(--hairline));
 	--reg-width: var(--role-registered-width, 1px);
+	/* the registered card's own ink: on an accent fill the grid's card ink can fall far
+	   below AA (navigamus25 light was 2.0:1), so a set that fills with its accent names it */
+	--reg-fg: var(--role-on-registered, var(--on-structure));
 	display: flex;
 	flex-direction: column;
 	height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
@@ -1584,6 +1594,7 @@ div.news {
 	background-color: var(--reg-bg);
 	border-color: var(--reg-line);
 	border-width: var(--reg-width);
+	color: var(--reg-fg);
 	font-weight: 700;
 }
 
@@ -1682,6 +1693,7 @@ div.news {
 	font-size: var(--fs-sm);
 	line-height: 1.35;
 	white-space: pre-line;
+	overflow-wrap: anywhere;
 }
 
 /* --- programme detail, as a bottom sheet --------------------------------- */
@@ -1825,6 +1837,7 @@ div.news {
 	margin: 0 0 12px;
 	line-height: 1.4;
 	white-space: pre-line;
+	overflow-wrap: anywhere;
 }
 
 .sheet-lector {

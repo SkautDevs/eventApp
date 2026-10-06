@@ -17,6 +17,9 @@ final class SpyPushSender implements PushSenderInterface
     /** what the next welcome comes back as */
     public SendOutcome $welcomeOutcome = SendOutcome::Delivered;
 
+    /** what every sendToEvent() comes back as */
+    public array $result = ['recipients' => 3, 'sent' => 2, 'removed' => 1, 'failed' => 0];
+
     public function sendToEvent(
         string $event,
         string $title,
@@ -28,7 +31,7 @@ final class SpyPushSender implements PushSenderInterface
     ): array {
         $this->calls[] = [$title, $body, $icon, $event, $url, $tieCodes, $programme];
 
-        return ['sent' => 2, 'removed' => 1];
+        return $this->result;
     }
 
     public function sendToSubscription(

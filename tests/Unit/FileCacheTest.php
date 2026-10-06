@@ -180,4 +180,72 @@ final class FileCacheTest extends TestCase
 
         self::assertNull($this->cache()->get('list'));
     }
+
+    public function testALockIsExclusiveUntilReleased(): void
+    {
+        $cache = new FileCache($this->dir);
+        $release = $cache->tryLock('list');
+        self::assertNotNull($release);
+        self::assertNull($cache->tryLock('list'), 'a second holder is refused');
+        self::assertNotNull($other = $cache->tryLock('tie-abc'), 'locks are per key');
+        $other();
+        $release();
+        self::assertNotNull($cache->tryLock('list'));
+    }
+
+    public function testWaitingForAHeldLockGivesUpAfterTheTimeout(): void
+    {
+        $cache = new FileCache($this->dir);
+        $held = $cache->tryLock('list');
+        $start = microtime(true);
+        $release = $cache->waitLock('list', 0.2);
+        self::assertGreaterThanOrEqual(0.2, microtime(true) - $start);
+        $release();
+        $held();
+    }
+
+    /** No lock file can be made: no single-flight, but never an exception. */
+    public function testAnUnwritableDirectoryGivesANoOpLock(): void
+    {
+        $blocker = (string) tempnam(sys_get_temp_dir(), 'cache-blocker');
+        try {
+            $cache = new FileCache($blocker . '/cache');
+            $release = $cache->tryLock('list');
+            self::assertNotNull($release);
+            self::assertNotNull($cache->tryLock('list'), 'nothing to hold, so nothing to refuse');
+            $release();
+        } finally {
+            unlink($blocker);
+        }
+    }
+
+    /** Review T6-I1: a filesystem that cannot lock is no single-flight, never "held for ever". */
+    public function testALockThatFailsWithoutContentionIsANoOpNotHeld(): void
+    {
+        $unsupported = static function ($handle, int $operation, &$wouldBlock = null): bool {
+            $wouldBlock = 0;
+
+            return false;
+        };
+        $cache = new FileCache($this->dir, flock: $unsupported);
+
+        $release = $cache->tryLock('list');
+        self::assertNotNull($release, 'not contention, so not held by another');
+        $release();
+
+        $start = microtime(true);
+        $cache->waitLock('list', 2.0)();
+        self::assertLessThan(1.0, microtime(true) - $start, 'nothing to wait for');
+    }
+
+    public function testALockThatWouldBlockIsHeldElsewhere(): void
+    {
+        $contended = static function ($handle, int $operation, &$wouldBlock = null): bool {
+            $wouldBlock = 1;
+
+            return false;
+        };
+
+        self::assertNull((new FileCache($this->dir, flock: $contended))->tryLock('list'));
+    }
 }

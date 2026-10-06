@@ -25,8 +25,9 @@ use Symfony\Component\Process\ExecutableFinder;
  *    container by (`test`, through `docker compose run --use-aliases`).
  *
  * Either way the app is served by a PHP built-in server this class starts itself, with
- * bin/router.php and an environment of its own (the stub provider, a throwaway push
- * database), so a test can stop it to take the network away — CDP's offline emulation
+ * bin/router.php and an environment of its own (the stub provider for every event, a
+ * throwaway push database, a session store in a temporary directory of the class's own,
+ * so a run leaves no var/sessions behind — the compose `test` service runs as root), so a test can stop it to take the network away — CDP's offline emulation
  * does not reach the service worker's own fetches, and Panther's stopWebServer() would
  * quit the browser too. Without either Chrome every test is skipped, unless
  * PANTHER_NO_SKIP=1 (CI), where that is a failure.
@@ -48,6 +49,9 @@ abstract class BrowserTestCase extends PantherTestCase
     protected static ?Client $browser = null;
 
     private static ?WebServerManager $server = null;
+
+    /** The server's SESSION_PATH: a temporary directory per class, outlives a stopServer()/startServer() pair. */
+    private static ?string $sessions = null;
 
     public static function setUpBeforeClass(): void
     {
@@ -73,6 +77,7 @@ abstract class BrowserTestCase extends PantherTestCase
         self::$browser = null;
         self::stopServer();
         self::removeDatabase();
+        self::removeSessions();
         parent::tearDownAfterClass();
     }
 
@@ -272,13 +277,19 @@ abstract class BrowserTestCase extends PantherTestCase
      */
     private static function serverEnvironment(): array
     {
-        return [
+        $root = dirname(__DIR__, 2);
+        $catalog = new \App\EventCatalog($root . '/events');
+        $stub = [];
+        // every event, so a dev .env that points one at kissj never reaches a real API from a test
+        foreach ($catalog->slugs() as $slug) {
+            $stub[$catalog->load($slug)->envKey('PROGRAM_PROVIDER')] = 'stub';
+        }
+
+        return $stub + [
             'APP_DEBUG' => '0',
             'SENTRY_DSN' => '',
-            'PROGRAM_PROVIDER_KORBO26' => 'stub',
-            'PROGRAM_PROVIDER_OBROK19' => 'stub',
-            'PROGRAM_PROVIDER_NAVIGAMUS25' => 'stub',
             'PUSH_DB_PATH' => self::DATABASE,
+            'SESSION_PATH' => self::sessionDirectory(),
             // the worker's install fetches a dozen files at once; one PHP worker would queue them
             'PHP_CLI_SERVER_WORKERS' => '4',
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one
@@ -373,6 +384,32 @@ abstract class BrowserTestCase extends PantherTestCase
         $capabilities->setCapability(ChromeOptions::CAPABILITY, $options);
 
         return Client::createSeleniumClient(self::env('PANTHER_SELENIUM_URL'), $capabilities, self::baseUri());
+    }
+
+    /** Created 0700 on first use, as Session would create var/sessions. */
+    private static function sessionDirectory(): string
+    {
+        if (self::$sessions === null) {
+            $dir = sys_get_temp_dir() . '/eventapp-browser-sessions-' . bin2hex(random_bytes(6));
+            if (!mkdir($dir, 0o700)) {
+                throw new \RuntimeException('Could not create the browser tests\' session directory ' . $dir);
+            }
+            self::$sessions = $dir;
+        }
+
+        return self::$sessions;
+    }
+
+    private static function removeSessions(): void
+    {
+        if (self::$sessions === null) {
+            return;
+        }
+        foreach (glob(self::$sessions . '/sess_*') ?: [] as $file) {
+            @unlink($file);
+        }
+        @rmdir(self::$sessions);
+        self::$sessions = null;
     }
 
     protected static function removeDatabase(): void

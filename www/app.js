@@ -125,8 +125,17 @@
 		return holder.content.querySelector('[data-screen]');
 	}
 
+	/** How long a screen the reader is waiting for may take before the plain navigation takes over. */
+	var LOAD_TIMEOUT = 8000;
+
 	function load(path) {
-		return fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin'})
+		// lie-fi: a fetch that never ends would leave the tap hanging for minutes
+		var controller = window.AbortController ? new AbortController() : null;
+		var timer = controller ? setTimeout(function () {
+			controller.abort();
+		}, LOAD_TIMEOUT) : null;
+
+		return fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', signal: controller ? controller.signal : undefined})
 			.then(function (response) {
 				// A non-200 is never a screen: a 404 and a 500 both answer with the
 				// whole error page, shell and all, and injecting that into a <section>
@@ -147,6 +156,7 @@
 				return response.text();
 			})
 			.then(function (html) {
+				clearTimeout(timer);
 				var section = parse(html);
 				if (!section) {
 					throw new Error('no screen in response');
@@ -175,7 +185,8 @@
 				return entry;
 			})
 			.catch(function () {
-				// an error page, a redirect to somewhere else, no network: fall back to
+				clearTimeout(timer);
+				// an error page, a redirect to somewhere else, no network, a deadline: fall back to
 				// the plain navigation, which is always still correct
 				return null;
 			});
@@ -459,7 +470,10 @@
 				// something other than this screen. A revalidation that finds one
 				// simply leaves the cached screen alone — it runs in the background,
 				// behind a reader who asked for nothing, so it may not navigate.
-				return response.ok && !response.redirected ? response.text() : null;
+				// An answer the worker took from its own cache (no network) is not a
+				// confirmation of anything: taking it as one would stamp the screen fresh
+				// and skip the real check for five minutes after the signal comes back.
+				return response.ok && !response.redirected && response.headers.get('X-From-Cache') !== '1' ? response.text() : null;
 			})
 			.then(function (html) {
 				entry.checking = false;
@@ -577,6 +591,8 @@
 			if (leaving) {
 				leaving.scrollTop = window.scrollY;
 				leaving.section.hidden = true;
+				// a screen's own dialogs must not outlive it (www/programs.js)
+				leaving.section.dispatchEvent(new CustomEvent('screen:hidden', {bubbles: true}));
 			}
 			entry.section.hidden = false;
 			entry.shownAt = Date.now();
@@ -704,6 +720,18 @@
 		var link = event.target.closest ? event.target.closest('a[href]') : null;
 		if (!link || link.target === '_blank' || link.hasAttribute('download')
 			|| link.origin !== location.origin) {
+			return;
+		}
+		// The skip link names the path the document was first served for; after a swap that
+		// is another screen, and following it would throw the live app away. Its job is to
+		// move to the content: the visible screen takes the focus, nothing navigates.
+		if (link.classList.contains('skip-link')) {
+			event.preventDefault();
+			var shown = screens.get(currentPath);
+			if (shown) {
+				shown.section.focus();
+			}
+
 			return;
 		}
 		var url = new URL(link.href);

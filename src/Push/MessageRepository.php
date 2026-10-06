@@ -27,10 +27,11 @@ final class MessageRepository
         int $removed,
         ?int $unreached,
         ?\DateTimeImmutable $at = null,
+        ?int $failed = null,
     ): int {
         $statement = $this->pdo->prepare(
-            'INSERT INTO messages (event, sent_at, programme_id, target_label, title, body, signature, sent, removed, unreached)
-             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, :sent, :removed, :unreached)'
+            'INSERT INTO messages (event, sent_at, programme_id, target_label, title, body, signature, sent, removed, failed, unreached)
+             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, :sent, :removed, :failed, :unreached)'
         );
         $statement->execute([
             'event' => $event,
@@ -42,10 +43,50 @@ final class MessageRepository
             'signature' => $signature,
             'sent' => $sent,
             'removed' => $removed,
+            'failed' => $failed,
             'unreached' => $unreached,
         ]);
 
         return (int) $this->pdo->lastInsertId();
+    }
+
+    /**
+     * Logs a message before it is sent: its counts stay NULL until finish(), so a send that
+     * dies half-way still leaves the message on News and in the admin log.
+     */
+    public function begin(
+        string $event,
+        ?int $programmeId,
+        string $targetLabel,
+        string $title,
+        string $body,
+        string $signature,
+        ?\DateTimeImmutable $at = null,
+    ): int {
+        $statement = $this->pdo->prepare(
+            'INSERT INTO messages (event, sent_at, programme_id, target_label, title, body, signature, sent, removed, failed, unreached)
+             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, NULL, NULL, NULL, NULL)'
+        );
+        $statement->execute([
+            'event' => $event,
+            'sent_at' => self::stamp($at),
+            'programme_id' => $programmeId,
+            'target_label' => $targetLabel,
+            'title' => $title,
+            'body' => $body,
+            'signature' => $signature,
+        ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    /** Records what the send of a begun message came to; another event's id changes nothing. */
+    public function finish(string $event, int $id, int $sent, int $removed, int $failed, ?int $unreached): void
+    {
+        $statement = $this->pdo->prepare(
+            'UPDATE messages SET sent = :sent, removed = :removed, failed = :failed, unreached = :unreached WHERE id = :id AND event = :event'
+        );
+        $statement->execute(['sent' => $sent, 'removed' => $removed, 'failed' => $failed, 'unreached' => $unreached, 'id' => $id, 'event' => $event]);
     }
 
     /** @return list<array> newest first; $page is 1-based */
@@ -104,8 +145,10 @@ final class MessageRepository
             'title' => $r['title'],
             'body' => $r['body'],
             'signature' => $r['signature'],
-            'sent' => (int) $r['sent'],
-            'removed' => (int) $r['removed'],
+            // NULL while the send runs, and for good when it died
+            'sent' => $r['sent'] === null ? null : (int) $r['sent'],
+            'removed' => $r['removed'] === null ? null : (int) $r['removed'],
+            'failed' => $r['failed'] === null ? null : (int) $r['failed'],
             'unreached' => $r['unreached'] === null ? null : (int) $r['unreached'],
             'hidden' => (bool) $r['hidden'],
             'toggledAt' => $r['toggled_at'],

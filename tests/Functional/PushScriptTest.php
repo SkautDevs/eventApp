@@ -60,6 +60,17 @@ final class PushScriptTest extends TestCase
         self::assertStringContainsString("querySelectorAll('[data-push-toggle]')", $js);
     }
 
+    public function testSubscribingWaitsForAnActiveWorker(): void
+    {
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/push.js');
+        self::assertStringContainsString("preparing: 'Připravuji…',", $js);
+        self::assertStringContainsString('navigator.serviceWorker.ready,', $js);
+        self::assertStringContainsString('const READY_TIMEOUT = 10000;', $js);
+        self::assertStringContainsString('const registration = await workerReady();', $js);
+        // the deadline is cleared once the worker is ready
+        self::assertStringContainsString('.finally(() => clearTimeout(timer));', $js);
+    }
+
     public function testEveryLineTheOptInShowsIsInTheScript(): void
     {
         $js = self::code();
@@ -72,8 +83,11 @@ final class PushScriptTest extends TestCase
             'Notifikace jsou vypnuté.',
             'Notifikace máš v prohlížeči zakázané. Povol je v nastavení stránky a zkus to znovu.',
             'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
+            'Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.',
+            'Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.',
             'Notifikace se nepodařilo vypnout. Zkus to znovu.',
             'Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.',
+            'Připravuji…',
         ] as $line) {
             self::assertStringContainsString("'" . $line . "'", $js);
         }
@@ -90,6 +104,20 @@ final class PushScriptTest extends TestCase
         self::assertStringContainsString('if (e.rejected === true) {', $js);
         // enablePush() drops half a subscription, syncIdentity() a rejected one
         self::assertSame(2, substr_count($js, 'await subscription.unsubscribe().catch(() => {});'));
+    }
+
+    /** FF-I2: a 429 is the address's limit, not the subscription's fault, and keeps it; a 400 invalid-key has its own line. */
+    public function testTooManyAndAnInvalidKeyHaveTheirOwnLines(): void
+    {
+        $js = self::code();
+
+        self::assertStringContainsString('error.tooMany = response.status === 429;', $js);
+        self::assertStringContainsString("error.invalidKey = response.status === 400 && result.error === 'invalid-key';", $js);
+        // the 429 branch returns before the half-subscription is dropped
+        $tooMany = strpos($js, 'if (e.tooMany === true) {');
+        self::assertNotFalse($tooMany);
+        self::assertLessThan(strpos($js, 'await subscription.unsubscribe().catch(() => {});', $tooMany), strpos($js, 'status = TEXT.tooMany;', $tooMany));
+        self::assertStringContainsString('status = e.invalidKey === true ? TEXT.invalidKey : TEXT.enableFailed;', $js);
     }
 
     public function testTheSubscriptionIsDetectedAfterTheResync(): void

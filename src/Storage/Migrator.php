@@ -20,9 +20,12 @@ final class Migrator
     private const STEPS = [
         1 => 'step1',
         2 => 'step2',
+        3 => 'step3',
+        4 => 'step4',
+        5 => 'step5',
     ];
 
-    public const VERSION = 2;
+    public const VERSION = 5;
 
     public function migrate(\PDO $pdo): void
     {
@@ -113,6 +116,69 @@ final class Migrator
             )'
         );
         $pdo->exec('CREATE INDEX tie_attempts_lookup ON tie_attempts (event, ip, attempted_at)');
+    }
+
+    /** WebPushSender's strikes: consecutive failed sends of a subscription (not 404/410). */
+    private function step3(\PDO $pdo): void
+    {
+        $pdo->exec('ALTER TABLE subscriptions ADD COLUMN failures INTEGER NOT NULL DEFAULT 0');
+    }
+
+    /** New push subscriptions, counted per (event, address) by Push\SubscribeThrottle. */
+    private function step4(\PDO $pdo): void
+    {
+        $pdo->exec('CREATE TABLE subscribe_attempts (event TEXT NOT NULL, ip TEXT NOT NULL, attempted_at TEXT NOT NULL)');
+        $pdo->exec('CREATE INDEX subscribe_attempts_lookup ON subscribe_attempts (event, ip, attempted_at)');
+    }
+
+    /**
+     * messages with nullable counts and a `failed` column: a message is logged before it is
+     * sent (counts NULL until the send returns), so it is on News even if the send dies.
+     * SQLite cannot drop NOT NULL in place; the table is rebuilt with its ids kept, and
+     * AUTOINCREMENT's high-water mark carried over, so no id is ever handed out twice. A file without
+     * the table gets it in its final shape.
+     */
+    private function step5(\PDO $pdo): void
+    {
+        if (!self::hasTable($pdo, 'messages')) {
+            $pdo->exec(self::messagesTable('messages'));
+
+            return;
+        }
+        $pdo->exec(self::messagesTable('messages_new'));
+        $pdo->exec(
+            'INSERT INTO messages_new (id, event, sent_at, programme_id, target_label, title, body, signature, sent, removed, failed, unreached, hidden, toggled_at, toggled_by)
+             SELECT id, event, sent_at, programme_id, target_label, title, body, signature, sent, removed, NULL, unreached, hidden, toggled_at, toggled_by FROM messages'
+        );
+        $seq = $pdo->query("SELECT seq FROM sqlite_sequence WHERE name = 'messages'")->fetchColumn();
+        $pdo->exec('DROP TABLE messages');
+        $pdo->exec('ALTER TABLE messages_new RENAME TO messages');
+        if ($seq !== false) {
+            // the copy only knows the highest id still present; a newer one may have been handed out
+            $statement = $pdo->prepare("UPDATE sqlite_sequence SET seq = MAX(seq, :seq) WHERE name = 'messages'");
+            $statement->execute(['seq' => (int) $seq]);
+        }
+    }
+
+    private static function messagesTable(string $name): string
+    {
+        return 'CREATE TABLE ' . $name . ' (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event TEXT NOT NULL,
+            sent_at TEXT NOT NULL,
+            programme_id INTEGER NULL,
+            target_label TEXT NOT NULL,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL,
+            signature TEXT NOT NULL,
+            sent INTEGER NULL,
+            removed INTEGER NULL,
+            failed INTEGER NULL,
+            unreached INTEGER NULL,
+            hidden INTEGER NOT NULL DEFAULT 0,
+            toggled_at TEXT NULL,
+            toggled_by TEXT NULL
+        )';
     }
 
     private static function subscriptionsTable(string $name): string

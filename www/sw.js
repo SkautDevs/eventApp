@@ -172,21 +172,42 @@ function fill(name, list) {
 			.then(() => list.optional.reduce((done, url) => done.then(() => fetch(url)
 				.then(response => (storable(response) ? cache.put(cacheKey(new Request(url)), response) : null))
 				.catch(() => null)), Promise.resolve()))
-			.catch(e => caches.delete(name).then(() => { throw e; }));
+			// a cache another fill of this version completed meanwhile is that fill's good copy
+			// — possibly the only one left — so only a cache still without its marker goes
+			.catch(e => cache.match(SCOPE + 'precache.json')
+				.then(marker => (marker ? null : caches.delete(name)))
+				.then(() => { throw e; }));
 	}));
 }
 
-/** Makes `name` the cache this worker uses and drops every other cache of this event. */
+/** Whether `name` still exists and holds its completion marker, read through a fresh handle. */
+function isComplete(name) {
+	return caches.has(name).then(exists => (exists
+		? caches.open(name).then(cache => cache.match(SCOPE + 'precache.json')).then(marker => Boolean(marker))
+		: false));
+}
+
+/**
+ * Makes `name` the cache this worker uses and drops every other cache of this event — only
+ * once `name` is confirmed to exist and be complete. Two fills of one version (a new worker's
+ * install and an old worker's checkVersion()) could delete it under the other's handle; then
+ * adopting it would have deleted the last good copy too, /offline included. Resolves true
+ * when it adopted.
+ */
 function adopt(name) {
 	if (name === null) {
 		// nothing complete was found: that is no reason to delete what is there, which may
 		// be a cache another worker is still filling
-		return Promise.resolve();
+		return Promise.resolve(false);
 	}
-	cacheName = name;
-	return caches.keys().then(keys => {
-		const mine = keys.filter(key => MINE.test(key));
-		return Promise.all(mine.filter(key => key !== cacheName).map(key => caches.delete(key)));
+	return isComplete(name).then(complete => {
+		if (!complete) {
+			return false;
+		}
+		cacheName = name;
+		return caches.keys()
+			.then(keys => Promise.all(keys.filter(key => MINE.test(key) && key !== cacheName).map(key => caches.delete(key))))
+			.then(() => true);
 	});
 }
 
@@ -215,6 +236,11 @@ function checkVersion() {
 	if (versionChecked) {
 		return Promise.resolve();
 	}
+	// a worker on its way in fills this version itself; two fills of one cache is how the
+	// offline copy was lost. Not marked as checked: the next page may try again.
+	if (self.registration.installing || self.registration.waiting) {
+		return Promise.resolve();
+	}
 	versionChecked = true;
 	return Promise.all([
 		// past the HTTP cache: a conditional request, 304 when nothing changed
@@ -229,7 +255,7 @@ function checkVersion() {
 			if (superseded()) {
 				return null;
 			}
-			return fill(name, fresh).then(() => (superseded() ? null : adopt(name).then(announce)));
+			return fill(name, fresh).then(() => (superseded() ? null : adopt(name).then(adopted => (adopted ? announce() : null))));
 		})
 		.catch(() => null);
 }
@@ -239,15 +265,28 @@ function checkVersion() {
 self.addEventListener('install', event => {
 	// a failure fails the install; the browser tries again on the next page
 	event.waitUntil(fetchList('no-store')
-		.then(list => fill(PREFIX + list.version, list).then(() => {
-			cacheName = PREFIX + list.version;
-		}))
+		.then(list => fill(PREFIX + list.version, list)
+			.then(() => isComplete(PREFIX + list.version))
+			.then(complete => {
+				if (!complete) {
+					// deleted under this fill by another one: fail, the browser retries later
+					throw new Error('the precache was lost while it filled');
+				}
+				cacheName = PREFIX + list.version;
+			}))
 		.then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
 	event.waitUntil((cacheName !== null ? Promise.resolve(cacheName) : newestComplete())
 		.then(name => adopt(name))
+		.then(adopted => {
+			if (!adopted) {
+				// the name install filled is gone or incomplete: currentCache() must look for
+				// the newest complete cache rather than open an empty one under that name
+				cacheName = null;
+			}
+		})
 		.then(() => self.clients.claim())
 		.then(announce));
 });
@@ -272,7 +311,9 @@ self.addEventListener('fetch', event => {
 		// /offline included, until the next full navigation, because refill() runs only
 		// from page().
 		if (inScope && !url.pathname.startsWith(BASE + 'admin/') && !url.pathname.startsWith(BASE + 'push/')) {
-			event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response)));
+			// …and one that never reaches the server gets the offline page as a 503, not the
+			// browser's own error page — an installed iOS app has no Back button out of that
+			event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));
 		}
 		return;
 	}
@@ -298,11 +339,15 @@ self.addEventListener('fetch', event => {
 	// anything else — /health, another event's files — is the browser's
 });
 
-/** Every page and fragment out of the cache: everything stored as text/html. */
+/**
+ * Every page and fragment — everything stored as text/html — out of every cache of this
+ * event: a fill still running holds pages of the identity before, too.
+ */
 function purgeHtml() {
 	purges += 1;   // first, synchronously: a write already on its way is now stale
-	return currentCache().then(cache => cache && cache.keys().then(keys => Promise.all(keys.map(key => cache.match(key)
-		.then(response => (response && (response.headers.get('Content-Type') || '').startsWith('text/html') ? cache.delete(key) : null))))));
+	return caches.keys().then(keys => Promise.all(keys.filter(key => MINE.test(key)).map(key => caches.open(key)
+		.then(cache => cache.keys().then(requests => Promise.all(requests.map(request => cache.match(request)
+			.then(response => (response && (response.headers.get('Content-Type') || '').startsWith('text/html') ? cache.delete(request) : null)))))))));
 }
 
 /**
@@ -318,6 +363,24 @@ function refill() {
 			cache.match(cacheKey(new Request(url)), {ignoreVary: true}),
 			cache.match(cacheKey(new Request(url, {headers: {'X-Screen': '1'}})), {ignoreVary: true}),
 		]).then(([full, fragment]) => (full && fragment ? null : storeBoth(cache, url).catch(() => null)))))));
+}
+
+/**
+ * What a login or a logout that never reached the server answers with. Inline rather than
+ * the cached /offline, which says "this page is not saved yet" — not what happened, and a
+ * reader who tapped "Přihlásit" deserves to know the tap did nothing. Served by the worker,
+ * so it stands on its own: no stylesheet, no script, and the inline style the CSP allows.
+ */
+const OFFLINE_WRITE = '<!doctype html><html lang="cs"><head><meta charset="utf-8">'
+	+ '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title></head>'
+	+ '<body style="font-family: system-ui, sans-serif; line-height: 1.5; max-width: 28rem; margin: 0 auto; padding: 2rem 1rem;">'
+	+ '<h1 style="font-size: 1.5rem;">Jsi offline</h1>'
+	+ '<p>Přihlášení i odhlášení potřebuje signál. Nic se nezměnilo — zkus to znovu, až budeš online.</p>'
+	+ '<p><a href="' + BASE + '">Zpět na úvod</a></p></body></html>';
+
+/** A login or logout tapped with no signal: the page above, as a 503. */
+function offlineAnswer() {
+	return new Response(OFFLINE_WRITE, {status: 503, headers: {'Content-Type': 'text/html; charset=utf-8'}});
 }
 
 /**
@@ -415,7 +478,14 @@ function fragmentFromNetwork(event) {
 			event.waitUntil(putHtml(generation, key, response.clone()));
 		}
 		return response;
-	}, () => match(key).then(hit => hit || Response.error()));
+	}, () => match(key).then(hit => (hit ? fromCache(hit) : Response.error())));
+}
+
+/** A cached copy handed to a revalidation, marked so the loader does not take it for news (www/app.js). */
+function fromCache(response) {
+	const headers = new Headers(response.headers);
+	headers.set('X-From-Cache', '1');
+	return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
 }
 
 /**
