@@ -258,7 +258,7 @@ self.addEventListener('fetch', event => {
 	const request = event.request;
 	const url = new URL(request.url);
 	if (url.origin !== self.location.origin) {
-		return;   // fonts, Font Awesome, the map's iframe: the browser's business
+		return;   // the map's iframe: the browser's business
 	}
 	const inScope = url.pathname.startsWith(BASE);
 
@@ -289,7 +289,8 @@ self.addEventListener('fetch', event => {
 		return;
 	}
 
-	if (url.searchParams.has('v') && /^\/[a-z]+\.(css|js)$/.test(url.pathname)) {
+	// the fonts and the icons never change in place: a changed file gets a new name
+	if ((url.searchParams.has('v') && /^\/[a-z]+\.(css|js)$/.test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {
 		event.respondWith(cacheFirst(event));
 	} else if (url.pathname.startsWith('/events/' + SLUG + '/')) {
 		event.respondWith(staleWhileRevalidate(event));
@@ -417,7 +418,10 @@ function fragmentFromNetwork(event) {
 	}, () => match(key).then(hit => hit || Response.error()));
 }
 
-/** A content-hashed asset: its URL changes when its bytes do, so a cached copy is always right. */
+/**
+ * A content-hashed asset, or a file under /fonts/ or /vendor/: its URL changes when its
+ * bytes do, so a cached copy is always right.
+ */
 function cacheFirst(event) {
 	return match(event.request).then(hit => hit || fetch(event.request).then(response => {
 		if (storable(response)) {

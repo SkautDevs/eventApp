@@ -130,26 +130,27 @@ final class CspTest extends AppTestCase
         self::assertSame(["'self'"], $policy['default-src']);
         self::assertSame("'self'", $policy['script-src'][0]);
         self::assertNotContains("'unsafe-inline'", $policy['script-src']);
-        self::assertSame(["'self'", "'unsafe-inline'", 'https://use.fontawesome.com', 'https://cdn.skauting.cz'], $policy['style-src']);
-        self::assertSame(["'self'", 'https://use.fontawesome.com', 'https://cdn.skauting.cz'], $policy['font-src']);
+        // every font and the icon stylesheet are served from here
+        self::assertSame(["'self'", "'unsafe-inline'"], $policy['style-src']);
+        self::assertSame(["'self'"], $policy['font-src']);
         self::assertSame(["'self'", 'data:'], $policy['img-src']);
         self::assertSame(["'self'"], $policy['connect-src']);
         self::assertSame(["'self'"], $policy['base-uri']);
         self::assertSame(["'self'"], $policy['form-action']);
         self::assertSame(["'none'"], $policy['frame-ancestors']);
         self::assertSame(["'none'"], $policy['object-src']);
-        // korbo26 has no map and no webfont of its own
+        // korbo26 has no map
         self::assertArrayNotHasKey('frame-src', $policy);
-        self::assertNotContains('https://fonts.gstatic.com', $policy['font-src']);
     }
 
-    public function testObrok27AddsItsMapAndItsWebfont(): void
+    /** Montserrat is self-hosted now: the map is the one origin obrok27 adds. */
+    public function testObrok27AddsItsMapAndNoFontOrigin(): void
     {
         $policy = self::policy($this->request($this->createApp('obrok27'), 'GET', '/'));
 
         self::assertSame(['https://www.google.com'], $policy['frame-src']);
-        self::assertContains('https://fonts.googleapis.com', $policy['style-src']);
-        self::assertContains('https://fonts.gstatic.com', $policy['font-src']);
+        self::assertSame(["'self'", "'unsafe-inline'"], $policy['style-src']);
+        self::assertSame(["'self'"], $policy['font-src']);
     }
 
     public function testAnEventsCspKeyIsMerged(): void
@@ -189,7 +190,8 @@ final class CspTest extends AppTestCase
         $policy = self::policy($response);
         self::nonceOf($response);
         self::assertArrayNotHasKey('frame-src', $policy);
-        self::assertSame(["'self'", "'unsafe-inline'", 'https://use.fontawesome.com', 'https://cdn.skauting.cz'], $policy['style-src']);
+        self::assertSame(["'self'", "'unsafe-inline'"], $policy['style-src']);
+        self::assertSame(["'self'"], $policy['font-src']);
     }
 
     public function testTheHomepageButtonIsBoundByPushJsNotInline(): void

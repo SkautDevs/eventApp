@@ -166,15 +166,6 @@ final class ThemingTest extends AppTestCase
         self::assertStringNotContainsString('&#039;Montserrat&#039;', $html);
     }
 
-    /** font-url is a document resource, not a property: it is linked, not declared. */
-    public function testFontUrlBecomesAStylesheetLinkAndNotAProperty(): void
-    {
-        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
-
-        self::assertStringContainsString('<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat', $html);
-        self::assertStringNotContainsString('--theme-font-url', $html);
-    }
-
     /** The whole point of the map being optional: no theme, no properties, still boots. */
     public function testEventWithoutAThemeEmitsNoneAndStillBoots(): void
     {
@@ -220,9 +211,6 @@ final class ThemingTest extends AppTestCase
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
             foreach (\App\EventConfig::load($this->eventsDir(), $slug)->theme as $name => $value) {
-                if ($name === 'font-url') {
-                    continue; // linked by the layout rather than read by the stylesheet
-                }
                 self::assertStringContainsString('var(--theme-' . $name . ',', $css, sprintf('%s declares an unused theme key "%s"', $slug, $name));
             }
         }

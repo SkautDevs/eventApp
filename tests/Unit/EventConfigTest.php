@@ -104,6 +104,30 @@ final class EventConfigTest extends TestCase
         self::assertSame('0', EventConfig::load($this->eventsDir, 'obrok27')->theme['radius']);
     }
 
+    /** No theme font: the shell's own pair, plus the icons every layout links. */
+    public function testFontFamiliesDefaultToThemixAndSkautbold(): void
+    {
+        $event = EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal');
+
+        self::assertSame(['themix', 'skautbold', 'Font Awesome'], $event->fontFamilies());
+    }
+
+    /** obrok27 sets both to Montserrat: listed once, and neither default comes along. */
+    public function testFontFamiliesFollowTheTheme(): void
+    {
+        self::assertSame(['Montserrat', 'Font Awesome'], EventConfig::load($this->eventsDir, 'obrok27')->fontFamilies());
+    }
+
+    /** The first family of each value counts, its quotes stripped; a value may set only one of the two. */
+    public function testFontFamiliesTakeTheFirstFamilyUnquoted(): void
+    {
+        $event = $this->loadWithConfigLines("    'theme' => ['font' => '\"Open Sans\", Arial, sans-serif'],");
+        self::assertSame(['Open Sans', 'skautbold', 'Font Awesome'], $event->fontFamilies());
+
+        $event = $this->loadWithConfigLines("    'theme' => ['font-display' => \"  'Montserrat' , serif\"],");
+        self::assertSame(['themix', 'Montserrat', 'Font Awesome'], $event->fontFamilies());
+    }
+
     public function testContentLoadsFileAndDefaultsToEmpty(): void
     {
         $config = EventConfig::load($this->eventsDir, 'obrok19');

@@ -109,22 +109,64 @@ abstract class BrowserTestCase extends PantherTestCase
     /**
      * Waits until the event's worker is installed (its precache complete), active and in
      * control of the page; returns the name of its cache.
+     *
+     * Polls for the completion marker — the list itself, stored last in a cache named
+     * eventapp-<slug>-<8 hex> — rather than awaiting navigator.serviceWorker.ready:
+     * an install that fails (one asset request reset by the built-in server, and fill()
+     * deletes its half-filled cache) leaves the worker redundant and `ready` pending
+     * forever, which used to surface only as a bare script timeout 30 s later. A worker
+     * seen to go redundant fails the test at once, and says so.
      */
     protected static function waitForPrecache(string $slug): string
     {
-        $name = self::asyncScript(<<<'JS'
+        $result = self::waitForAsync(<<<'JS'
             const done = arguments[arguments.length - 1];
-            const prefix = 'eventapp-' + arguments[0] + '-';
-            navigator.serviceWorker.ready
-                .then(() => caches.keys())
-                .then(keys => done(keys.find(key => key.startsWith(prefix)) || null))
-                .catch(error => done('error: ' + error));
-            JS, [$slug]);
-        self::assertIsString($name);
-        self::assertStringStartsWith('eventapp-' . $slug . '-', $name);
+            const slug = arguments[0];
+            const mine = new RegExp('^eventapp-' + slug + '-[0-9a-f]{8}$');
+            // a worker seen once is watched: one that goes redundant was a failed install
+            const watch = worker => {
+                if (!worker) {
+                    return;
+                }
+                window.__precacheSeen = true;
+                if (worker.state === 'redundant') {
+                    window.__precacheRedundant = true;
+                } else if (!worker.__precacheWatched) {
+                    worker.__precacheWatched = true;
+                    worker.addEventListener('statechange', () => {
+                        if (worker.state === 'redundant') {
+                            window.__precacheRedundant = true;
+                        }
+                    });
+                }
+            };
+            navigator.serviceWorker.getRegistration('/' + slug + '/').then(registration => {
+                if (registration) {
+                    [registration.installing, registration.waiting, registration.active].forEach(watch);
+                    if (window.__precacheSeen && !registration.installing && !registration.waiting && !registration.active) {
+                        window.__precacheRedundant = true;
+                    }
+                }
+                if (window.__precacheRedundant && !(registration && registration.active)) {
+                    return {failed: 'the ' + slug + ' worker went redundant: its install failed'};
+                }
+                const scope = registration ? registration.scope : null;
+                if (scope === null) {
+                    return null;
+                }
+                return caches.keys().then(keys => Promise.all(keys.filter(key => mine.test(key)).map(key =>
+                    caches.open(key).then(cache => cache.match(scope + 'precache.json')).then(marker => (marker ? key : null))
+                ))).then(complete => complete.filter(Boolean).pop() || null);
+            }).then(done, error => done({failed: 'error: ' + error}));
+            JS, [$slug], 20);
+        if (is_array($result)) {
+            self::fail((string) ($result['failed'] ?? 'waitForPrecache: unexpected answer'));
+        }
+        self::assertIsString($result);
+        self::assertMatchesRegularExpression('/^eventapp-' . preg_quote($slug, '/') . '-[0-9a-f]{8}$/', $result);
         self::waitFor('return navigator.serviceWorker.controller !== null;');
 
-        return $name;
+        return $result;
     }
 
     /** Polls an async script (it gets `done` last) until it hands back something truthy. */
@@ -263,13 +305,12 @@ abstract class BrowserTestCase extends PantherTestCase
             '--disable-gpu',
             // the screen slide and the sheet animate otherwise, and a test would wait them out
             '--force-prefers-reduced-motion',
-            // Only the test server resolves, so every third-party request (Font Awesome,
-            // the event webfont CDNs, Google Fonts, the Maps iframe, Chrome's own Google
-            // traffic) fails at once. Otherwise one request that hangs after it is sent
-            // blocks the load event. Chrome has no timeout for that case, so the WebDriver
-            // navigate never returns and php-webdriver's 180 s curl timeout errors the
-            // test. The lane is hermetic: the app bar's controls keep a 44 × 44 box of
-            // their own, so they stay tappable without the icon font.
+            // Only the test server resolves, so every third-party request (the Maps
+            // iframe, Chrome's own Google traffic) fails at once. Otherwise one request
+            // that hangs after it is sent blocks the load event. Chrome has no timeout for
+            // that case, so the WebDriver navigate never returns and php-webdriver's 180 s
+            // curl timeout errors the test. The lane is hermetic, and the fonts and icons
+            // are self-hosted, so it still renders the real look.
             '--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE ' . self::host(),
         ];
     }

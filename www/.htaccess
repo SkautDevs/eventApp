@@ -43,6 +43,14 @@ Options -Indexes
 # place, for instance — reaches a returning visitor only because the service worker
 # revalidates it past this cache (its fetch bypasses the HTTP cache), never through
 # this cache itself. Give it a new filename instead.
+#
+# The self-hosted fonts and icons under /fonts/ and /vendor/ (woff2, and Font Awesome's
+# css) get the same year through the same extension rules, with no hash in their URL:
+# there a changed file gets a new name, never new bytes under the old one.
+# Not every host's mime.types knows woff2; without the type, ExpiresByType below never
+# matches and the self-hosted fonts go out with no lifetime.
+AddType font/woff2 .woff2
+
 <IfModule mod_expires.c>
 	ExpiresActive On
 	ExpiresByType text/css "access plus 1 year"

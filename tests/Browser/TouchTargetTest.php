@@ -86,31 +86,42 @@ final class TouchTargetTest extends BrowserTestCase
 
     /**
      * The identity's name gives way before the screen's name, entirely: at an ordinary
-     * phone width the longest shipped title must not lose even a sub-pixel to it.
-     * navigamus25's homepage, logged in, is that case.
+     * phone width a logged-in event's title must not lose even a sub-pixel to it.
+     *
+     * The widths are what they are because the hermetic lane now loads the real fonts
+     * (self-hosted since Round E); it used to measure the fallback. navigamus25's
+     * "Navigamus 2025" in real skautbold is 176.5px, and at 320px the mark, its gap and
+     * the title want 213px of the brand's 198px cap, so it ellipsises there — as it
+     * always did in production, where skautbold came from the CDN. That is accepted
+     * (controller ruling E-1), so navigamus25 is held at 360px only. obrok27, in
+     * Montserrat, is held at both 320px and 360px.
      */
     public function testTheTitleKeepsItsFullWidthOnAnOrdinaryPhone(): void
     {
-        self::visit('/navigamus25/profil');
-        self::waitFor('return document.readyState === "complete";');
-        if (self::script('return document.querySelector(".appbar-who") === null;')) {
-            self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('NAVIGAMUS1');
-            self::tap('form.stacked-form button[type="submit"]');
-            self::waitFor('return document.querySelector(".appbar-who") !== null;');
-        }
+        foreach (['navigamus25' => ['NAVIGAMUS1', [360]], 'obrok27' => ['OBROK1', [320, 360]]] as $slug => [$code, $widths]) {
+            self::visit('/' . $slug . '/profil');
+            self::waitFor('return document.readyState === "complete";');
+            if (self::script('return document.querySelector(".appbar-who") === null;')) {
+                self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys($code);
+                self::tap('form.stacked-form button[type="submit"]');
+                self::waitFor('return document.querySelector(".appbar-who") !== null;');
+            }
 
-        foreach ([320, 360] as $width) {
-            self::overrideViewport($width, 700);
-            try {
-                self::visit('/navigamus25/');
-                self::waitFor('return document.readyState === "complete" && document.querySelector(".appbar-who") !== null;');
-                self::assertSame($width, self::script('return window.innerWidth;'), 'the viewport override did not take');
-                // scrollWidth is a whole number and the squeeze can be a fraction of a pixel,
-                // which is all an ellipsis needs; the text's own laid-out width is exact
-                [$box, $natural, $text] = self::script('const t = document.querySelector(".appbar-title"); const r = document.createRange(); r.selectNodeContents(t); return [t.getBoundingClientRect().width, r.getBoundingClientRect().width, t.textContent];');
-                self::assertGreaterThanOrEqual($natural - 0.001, $box, sprintf('"%s" is truncated at %dpx (%.3f of %.3f)', $text, $width, $box, $natural));
-            } finally {
-                self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
+            foreach ($widths as $width) {
+                self::overrideViewport($width, 700);
+                try {
+                    self::visit('/' . $slug . '/');
+                    self::waitFor('return document.readyState === "complete" && document.querySelector(".appbar-who") !== null;');
+                    // measured with the real face in place, not the fallback it swaps from
+                    self::asyncScript('const done = arguments[arguments.length - 1]; document.fonts.ready.then(() => done(true));');
+                    self::assertSame($width, self::script('return window.innerWidth;'), 'the viewport override did not take');
+                    // scrollWidth is a whole number and the squeeze can be a fraction of a pixel,
+                    // which is all an ellipsis needs; the text's own laid-out width is exact
+                    [$box, $natural, $text] = self::script('const t = document.querySelector(".appbar-title"); const r = document.createRange(); r.selectNodeContents(t); return [t.getBoundingClientRect().width, r.getBoundingClientRect().width, t.textContent];');
+                    self::assertGreaterThanOrEqual($natural - 0.001, $box, sprintf('%s: "%s" is truncated at %dpx (%.3f of %.3f)', $slug, $text, $width, $box, $natural));
+                } finally {
+                    self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
+                }
             }
         }
     }

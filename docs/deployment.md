@@ -119,6 +119,13 @@ What the image does, and why:
   returning visitor only because the service worker revalidates it past the year-long
   HTTP cache (its fetch bypasses that cache), never through the cache itself. Upload a
   replacement under a new name and change `assets` in the event's config.
+- **Fonts and icons are self-hosted and never change in place.** `www/fonts/` (themix,
+  skautbold, Montserrat) and `www/vendor/fontawesome-free-5.8.1/` are committed, carry no
+  hash, get the same year of `immutable` (by extension: woff2, css) and are served
+  cache-first by the service worker. A changed file gets a new name — a new Montserrat
+  version a new `montserrat-v<N>-…` file, a new Font Awesome a new directory — with the
+  references in `www/style.css`, `templates/_layout.twig` and `App\Http\Fonts` changed to
+  match. No page loads anything typographic from a CDN.
 - `www/sw.js` must stay at the docroot root. The worker is registered with scope
   `/<slug>/`, which is only allowed for a script at or above that path.
 - **The service worker is the offline copy.** It precaches what `/<slug>/precache.json`
@@ -158,8 +165,9 @@ PHP sends an enforced `Content-Security-Policy` on every page it answers (on Doc
 on Apache alike), with a fresh nonce per request: a `<script>` without that nonce does
 not run. `connect-src` is `'self'` by default — kissj is called by PHP, never by the
 browser — and an event's `csp` key may extend it like the other directives.
-An event's `theme.font-url` origin is added to `style-src` and `font-src` automatically,
-and a published map's origin to `frame-src`. Anything else an event embeds — photos or
+Every font and the icon font are served from the app itself (`www/fonts/`,
+`www/vendor/`), so `style-src` and `font-src` name no other origin; a published map's
+origin is added to `frame-src` automatically. Anything else an event embeds — photos or
 videos from another site — is named in its `config.php` under `csp`, as `https://`
 origins without a path; an unknown directive or a malformed origin stops the event from
 booting:
