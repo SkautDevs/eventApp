@@ -11,7 +11,8 @@ use Slim\Interfaces\RouteParserInterface;
  * What the service worker keeps for an event (www/sw.js install), served as
  * /<slug>/precache.json. The worker never hardcodes a URL: the screens come from the
  * routes, the asset URLs carry the same content hashes the layout prints, and the
- * version changes exactly when an asset's content does.
+ * version changes exactly when an asset's content does — or, for the fonts under
+ * /fonts/ and /vendor/, which never change in place, when the event's set of them does.
  */
 final class Precache
 {
@@ -53,6 +54,10 @@ final class Precache
         $homepage = $event->get('homepage');
         if (is_array($homepage) && is_string($homepage['footerLogo'] ?? null) && $homepage['footerLogo'] !== '') {
             $files[] = $homepage['footerLogo'];
+        }
+        // the fonts and icons the event renders with, so an installed app keeps its look offline
+        foreach (Fonts::files($event->fontFamilies()) as $font) {
+            $files[] = $font;
         }
         $manifest = json_decode((string) @file_get_contents($docroot . '/events/' . $event->slug . '/site.webmanifest'), true);
         foreach (is_array($manifest) && is_array($manifest['icons'] ?? null) ? $manifest['icons'] : [] as $icon) {

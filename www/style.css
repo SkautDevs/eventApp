@@ -1,62 +1,52 @@
 @charset "utf-8";
 /* CSS Document */
 
-/* Every face is served in several formats and the browser takes the FIRST entry it
-   can use, so the order of the list is the choice of format. WOFF2 goes first: it is
-   about 30% smaller than the WOFF sitting next to it on the same CDN, and while WOFF
-   led the list nothing ever fetched it.
-
-   One `src` per block, too. A rule keeps only the last declaration of a property, so
-   the two `src:` lines that used to precede this one — the bare .eot and the .eot?#iefix
-   for IE — were parsed and discarded, and the .eot they named was never requested. */
+/* Every face is served from the app itself — www/fonts/, next to this file — so an
+   installed app keeps its typefaces offline (App\Http\Fonts puts them in the worker's
+   offline set; FontsTest keeps that table and these rules in step). One woff2 per
+   face and one `src` per rule: every browser that runs the service worker reads woff2.
+   A changed file gets a new name, never new bytes under the old one: /fonts/ carries a
+   year of `immutable` and no content hash. Nothing renders italic, so no italic face. */
 @font-face {
 	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400.woff2') format('woff2'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.otf') format('opentype'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400.svg#themix') format('svg');
+	src: url('/fonts/themix/TheMix_LT_400.woff2') format('woff2');
 	font-weight: 400;
 	font-style: normal;
 }
 
 @font-face {
 	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.woff2') format('woff2'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.otf') format('opentype'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_400i.svg#themix') format('svg');
-	font-weight: 400;
-	font-style: italic;
-}
-
-@font-face {
-	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700.woff2') format('woff2'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.otf') format('opentype'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700.svg#themix') format('svg');
+	src: url('/fonts/themix/TheMix_LT_700.woff2') format('woff2');
 	font-weight: 700;
 	font-style: normal;
-}
-
-@font-face {
-	font-family: 'themix';
-	src: url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.woff2') format('woff2'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.otf') format('opentype'),
-	url('https://cdn.skauting.cz/fonts/TheMix_LT_700i.svg#themix') format('svg');
-	font-weight: 700;
-	font-style: italic;
 }
 
 @font-face {
 	font-family: 'skautbold';
-	src: url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.woff2') format('woff2'),
-	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.woff') format('woff'),
-	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.otf') format('opentype'),
-	url('https://cdn.skauting.cz/fonts/skaut-bold-webfont.svg#skautbold') format('svg');
+	src: url('/fonts/skautbold/skaut-bold-webfont.woff2') format('woff2');
 	font-weight: normal;
 	font-style: normal;
+}
+
+/* Montserrat (SIL OFL 1.1, www/fonts/montserrat/OFL.txt), obrok27's face. Google's v31
+   variable files, one per subset, each covering 400-700; the unicode-range lines are
+   Google's own, so a page fetches latin-ext only when it shows a character from it. */
+@font-face {
+	font-family: 'Montserrat';
+	src: url('/fonts/montserrat/montserrat-v31-latin-ext.woff2') format('woff2');
+	font-weight: 400 700;
+	font-style: normal;
+	font-display: swap;
+	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: 'Montserrat';
+	src: url('/fonts/montserrat/montserrat-v31-latin.woff2') format('woff2');
+	font-weight: 400 700;
+	font-style: normal;
+	font-display: swap;
+	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 

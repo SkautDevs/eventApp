@@ -25,8 +25,9 @@ final class CspMiddleware implements MiddlewareInterface
     private const BASE = [
         'default-src' => ["'self'"],
         'script-src' => ["'self'"],
-        'style-src' => ["'self'", "'unsafe-inline'", 'https://use.fontawesome.com', 'https://cdn.skauting.cz'],
-        'font-src' => ["'self'", 'https://use.fontawesome.com', 'https://cdn.skauting.cz'],
+        // every font and the icon stylesheet are served from the app itself (www/fonts/, www/vendor/)
+        'style-src' => ["'self'", "'unsafe-inline'"],
+        'font-src' => ["'self'"],
         'img-src' => ["'self'", 'data:'],
         'connect-src' => ["'self'"],
         'media-src' => [],
@@ -43,26 +44,14 @@ final class CspMiddleware implements MiddlewareInterface
     }
 
     /**
-     * What an event adds: its webfont's origin, its map's origin when the map is on and
-     * published, and whatever its config's `csp` key names.
+     * What an event adds: its map's origin when the map is on and published, and
+     * whatever its config's `csp` key names.
      *
      * @return array<string, list<string>>
      */
     public static function extrasFor(EventConfig $event): array
     {
         $extras = [];
-
-        $fontUrl = $event->theme['font-url'] ?? null;
-        $fontOrigin = is_string($fontUrl) ? self::origin($fontUrl) : null;
-        if ($fontOrigin !== null) {
-            $extras['style-src'][] = $fontOrigin;
-            $extras['font-src'][] = $fontOrigin;
-            // Google serves the stylesheet from one origin and the font files from another,
-            // the same pair _layout.twig preconnects to
-            if ($fontOrigin === 'https://fonts.googleapis.com') {
-                $extras['font-src'][] = 'https://fonts.gstatic.com';
-            }
-        }
 
         $embedUrl = $event->get('map')['embedUrl'] ?? null;
         if ($event->isEnabled('map') && is_string($embedUrl) && !str_contains($embedUrl, 'REPLACE-ME')) {

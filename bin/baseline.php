@@ -15,12 +15,11 @@ declare(strict_types=1);
  * time of day is the same picture, and the install button on /profil is pinned hidden.
  *
  * Chrome gets the browser tests' arguments, the host-resolver rule included, so no
- * third-party host resolves: the screens render without the event webfont, Font Awesome
- * and the Maps iframe. That is not the real look, but it is the same picture on every
- * run, which a baseline needs more; a CDN's font release would otherwise move it. The
- * fallback fonts come from the Chrome image, and the compose `chrome` service runs the
- * unpinned selenium/standalone-chrome:latest, so an image upgrade can move pixels: re-take
- * the baseline before a round on a new image, not only after it.
+ * third-party host resolves: only the Maps iframe is missing. Every font and the icons
+ * are self-hosted (www/fonts/, www/vendor/), so the screens wear their real typefaces
+ * and it is the same picture on every run. The compose `chrome` service runs the
+ * unpinned selenium/standalone-chrome:latest, so an image upgrade can still move pixels
+ * (text rendering): re-take the baseline before a round on a new image, not only after it.
  */
 
 require dirname(__DIR__) . '/tests/bootstrap.php';

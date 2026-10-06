@@ -42,7 +42,7 @@ final class EventConfig
         public readonly array $roles,
         /**
          * Extra Content-Security-Policy origins, as ['frame-src' => ['https://…'], …].
-         * Optional: no shipped event needs it — the webfont and the map are derived — it is
+         * Optional: no shipped event needs it — the map is derived and the fonts are self-hosted — it is
          * the escape hatch for an event that embeds a video or a photo CDN. A script-src
          * extra is allowed but defeats the nonce; avoid it.
          *
@@ -173,6 +173,27 @@ final class EventConfig
     public function isEnabled(string $feature): bool
     {
         return in_array($feature, $this->features, true);
+    }
+
+    /**
+     * The font families the event renders with, for its offline set (App\Http\Fonts):
+     * the first family of `theme.font` and of `theme.font-display`, quotes stripped, or
+     * the stylesheet's own defaults (`themix`, `skautbold`) where unset, then the icons,
+     * which every layout links. Each family once, in that order.
+     *
+     * @return list<string>
+     */
+    public function fontFamilies(): array
+    {
+        $families = [];
+        foreach (['font' => 'themix', 'font-display' => 'skautbold'] as $key => $default) {
+            $value = $this->theme[$key] ?? null;
+            $first = is_string($value) ? trim(trim(explode(',', $value)[0]), '\'"') : '';
+            $families[] = $first !== '' ? $first : $default;
+        }
+        $families[] = 'Font Awesome';
+
+        return array_values(array_unique($families));
     }
 
     public function get(string $key, mixed $default = null): mixed

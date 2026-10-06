@@ -119,6 +119,17 @@ final class ServiceWorkerTest extends TestCase
         self::assertStringContainsString("fetch(request, {cache: 'no-cache'})", $sw);
     }
 
+    /** /fonts/ and /vendor/ follow "a changed file gets a new name", so a cached copy is always right. */
+    public function testSelfHostedFontsAreCacheFirst(): void
+    {
+        $sw = $this->source();
+
+        self::assertStringContainsString(
+            "if ((url.searchParams.has('v') && /^\\/[a-z]+\\.(css|js)$/.test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {\n\t\tevent.respondWith(cacheFirst(event));",
+            $sw,
+        );
+    }
+
     public function testAWriteEmptiesThePagesBeforeItsAnswerArrives(): void
     {
         $sw = $this->source();

@@ -72,11 +72,42 @@ final class PrecacheTest extends AppTestCase
             }
         }
 
-        // a fixture event ships no files at all: the scripts, and nothing that would 404
+        // a fixture event ships no files at all: the scripts and the shell's fonts, and
+        // nothing that would 404
         $minimal = $this->listFor('minimal', fixtureEvent: true)['assets'];
-        self::assertCount(4, $minimal);
+        self::assertCount(4 + 7, $minimal);
         foreach ($minimal as $url) {
-            self::assertMatchesRegularExpression('~^/(style\.css|app\.js|shell\.js|push\.js)\?v=[0-9a-f]{8}$~', $url);
+            self::assertMatchesRegularExpression('~^/((style\.css|app\.js|shell\.js|push\.js)\?v=[0-9a-f]{8}|fonts/.+\.woff2|vendor/fontawesome-free-5\.8\.1/.+)$~', $url);
+        }
+    }
+
+    /** The offline set carries the fonts the event renders with, and only those. */
+    public function testTheListCarriesTheEventsFonts(): void
+    {
+        $fontAwesome = [
+            '/vendor/fontawesome-free-5.8.1/css/all.min.css',
+            '/vendor/fontawesome-free-5.8.1/webfonts/fa-solid-900.woff2',
+            '/vendor/fontawesome-free-5.8.1/webfonts/fa-regular-400.woff2',
+            '/vendor/fontawesome-free-5.8.1/webfonts/fa-brands-400.woff2',
+        ];
+        $root = dirname(__DIR__, 2) . '/www';
+
+        $obrok27 = $this->listFor('obrok27')['assets'];
+        foreach (['/fonts/montserrat/montserrat-v31-latin.woff2', '/fonts/montserrat/montserrat-v31-latin-ext.woff2', ...$fontAwesome] as $file) {
+            self::assertContains($file, $obrok27);
+        }
+        self::assertSame([], preg_grep('~^/fonts/(themix|skautbold)/~', $obrok27), 'obrok27 renders neither themix nor skautbold');
+
+        $korbo26 = $this->listFor('korbo26')['assets'];
+        foreach (['/fonts/themix/TheMix_LT_400.woff2', '/fonts/themix/TheMix_LT_700.woff2', '/fonts/skautbold/skaut-bold-webfont.woff2', ...$fontAwesome] as $file) {
+            self::assertContains($file, $korbo26);
+        }
+        self::assertSame([], preg_grep('~^/fonts/montserrat/~', $korbo26), 'korbo26 does not render Montserrat');
+
+        foreach ([...$obrok27, ...$korbo26] as $url) {
+            if (preg_match('~^/(fonts|vendor)/~', $url) === 1) {
+                self::assertFileExists($root . $url);
+            }
         }
     }
 

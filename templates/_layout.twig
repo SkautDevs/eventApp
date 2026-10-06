@@ -10,24 +10,6 @@
 	<base href="/" />
 	<meta charset="utf-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-	{# The third-party origins the shell is about to pull from, warmed while the parser
-	   is still in <head>: the handshake is otherwise serialised behind the tag that
-	   needs it. Only the ones this event will actually use — a connection opened to a
-	   host nothing fetches from is a wasted round trip, not a saved one. #}
-	<link rel="preconnect" href="https://use.fontawesome.com" crossorigin>
-	{% if event.theme.font is not defined %}
-		{# no event font, so the body copy comes from Skaut's CDN as themix #}
-		<link rel="preconnect" href="https://cdn.skauting.cz" crossorigin>
-	{% endif %}
-	{% if event.theme['font-url'] is defined %}
-		{% set fontOrigin = event.theme['font-url']|split('/')|slice(0, 3)|join('/') %}
-		<link rel="preconnect" href="{{ fontOrigin }}">
-		{# Google serves the stylesheet from one origin and the font files from another,
-		   and the second is where the bytes are #}
-		{% if 'fonts.googleapis.com' in fontOrigin %}
-			<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		{% endif %}
-	{% endif %}
 	<link rel="manifest" href="events/{{ event.slug }}/site.webmanifest">
 	<link rel="apple-touch-icon" sizes="180x180" href="events/{{ event.slug }}/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="events/{{ event.slug }}/favicon-32x32.png">
@@ -62,20 +44,17 @@
 			})();
 		</script>
 	{% endif %}
-	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.1/css/all.css" integrity="sha384-50oBUHEmvpQ+1lW4y57PTFmhCaXp0ML5d60M1M7uH2+nqUivzIebhndOJK28anvf" crossorigin="anonymous">
-	{# an event that names a webfont gets its stylesheet; one that doesn't gets no link at all #}
-	{% if event.theme['font-url'] is defined %}
-		<link rel="stylesheet" href="{{ event.theme['font-url'] }}">
-	{% endif %}
+	{# Font Awesome Free 5.8.1, unmodified, served from the app like every other font:
+	   no hash in the URL, because a file under /vendor/ never changes in place #}
+	<link rel="stylesheet" href="/vendor/fontawesome-free-5.8.1/css/all.min.css">
 	<style>
 		:root {
 			color-scheme: {{ hasDark ? 'light dark' : 'light' }};
 		{% for name, value in event.colors %}
 			--color-{{ name }}: {{ value }};
 		{% endfor %}
-		{# theme values are raw CSS authored in the event config, so they are emitted verbatim;
-		   font-url is a document resource, not a property, and is linked above instead #}
-		{% for name, value in event.theme|filter((value, name) => name != 'font-url') %}
+		{# theme values are raw CSS authored in the event config, so they are emitted verbatim #}
+		{% for name, value in event.theme %}
 			--theme-{{ name }}: {{ value|raw }};
 		{% endfor %}
 		{# the light role set is the base; the dark one overrides it twice, below #}

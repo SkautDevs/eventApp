@@ -36,11 +36,11 @@ return [
     // 'roles' below, because it has to exist twice — once light, once dark.
     'theme' => [
         // Montserrat replaces themix for body copy and Skaut's bold for the app bar
-        // title — 400 and 700, the only two weights the app asks for.
+        // title — 400 and 700, the only two weights the app asks for. Served from
+        // www/fonts/montserrat/ by the @font-face rules in www/style.css.
         'font' => "'Montserrat', sans-serif",
         'font-display' => "'Montserrat', sans-serif",
         'font-display-weight' => '700',
-        'font-url' => 'https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap',
 
         // 2027 is blocky: the notched stripes of the identity have no round corners,
         // so neither does anything in the app.

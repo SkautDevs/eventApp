@@ -1,5 +1,5 @@
-vendor/
-release/
+/vendor/
+/release/
 logs/
 .env
 var/*
