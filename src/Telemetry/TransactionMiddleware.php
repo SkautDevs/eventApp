@@ -21,7 +21,7 @@ use Sentry\Tracing\TransactionSource;
  */
 final class TransactionMiddleware implements MiddlewareInterface
 {
-    public const UNMATCHED = 'unmatched';
+    public const string UNMATCHED = 'unmatched';
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {

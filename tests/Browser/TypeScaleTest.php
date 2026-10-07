@@ -13,7 +13,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class TypeScaleTest extends BrowserTestCase
 {
-    private const ROOT = 'document.documentElement.style.fontSize = "24px"; void document.body.offsetWidth;';
+    private const string ROOT = 'document.documentElement.style.fontSize = "24px"; void document.body.offsetWidth;';
 
     public function testTheViewportIsThePhoneAskedFor(): void
     {

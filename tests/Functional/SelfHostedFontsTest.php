@@ -18,9 +18,9 @@ final class SelfHostedFontsTest extends AppTestCase
      * The font hosts the app used to pull from. `cdn.skauting.cz` rather than the bare
      * domain: the homepage's credit links to devs.skauting.cz, which is a link, not a font.
      */
-    private const HOSTS = ['fontawesome.com', 'cdn.skauting.cz', 'googleapis.com', 'gstatic.com'];
+    private const array HOSTS = ['fontawesome.com', 'cdn.skauting.cz', 'googleapis.com', 'gstatic.com'];
 
-    private const PATHS = ['/', '/programy', '/mapa', '/novinky', '/odkazy', '/profil', '/offline', '/neexistuje'];
+    private const array PATHS = ['/', '/programy', '/mapa', '/novinky', '/odkazy', '/profil', '/offline', '/neexistuje'];
 
     public function testNoRenderedPageNamesAThirdPartyFontHost(): void
     {

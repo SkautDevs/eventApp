@@ -19,7 +19,7 @@ use Tests\KorboResponses;
  */
 final class KorboProgramsTest extends AppTestCase
 {
-    private const TIE_IDS = [3, 5, 10, 26, 31, 36, 45, 50];
+    private const array TIE_IDS = [3, 5, 10, 26, 31, 36, 45, 50];
 
     /**
      * The queue is the exact sequence of kissj calls the requests make, so a call the

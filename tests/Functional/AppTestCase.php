@@ -17,7 +17,7 @@ abstract class AppTestCase extends TestCase
      * A browser subscription's keys: a real P-256 public point and a 16-byte auth secret.
      * Public keys are not secrets; the matching private key exists nowhere.
      */
-    public const BROWSER_KEYS = ['p256dh' => 'BLZ65Q8g4oatZNOAPJgP1ME620NAIr0qnOhCw3nt6Nf66VnM3y6br0zfeWRQ1j45DA59SYPkitWrWtx6vApz0DE', 'auth' => 'AVGT4ioSQu2082DMC3bQDA'];
+    public const array BROWSER_KEYS = ['p256dh' => 'BLZ65Q8g4oatZNOAPJgP1ME620NAIr0qnOhCw3nt6Nf66VnM3y6br0zfeWRQ1j45DA59SYPkitWrWtx6vApz0DE', 'auth' => 'AVGT4ioSQu2082DMC3bQDA'];
 
     protected function setUp(): void
     {

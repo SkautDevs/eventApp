@@ -7,7 +7,7 @@ namespace App\Module;
 final class ModuleRegistry
 {
     /** @var array<string, class-string<ModuleInterface>> */
-    private const MODULES = [
+    private const array MODULES = [
         'news' => NewsModule::class,
         'links' => LinksModule::class,
         'map' => MapModule::class,

@@ -15,7 +15,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class SessionStorageTest extends TestCase
 {
-    private const ROOT = '/srv/app';
+    private const string ROOT = '/srv/app';
 
     private string $scratch;
 

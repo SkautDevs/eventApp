@@ -13,7 +13,7 @@ namespace Tests\Functional;
 final class ScreenFragmentTest extends AppTestCase
 {
     /** The five tab destinations plus /profil — the screens the loader participates in. */
-    private const SCREENS = [
+    private const array SCREENS = [
         '/' => 'homepage',
         '/programy' => 'programs',
         '/mapa' => 'map',

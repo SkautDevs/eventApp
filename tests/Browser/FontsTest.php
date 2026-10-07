@@ -17,7 +17,7 @@ final class FontsTest extends BrowserTestCase
      * Whether a face of $family (quotes ignored) covering $weight has actually loaded;
      * a variable face declares a range, "400 700".
      */
-    private const LOADED = <<<'JS'
+    private const string LOADED = <<<'JS'
         const [family, weight] = arguments;
         return [...document.fonts].some(f => {
             const [lo, hi = lo] = String(f.weight).split(' ').map(Number);

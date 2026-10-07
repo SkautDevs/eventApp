@@ -22,7 +22,7 @@ use Slim\Views\Twig;
 final class CspMiddleware implements MiddlewareInterface
 {
     /** In emission order; an empty directive is left out and falls back to default-src. */
-    private const BASE = [
+    private const array BASE = [
         'default-src' => ["'self'"],
         'script-src' => ["'self'"],
         // every font and the icon stylesheet are served from the app itself (www/fonts/, www/vendor/)

@@ -15,15 +15,15 @@ use Sentry\Event;
  */
 final class Scrubber
 {
-    public const REDACTED = '<redacted>';
+    public const string REDACTED = '<redacted>';
 
-    public const SUBSCRIPTION_REDACTED = '<subscription redacted>';
+    public const string SUBSCRIPTION_REDACTED = '<subscription redacted>';
 
-    public const ADMIN_REDACTED = '<admin form redacted>';
+    public const string ADMIN_REDACTED = '<admin form redacted>';
 
-    private const BODY_FIELDS = ['tieCode', 'token'];
+    private const array BODY_FIELDS = ['tieCode', 'token'];
 
-    private const HEADERS = ['authorization', 'cookie'];
+    private const array HEADERS = ['authorization', 'cookie'];
 
     public static function scrub(Event $event): Event
     {

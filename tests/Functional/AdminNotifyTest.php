@@ -15,9 +15,9 @@ final class AdminNotifyTest extends AppTestCase
 
     private MessageRepository $messages;
 
-    private const STALE_FORM = 'Tento formulář už byl jednou odeslán, nebo je zastaralý';
+    private const string STALE_FORM = 'Tento formulář už byl jednou odeslán, nebo je zastaralý';
 
-    private const SEND = ['title' => 'Změna', 'body' => 'Začínáme v 15:00', 'signature' => 'Lung'];
+    private const array SEND = ['title' => 'Změna', 'body' => 'Začínáme v 15:00', 'signature' => 'Lung'];
 
     protected function setUp(): void
     {

@@ -15,7 +15,7 @@ use Psr\Log\LoggerInterface;
  */
 final class PlatformAdviceFilter extends AbstractLogger
 {
-    public const DROPPED = 'GMP or BCMath';
+    public const string DROPPED = 'GMP or BCMath';
 
     public function __construct(private readonly LoggerInterface $inner)
     {

@@ -17,7 +17,7 @@ namespace App\Http;
 final class Fonts
 {
     /** @var array<string, list<string>> family => web paths */
-    public const FILES = [
+    public const array FILES = [
         'themix' => [
             '/fonts/themix/TheMix_LT_400.woff2',
             '/fonts/themix/TheMix_LT_700.woff2',

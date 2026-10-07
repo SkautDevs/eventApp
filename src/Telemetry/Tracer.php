@@ -21,7 +21,7 @@ final class Tracer
      * A key of `$data` holding a `\Closure(mixed $result): array`; what it returns is merged
      * into the span data once `$fn` has returned — e.g. how many pushes a batch delivered.
      */
-    public const FROM_RESULT = '@result';
+    public const string FROM_RESULT = '@result';
 
     public static function span(string $op, string $description, callable $fn, array $data = []): mixed
     {

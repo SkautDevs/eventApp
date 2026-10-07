@@ -30,13 +30,13 @@ final class ProgramsModule implements ModuleInterface
      * Kernel carries the full names for its dateToCzechDayName filter; the pager
      * needs the short forms, which do not exist anywhere else.
      */
-    private const SHORT_DAY_NAMES = [1 => 'po', 2 => 'út', 3 => 'st', 4 => 'čt', 5 => 'pá', 6 => 'so', 7 => 'ne'];
+    private const array SHORT_DAY_NAMES = [1 => 'po', 2 => 'út', 3 => 'st', 4 => 'čt', 5 => 'pá', 6 => 'so', 7 => 'ne'];
 
     /** Stage row for programmes that carry no location. */
-    private const NO_LOCATION_LABEL = 'Bez lokace';
+    private const string NO_LOCATION_LABEL = 'Bez lokace';
 
     /** Width of one timeline card lane in seconds — the axis is always rounded to whole hours. */
-    private const HOUR = 3600;
+    private const int HOUR = 3600;
 
     /**
      * Most calendar days one programme is drawn across. Each day's piece is clipped to
@@ -44,10 +44,10 @@ final class ProgramsModule implements ModuleInterface
      * typo'd `end` from kissj could hurt — a bar on every day of the next ten years.
      * The clip is a drawing decision only: the detail sheet still shows the true end.
      */
-    private const MAX_DRAWN_DAYS = 14;
+    private const int MAX_DRAWN_DAYS = 14;
 
     /** Shortest bar the grid will draw, in seconds — below this a card is unreadable. */
-    private const MIN_DRAWN_SPAN = 60;
+    private const int MIN_DRAWN_SPAN = 60;
 
     public static function key(): string
     {

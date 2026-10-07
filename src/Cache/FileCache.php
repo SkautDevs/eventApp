@@ -14,7 +14,7 @@ namespace App\Cache;
  */
 final class FileCache
 {
-    private const KEY = '/^[a-z0-9-]+$/';
+    private const string KEY = '/^[a-z0-9-]+$/';
 
     /** @var \Closure(): \DateTimeImmutable */
     private readonly \Closure $now;

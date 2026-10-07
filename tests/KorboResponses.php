@@ -15,8 +15,8 @@ use GuzzleHttp\Psr7\Response;
  */
 final class KorboResponses
 {
-    public const LIST = 'programme-list.json';
-    public const TIE = 'participant-tie.json';
+    public const string LIST = 'programme-list.json';
+    public const string TIE = 'participant-tie.json';
 
     public static function body(string $file): string
     {

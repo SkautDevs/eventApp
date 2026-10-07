@@ -41,19 +41,19 @@ use GuzzleHttp\Exception\TransferException;
 final class CachingProgramProvider implements ProgramProviderInterface
 {
     /** sections and programmes together, as one list response brings them */
-    public const LIST_KEY = 'list';
+    public const string LIST_KEY = 'list';
 
     /** how long after a failure an expired entry is served without asking kissj */
-    public const BREAKER_SECONDS = 60;
+    public const int BREAKER_SECONDS = 60;
 
     /** at most one report of a hidden failure per this many seconds */
-    public const REPORT_SECONDS = 300;
+    public const int REPORT_SECONDS = 300;
 
     /** the breaker's marker: its fetchedAt is the last failure */
-    public const DOWN_KEY = 'kissj-down';
+    public const string DOWN_KEY = 'kissj-down';
 
     /** when a hidden failure was last reported: its fetchedAt; a success keeps it */
-    public const REPORTED_KEY = 'kissj-reported';
+    public const string REPORTED_KEY = 'kissj-reported';
 
     /** @var \Closure(): \DateTimeImmutable */
     private readonly \Closure $now;

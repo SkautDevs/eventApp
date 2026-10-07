@@ -10,7 +10,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class FreshnessTest extends BrowserTestCase
 {
-    private const LINE = 'return document.querySelector(\'[data-screen="/korbo26/programy"] > [data-freshness]\');';
+    private const string LINE = 'return document.querySelector(\'[data-screen="/korbo26/programy"] > [data-freshness]\');';
 
     private static function line(): string
     {

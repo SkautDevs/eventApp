@@ -12,7 +12,7 @@ use Psr\Http\Message\ResponseInterface;
 final class CspTest extends AppTestCase
 {
     /** The five tab destinations plus /profil. */
-    private const SCREENS = ['/', '/programy', '/mapa', '/novinky', '/odkazy', '/profil'];
+    private const array SCREENS = ['/', '/programy', '/mapa', '/novinky', '/odkazy', '/profil'];
 
     protected function tearDown(): void
     {

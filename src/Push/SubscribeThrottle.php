@@ -14,12 +14,12 @@ namespace App\Push;
  */
 final class SubscribeThrottle
 {
-    public const LIMIT = 300;
+    public const int LIMIT = 300;
 
-    private const WINDOW = 'PT10M';
+    private const string WINDOW = 'PT10M';
 
     /** rows older than this are pruned now and then, so the table stays small without a cron */
-    private const KEEP = 'PT1H';
+    private const string KEEP = 'PT1H';
 
     public function __construct(private readonly \PDO $pdo)
     {

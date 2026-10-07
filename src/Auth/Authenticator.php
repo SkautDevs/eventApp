@@ -8,7 +8,7 @@ use App\Session;
 
 final class Authenticator
 {
-    private const SESSION_KEY = 'identity';
+    private const string SESSION_KEY = 'identity';
 
     public function __construct(private readonly Session $session)
     {

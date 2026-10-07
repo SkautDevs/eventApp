@@ -12,7 +12,7 @@ namespace App\Push;
  */
 final class EndpointPolicy
 {
-    public const DEFAULT_HOSTS = [
+    public const array DEFAULT_HOSTS = [
         'fcm.googleapis.com',
         'android.googleapis.com',
         '*.push.apple.com',

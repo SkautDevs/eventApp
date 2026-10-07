@@ -13,7 +13,7 @@ namespace App\Push;
 final class SubscriptionKeys
 {
     /** SubjectPublicKeyInfo header for an uncompressed P-256 point (id-ecPublicKey, prime256v1). */
-    private const SPKI_P256_PREFIX = '3059301306072a8648ce3d020106082a8648ce3d030107034200';
+    private const string SPKI_P256_PREFIX = '3059301306072a8648ce3d020106082a8648ce3d030107034200';
 
     public static function valid(mixed $p256dh, mixed $auth): bool
     {

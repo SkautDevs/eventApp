@@ -11,7 +11,7 @@ use Tests\Functional\AppTestCase;
 final class SubscriptionKeysTest extends TestCase
 {
     /** 0x04 + x=1, y=1: the right length and prefix, but not a point on P-256 (verified: OpenSSL refuses it) */
-    public const OFF_CURVE_PUBLIC = 'BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE';
+    public const string OFF_CURVE_PUBLIC = 'BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE';
 
     public function testARealBrowserKeyPairIsValid(): void
     {
