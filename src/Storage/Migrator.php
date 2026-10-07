@@ -17,7 +17,7 @@ namespace App\Storage;
 final class Migrator
 {
     /** step number => method; the highest number is VERSION */
-    private const STEPS = [
+    private const array STEPS = [
         1 => 'step1',
         2 => 'step2',
         3 => 'step3',
@@ -25,7 +25,7 @@ final class Migrator
         5 => 'step5',
     ];
 
-    public const VERSION = 5;
+    public const int VERSION = 5;
 
     public function migrate(\PDO $pdo): void
     {

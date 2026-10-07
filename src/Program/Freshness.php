@@ -13,7 +13,7 @@ namespace App\Program;
 final class Freshness
 {
     /** Kernel::TIMEZONE: the attribute is a local time like every other the app prints */
-    private const ZONE = 'Europe/Prague';
+    private const string ZONE = 'Europe/Prague';
 
     private ?\DateTimeImmutable $fetchedAt = null;
 

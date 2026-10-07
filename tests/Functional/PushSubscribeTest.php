@@ -79,7 +79,7 @@ final class PushSubscribeTest extends AppTestCase
         self::assertSame(0, $this->repo()->count('obrok27'));
     }
 
-    private const SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => AppTestCase::BROWSER_KEYS];
+    private const array SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => AppTestCase::BROWSER_KEYS];
 
     public function testASubscriptionCarriesTheLoggedInTieCode(): void
     {

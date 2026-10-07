@@ -17,18 +17,18 @@ use PHPUnit\Framework\TestCase;
 
 final class CachingProgramProviderTest extends TestCase
 {
-    private const SECTIONS = [
+    private const array SECTIONS = [
         10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null, 'image' => null, 'attachment' => null],
         1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null, 'image' => null, 'attachment' => null],
     ];
 
-    private const PROGRAMMES = [[
+    private const array PROGRAMMES = [[
         'id' => 5, 'name' => 'Ukázková vycházka', 'section' => ['id' => 10],
         'start' => ['date' => '2027-06-03 08:00:00'], 'end' => ['date' => '2027-06-03 12:00:00'],
         'lector' => null, 'location' => 'Sraz u brány', 'perex' => null, 'tools' => null,
     ]];
 
-    private const OLD_PROGRAMMES = [[
+    private const array OLD_PROGRAMMES = [[
         'id' => 5, 'name' => 'Včerejší vycházka', 'section' => ['id' => 10],
         'start' => ['date' => '2027-06-03 08:00:00'], 'end' => ['date' => '2027-06-03 12:00:00'],
         'lector' => null, 'location' => 'Sraz u brány', 'perex' => null, 'tools' => null,

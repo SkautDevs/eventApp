@@ -17,13 +17,13 @@ final class WebPushSender implements PushSenderInterface
      * one, a reader is waiting on the welcome, and an admin batch has to finish inside
      * nginx's 45 s fastcgi_read_timeout, or the organiser sees a 504 and sends again.
      */
-    public const TIMEOUT_SECONDS = 5;
+    public const int TIMEOUT_SECONDS = 5;
 
     /**
      * Consecutive failed sends (not 404/410) after which a row is deleted: an endpoint on an
      * allowed host that never answers would otherwise be kept and retried forever.
      */
-    public const MAX_FAILURES = 5;
+    public const int MAX_FAILURES = 5;
 
     /** @var \Closure(): SubscriptionRepository */
     private readonly \Closure $repositoryFactory;

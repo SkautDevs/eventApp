@@ -22,11 +22,11 @@ use Symfony\Component\Panther\ProcessManager\WebServerManager;
  */
 final class SessionLockTest extends TestCase
 {
-    private const PORT = 9092;
+    private const int PORT = 9092;
 
-    private const KISSJ_PORT = 9093;
+    private const int KISSJ_PORT = 9093;
 
-    private const DATABASE = 'var/session-lock-test.sqlite';
+    private const string DATABASE = 'var/session-lock-test.sqlite';
 
     private static ?WebServerManager $kissj = null;
 

@@ -11,13 +11,13 @@ final class EventConfig
      * key does not degrade — it renders as `unset`. Fail at boot instead of shipping
      * an event whose headings inherit the body colour.
      */
-    private const REQUIRED_COLORS = ['background', 'link', 'base', 'darker', 'primary', 'text', 'text-invert'];
+    private const array REQUIRED_COLORS = ['background', 'link', 'base', 'darker', 'primary', 'text', 'text-invert'];
 
     /**
      * The directives an event may extend. The rest (default-src, base-uri, form-action,
      * frame-ancestors, object-src) are the app's and fixed.
      */
-    public const CSP_DIRECTIVES = ['script-src', 'style-src', 'img-src', 'font-src', 'connect-src', 'frame-src', 'media-src'];
+    public const array CSP_DIRECTIVES = ['script-src', 'style-src', 'img-src', 'font-src', 'connect-src', 'frame-src', 'media-src'];
 
     private function __construct(
         public readonly string $slug,

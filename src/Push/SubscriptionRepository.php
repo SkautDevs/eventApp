@@ -7,7 +7,7 @@ namespace App\Push;
 final class SubscriptionRepository
 {
     /** Longest endpoint any push service is known to issue is well under this */
-    private const MAX_FIELD_LENGTH = 2048;
+    private const int MAX_FIELD_LENGTH = 2048;
 
     /** The schema is the Migrator's: a row is keyed by (event, endpoint). */
     public function __construct(private readonly \PDO $pdo)

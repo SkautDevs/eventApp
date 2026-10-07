@@ -34,17 +34,17 @@ use Symfony\Component\Process\ExecutableFinder;
  */
 abstract class BrowserTestCase extends PantherTestCase
 {
-    protected const PORT = 9080;
+    protected const int PORT = 9080;
 
     /** A phone: the app is laid out as one at every width, and this is its shape. */
-    protected const VIEWPORT_WIDTH = 412;
+    protected const int VIEWPORT_WIDTH = 412;
 
-    protected const VIEWPORT_HEIGHT = 915;
+    protected const int VIEWPORT_HEIGHT = 915;
 
     /** The server's PUSH_DB_PATH, relative to the repository root; created by the app, removed here. */
-    protected const DATABASE = 'var/browser-test.sqlite';
+    protected const string DATABASE = 'var/browser-test.sqlite';
 
-    private const NO_CHROME = 'No chromedriver on PATH and no PANTHER_SELENIUM_URL — run with --exclude-group browser or install Chrome';
+    private const string NO_CHROME = 'No chromedriver on PATH and no PANTHER_SELENIUM_URL — run with --exclude-group browser or install Chrome';
 
     protected static ?Client $browser = null;
 

@@ -14,8 +14,8 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class PushToggleTest extends BrowserTestCase
 {
-    private const ENABLE = 'Aktivuj si notifikace o akci!';
-    private const DISABLE = 'Vypnout notifikace';
+    private const string ENABLE = 'Aktivuj si notifikace o akci!';
+    private const string DISABLE = 'Vypnout notifikace';
 
     /**
      * @param array{status: int, body: array, hold?: bool}|'network' $answer what POST push/subscribe answers

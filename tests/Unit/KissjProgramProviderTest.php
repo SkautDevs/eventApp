@@ -24,7 +24,7 @@ use Psr\Http\Message\RequestInterface;
 
 final class KissjProgramProviderTest extends TestCase
 {
-    private const SECTIONS = [['id' => 10, 'name' => 'Putování'], ['id' => 1, 'name' => 'Hlavní program']];
+    private const array SECTIONS = [['id' => 10, 'name' => 'Putování'], ['id' => 1, 'name' => 'Hlavní program']];
 
     /** @var list<array{request: RequestInterface}> */
     private array $history = [];

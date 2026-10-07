@@ -12,7 +12,7 @@ use Slim\App;
 /** A misconfigured push instance fails on its first request, not on the first tap of the button. */
 final class KernelBootTest extends AppTestCase
 {
-    private const VAPID = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'];
+    private const array VAPID = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'];
 
     /** @var array<string, mixed> the per-run pair tests/bootstrap.php put there */
     private array $saved = [];

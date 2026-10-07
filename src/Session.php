@@ -30,12 +30,12 @@ use App\Telemetry\Collector;
 final class Session
 {
     /** Thirty days: longer than any camp; the cookie slides on every logged-in page (refreshCookie()). */
-    public const LIFETIME = 30 * 24 * 3600;
+    public const int LIFETIME = 30 * 24 * 3600;
 
-    private const NAME = 'eventapp';
+    private const string NAME = 'eventapp';
 
     /** refreshCookie() slides the session file too, but only once it is this old. */
-    private const TOUCH_AFTER = 24 * 3600;
+    private const int TOUCH_AFTER = 24 * 3600;
 
     /**
      * Each session problem is reported once per process, not once per request.

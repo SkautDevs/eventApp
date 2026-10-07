@@ -10,7 +10,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class TouchTargetTest extends BrowserTestCase
 {
-    private const SMALL = <<<'JS'
+    private const string SMALL = <<<'JS'
         const small = [];
         arguments[0].forEach(selector => document.querySelectorAll(selector).forEach(el => {
             if (!el.getClientRects().length) { return; }
@@ -21,7 +21,7 @@ final class TouchTargetTest extends BrowserTestCase
         JS;
 
     /** The title's box against every visible control on the right of the bar, and the page's width. */
-    private const BAR = <<<'JS'
+    private const string BAR = <<<'JS'
         const title = document.querySelector('.appbar-title').getBoundingClientRect();
         const overlaps = [];
         document.querySelectorAll('.appbar-tools .appbar-mode, .appbar-tools .appbar-profile').forEach(el => {

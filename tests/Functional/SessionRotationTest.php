@@ -20,12 +20,12 @@ use Symfony\Component\Panther\ProcessManager\WebServerManager;
  */
 final class SessionRotationTest extends TestCase
 {
-    private const PORT = 9091;
+    private const int PORT = 9091;
 
-    private const DATABASE = 'var/session-rotation-test.sqlite';
+    private const string DATABASE = 'var/session-rotation-test.sqlite';
 
     /** A throwaway token for this server only. */
-    private const ADMIN_TOKEN = 'session-rotation-admin';
+    private const string ADMIN_TOKEN = 'session-rotation-admin';
 
     private static ?WebServerManager $server = null;
 

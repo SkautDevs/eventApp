@@ -384,11 +384,11 @@ final class PushModule implements ModuleInterface
     }
 
     /** How long the shared link keeps a browser logged in: what a phone left on a table can do. */
-    public const ADMIN_SESSION_SECONDS = 86400;
+    public const int ADMIN_SESSION_SECONDS = 86400;
 
-    private const LOG_PAGE = 50;
+    private const int LOG_PAGE = 50;
 
-    private const SIGNATURE_ERROR = 'Podpis je povinný a smí mít nejvýš 40 znaků.';
+    private const string SIGNATURE_ERROR = 'Podpis je povinný a smí mít nejvýš 40 znaků.';
 
     /**
      * The event's programmes for the picker; a provider outage leaves only "everyone".

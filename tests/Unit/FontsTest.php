@@ -14,7 +14,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class FontsTest extends TestCase
 {
-    private const WWW = __DIR__ . '/../../www';
+    private const string WWW = __DIR__ . '/../../www';
 
     /** @return list<string> every file of every family, as web paths */
     private static function allTableFiles(): array

@@ -8,7 +8,7 @@ use App\Push\SubscriptionRepository;
 
 final class PushUnsubscribeTest extends AppTestCase
 {
-    private const SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => AppTestCase::BROWSER_KEYS];
+    private const array SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => AppTestCase::BROWSER_KEYS];
 
     private \PDO $pdo;
 

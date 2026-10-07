@@ -15,15 +15,15 @@ use Twig\TwigFilter;
 final class Kernel
 {
     /** Every date the app formats or compares is a local one. */
-    private const TIMEZONE = 'Europe/Prague';
+    private const string TIMEZONE = 'Europe/Prague';
 
     /** The container key of the error handler's logger: stdout only, never Sentry. */
-    public const ERRORS_LOGGER = 'logger.errors';
+    public const string ERRORS_LOGGER = 'logger.errors';
 
     /** Every HTML page and fragment without a policy of its own (addScreenMiddleware()). */
-    public const PAGE_CACHE_CONTROL = 'no-store, no-cache, must-revalidate';
+    public const string PAGE_CACHE_CONTROL = 'no-store, no-cache, must-revalidate';
 
-    private const SECURITY_HEADERS = [
+    private const array SECURITY_HEADERS = [
         'X-Content-Type-Options' => 'nosniff',
         'Referrer-Policy' => 'same-origin',
         'X-Frame-Options' => 'DENY',

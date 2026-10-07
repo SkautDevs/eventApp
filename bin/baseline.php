@@ -28,7 +28,7 @@ use Tests\Browser\BrowserTestCase;
 
 final class Baseline extends BrowserTestCase
 {
-    public const SCREENS = [
+    public const array SCREENS = [
         'home' => '/obrok19/',
         'novinky' => '/obrok19/novinky',
         'odkazy' => '/obrok19/odkazy',
@@ -36,9 +36,9 @@ final class Baseline extends BrowserTestCase
         'programy' => '/obrok19/programy',
     ];
 
-    private const WIDTH = 390;
+    private const int WIDTH = 390;
 
-    private const HEIGHT = 844;
+    private const int HEIGHT = 844;
 
     protected static function windowSize(): string
     {

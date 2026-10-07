@@ -17,7 +17,7 @@ use Slim\Interfaces\RouteParserInterface;
 final class Precache
 {
     /** Linked by the layout for every event, under www/events/<slug>/. */
-    private const EVENT_FILES = ['site.webmanifest', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png'];
+    private const array EVENT_FILES = ['site.webmanifest', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png'];
 
     /**
      * @param list<string> $menuRoutes route names of the tab bar, in its order
