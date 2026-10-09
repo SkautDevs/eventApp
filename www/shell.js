@@ -107,6 +107,51 @@
 	window.addEventListener('online', drawMap);
 	window.addEventListener('offline', drawMap);
 
+	// --- the next programme (home screen) ----------------------------------------
+	// Every one of the participant's programmes is rendered as a hidden card; the first
+	// not yet over by the device clock is shown, so a homepage cached days ago (or read
+	// offline) still names the right one. window.pgClock is the browser tests' clock,
+	// as on the Program screen.
+	var NEXT_TEXT = {next: 'Tvůj další program', running: 'Teď probíhá'};
+
+	function drawNextUp() {
+		var now = typeof window.pgClock === 'function' ? window.pgClock() : Date.now();
+		document.querySelectorAll('[data-next-up]').forEach(function (box) {
+			var shown = null;
+			box.querySelectorAll('.next-card').forEach(function (card) {
+				var show = shown === null && Date.parse(card.dataset.end) > now;
+				if (show) {
+					shown = card;
+				}
+				if (card.hidden === show) {
+					card.hidden = !show;
+				}
+			});
+			if (box.hidden !== (shown === null)) {
+				box.hidden = shown === null;
+			}
+			if (shown) {
+				var kicker = shown.querySelector('[data-next-kicker]');
+				var text = Date.parse(shown.dataset.start) <= now ? NEXT_TEXT.running : NEXT_TEXT.next;
+				if (kicker && kicker.textContent !== text) {
+					kicker.textContent = text;
+				}
+			}
+		});
+	}
+
+	document.addEventListener('DOMContentLoaded', drawNextUp);
+	document.addEventListener('screen:shown', drawNextUp);
+	// a morph writes the server's pick back
+	document.addEventListener('screen:morphed', drawNextUp);
+	document.addEventListener('visibilitychange', function () {
+		if (!document.hidden) {
+			drawNextUp();
+		}
+	});
+	document.addEventListener('pg:tick', drawNextUp);
+	setInterval(drawNextUp, 60000);
+
 	// --- loading ---------------------------------------------------------------
 	// The bar at the tab bar's top edge, while the loader waits for a screen it has never
 	// shown. A background revalidation dispatches neither event and shows nothing.

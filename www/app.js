@@ -128,7 +128,27 @@
 	/** How long a screen the reader is waiting for may take before the plain navigation takes over. */
 	var LOAD_TIMEOUT = 8000;
 
+	/**
+	 * One fetch per screen at a time: a tap on a screen the warm-up is already fetching
+	 * waits for that fetch instead of inserting the screen twice.
+	 */
+	var inflight = new Map();
+
 	function load(path) {
+		if (inflight.has(path)) {
+			return inflight.get(path);
+		}
+		var pending = fetchScreen(path).then(function (entry) {
+			inflight.delete(path);
+
+			return entry;
+		});
+		inflight.set(path, pending);
+
+		return pending;
+	}
+
+	function fetchScreen(path) {
 		// lie-fi: a fetch that never ends would leave the tap hanging for minutes
 		var controller = window.AbortController ? new AbortController() : null;
 		var timer = controller ? setTimeout(function () {
@@ -190,6 +210,53 @@
 				// the plain navigation, which is always still correct
 				return null;
 			});
+	}
+
+	// --- the warm-up --------------------------------------------------------
+
+	/**
+	 * Every other screen is fetched once the first has settled, one after the other and
+	 * inserted hidden, so the first tap on a tab is as instant as every later one. It
+	 * stops at the first failure (offline, an error page: the tap's own fetch will say
+	 * what is wrong), and does not run at all when the reader asked to save data.
+	 */
+	function warm() {
+		// appWarm = false is the browser tests' switch for a cold screen
+		if ((navigator.connection && navigator.connection.saveData) || window.appWarm === false) {
+			return;
+		}
+		var queue = order.filter(function (path) {
+			return !screens.has(path);
+		});
+		(function next() {
+			var path = queue.shift();
+			if (path === undefined) {
+				return;
+			}
+			if (screens.has(path)) {
+				next();
+
+				return;
+			}
+			load(path).then(function (entry) {
+				if (entry) {
+					next();
+				}
+			});
+		})();
+	}
+
+	function scheduleWarm() {
+		var idle = window.requestIdleCallback || function (run) {
+			return setTimeout(run, 1000);
+		};
+		idle(warm, {timeout: 3000});
+	}
+
+	if (document.readyState === 'complete') {
+		scheduleWarm();
+	} else {
+		window.addEventListener('load', scheduleWarm);
 	}
 
 	// --- the morph --------------------------------------------------------
@@ -736,9 +803,33 @@
 			return;
 		}
 		var url = new URL(link.href);
-		// same screen (a hash link, or the tab you are already on), a query string, a
-		// cross-screen deep link, or a destination that is not a screen: all of those
-		// stay exactly what they were
+		// The tab you are already on: a native app does not reload the screen, it scrolls
+		// it back to the top. A plain navigation here would throw the live app away.
+		if (url.pathname === currentPath && url.search === '' && url.hash === '') {
+			event.preventDefault();
+			var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			window.scrollTo({top: 0, behavior: still ? 'auto' : 'smooth'});
+
+			return;
+		}
+		// A deep link the page marks for it (the homepage's next-programme card) stays in
+		// the app: the entry is pushed with its hash, and the screen reads the hash itself
+		// — on its first wiring when it is new, on hashchange when it is already here.
+		if (link.hasAttribute('data-deep-link') && url.search === '' && url.hash !== ''
+			&& url.pathname !== currentPath && order.indexOf(url.pathname) >= 0) {
+			event.preventDefault();
+			var known = screens.has(url.pathname);
+			history.pushState({screen: url.pathname}, '', url.pathname + url.hash);
+			wantedPath = url.pathname;
+			go(url.pathname, false);
+			if (known) {
+				window.dispatchEvent(new HashChangeEvent('hashchange'));
+			}
+
+			return;
+		}
+		// same screen with a hash, a query string, a cross-screen deep link, or a
+		// destination that is not a screen: all of those stay exactly what they were
 		if (url.pathname === currentPath || url.search !== '' || url.hash !== ''
 			|| order.indexOf(url.pathname) < 0) {
 			return;

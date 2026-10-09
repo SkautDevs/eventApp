@@ -382,6 +382,19 @@ abstract class BrowserTestCase extends PantherTestCase
         self::$clocks[] = (string) $result['identifier'];
     }
 
+    /**
+     * Turns www/app.js's warm-up off (window.appWarm = false) on every document loaded
+     * after this call, for a test that needs a screen the loader has never fetched.
+     * Removed again after the test, with the clocks.
+     */
+    protected static function coldScreens(): void
+    {
+        $result = self::devTools()->execute('Page.addScriptToEvaluateOnNewDocument', [
+            'source' => 'window.appWarm = false;',
+        ]);
+        self::$clocks[] = (string) $result['identifier'];
+    }
+
     protected static function unpinClock(): void
     {
         if (self::$clocks === [] || self::$browser === null) {

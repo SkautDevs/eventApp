@@ -5,10 +5,8 @@
 {% block content %}
 	<div class="login-box">
 		{% if isLogged %}
+			{# there is no logout: a reader stays logged in until the code stops being valid #}
 			<p>Zvýrazňuje se program pro <strong>{{ identity }}</strong></p>
-			<form method="post" action="{{ url_for('tie-logout') }}">
-				<button type="submit" class="btn">Odhlásit TIE kód</button>
-			</form>
 		{% else %}
 			<p>Přihlas se a v programu se ti zvýrazní, na co máš registraci.</p>
 			{% include '_tie_form.twig' %}

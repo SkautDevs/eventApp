@@ -91,19 +91,6 @@ final class PushSubscribeTest extends AppTestCase
         self::assertSame('ABC123', $this->repo()->forEvent('obrok19')[0]['tieCode']);
     }
 
-    public function testLoggingOutAndResubscribingClearsTheTieCode(): void
-    {
-        $app = $this->createApp(overrides: $this->overrides());
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
-        $this->request($app, 'POST', '/push/subscribe', self::SUB);
-        $this->request($app, 'POST', '/profil/tie-logout');
-
-        $this->request($app, 'POST', '/push/subscribe', self::SUB);
-
-        self::assertNull($this->repo()->forEvent('obrok19')[0]['tieCode']);
-        self::assertSame(1, $this->repo()->count('obrok19'));
-    }
-
     public function testABodyCannotChooseItsTieCode(): void
     {
         $app = $this->createApp(overrides: $this->overrides());

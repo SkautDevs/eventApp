@@ -5,7 +5,7 @@
 
 {% macro google(embedUrl, withPlan) %}
 		<div class="map" data-map>
-			<iframe src="{{ embedUrl }}" title="Mapa areálu" allowfullscreen></iframe>
+			<iframe src="{{ embedUrl }}" title="Mapa areálu" loading="lazy" allowfullscreen></iframe>
 		</div>
 		{# shown by www/shell.js while the phone is offline: Google's iframe is blank then.
 		   It must stay the map's next sibling — that is how shell.js finds it. #}

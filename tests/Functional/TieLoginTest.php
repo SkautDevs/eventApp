@@ -19,13 +19,15 @@ final class TieLoginTest extends AppTestCase
         self::assertSame(302, $response->getStatusCode());
 
         $profile = (string) $this->request($app, 'GET', '/profil')->getBody();
-        self::assertStringContainsString('TIE ABC123', $profile);
-        self::assertStringContainsString('Odhlásit TIE', $profile);
+        self::assertStringContainsString('<span class="appbar-who">ABC123</span>', $profile);
+        // there is no way to log out
+        self::assertStringNotContainsString('tie-logout', $profile);
+        self::assertStringNotContainsString('Odhlásit', $profile);
 
         // registered.json: tie:ABC123 → program 5 (Ukázková vycházka), which the
         // programme screen then marks as theirs
         $programs = (string) $this->request($app, 'GET', '/programy')->getBody();
-        self::assertStringContainsString('TIE ABC123', $programs);
+        self::assertStringContainsString('<span class="appbar-who">ABC123</span>', $programs);
         self::assertStringContainsString('is-registered', $programs);
     }
 
@@ -36,7 +38,7 @@ final class TieLoginTest extends AppTestCase
 
         // the identity is a global, so it has to reach a screen that knows nothing about auth
         $html = (string) $this->request($app, 'GET', '/novinky')->getBody();
-        self::assertStringContainsString('<span class="appbar-who">TIE ABC123</span>', $html);
+        self::assertStringContainsString('<span class="appbar-who">ABC123</span>', $html);
     }
 
     public function testInvalidTieCodeShowsError(): void
@@ -48,18 +50,16 @@ final class TieLoginTest extends AppTestCase
 
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Neplatný TIE kód', $html);
-        self::assertStringNotContainsString('Odhlásit TIE', $html);
+        self::assertStringNotContainsString('<span class="appbar-who">', $html);
     }
 
-    public function testTieLogout(): void
+    public function testThereIsNoLogoutRoute(): void
     {
         $app = $this->app();
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
 
-        $this->request($app, 'POST', '/profil/tie-logout');
-
-        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
-        self::assertStringNotContainsString('TIE ABC123', $html);
+        self::assertSame(404, $this->request($app, 'POST', '/profil/tie-logout')->getStatusCode());
+        self::assertStringContainsString('<span class="appbar-who">ABC123</span>', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
     public function testTheProfileOffersOnlyTheTieCode(): void
@@ -81,7 +81,7 @@ final class TieLoginTest extends AppTestCase
         $this->request($korbo, 'POST', '/profil/tie', ['tieCode' => 'KORBO1']);
 
         $html = (string) $this->request($this->createApp('obrok19'), 'GET', '/profil')->getBody();
-        self::assertStringNotContainsString('TIE KORBO1', $html);
+        self::assertStringNotContainsString('pro <strong>KORBO1</strong>', $html);
     }
 
     public function testOneEventsTieCodeIsRejectedByAnother(): void
@@ -92,19 +92,6 @@ final class TieLoginTest extends AppTestCase
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Neplatný TIE kód.', $html);
         self::assertArrayNotHasKey('identity', $_SESSION['obrok19'] ?? []);
-    }
-
-    public function testLoggingOutOfOneEventKeepsTheOtherLoggedIn(): void
-    {
-        $korbo = $this->createApp('korbo26');
-        $obrok = $this->createApp('obrok19');
-        $this->request($korbo, 'POST', '/profil/tie', ['tieCode' => 'KORBO1']);
-        $this->request($obrok, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
-
-        $this->request($obrok, 'POST', '/profil/tie-logout');
-
-        self::assertStringContainsString('TIE KORBO1', (string) $this->request($korbo, 'GET', '/profil')->getBody());
-        self::assertStringNotContainsString('TIE ABC123', (string) $this->request($obrok, 'GET', '/profil')->getBody());
     }
 
     private function counted(): CountingProgramProvider
@@ -127,7 +114,7 @@ final class TieLoginTest extends AppTestCase
         self::assertSame(60, $provider->identityCalls, 'the 61st attempt must not reach the provider');
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Příliš mnoho pokusů, zkus to za chvíli.', $html);
-        self::assertStringNotContainsString('Odhlásit TIE', $html);
+        self::assertStringNotContainsString('<span class="appbar-who">', $html);
     }
 
     public function testASuccessfulLoginDoesNotCountTowardsTheLimit(): void
@@ -142,8 +129,9 @@ final class TieLoginTest extends AppTestCase
         }
         // an empty code is not a guess either
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => '   ']);
-        // logged in, /profil shows no form and so no error; logging out touches no counter
-        $this->request($app, 'POST', '/profil/tie-logout');
+        // logged in, /profil shows no form and so no error; a fresh session is how a second
+        // reader behind the same address arrives
+        $_SESSION = [];
 
         // the 60th failure still reaches the provider and is answered as a wrong code
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NEZNAMY60']);
@@ -168,15 +156,7 @@ final class TieLoginTest extends AppTestCase
         $app = $this->createApp();
         $response = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'], ['Sec-Fetch-Site' => 'cross-site']);
         self::assertSame(403, $response->getStatusCode());
-        self::assertStringNotContainsString('TIE ABC123', (string) $this->request($app, 'GET', '/profil')->getBody());
-    }
-
-    public function testACrossSiteLogoutIs403AndKeepsTheReaderLoggedIn(): void
-    {
-        $app = $this->createApp();
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'], ['Sec-Fetch-Site' => 'same-origin']);
-        self::assertSame(403, $this->request($app, 'POST', '/profil/tie-logout', [], ['Origin' => 'https://evil.example'])->getStatusCode());
-        self::assertStringContainsString('TIE ABC123', (string) $this->request($app, 'GET', '/profil')->getBody());
+        self::assertStringNotContainsString('<span class="appbar-who">ABC123</span>', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
     /** T2-b: the refusal is a page of the app that says what to do, not an empty body. */
@@ -193,15 +173,4 @@ final class TieLoginTest extends AppTestCase
         self::assertStringNotContainsString('Tohle tady není.', $html);
     }
 
-    public function testACrossSiteLogoutExplainsItselfInCzech(): void
-    {
-        $response = $this->request($this->createApp(), 'POST', '/profil/tie-logout', [], ['Origin' => 'https://evil.example']);
-        $html = (string) $response->getBody();
-
-        self::assertSame(403, $response->getStatusCode());
-        // the reader was logging out, so the page names that, not a login
-        self::assertStringContainsString('Odhlášení se nepodařilo. Načti stránku a zkus to znovu.', $html);
-        self::assertStringNotContainsString('Přihlášení se nepodařilo', $html);
-        self::assertMatchesRegularExpression('#<a [^>]*href="/obrok19/profil"#', $html);
-    }
 }

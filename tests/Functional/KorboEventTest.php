@@ -26,7 +26,7 @@ final class KorboEventTest extends AppTestCase
         self::assertSame(302, $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'KORBO1'])->getStatusCode());
 
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
-        self::assertStringContainsString('TIE KORBO1', $html);
+        self::assertStringContainsString('<span class="appbar-who">KORBO1</span>', $html);
         self::assertStringContainsString('is-registered', $html);
     }
 }

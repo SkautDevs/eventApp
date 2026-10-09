@@ -10,7 +10,7 @@ use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Panther\ProcessManager\WebServerManager;
 
 /**
- * The session ID rotates on login and logout, and a request that still carries the old ID
+ * The session ID rotates on login (and on the logout an expired code forces), and a request that still carries the old ID
  * — one of the service worker's install or refill bursts, sent before the answer to the
  * login arrived — must neither log the reader out nor hand the browser a new cookie.
  *
@@ -90,27 +90,10 @@ final class SessionRotationTest extends TestCase
         $late = $this->get('/korbo26/profil', $before);
         self::assertSame(200, $late->getStatusCode());
         self::assertSame([], $late->getHeader('Set-Cookie'), 'a late request must not replace the logged-in cookie');
-        self::assertStringNotContainsString('Odhlásit TIE', (string) $late->getBody());
+        self::assertStringNotContainsString('pro <strong>KORBO1</strong>', (string) $late->getBody());
 
         $current = $this->get('/korbo26/profil', $after);
-        self::assertStringContainsString('TIE KORBO1', (string) $current->getBody());
-    }
-
-    public function testARequestWithTheIdBeforeTheLogoutIsLoggedOutAndSetsNoCookie(): void
-    {
-        $loggedIn = $this->cookieOf($this->login($this->anonymousSession()));
-        $logout = $this->http->post('/korbo26/profil/tie-logout', ['headers' => ['Cookie' => 'eventapp=' . $loggedIn]]);
-        self::assertSame(302, $logout->getStatusCode());
-        $loggedOut = $this->cookieOf($logout);
-        self::assertNotSame($loggedIn, $loggedOut, 'the logout rotates the session ID');
-
-        // the old ID was left holding the logged-out session, so whatever it answers the
-        // reader is logged out, and the browser keeps the cookie the logout gave it
-        $late = $this->get('/korbo26/profil', $loggedIn);
-        self::assertSame([], $late->getHeader('Set-Cookie'));
-        self::assertStringNotContainsString('TIE KORBO1', (string) $late->getBody());
-
-        self::assertStringNotContainsString('TIE KORBO1', (string) $this->get('/korbo26/profil', $loggedOut)->getBody());
+        self::assertStringContainsString('pro <strong>KORBO1</strong>', (string) $current->getBody());
     }
 
     public function testACookielessReadStartsNoSession(): void
@@ -140,7 +123,7 @@ final class SessionRotationTest extends TestCase
     {
         $response = $this->http->post('/korbo26/profil/tie', ['form_params' => ['tieCode' => 'KORBO1']]);
         self::assertSame(302, $response->getStatusCode());
-        self::assertStringContainsString('TIE KORBO1', (string) $this->get('/korbo26/profil', $this->cookieOf($response))->getBody());
+        self::assertStringContainsString('pro <strong>KORBO1</strong>', (string) $this->get('/korbo26/profil', $this->cookieOf($response))->getBody());
     }
 
     /** Review Focus 1 */
@@ -184,7 +167,7 @@ final class SessionRotationTest extends TestCase
         $this->get('/korbo26/profil', $id);
         clearstatcache(true, $file);
         self::assertGreaterThan($backdated + 86400, filemtime($file), 'the session file slides with the cookie');
-        self::assertStringContainsString('TIE KORBO1', (string) $this->get('/korbo26/profil', $id)->getBody());
+        self::assertStringContainsString('pro <strong>KORBO1</strong>', (string) $this->get('/korbo26/profil', $id)->getBody());
     }
 
     /** Review I3: the page states its own cache policy, whatever the cookie and the host's limiter */

@@ -25,7 +25,7 @@ final class NewEventsTest extends AppTestCase
         $app = $this->createApp('navigamus25');
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NAVIGAMUS1']);
 
-        self::assertStringContainsString('TIE NAVIGAMUS1', (string) $this->request($app, 'GET', '/profil')->getBody());
+        self::assertStringContainsString('pro <strong>NAVIGAMUS1</strong>', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
     public function testMiquikServesItsLectureGrid(): void
@@ -43,7 +43,7 @@ final class NewEventsTest extends AppTestCase
         $app = $this->createApp('miquik26');
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'MIQUIK1']);
 
-        self::assertStringContainsString('TIE MIQUIK1', (string) $this->request($app, 'GET', '/profil')->getBody());
+        self::assertStringContainsString('pro <strong>MIQUIK1</strong>', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
     public function testMiquikHomepageRendersNoEmptyImageSource(): void

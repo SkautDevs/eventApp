@@ -68,6 +68,7 @@ final class MapViewsTest extends BrowserTestCase
         self::waitFor('return document.querySelector("[data-plan-img]").getBoundingClientRect().width > 0;');
         $box = (float) self::script('return document.querySelector("[data-plan]").clientWidth;');
         self::tap('[data-plan-zoom="in"]');
+        self::waitFor('return sessionStorage.getItem("planZoom:obrok19") !== null;');
 
         self::visit('/obrok19/mapa');
         self::waitFor('const root = ' . self::ROOT . '; return root !== null && root.dataset.view === "plan";');

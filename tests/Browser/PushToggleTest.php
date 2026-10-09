@@ -15,7 +15,7 @@ use PHPUnit\Framework\Attributes\Group;
 final class PushToggleTest extends BrowserTestCase
 {
     private const string ENABLE = 'Aktivuj si notifikace o akci!';
-    private const string DISABLE = 'Vypnout notifikace';
+    private const string ON = 'Notifikace máš zapnuté, jupí!';
 
     /**
      * @param array{status: int, body: array, hold?: bool}|'network' $answer what POST push/subscribe answers
@@ -102,20 +102,17 @@ final class PushToggleTest extends BrowserTestCase
         self::assertTrue(self::script('return document.querySelector(".push-enable").hidden;'));
     }
 
-    public function testSubscribingAndUnsubscribingFlipTheLabelAndTheClass(): void
+    /** There is no off switch: subscribing hides the button for good. */
+    public function testSubscribingHidesTheButton(): void
     {
         self::visit('/korbo26/');
         self::fake(['status' => 201, 'body' => ['saved' => true, 'welcome' => true]]);
 
         self::tap('[data-push-toggle]');
         self::waitForStatus('Hotovo! Právě ti přišla uvítací notifikace.');
-        self::assertSame(['label' => self::DISABLE, 'primary' => false, 'visible' => true, 'disabled' => false], self::button());
-
-        self::tap('[data-push-toggle]');
-        self::waitForStatus('Notifikace jsou vypnuté.');
-        self::assertSame(['label' => self::ENABLE, 'primary' => true, 'visible' => true, 'disabled' => false], self::button());
-        self::assertSame(['subscribe', 'unsubscribe'], self::script('return window.__calls.posts;'));
-        self::assertSame(1, self::script('return window.__calls.unsubscribe;'));
+        self::assertSame(['label' => self::ENABLE, 'primary' => true, 'visible' => false, 'disabled' => false], self::button());
+        self::assertSame(['subscribe'], self::script('return window.__calls.posts;'));
+        self::assertSame(0, self::script('return window.__calls.unsubscribe;'));
     }
 
     /** Carry-over: a welcome that did not arrive is never a warning, only the truth. */
@@ -126,8 +123,8 @@ final class PushToggleTest extends BrowserTestCase
 
         self::tap('[data-push-toggle]');
 
-        self::waitForStatus('Notifikace máš zapnuté.');
-        self::assertSame(self::DISABLE, self::button()['label']);
+        self::waitForStatus(self::ON);
+        self::assertFalse(self::button()['visible']);
     }
 
     public function testARejectedSubscriptionKeepsTheButtonAndDropsTheHalfSubscription(): void
@@ -168,7 +165,7 @@ final class PushToggleTest extends BrowserTestCase
         self::assertSame(1, self::script('return window.__calls.unsubscribe;'));
     }
 
-    /** The morph writes the server's label and class back; push.js puts the state back. */
+    /** The morph writes the server's hidden back; push.js hides the button again. */
     public function testAMorphPutsTheButtonStateBack(): void
     {
         self::visit('/korbo26/');
@@ -178,12 +175,11 @@ final class PushToggleTest extends BrowserTestCase
 
         self::script(<<<'JS'
             const button = document.querySelector('[data-push-toggle]');
-            button.textContent = arguments[0];
-            button.classList.add('btn-primary');
+            button.closest('.push-enable').hidden = false;
             button.closest('[data-screen]').dispatchEvent(new CustomEvent('screen:morphed', {bubbles: true}));
-            JS, [self::ENABLE]);
+            JS);
 
-        self::assertSame(['label' => self::DISABLE, 'primary' => false, 'visible' => true, 'disabled' => false], self::button());
+        self::assertFalse(self::button()['visible']);
     }
 
     public function testADoubleTapSubscribesOnce(): void
@@ -213,7 +209,7 @@ final class PushToggleTest extends BrowserTestCase
 
         self::waitForStatus('Notifikace jsou vypnuté.');
         self::assertSame(1, self::script('return window.__calls.unsubscribe;'));
-        self::assertSame(self::ENABLE, self::button()['label']);
+        self::assertTrue(self::button()['visible']);
         self::assertNull(self::script("return localStorage.getItem('pushIdentity:/korbo26/');"));
     }
 
@@ -227,9 +223,9 @@ final class PushToggleTest extends BrowserTestCase
 
             self::restart();
 
-            self::waitForStatus('Notifikace máš zapnuté.');
+            self::waitForStatus(self::ON);
             self::assertSame(0, self::script('return window.__calls.unsubscribe;'), json_encode($answer));
-            self::assertSame(self::DISABLE, self::button()['label']);
+            self::assertFalse(self::button()['visible']);
         }
     }
 }

@@ -17,13 +17,14 @@
 		{% for link in links %}
 			{% set external = link.href starts with 'http://' or link.href starts with 'https://' %}
 			<li>
-				<a class="link-card{{ (link.highlight ?? false) ? ' is-highlight' }}" href="{{ link.href }}">
+				{# a link out of the app opens in a new tab, so the app stays where it was #}
+				<a class="link-card{{ (link.highlight ?? false) ? ' is-highlight' }}" href="{{ link.href }}"{% if external %} target="_blank" rel="noopener"{% endif %}>
 					{% if link.icon ?? false %}<i class="link-card-icon {{ link.icon }}" aria-hidden="true"></i>{% endif %}
 					<span class="link-card-text">
 						{{ link.label }}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}
 						{% if link.note ?? false %}<span class="link-card-note">{{ link.note }}</span>{% endif %}
 					</span>
-					{% if external %}<i class="link-card-out fas fa-external-link-alt" aria-hidden="true"></i>{% endif %}
+					{% if external %}<i class="link-card-out fas fa-external-link-alt" aria-hidden="true"></i><span class="sr-only"> (otevře se v nové záložce)</span>{% endif %}
 				</a>
 			</li>
 		{% endfor %}

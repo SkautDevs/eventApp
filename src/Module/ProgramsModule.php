@@ -141,6 +141,35 @@ final class ProgramsModule implements ModuleInterface
     }
 
     /**
+     * The homepage's "next programme" card: the participant's own programmes in order,
+     * flattened from Můj program's days, and the index of the first one not yet over at
+     * `$now` (null when everything is). Every card is rendered and the device clock picks
+     * the one to show (`www/shell.js`), so a copy cached days ago is still right; the
+     * server's own pick is what a reader without JS sees.
+     *
+     * @param list<array> $mine
+     * @return array{items: list<array>, index: ?int}
+     */
+    public static function nextUp(array $mine, int $now): array
+    {
+        $items = [];
+        foreach (self::buildDays(self::withUniqueIds(self::withParsableDates($mine))) as $day) {
+            foreach ($day['items'] as $item) {
+                $items[] = $item + ['day' => $day['label']];
+            }
+        }
+        $index = null;
+        foreach ($items as $i => $item) {
+            if (strtotime($item['end']) > $now) {
+                $index = $i;
+                break;
+            }
+        }
+
+        return ['items' => $items, 'index' => $index];
+    }
+
+    /**
      * Drops every record the screen cannot place in time. `strtotime` answers false for
      * an empty or missing date, `ts()` would turn that into 1970-01-01, and a single such
      * record puts the whole screen on a page labelled "čt 1. 1." — `activeKey` opens on

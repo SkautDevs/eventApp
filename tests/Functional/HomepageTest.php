@@ -42,8 +42,11 @@ final class HomepageTest extends AppTestCase
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
         self::assertStringContainsString('class="emergency"', $html);
-        self::assertStringContainsString('V nouzi', $html);
-        self::assertMatchesRegularExpression('#<a class="emergency-call" href="tel:000000000">#', $html);
+        // no visible heading; the box is named for assistive tech only
+        self::assertStringContainsString('<section class="emergency" aria-label="V nouzi">', $html);
+        self::assertStringNotContainsString('<h2 id="emergency-title"', $html);
+        self::assertStringContainsString('<a class="emergency-call" href="tel:+420000000000">', $html);
+        self::assertStringNotContainsString('tel:112', $html);
         // under the logo and above the push button
         self::assertLessThan(strpos($html, 'data-push-toggle'), strpos($html, 'class="emergency"'));
         self::assertGreaterThan(strpos($html, 'mainLogo'), strpos($html, 'class="emergency"'));
@@ -64,5 +67,40 @@ final class HomepageTest extends AppTestCase
         $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/')->getBody();
 
         self::assertStringNotContainsString('class="emergency"', $html);
+    }
+
+    public function testALoggedInParticipantSeesTheirNextProgrammeLinkedIntoMyProgram(): void
+    {
+        $app = $this->createApp('obrok27');
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'OBROK1']);
+        $html = (string) $this->request($app, 'GET', '/')->getBody();
+
+        // all eight of OBROK1's programmes are there for the device clock to choose from
+        self::assertSame(8, substr_count($html, 'class="link-card is-highlight next-card"'));
+        // in 2027, so the server's pick is the first one, and only it is shown
+        self::assertMatchesRegularExpression('#<section class="next-up" aria-label="Tvůj program" data-next-up>#', $html);
+        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/obrok27/programy\#muj-program-1" data-key="1" data-start="2027-06-02T12:00:00\+02:00" data-end="[^"]+" data-deep-link>#', $html);
+        self::assertSame(7, preg_match_all('#class="link-card is-highlight next-card"[^>]* data-deep-link hidden>#', $html));
+        self::assertStringContainsString('Tvůj další program', $html);
+        // under the emergency box, above the push button
+        self::assertLessThan(strpos($html, 'data-push-toggle'), strpos($html, 'data-next-up'));
+        self::assertGreaterThan(strpos($html, 'class="emergency"'), strpos($html, 'data-next-up'));
+    }
+
+    public function testEverythingOverHidesTheBox(): void
+    {
+        $app = $this->createApp('korbo26');
+        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'KORBO1']);
+        $html = (string) $this->request($app, 'GET', '/')->getBody();
+
+        // korbo26 ended in September 2026: the cards are still sent, for a clock that disagrees
+        self::assertStringContainsString('<section class="next-up" aria-label="Tvůj program" data-next-up hidden>', $html);
+    }
+
+    public function testLoggedOutThereIsNoNextProgramme(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        self::assertStringNotContainsString('data-next-up', $html);
     }
 }
