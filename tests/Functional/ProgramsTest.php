@@ -309,4 +309,28 @@ final class ProgramsTest extends AppTestCase
         self::assertStringContainsString('Programy se nepodařilo načíst', $html);
         self::assertStringNotContainsString('Program zatím není k dispozici.', $html);
     }
+
+    /**
+     * Each timeline page states its axis as two instants with their offset, so the client
+     * can place "now" on it whatever time zone the phone is set to.
+     */
+    public function testEveryPageCarriesItsAxisAsInstants(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/programy')->getBody();
+
+        preg_match_all('#<section class="tl-page[^"]*"[^>]*data-axis-start="([^"]+)" data-axis-end="([^"]+)"#', $html, $m, PREG_SET_ORDER);
+        self::assertNotEmpty($m);
+        foreach ($m as [, $start, $end]) {
+            $s = \DateTimeImmutable::createFromFormat(DATE_ATOM, $start);
+            $e = \DateTimeImmutable::createFromFormat(DATE_ATOM, $end);
+            self::assertNotFalse($s);
+            self::assertNotFalse($e);
+            self::assertSame('00', $s->format('i'), 'the axis starts on a whole hour');
+            self::assertGreaterThan($s, $e);
+        }
+        self::assertStringContainsString('<div class="tl-now" aria-hidden="true"></div>', $html);
+        self::assertStringContainsString('data-pg-now-label', $html);
+        // the server never marks "now": that is the reader's clock's business
+        self::assertDoesNotMatchRegularExpression('#class="tl-page[^>]*\sdata-now[\s=>]#', $html);
+    }
 }

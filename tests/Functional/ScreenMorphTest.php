@@ -84,6 +84,11 @@ final class ScreenMorphTest extends AppTestCase
         // the current day chip is the reader's: a morph must not put it back on the server's day
         self::assertMatchesRegularExpression('/<button type="button" class="day-chip" data-key="page-\d{8}" data-pg-page="page-\d{8}" data-pg-kind="timeline" aria-current="(?:true|false)" data-morph-keep="aria-current">/', $html);
         self::assertStringNotContainsString('data-morph-keep="class" data-pg-page', $html);
+        // the now-line's state is the reader's clock's: data-now and --now-offset are
+        // written by www/programs.js only, so a morph has nothing of its own to put back
+        self::assertStringContainsString('data-axis-start=', $html);
+        self::assertDoesNotMatchRegularExpression('/<section class="tl-page[^>]*\sdata-now[\s=>]/', $html);
+        self::assertStringNotContainsString('--now-offset', $html);
         self::assertStringContainsString("from.getAttribute('data-morph-keep')", $this->loader());
     }
 

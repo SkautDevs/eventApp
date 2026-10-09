@@ -134,6 +134,11 @@
 	/* ===== 10b — state: "you are here / this is yours" =================== */
 	--state: var(--role-state, var(--color-nav-active, var(--color-text-invert)));
 	--on-state: var(--role-on-state, var(--color-base));
+	/* "now" on the schedule: the timeline's current-time line and its label. Its own
+	   role so the palette round can give it a colour of its own; until then it is the
+	   action ink. The label sets on-action on it, so a declared `now` must keep
+	   on-action legible on itself. */
+	--now: var(--role-now, var(--action));
 
 	/* ===== support ======================================================= */
 	/* separators and hairlines */
@@ -1523,6 +1528,61 @@ div.news {
 	width: 2px;
 	height: 11px;
 	background-color: var(--on-signature);
+}
+
+/* The current-time line. It lives on the page whose axis holds "now" (data-now, set
+   by www/programs.js from the reader's clock, with --now-offset in hours from the
+   axis start) and is placed in the same unit as everything else on the grid, so the
+   zoom carries it along. The server writes neither, so a background morph leaves
+   both alone. .tl-inner is the line's containing block. */
+.tl-inner {
+	position: relative;
+}
+
+.tl-now, .tl-now-tick {
+	display: none;
+	position: absolute;
+	width: 2px;
+	pointer-events: none;
+	background-color: var(--now);
+}
+
+.tl-page[data-now] .tl-now,
+.tl-page[data-now] .tl-now-tick {
+	display: block;
+}
+
+/* Under the ruler, over the cards, under the stage column: the cards carry no
+   z-index, the pinned .tl-stage is 3 and the sticky .tl-ruler 6. It starts below
+   the ruler's 47px and past the stage column, which is pinned over the axis. */
+.tl-now {
+	top: 47px;
+	bottom: 0;
+	left: calc(var(--tl-stage-width) + var(--hour-width) * var(--now-offset, 0));
+	z-index: 2;
+}
+
+/* the line's mark on the ruler, inside .tl-ticks, so the corner cell (7) covers it */
+.tl-now-tick {
+	top: 0;
+	bottom: 0;
+	left: calc(var(--hour-width) * var(--now-offset, 0));
+	z-index: 1;
+}
+
+.tl-now-label {
+	position: absolute;
+	top: 3px;
+	left: 4px;
+	padding: 1px 4px;
+	border-radius: var(--radius-card);
+	background-color: var(--now);
+	color: var(--on-action);
+	/* px on purpose: grid instrument, see --fs-* in :root */
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
 }
 
 .tl-row {

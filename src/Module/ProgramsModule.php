@@ -49,6 +49,14 @@ final class ProgramsModule implements ModuleInterface
     /** Shortest bar the grid will draw, in seconds — below this a card is unreadable. */
     private const int MIN_DRAWN_SPAN = 60;
 
+    /**
+     * Kernel::TIMEZONE: the zone the provider's naive datetimes are wall-clock times in.
+     * Everything else here reads and prints them in the process's default zone, which is
+     * consistent whatever that zone is; only an instant handed to the client has to name
+     * the event's own.
+     */
+    private const string ZONE = 'Europe/Prague';
+
     public static function key(): string
     {
         return 'programs';
@@ -300,8 +308,21 @@ final class ProgramsModule implements ModuleInterface
             'label' => self::dayLabel($day),
             'hours' => count($ruler),
             'ruler' => $ruler,
+            // the axis as instants, so the client can place "now" on it whatever
+            // time zone the phone is set to
+            'axisStart' => self::instant($axisStart),
+            'axisEnd' => self::instant($axisEnd),
             'rows' => $rows,
         ];
+    }
+
+    /**
+     * A wall-clock timestamp (read in the default zone, like every other in here) as the
+     * instant it means in the event's zone, DATE_ATOM with its offset.
+     */
+    private static function instant(int $timestamp): string
+    {
+        return (new \DateTimeImmutable(date('Y-m-d H:i:s', $timestamp), new \DateTimeZone(self::ZONE)))->format(DATE_ATOM);
     }
 
     /**
