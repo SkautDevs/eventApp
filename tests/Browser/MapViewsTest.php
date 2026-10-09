@@ -74,6 +74,47 @@ final class MapViewsTest extends BrowserTestCase
         self::assertEqualsWithDelta($box * 1.4, (float) self::script('return document.querySelector("[data-plan-img]").getBoundingClientRect().width;'), 2.0);
     }
 
+    /** A pinch zooms the plan on every move but writes the scale once, when it ends. */
+    public function testAPinchStoresTheZoomOnceWhenItEnds(): void
+    {
+        self::openMap();
+        self::tap('[role="tab"][data-map-view="plan"]');
+        self::waitFor('return document.querySelector("[data-plan-img]").getBoundingClientRect().width > 0;');
+
+        $state = self::script(<<<'JS'
+            var writes = 0;
+            var set = Storage.prototype.setItem;
+            Storage.prototype.setItem = function (key, value) {
+                if (String(key).indexOf('planZoom:') === 0) {
+                    writes++;
+                }
+                return set.call(this, key, value);
+            };
+            var plan = document.querySelector('[data-plan]');
+            var r = plan.getBoundingClientRect();
+            var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+            function fire(type, id, x) {
+                plan.dispatchEvent(new PointerEvent(type, {pointerId: id, pointerType: 'touch', clientX: x, clientY: cy, bubbles: true}));
+            }
+            var before = document.querySelector('[data-plan-img]').getBoundingClientRect().width;
+            fire('pointerdown', 1, cx - 20);
+            fire('pointerdown', 2, cx + 20);
+            for (var i = 1; i <= 6; i++) {
+                fire('pointermove', 2, cx + 20 + i * 10);
+            }
+            var during = writes;
+            var widened = document.querySelector('[data-plan-img]').getBoundingClientRect().width > before * 1.3;
+            fire('pointerup', 2, cx + 80);
+            fire('pointerup', 1, cx - 20);
+            Storage.prototype.setItem = set;
+            return {during: during, after: writes, widened: widened, stored: parseFloat(sessionStorage.getItem('planZoom:obrok19'))};
+        JS);
+        self::assertTrue($state['widened']);
+        self::assertSame(0, $state['during']);
+        self::assertSame(1, $state['after']);
+        self::assertGreaterThan(1.3, $state['stored']);
+    }
+
     public function testTheMapViewSurvivesLeavingTheScreen(): void
     {
         self::openMap();

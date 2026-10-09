@@ -9,7 +9,14 @@
 		</div>
 		{# shown by www/shell.js while the phone is offline: Google's iframe is blank then.
 		   It must stay the map's next sibling — that is how shell.js finds it. #}
-		<p class="empty map-offline" data-map-offline hidden>Mapa potřebuje připojení.{% if withPlan %} <button type="button" class="btn" data-map-view="plan">Zobrazit plán</button>{% endif %}</p>
+		{# With the plan beside it the note carries a button, which may not take .empty's
+		   fade (a tonal .btn at 0.8 opacity falls under AA): the note then stays opaque
+		   and only its sentence is faded. #}
+		{% if withPlan %}
+		<p class="empty map-offline map-offline-plan" data-map-offline hidden><span class="map-offline-text">Mapa potřebuje připojení.</span> <button type="button" class="btn" data-map-view="plan">Zobrazit plán</button></p>
+		{% else %}
+		<p class="empty map-offline" data-map-offline hidden>Mapa potřebuje připojení.</p>
+		{% endif %}
 {% endmacro %}
 
 {% macro plan(image, imageAlt) %}

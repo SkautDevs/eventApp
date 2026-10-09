@@ -548,9 +548,10 @@ final class ThemingTest extends AppTestCase
 
     /**
      * Type is a seven-step rem scale, so a reader's own text size reaches it. Two kinds of
-     * rule keep px, by name: chrome glyphs in the fixed-height bars, whose heights
-     * www/programs.js reads as plain pixel numbers, and the timeline grid, whose geometry
-     * is frozen. Anything else in px is a regression.
+     * rule keep px, by name: chrome glyphs of the fixed-height bars and of the instrument
+     * controls (the zoom pairs, one of which floats on the plan), whose boxes are measured
+     * in pixels — www/programs.js reads the bars' heights as plain pixel numbers — and the
+     * timeline grid, whose geometry is frozen. Anything else in px is a regression.
      */
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
     {
@@ -746,6 +747,39 @@ final class ThemingTest extends AppTestCase
             }
         }
         self::assertGreaterThan(0, $checked);
+    }
+
+    /**
+     * "teď" and "probíhá" in Můj program are small fills of --now under on-action, the
+     * timeline label's pair, and never --now as ink: --now is the action FILL, which
+     * as text on a pale ground is 2.8:1. The pair is measured in every set — `now`
+     * where an event declares it, else `action` it falls back to — and an event with
+     * no roles on the palette pair the fallbacks name (primary under text-invert).
+     */
+    public function testTheNowChipsCarryTheirInkAtAA(): void
+    {
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            $event = \App\EventConfig::load($this->eventsDir(), $slug);
+            $sets = $event->roles !== [] ? $event->roles : ['palette' => ['action' => $event->colors['primary'], 'on-action' => $event->colors['text-invert']]];
+            foreach ($sets as $mode => $set) {
+                $fill = $set['now'] ?? $set['action'];
+                $checked++;
+                self::assertGreaterThanOrEqual(4.5, self::contrast($fill, $set['on-action']), sprintf('%s/%s: now chip %s under %s', $slug, $mode, $fill, $set['on-action']));
+            }
+        }
+        self::assertGreaterThan(0, $checked);
+
+        $css = $this->css();
+        foreach (['.pl-item[data-now="running"]::after', '.pl-item[data-now="next"]::before'] as $chip) {
+            $rules = self::declarationsFor($css, $chip);
+            self::assertStringContainsString('background-color: var(--now)', $rules, $chip);
+            self::assertStringContainsString('color: var(--on-action)', $rules, $chip);
+        }
+        // the running label hangs off the card, outside .pl-time's opacity
+        self::assertStringNotContainsString('.pl-time::after', $css);
+        self::assertDoesNotMatchRegularExpression('/(?<![-\w])color:\s*var\(--now\)/', $css);
     }
 
     /** The shared stylesheet, as written. */

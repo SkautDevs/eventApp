@@ -69,7 +69,11 @@
 			store(viewKey, next);
 		}
 
-		/** Sets the plan's width to `next` × the box, keeping the point under (ax, ay) where it is. */
+		/**
+		 * Sets the plan's width to `next` × the box, keeping the point under (ax, ay) where
+		 * it is. It does not remember the scale: a pinch calls it on every pointermove, so
+		 * its callers store it once the gesture or the tap is over (rememberZoom()).
+		 */
 		function applyZoom(next, ax, ay) {
 			const plan = root.querySelector('[data-plan]');
 			const img = root.querySelector('[data-plan-img]');
@@ -98,6 +102,9 @@
 					button.disabled = disabled;
 				}
 			});
+		}
+
+		function rememberZoom() {
 			store(zoomKey, String(zoom));
 		}
 
@@ -117,6 +124,7 @@
 				}
 			} else {
 				applyZoom(zoom * (el.dataset.planZoom === 'in' ? ZOOM_STEP : 1 / ZOOM_STEP));
+				rememberZoom();
 			}
 		});
 
@@ -170,8 +178,10 @@
 		});
 		function release(event) {
 			pointers.delete(event.pointerId);
-			if (pointers.size < 2) {
+			if (pinch && pointers.size < 2) {
 				pinch = null;
+				// written once per pinch, when it ends, not on every move
+				rememberZoom();
 			}
 		}
 		root.addEventListener('pointerup', release);

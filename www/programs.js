@@ -613,11 +613,19 @@
 
 		let dayFormat = null;
 
-		/** "20260917" for the event's calendar day of `ms`, matching the list's day keys. */
+		/**
+		 * "20260917" for the event's calendar day of `ms`, matching the day keys. Built
+		 * from the parts rather than from a locale's printed order, which no locale
+		 * promises to keep.
+		 */
 		function formatDay(ms) {
 			try {
-				dayFormat = dayFormat || new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Prague', year: 'numeric', month: '2-digit', day: '2-digit'});
-				return dayFormat.format(ms).replace(/-/g, '');
+				dayFormat = dayFormat || new Intl.DateTimeFormat('en-US', {timeZone: 'Europe/Prague', year: 'numeric', month: '2-digit', day: '2-digit'});
+				const parts = {};
+				dayFormat.formatToParts(ms).forEach(function (part) {
+					parts[part.type] = part.value;
+				});
+				return parts.year + parts.month + parts.day;
 			} catch (e) {
 				const d = new Date(ms);
 				return String(d.getFullYear()) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
@@ -677,8 +685,13 @@
 		 * link, and never when the reader has already moved.
 		 */
 		function openOnNow() {
-			const today = pageAt(pgNow());
+			const ms = pgNow();
+			const today = pageAt(ms);
 			if (!today) {
+				// Before the day's first programme or after its last one, now is off the
+				// page's axis, but the day is still today: open its page, draw nothing
+				// (updateNow() finds no axis holding now) and leave the scroll alone.
+				showPageByKey('timeline', 'page-' + formatDay(ms));
 				return;
 			}
 			showPageByKey('timeline', today.dataset.key);

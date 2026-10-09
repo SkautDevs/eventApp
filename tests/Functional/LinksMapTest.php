@@ -51,8 +51,13 @@ final class LinksMapTest extends AppTestCase
         self::assertStringContainsString('data-map-view="plan"', $html);
         self::assertStringContainsString('<button type="button" class="btn" data-map-view="plan">Zobrazit plán</button>', $html);
         // the offline note stays the map's next sibling: www/shell.js finds it that way
-        self::assertMatchesRegularExpression('#</div>\s*<p class="empty map-offline" data-map-offline hidden>#', $html);
-        self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe [^>]*></iframe>\s*</div>\s*<p class="empty map-offline"#', $html);
+        self::assertMatchesRegularExpression('#</div>\s*<p class="empty map-offline map-offline-plan" data-map-offline hidden>#', $html);
+        self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe [^>]*></iframe>\s*</div>\s*<p class="empty map-offline#', $html);
+        // the button escapes .empty's fade: only the sentence is faded, the note is opaque
+        self::assertStringContainsString('<span class="map-offline-text">Mapa potřebuje připojení.</span> <button', $html);
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        self::assertMatchesRegularExpression('/\.empty\.map-offline-plan \{\s*opacity: 1;/', $css);
+        self::assertMatchesRegularExpression('/\.map-offline-text \{\s*opacity: 0\.8;/', $css);
     }
 
     public function testAnEmbedAloneRendersAsBefore(): void

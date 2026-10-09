@@ -49,13 +49,14 @@ final class HomepageTest extends AppTestCase
         self::assertGreaterThan(strpos($html, 'mainLogo'), strpos($html, 'class="emergency"'));
     }
 
+    /** Review Focus 5: the real homepage, a number with a prefix and spaces — spaces go, + stays. */
     public function testThePhoneNumberIsDialable(): void
     {
-        // the filter chain the template uses: spaces go, + stays
-        $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([
-            't' => "{{ ('tel:' ~ phone|replace({' ': ''})) }}",
-        ]));
-        self::assertSame('tel:+420000000000', $twig->render('t', ['phone' => '+420 000 000 000']));
+        $html = (string) $this->request($this->createApp('emergency', fixtureEvent: true), 'GET', '/')->getBody();
+
+        self::assertStringContainsString('class="emergency"', $html);
+        self::assertStringContainsString('<a class="emergency-call" href="tel:+420000000000">', $html);
+        self::assertStringContainsString('<span class="emergency-number">+420 000 000 000</span>', $html);
     }
 
     public function testNoEmergencyFileMeansNoBox(): void
