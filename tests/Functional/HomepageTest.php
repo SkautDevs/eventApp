@@ -36,4 +36,32 @@ final class HomepageTest extends AppTestCase
             self::assertMatchesRegularExpression('/' . preg_quote($selector, '/') . '\s*\{[^}]*overflow-wrap:\s*anywhere/', $css, $selector);
         }
     }
+
+    public function testTheEmergencyBoxSitsUnderTheLogoWithDialableNumbers(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        self::assertStringContainsString('class="emergency"', $html);
+        self::assertStringContainsString('V nouzi', $html);
+        self::assertMatchesRegularExpression('#<a class="emergency-call" href="tel:000000000">#', $html);
+        // under the logo and above the push button
+        self::assertLessThan(strpos($html, 'data-push-toggle'), strpos($html, 'class="emergency"'));
+        self::assertGreaterThan(strpos($html, 'mainLogo'), strpos($html, 'class="emergency"'));
+    }
+
+    public function testThePhoneNumberIsDialable(): void
+    {
+        // the filter chain the template uses: spaces go, + stays
+        $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([
+            't' => "{{ ('tel:' ~ phone|replace({' ': ''})) }}",
+        ]));
+        self::assertSame('tel:+420000000000', $twig->render('t', ['phone' => '+420 000 000 000']));
+    }
+
+    public function testNoEmergencyFileMeansNoBox(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/')->getBody();
+
+        self::assertStringNotContainsString('class="emergency"', $html);
+    }
 }

@@ -497,8 +497,12 @@ final class Kernel
         $base = $app->getBasePath();
 
         $app->get('/', function ($request, $response) {
+            $event = $this->get(EventConfig::class);
+
             return $this->get(Twig::class)->render($response, 'homepage.twig', [
-                'links' => $this->get(EventConfig::class)->content('links'),
+                'links' => $event->content('links'),
+                // optional: an event without content/emergency.php shows no box
+                'emergency' => $event->content('emergency'),
             ]);
         })->setName('homepage');
 
