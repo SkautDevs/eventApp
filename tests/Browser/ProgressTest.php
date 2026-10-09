@@ -11,6 +11,7 @@ final class ProgressTest extends BrowserTestCase
 {
     public function testTheBarShowsWhileAFirstVisitLoadsAndGoesWhenTheScreenIsShown(): void
     {
+        self::coldScreens();
         self::visit('/korbo26/');
         // slow every screen fetch down enough to be seen; the loader calls the global fetch
         self::script(<<<'JS'
@@ -30,6 +31,7 @@ final class ProgressTest extends BrowserTestCase
     /** Lie-fi: a screen fetch that never ends gives way to the plain navigation after 8 s. */
     public function testAFetchThatHangsFallsBackToAPlainNavigation(): void
     {
+        self::coldScreens();
         self::visit('/korbo26/');
         // every screen fetch hangs until the loader aborts it, as on a connection that never answers
         self::script(<<<'JS'

@@ -114,7 +114,7 @@ final class NowLineTest extends BrowserTestCase
         self::visit('/korbo26/profil');
         self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
         self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "TIE KORBO1";');
+        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
         self::pinClock('2026-09-18T14:30:00+02:00');
         self::visit('/korbo26/programy#muj-program');
         self::waitFor('return document.querySelectorAll(\'.pl-item[data-now="next"]\').length === 1;');

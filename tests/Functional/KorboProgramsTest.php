@@ -198,7 +198,7 @@ final class KorboProgramsTest extends AppTestCase
     public function testATieParticipantSeesTheirProgrammeMarked(): void
     {
         $html = $this->loggedInScreen();
-        self::assertStringContainsString('TIE KORBO1', $html);
+        self::assertStringContainsString('<span class="appbar-who">KORBO1</span>', $html);
 
         self::assertCount(59, self::cards($html));
         foreach (self::cards($html) as $id => $classes) {

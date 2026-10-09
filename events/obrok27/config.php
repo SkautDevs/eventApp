@@ -255,7 +255,9 @@ return [
     ],
 
     'homepage' => [
-        'footerLogo' => 'events/obrok27/SKAUT_horizontalni_logo.svg',
+        // the Junák logo on its own white oval, so it reads on the lime day ground and
+        // the dark night one alike
+        'footerLogo' => 'events/obrok27/SKAUT_horizontalni_logo_podklad_bily.svg',
         'footerText' => 'Obrok 27 pořádá',
         'footerLinkLabel' => 'Junák - český skaut',
         'footerLinkHref' => 'https://www.skaut.cz/',
@@ -266,9 +268,11 @@ return [
         // This is the 2019 Konopiště map, standing in so the tab shows a working
         // map instead of a placeholder — the pins are NOT the 2027 site.
         'embedUrl' => 'https://www.google.com/maps/d/u/1/embed?mid=1-c6E-PUffBQyiivt-tSURDBIwABH9X-I',
-        // TODO organisers: put the handbook's site plan under www/events/obrok27/ and
-        // name it here — 'image' => 'events/obrok27/plan.svg' (or .png/.webp), with an
-        // optional 'imageAlt' — and Mapa gets a second view that works offline.
+        // TODO organisers: replace the stand-in plan (the CEJ 2022 site map) with the
+        // handbook's own site plan for 2027 — under a new file name, since files under
+        // www/events/ are cached as immutable.
+        'image' => 'events/obrok27/plan-example.png',
+        'imageAlt' => 'Ukázkový plán areálu',
     ],
 
     'handbook' => [

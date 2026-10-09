@@ -322,15 +322,11 @@ final class Kernel
                 // a handler may log the user out (expired TIE code) during the very request
                 // whose response then renders the bar.
                 $env->addFunction(new \Twig\TwigFunction(
-                    'auth_identity',
-                    fn (): ?string => $c->get(Auth\Authenticator::class)->identity()?->displayName,
-                ));
-                $env->addFunction(new \Twig\TwigFunction(
                     'auth_tie_code',
                     fn (): ?string => $c->get(Auth\Authenticator::class)->identity()?->tieCode,
                 ));
                 // The age of the provider data on this screen. A function rather than a
-                // global for the same reason as auth_identity(): the handler fills it while
+                // global for the same reason as auth_tie_code(): the handler fills it while
                 // it runs, before the layout renders.
                 $env->addFunction(new \Twig\TwigFunction(
                     'data_freshness',
@@ -499,10 +495,24 @@ final class Kernel
         $app->get('/', function ($request, $response) {
             $event = $this->get(EventConfig::class);
 
+            // a logged-in participant's next programme, as a card that opens it in Můj
+            // program. Best effort: whatever the provider says, the homepage renders, and
+            // an expired code is Program's to explain.
+            $nextUp = null;
+            $identity = $this->get(Auth\Authenticator::class)->identity();
+            if ($identity !== null && in_array('programs', $event->features, true)) {
+                try {
+                    $nextUp = Module\ProgramsModule::nextUp($this->get(Program\ProgramProviderInterface::class)->getProgramsForIdentity($identity), time());
+                } catch (Auth\UnknownParticipantException | \GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                    $nextUp = null;
+                }
+            }
+
             return $this->get(Twig::class)->render($response, 'homepage.twig', [
                 'links' => $event->content('links'),
                 // optional: an event without content/emergency.php shows no box
                 'emergency' => $event->content('emergency'),
+                'nextUp' => $nextUp !== null && $nextUp['items'] !== [] ? $nextUp : null,
             ]);
         })->setName('homepage');
 
@@ -514,7 +524,7 @@ final class Kernel
 
             return $this->get(Twig::class)->render($response, 'profile.twig', [
                 'isLogged' => $auth->isLogged(),
-                'identity' => $auth->identity()?->displayName,
+                'identity' => $auth->identity()?->tieCode,
                 'tieError' => $tieError,
             ]);
         })->setName('profile');
@@ -569,16 +579,6 @@ final class Kernel
             return $response->withHeader('Location', $base . $target)->withStatus(302);
         })->setName('tie-login');
 
-        $app->post('/profil/tie-logout', function ($request, $response) use ($base) {
-            // a cross-site form must neither log the reader in as somebody else nor out
-            if (!Http\SameOrigin::allows($request)) {
-                return self::loginRefused($this->get(Twig::class), $response, $base, logout: true);
-            }
-            $this->get(Auth\Authenticator::class)->logout();
-
-            return $response->withHeader('Location', $base . '/profil')->withStatus(302);
-        })->setName('tie-logout');
-
         // The worker's last fallback for a page that is neither cached nor reachable. It is
         // in the precache list, so every installed worker holds it.
         $app->get('/offline', function ($request, $response) {
@@ -606,17 +606,16 @@ final class Kernel
     }
 
     /**
-     * The cross-site refusal of the TIE login or logout, as a page of the app: a reader
+     * The cross-site refusal of the TIE login, as a page of the app: a reader
      * who hits it (a form left open across a deploy, a privacy extension stripping the
      * headers) is told what to do and given the way back, with the 403 kept.
      */
-    private static function loginRefused(Twig $twig, \Psr\Http\Message\ResponseInterface $response, string $base, bool $logout = false): \Psr\Http\Message\ResponseInterface
+    private static function loginRefused(Twig $twig, \Psr\Http\Message\ResponseInterface $response, string $base): \Psr\Http\Message\ResponseInterface
     {
         return $twig->render($response->withStatus(403)->withHeader('Content-Type', 'text/html; charset=utf-8'), 'error.twig', [
             'notFound' => false,
             'details' => null,
-            // the reader is told which of the two it was: a refused logout leaves them logged in
-            'message' => ($logout ? 'Odhlášení' : 'Přihlášení') . ' se nepodařilo. Načti stránku a zkus to znovu.',
+            'message' => 'Přihlášení se nepodařilo. Načti stránku a zkus to znovu.',
             'back' => ['href' => $base . '/profil', 'label' => 'Zpět na profil'],
         ]);
     }

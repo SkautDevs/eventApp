@@ -55,7 +55,7 @@ final class OfflineTest extends BrowserTestCase
         self::stopServer();
         self::$browser->reload();
         self::waitFor('const s = document.querySelector(\'[data-screen="/obrok27/"]\'); return s && !s.hidden;');
-        self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:000000000\']");');
+        self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:+420000000000\']");');
     }
 
     /** Google's map is a blank box with no signal, so Mapa opens on the plan, from the cache. */
@@ -89,7 +89,7 @@ final class OfflineTest extends BrowserTestCase
         $cache = self::waitForPrecache('korbo26');
         self::$browser->findElement(WebDriverBy::cssSelector('[data-screen="/korbo26/profil"] input[name="tieCode"]'))->sendKeys('KORBO1');
         self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "TIE KORBO1";');
+        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
 
         // the Program page the worker refilled after the purge is the logged-in one
         self::waitForAsync(<<<'JS'
@@ -103,7 +103,7 @@ final class OfflineTest extends BrowserTestCase
         self::stopServer();
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(".tl-card.is-registered") !== null;');
-        self::assertSame('TIE KORBO1', self::script('return document.querySelector(".appbar-who").textContent;'));
+        self::assertSame('KORBO1', self::script('return document.querySelector(".appbar-who").textContent;'));
     }
 
     /**
@@ -123,7 +123,7 @@ final class OfflineTest extends BrowserTestCase
         self::$browser->findElement(WebDriverBy::cssSelector('[data-screen="/korbo26/profil"] input[name="tieCode"]'))->sendKeys('KORBO1');
         self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
 
-        self::waitFor('return document.body && document.body.textContent.includes("Přihlášení i odhlášení potřebuje signál.");');
+        self::waitFor('return document.body && document.body.textContent.includes("Přihlášení potřebuje signál.");');
         self::assertSame(503, self::script('return performance.getEntriesByType("navigation")[0].responseStatus;'));
         self::assertStringStartsWith('http', (string) self::script('return location.href;'), 'not chrome-error://');
     }

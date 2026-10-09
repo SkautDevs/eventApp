@@ -34,17 +34,14 @@ final class PushScriptTest extends TestCase
         self::assertDoesNotMatchRegularExpression('/\balert\s*\(/', self::script());
     }
 
-    /** Once the browser has let go nothing can arrive, whatever the server does with the POST. */
-    public function testTheToggleLetsGoInTheBrowserBeforeTellingTheServer(): void
+    /** There is no off switch: once subscribed, the button is hidden and only the browser's settings turn it off. */
+    public function testTheOptInCannotTurnNotificationsOff(): void
     {
         $js = self::code();
-        $browser = strpos($js, 'if (!await subscription.unsubscribe())');
-        $server = strpos($js, "fetch(meta('event-base') + 'push/unsubscribe'");
 
-        self::assertNotFalse($browser);
-        self::assertNotFalse($server);
-        self::assertLessThan($server, $browser);
-        self::assertStringContainsString('localStorage.removeItem(identityKey())', $js);
+        self::assertStringNotContainsString('push/unsubscribe', $js);
+        self::assertStringNotContainsString('disablePush', $js);
+        self::assertStringContainsString('el.hidden = !ok || subscribed;', $js);
     }
 
     public function testTheSubscribeAnswerIsReadBySavedAndWelcome(): void
@@ -77,21 +74,19 @@ final class PushScriptTest extends TestCase
 
         foreach ([
             'Aktivuj si notifikace o akci!',
-            'Vypnout notifikace',
             'Hotovo! Právě ti přišla uvítací notifikace.',
-            'Notifikace máš zapnuté.',
+            'Notifikace máš zapnuté, jupí!',
             'Notifikace jsou vypnuté.',
             'Notifikace máš v prohlížeči zakázané. Povol je v nastavení stránky a zkus to znovu.',
             'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
             'Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.',
             'Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.',
-            'Notifikace se nepodařilo vypnout. Zkus to znovu.',
             'Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.',
             'Připravuji…',
         ] as $line) {
             self::assertStringContainsString("'" . $line . "'", $js);
         }
-        self::assertStringNotContainsString('jupí', self::script());
+        self::assertStringNotContainsString('Vypnout notifikace', self::script());
         self::assertStringNotContainsString('nepodporuje', self::script());
     }
 

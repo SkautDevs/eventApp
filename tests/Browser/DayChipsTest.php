@@ -23,7 +23,7 @@ final class DayChipsTest extends BrowserTestCase
         if (self::script('return document.querySelector(".appbar-who") === null;')) {
             self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
             self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-            self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "TIE KORBO1";');
+            self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
         }
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');

@@ -8,7 +8,7 @@
 {% block content %}
 	<div class="error-page">
 		{% if message is defined %}
-			{# a refusal a route words itself (the cross-site TIE login and logout) #}
+			{# a refusal a route words itself (the cross-site TIE login) #}
 			<p>{{ message }}</p>
 		{% elseif notFound %}
 			<p>Tohle tady není.</p>

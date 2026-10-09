@@ -142,7 +142,7 @@
 		   identity never reached a screen reader at all. #}
 		<a class="appbar-profile" href="{{ url_for('profile') }}">
 			<span class="sr-only">Přihlášení</span>
-			{% set who = auth_identity() %}
+			{% set who = auth_tie_code() %}
 			{% if who %}<span class="appbar-who">{{ who }}</span>{% endif %}
 			<i class="fas fa-user-circle" aria-hidden="true"></i>
 		</a>

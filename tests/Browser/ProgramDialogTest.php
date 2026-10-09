@@ -30,13 +30,20 @@ final class ProgramDialogTest extends BrowserTestCase
         self::waitFor('return document.querySelector(".sheet.is-open") !== null;');
     }
 
-    /** Logs out in the browser, so no test depends on what the one before it left behind. */
+    /** Drops the session cookie (there is no logout), so no test depends on what the one before it left behind. */
     private static function logOut(): void
     {
         self::visit('/korbo26/');
+        self::$browser->getWebDriver()->manage()->deleteAllCookies();
+        // and the pages the worker kept for the identity before, as a login's purge would
         self::asyncScript(<<<'JS'
             const done = arguments[arguments.length - 1];
-            fetch('/korbo26/profil/tie-logout', {method: 'POST', credentials: 'same-origin', redirect: 'manual'}).then(() => done(true), () => done(false));
+            caches.keys().then(names => Promise.all(names.map(name => caches.open(name).then(cache => cache.keys().then(requests => Promise.all(requests.map(request => cache.match(request).then(response => {
+                if (response && (response.headers.get('Content-Type') || '').includes('text/html')) {
+                    return cache.delete(request);
+                }
+                return false;
+            })))))))).then(() => done(true), () => done(false));
             JS);
     }
 
@@ -131,7 +138,7 @@ final class ProgramDialogTest extends BrowserTestCase
         self::visit('/korbo26/profil');
         self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
         self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "TIE KORBO1";');
+        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
         self::visit('/korbo26/programy#muj-program');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-view="list"]\') !== null;');
         $current = 'const c = document.querySelector(\'.day-chip[data-pg-kind="list"][aria-current="true"]\'); return c ? c.textContent.trim() : null;';

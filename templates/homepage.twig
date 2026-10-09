@@ -15,8 +15,7 @@
 	{# The one block that must work with no signal: the home screen is in the worker's
 	   precache, and a tel: link needs no network to dial. #}
 	{% if emergency.contacts ?? false %}
-		<section class="emergency" aria-labelledby="emergency-title">
-			<h2 id="emergency-title"><i class="fas fa-phone-alt" aria-hidden="true"></i> V nouzi</h2>
+		<section class="emergency" aria-label="V nouzi">
 			<ul class="emergency-list">
 				{% for contact in emergency.contacts %}
 					<li>
@@ -34,6 +33,24 @@
 		</section>
 	{% endif %}
 
+	{# The participant's next programme. Every one of theirs is here and www/shell.js shows
+	   the first not yet over by the device clock, so a cached copy stays right; the
+	   server's pick is what shows without JS. #}
+	{% if nextUp %}
+		<section class="next-up" aria-label="Tvůj program" data-next-up{% if nextUp.index is null %} hidden{% endif %}>
+			{% for item in nextUp.items %}
+				<a class="link-card is-highlight next-card" href="{{ url_for('programs') }}#muj-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-deep-link{% if loop.index0 != nextUp.index %} hidden{% endif %}>
+					<i class="link-card-icon far fa-calendar-check" aria-hidden="true"></i>
+					<span class="link-card-text">
+						<span class="link-card-note next-card-kicker" data-next-kicker>Tvůj další program</span>
+						{{ item.name }}
+						<span class="link-card-note">{{ item.day }} · {{ item.time }}{% if item.location %} · {{ item.location }}{% endif %}</span>
+					</span>
+				</a>
+			{% endfor %}
+		</section>
+	{% endif %}
+
 	{% if 'push' in event.features %}
 		<p class="push-enable">
 			<button type="button" class="btn btn-primary" data-push-toggle>
@@ -45,7 +62,7 @@
 
 	{# only the urgent ones — the full list lives on the Odkazy screen #}
 	{% for link in links|filter(link => link.highlight ?? false) %}
-		<p><a class="highlight" href="{{ link.href }}">{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
+		<p><a class="highlight" href="{{ link.href }}"{% if link.href starts with 'http://' or link.href starts with 'https://' %} target="_blank" rel="noopener"{% endif %}>{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
 	{% endfor %}
 
 	<div class="colophon">
@@ -53,7 +70,7 @@
 			<p><img class="logo" src="{{ event.homepage.footerLogo }}" alt=""></p>
 		{% endif %}
 		{% if event.homepage.footerLinkHref ?? false %}
-			<p>{{ event.homepage.footerText }} <a href="{{ event.homepage.footerLinkHref }}">{{ event.homepage.footerLinkLabel }}</a></p>
+			<p>{{ event.homepage.footerText }} <a href="{{ event.homepage.footerLinkHref }}" target="_blank" rel="noopener">{{ event.homepage.footerLinkLabel }}</a></p>
 		{% endif %}
 		<p class="credit"><a href="https://devs.skauting.cz/" target="_blank">S ❤ vybrousil Lung</a></p>
 	</div>

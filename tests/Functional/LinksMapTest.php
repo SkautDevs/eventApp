@@ -22,14 +22,17 @@ final class LinksMapTest extends AppTestCase
         // the handbook first, tonal
         self::assertMatchesRegularExpression('#<ul class="link-list">\s*<li>\s*<a class="link-card is-highlight" href="[^"]*handbook#', $html);
         // an external link carries the outward mark, hidden from the accessibility tree
-        self::assertStringContainsString('href="https://obrok.skaut.cz/"', $html);
+        // and opens in a new tab; the handbook, the app's own file, does not
+        self::assertStringContainsString('href="https://obrok.skaut.cz/" target="_blank" rel="noopener"', $html);
+        self::assertStringContainsString('<span class="sr-only"> (otevře se v nové záložce)</span>', $html);
+        self::assertDoesNotMatchRegularExpression('#href="[^"]*handbook[^"]*" target=#', $html);
         self::assertStringContainsString('class="link-card-out fas fa-external-link-alt" aria-hidden="true"', $html);
     }
 
     /** obrok27 has the embed alone, so its screen is exactly what it was before the plan. */
     public function testMapPage(): void
     {
-        $response = $this->request($this->createApp('obrok27'), 'GET', '/mapa');
+        $response = $this->request($this->createApp('map-embed', fixtureEvent: true), 'GET', '/mapa');
 
         self::assertSame(200, $response->getStatusCode());
         $html = (string) $response->getBody();
@@ -62,7 +65,7 @@ final class LinksMapTest extends AppTestCase
 
     public function testAnEmbedAloneRendersAsBefore(): void
     {
-        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/mapa')->getBody();
+        $html = (string) $this->request($this->createApp('map-embed', fixtureEvent: true), 'GET', '/mapa')->getBody();
 
         self::assertStringNotContainsString('data-map-root', $html);
         self::assertStringNotContainsString('Zobrazit plán', $html);

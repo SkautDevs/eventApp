@@ -46,7 +46,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
         // the user stays logged in, just without a highlighted program
-        self::assertStringContainsString('TIE ABC123', $html);
+        self::assertStringContainsString('<span class="appbar-who">ABC123</span>', $html);
     }
 
     public function testTieLoginDegradesGracefullyOnProviderOutage(): void
@@ -78,7 +78,7 @@ final class ProviderFailureTest extends AppTestCase
         self::assertSame(302, $login->getStatusCode());
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Přihlášení se teď nedaří, zkus to prosím později.', $html);
-        self::assertStringNotContainsString('Odhlásit TIE', $html);
+        self::assertStringNotContainsString('<span class="appbar-who">', $html);
     }
 
     public function testProgramsLogOutOnUnknownParticipantAfterInitialLogin(): void
@@ -100,7 +100,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Tvůj TIE kód už neplatí, odhlásili jsme tě.', $html);
-        self::assertStringNotContainsString('TIE ABC123', $html);
+        self::assertStringNotContainsString('<span class="appbar-who">ABC123</span>', $html);
         self::assertStringContainsString('Přihlas se TIE kódem', $html);
     }
 
@@ -124,7 +124,7 @@ final class ProviderFailureTest extends AppTestCase
 
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
-        self::assertStringNotContainsString('TIE ABC123', $html, 'the participant was not logged out');
+        self::assertStringNotContainsString('<span class="appbar-who">ABC123</span>', $html, 'the participant was not logged out');
         self::assertStringContainsString('Tvůj TIE kód už neplatí, odhlásili jsme tě.', $html);
         self::assertStringContainsString('Programy se nepodařilo načíst, zkus to prosím později.', $html);
     }

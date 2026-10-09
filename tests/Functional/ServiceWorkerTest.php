@@ -193,7 +193,7 @@ final class ServiceWorkerTest extends TestCase
         $sw = $this->source();
         self::assertStringContainsString('event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));', $sw);
         self::assertStringContainsString("new Response(OFFLINE_WRITE, {status: 503, headers: {'Content-Type': 'text/html; charset=utf-8'}})", $sw);
-        self::assertStringContainsString('Přihlášení i odhlášení potřebuje signál.', $sw);
+        self::assertStringContainsString('Přihlášení potřebuje signál.', $sw);
         // always the inline page: the cached /offline says "this page is not saved yet", which is not what happened
         self::assertStringNotContainsString("match(SCOPE + 'offline').then(hit => (hit ? hit.text()", $sw);
     }

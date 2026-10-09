@@ -18,15 +18,13 @@
 	// Every line the opt-in can show, in one place.
 	const TEXT = {
 		enable: 'Aktivuj si notifikace o akci!',
-		disable: 'Vypnout notifikace',
 		welcome: 'Hotovo! Právě ti přišla uvítací notifikace.',
-		on: 'Notifikace máš zapnuté.',
+		on: 'Notifikace máš zapnuté, jupí!',
 		off: 'Notifikace jsou vypnuté.',
 		denied: 'Notifikace máš v prohlížeči zakázané. Povol je v nastavení stránky a zkus to znovu.',
 		enableFailed: 'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
 		tooMany: 'Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.',
 		invalidKey: 'Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.',
-		disableFailed: 'Notifikace se nepodařilo vypnout. Zkus to znovu.',
 		preparing: 'Připravuji…',
 		ios: 'Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.',
 	};
@@ -45,13 +43,11 @@
 
 	const render = () => {
 		const ok = supported();
-		// without push the homepage looks like every push-less event's: no button at all
+		// Without push the homepage looks like every push-less event's: no button at all.
+		// Once subscribed the button goes too: notifications cannot be turned off here, only
+		// in the browser's own settings.
 		document.querySelectorAll('.push-enable').forEach(el => {
-			el.hidden = !ok;
-		});
-		document.querySelectorAll('[data-push-toggle]').forEach(button => {
-			button.textContent = subscribed ? TEXT.disable : TEXT.enable;
-			button.classList.toggle('btn-primary', !subscribed);
+			el.hidden = !ok || subscribed;
 		});
 		const text = ok ? status : (isIos() ? TEXT.ios : null);
 		document.querySelectorAll('.push-status').forEach(el => {
@@ -149,42 +145,7 @@
 		}
 	};
 
-	const disablePush = async () => {
-		setBusy(true);
-		try {
-			const registration = await navigator.serviceWorker.getRegistration(meta('event-base'));
-			const subscription = registration && await registration.pushManager.getSubscription();
-			if (subscription) {
-				const endpoint = subscription.endpoint;
-				// the browser first: once it has let go, nothing can arrive whatever the server does
-				if (!await subscription.unsubscribe()) {
-					throw new Error('unsubscribe refused');
-				}
-				// ignored when it fails: the next send gets a 410 for this endpoint and drops the row
-				await fetch(meta('event-base') + 'push/unsubscribe', {
-					method: 'POST',
-					headers: {'Content-Type': 'application/json'},
-					credentials: 'same-origin',
-					body: JSON.stringify({endpoint}),
-				}).catch(() => {});
-			}
-			subscribed = false;
-			status = TEXT.off;
-			// a later subscribe is then sent whatever the login state
-			try {
-				localStorage.removeItem(identityKey());
-			} catch (e) {
-				// private mode: nothing was stored
-			}
-		} catch (e) {
-			status = TEXT.disableFailed;
-		} finally {
-			setBusy(false);
-			render();
-		}
-	};
-
-	// A browser that is already subscribed shows the off switch and says so.
+	// A browser that is already subscribed hides the button and says so.
 	const detectSubscription = async () => {
 		if (!supported() || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
 			return;
@@ -244,7 +205,11 @@
 				return;
 			}
 			boundToggles.add(button);
-			button.addEventListener('click', () => (subscribed ? disablePush() : enablePush()));
+			button.addEventListener('click', () => {
+				if (!subscribed) {
+					enablePush();
+				}
+			});
 		});
 	};
 
@@ -255,7 +220,7 @@
 		// and only then is the browser asked whether it is still subscribed
 		syncIdentity().catch(() => {}).then(() => detectSubscription()).catch(() => {});
 	});
-	// the morph writes the server's label, class and hidden back; render() puts the state back
+	// the morph writes the server's hidden back; render() puts the state back
 	document.addEventListener('screen:shown', event => {
 		bindPushToggles(event.target);
 		render();

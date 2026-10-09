@@ -999,6 +999,18 @@
 				showView('list');
 				return;
 			}
+			// the homepage's next-programme card: Můj program, on that programme, open
+			const mine = location.hash.match(/^#muj-program-(\d+)$/);
+			if (mine) {
+				pendingListTarget = mine[1];
+				if (currentView === 'list') {
+					enterList(false);
+				} else {
+					showView('list');
+				}
+				openSheet(mine[1], false, null);
+				return;
+			}
 			const matches = location.hash.match(/^#section-(\d+)-program-(\d+)$/);
 			if (matches) {
 				openSheet(matches[2], true, null);
@@ -1058,7 +1070,7 @@
 		showView(currentView);
 		updateNow();
 		// a deep link names its own page; only a plain landing goes to "now"
-		if (!/^#section-\d+-program-\d+$/.test(location.hash)) {
+		if (!/^#(section-\d+-program|muj-program)-\d+$/.test(location.hash)) {
 			openOnNow();
 		}
 		fromHash();

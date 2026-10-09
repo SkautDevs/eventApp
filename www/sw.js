@@ -375,7 +375,7 @@ const OFFLINE_WRITE = '<!doctype html><html lang="cs"><head><meta charset="utf-8
 	+ '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title></head>'
 	+ '<body style="font-family: system-ui, sans-serif; line-height: 1.5; max-width: 28rem; margin: 0 auto; padding: 2rem 1rem;">'
 	+ '<h1 style="font-size: 1.5rem;">Jsi offline</h1>'
-	+ '<p>Přihlášení i odhlášení potřebuje signál. Nic se nezměnilo — zkus to znovu, až budeš online.</p>'
+	+ '<p>Přihlášení potřebuje signál. Nic se nezměnilo — zkus to znovu, až budeš online.</p>'
 	+ '<p><a href="' + BASE + '">Zpět na úvod</a></p></body></html>';
 
 /** A login or logout tapped with no signal: the page above, as a 503. */

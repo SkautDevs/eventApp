@@ -769,12 +769,6 @@ a, a:visited {
 	text-align: left;
 }
 
-.emergency h2 {
-	margin: 0 0 8px;
-	font-size: var(--fs-lg);
-	color: inherit;
-}
-
 .emergency-list {
 	margin: 0;
 	padding: 0;
@@ -817,6 +811,17 @@ a, a:visited {
 .emergency-info {
 	margin: 8px 0 0;
 	font-size: var(--fs-sm);
+}
+
+/* --- the next programme (home screen) ------------------------------------ */
+
+.next-up {
+	margin: 0 8px 16px;
+	text-align: left;
+}
+
+.next-card[hidden] {
+	display: none;
 }
 
 /* --- Odkazy: one card per link ------------------------------------------- */
@@ -997,6 +1002,8 @@ img.mainLogo {
 .colophon img.logo {
 	max-height: calc(var(--app-height) * 0.11);
 	max-width: 60%;
+	/* about half a line of air between the mark and the text under it */
+	margin-bottom: 0.75em;
 }
 
 /* A phone held sideways is about 400px tall, and the home screen's proportions are
