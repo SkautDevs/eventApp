@@ -27,3 +27,5 @@ tests/Unit/ObrokHarmonogramTest.php
 tests/Unit/MiquikRozvrhTest.php
 tests/Unit/XlsxGridTest.php
 tests/fixtures/xlsx/
+# deferred decisions stay local, never in the repo
+docs/backlog.md

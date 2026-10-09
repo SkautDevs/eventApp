@@ -758,8 +758,8 @@ a, a:visited {
 
 /* --- the emergency box (home screen) -------------------------------------- */
 
-/* Tonal like a notice, because there is no alarm colour yet (the palette round, see
-   docs/backlog.md). Each number is a full-width tap target: one tap dials. */
+/* Tonal like a notice, because there is no alarm colour yet (that waits for
+   the 2027 palette). Each number is a full-width tap target: one tap dials. */
 .emergency {
 	margin: 0 8px 16px;
 	padding: 12px;
