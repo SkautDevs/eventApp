@@ -47,7 +47,7 @@
 				<p class="empty">Program zatím není k dispozici.</p>
 			{% endif %}
 			{% for page in pages %}
-				<section class="tl-page{{ page.key == activePage ? ' is-active' }}" data-morph-keep="class" data-pg-panel="timeline" data-key="{{ page.key }}" data-label="{{ page.label }}">
+				<section class="tl-page{{ page.key == activePage ? ' is-active' }}" data-morph-keep="class" data-pg-panel="timeline" data-key="{{ page.key }}" data-label="{{ page.label }}" data-axis-start="{{ page.axisStart }}" data-axis-end="{{ page.axisEnd }}">
 					<div class="tl-scroll">
 						<div class="tl-inner" style="--tl-hours: {{ page.hours }}">
 							<div class="tl-ruler">
@@ -57,6 +57,8 @@
 										{# the label is its own element, so a dense scale can thin the text without touching the mark #}
 						<span class="tl-tick" style="left: calc(var(--hour-width) * {{ tick.offset }})"><span class="tl-tick-label">{{ tick.label }}</span></span>
 									{% endfor %}
+									{# where "now" is, on today's page only — placed and shown by www/programs.js #}
+									<span class="tl-now-tick" aria-hidden="true"><span class="tl-now-label" data-pg-now-label></span></span>
 								</div>
 							</div>
 							{% for row in page.rows %}
@@ -78,6 +80,8 @@
 							{% endfor %}
 							{# keeps the stage column black and the tracks grey below the last row #}
 							<div class="tl-fill" aria-hidden="true"><div class="tl-stage"></div></div>
+							{# the current-time line, over the cards and under the stage column #}
+							<div class="tl-now" aria-hidden="true"></div>
 						</div>
 					</div>
 				</section>

@@ -577,6 +577,106 @@
 			setZoom(hourWidth * (event.deltaY < 0 ? 1.1 : 1 / 1.1), event.clientX);
 		}, {passive: false});
 
+		// --- now ------------------------------------------------------------
+		// The current-time line. The axis of each page is two instants (data-axis-start,
+		// data-axis-end, with their offset), so placing "now" is a subtraction whatever
+		// zone the phone is set to; only the label is formatted, in the event's zone.
+		// What it writes — data-now and --now-offset on a .tl-page — the server never
+		// writes, so a background morph leaves it alone, and afterMorph() re-runs it anyway.
+		// window.pgClock (a function returning ms) stands in for the clock in the browser
+		// tests, and a pg:tick event on the document re-runs the update at once.
+		function pgNow() {
+			return typeof window.pgClock === 'function' ? window.pgClock() : Date.now();
+		}
+
+		let nowFormat = null;
+
+		function formatNow(ms) {
+			try {
+				nowFormat = nowFormat || new Intl.DateTimeFormat('cs-CZ', {timeZone: 'Europe/Prague', hour: '2-digit', minute: '2-digit', hour12: false});
+				return nowFormat.format(ms);
+			} catch (e) {
+				// no Intl time zone support: the phone's own clock is the best there is
+				const d = new Date(ms);
+				return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+			}
+		}
+
+		/** The timeline page whose axis holds `ms`, or null. */
+		function pageAt(ms) {
+			return panels('timeline').find(function (page) {
+				const start = Date.parse(page.dataset.axisStart);
+				const end = Date.parse(page.dataset.axisEnd);
+				return ms >= start && ms < end;
+			}) || null;
+		}
+
+		function updateNow() {
+			const ms = pgNow();
+			const today = pageAt(ms);
+			panels('timeline').forEach(function (page) {
+				if (page !== today && page.hasAttribute('data-now')) {
+					page.removeAttribute('data-now');
+					page.style.removeProperty('--now-offset');
+				}
+			});
+			if (!today) {
+				return;
+			}
+			const offset = ((ms - Date.parse(today.dataset.axisStart)) / 3600000).toFixed(4);
+			if (today.style.getPropertyValue('--now-offset') !== offset) {
+				today.style.setProperty('--now-offset', offset);
+			}
+			setAttr(today, 'data-now', '');
+			const label = today.querySelector('[data-pg-now-label]');
+			if (label) {
+				setText(label, formatNow(ms));
+			}
+		}
+
+		/**
+		 * On the first show during the event, the timeline opens on today's page — even
+		 * from a copy cached days ago, whose server-chosen page is stale — with "now" a
+		 * third of the way into the visible hours. Once; never after a morph or a deep
+		 * link, and never when the reader has already moved.
+		 */
+		function openOnNow() {
+			const today = pageAt(pgNow());
+			if (!today) {
+				return;
+			}
+			showPageByKey('timeline', today.dataset.key);
+			const box = today.querySelector('.tl-scroll');
+			if (!box || box.clientWidth === 0) {
+				return;
+			}
+			const offset = parseFloat(today.style.getPropertyValue('--now-offset')) || 0;
+			box.scrollLeft = Math.max(offset * hourWidth - (box.clientWidth - stageWidth) / 3, 0);
+		}
+
+		document.addEventListener('pg:tick', function () {
+			if (document.contains(root)) {
+				updateNow();
+			}
+		});
+		// a minute is the line's resolution; checking twice a minute keeps it within half of one
+		window.setInterval(function () {
+			if (document.contains(root) && !root.closest('[data-screen][hidden]')) {
+				updateNow();
+			}
+		}, 30000);
+		document.addEventListener('visibilitychange', function () {
+			if (!document.hidden && document.contains(root)) {
+				updateNow();
+			}
+		});
+		// a screen shown again after a while has a line that stood still meanwhile
+		document.addEventListener('screen:shown', function (event) {
+			if (event.target.contains && event.target.contains(root)) {
+				updateNow();
+			}
+		});
+
 		// --- Můj program: one continuous scroll --------------------------
 		// The personal list does not page. Every day of it is in the document, first
 		// to last, each under its own sticky heading, and the strip on top is an
@@ -763,6 +863,7 @@
 			setCurrentDay(null);
 			syncZoomButtons();
 			applyTickStep();
+			updateNow();
 		}
 
 		root.addEventListener('click', function (event) {
@@ -906,6 +1007,11 @@
 		// observer marks whichever day the reader has scrolled to
 		setCurrentDay(listDays()[0] || null);
 		showView(currentView);
+		updateNow();
+		// a deep link names its own page; only a plain landing goes to "now"
+		if (!/^#section-\d+-program-\d+$/.test(location.hash)) {
+			openOnNow();
+		}
 		fromHash();
 	}
 

@@ -250,6 +250,9 @@ final class ProgramsModuleTest extends TestCase
 
         self::assertSame('09:00 – 10:30', $models['UTC']['days'][0]['items'][0]['time']);
         self::assertSame('čt 3. 6. 09:00 – 10:30', $models['UTC']['details'][0]['when']);
+        // the axis handed to the client is an instant in the event's own zone
+        self::assertSame('2027-06-03T09:00:00+02:00', $models['UTC']['pages'][0]['axisStart']);
+        self::assertSame('2027-06-03T11:00:00+02:00', $models['UTC']['pages'][0]['axisEnd']);
         self::assertSame($models['UTC'], $models['Europe/Prague']);
         self::assertSame($models['UTC'], $models['America/New_York']);
     }

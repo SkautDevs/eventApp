@@ -53,6 +53,9 @@ abstract class BrowserTestCase extends PantherTestCase
     /** The server's SESSION_PATH: a temporary directory per class, outlives a stopServer()/startServer() pair. */
     private static ?string $sessions = null;
 
+    /** @var list<string> the CDP identifiers of the clocks pinClock() installed */
+    private static array $clocks = [];
+
     public static function setUpBeforeClass(): void
     {
         parent::setUpBeforeClass();
@@ -69,6 +72,13 @@ abstract class BrowserTestCase extends PantherTestCase
         self::$browser = $mode === 'remote' ? self::remoteClient() : self::localClient();
         self::$browser->manage()->timeouts()->setScriptTimeout(30);
         self::ensureViewport();
+    }
+
+    /** A pinned clock belongs to the test that pinned it, not to the next one in the class. */
+    protected function tearDown(): void
+    {
+        self::unpinClock();
+        parent::tearDown();
     }
 
     public static function tearDownAfterClass(): void
@@ -357,6 +367,43 @@ abstract class BrowserTestCase extends PantherTestCase
             'deviceScaleFactor' => 1,
             'mobile' => false,
         ]);
+    }
+
+    /**
+     * Pins the page's clock for www/programs.js (window.pgClock) on every document loaded
+     * after this call, before any of its scripts runs. Removed again after the test.
+     */
+    protected static function pinClock(string $atom): void
+    {
+        $ms = (new \DateTimeImmutable($atom))->getTimestamp() * 1000;
+        $result = self::devTools()->execute('Page.addScriptToEvaluateOnNewDocument', [
+            'source' => 'window.pgClock = function () { return ' . $ms . '; };',
+        ]);
+        self::$clocks[] = (string) $result['identifier'];
+    }
+
+    protected static function unpinClock(): void
+    {
+        if (self::$clocks === [] || self::$browser === null) {
+            self::$clocks = [];
+
+            return;
+        }
+        $devTools = self::devTools();
+        foreach (self::$clocks as $identifier) {
+            $devTools->execute('Page.removeScriptToEvaluateOnNewDocument', ['identifier' => $identifier]);
+        }
+        self::$clocks = [];
+    }
+
+    protected static function devTools(): ChromeDevToolsDriver
+    {
+        $driver = self::$browser->getWebDriver();
+        if (!$driver instanceof RemoteWebDriver) {
+            throw new \RuntimeException('Cannot reach CDP');
+        }
+
+        return new ChromeDevToolsDriver($driver);
     }
 
     protected static function localClient(): Client

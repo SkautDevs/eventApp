@@ -554,7 +554,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
     {
-        $allowed = ['.appbar-profile', '.appbar-mode', '.tab i', '.pager-zoom-btn', '.tl-tick', '.tl-stage', '.tl-card'];
+        $allowed = ['.appbar-profile', '.appbar-mode', '.tab i', '.pager-zoom-btn', '.tl-tick', '.tl-now-label', '.tl-stage', '.tl-card'];
         $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
 
         $offenders = [];
