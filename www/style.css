@@ -168,9 +168,9 @@
 	/* Type, as a seven-step rem scale fitted to the sizes the app already used, so at a
 	   16px root nothing moves by more than a pixel and a reader's own text size reaches
 	   every line of copy. Two kinds of rule stay in px on purpose, and ThemingTest names
-	   them: the chrome glyphs in the fixed-height bars (www/programs.js reads those bar
-	   heights as plain pixel numbers) and the timeline grid's own type, whose geometry is
-	   frozen. Můj program is the large-type path through the schedule. */
+	   them: the chrome glyphs of the fixed-height bars and of the instrument controls
+	   (the zoom pairs, one floating on the plan; www/programs.js reads the bar heights as
+	   plain pixel numbers) and the timeline grid's own type, whose geometry is frozen. Můj program is the large-type path through the schedule. */
 	--fs-2xs: 0.6875rem; /* 11: tab bar labels */
 	--fs-xs: 0.8125rem; /* 13: credit, who, section line, freshness */
 	--fs-sm: 0.875rem; /* 14: list meta, sheet meta */
@@ -1092,6 +1092,18 @@ div.map iframe {
 	margin-bottom: 12px;
 }
 
+/* With the plan beside it the note ends in a tonal "Zobrazit plán" button, which
+   .empty's 0.8 opacity would push under AA (4.25:1 on obrok27's light set): the note
+   stays opaque and only its sentence takes the fade. Two classes, to outrank .empty,
+   which comes later. */
+.empty.map-offline-plan {
+	opacity: 1;
+}
+
+.map-offline-text {
+	opacity: 0.8;
+}
+
 /* --- two maps: Google and the handbook's plan ----------------------------- */
 
 /* The same column as the Program screen: the active view takes the height, the pill
@@ -1823,25 +1835,23 @@ div.news {
 }
 
 /* "now" in Můj program, from the reader's clock (www/programs.js): what is running
-   carries a label, and the next thing to start has the current-time line above it.
-   The label sits in .pl-time, whose 0.75 opacity it inherits; it is bold and in --now,
-   so the slight fade is accepted. */
-.pl-item[data-now="running"] .pl-time::after {
-	content: ' · probíhá';
-	font-weight: 700;
-	color: var(--now);
-}
-
-.pl-item[data-now="next"] {
+   carries a "probíhá" chip, and the next thing to start has the current-time line
+   above it with a "teď" chip. Both chips are small fills of --now under on-action ink
+   — the same pair as the timeline's label, AA by construction (ThemingTest) — and
+   neither is ink of --now on the ground: --now is the action FILL, which as text on
+   a pale ground falls to 2.8:1. The running chip hangs off the card itself, top
+   right, so it is outside .pl-time's 0.75 opacity; .pl-time leaves room for it. */
+.pl-item[data-now] {
 	position: relative;
-	border-top: 2px solid var(--now);
 }
 
+.pl-item[data-now="running"] .pl-time {
+	padding-right: 6em;
+}
+
+.pl-item[data-now="running"]::after,
 .pl-item[data-now="next"]::before {
-	content: 'teď';
 	position: absolute;
-	top: -0.7em;
-	left: 14px;
 	padding: 0 6px;
 	border-radius: var(--radius-card);
 	background-color: var(--now);
@@ -1849,6 +1859,22 @@ div.news {
 	font-size: var(--fs-xs);
 	font-weight: 700;
 	line-height: 1.4;
+}
+
+.pl-item[data-now="running"]::after {
+	content: 'probíhá';
+	top: 12px;
+	right: 14px;
+}
+
+.pl-item[data-now="next"] {
+	border-top: 2px solid var(--now);
+}
+
+.pl-item[data-now="next"]::before {
+	content: 'teď';
+	top: -0.7em;
+	left: 14px;
 }
 
 /* The card is not the control. As <article role="button"> it flattened four lines of

@@ -75,6 +75,23 @@ final class NowLineTest extends BrowserTestCase
         self::assertGreaterThan(0, self::script('return document.querySelector(".tl-page.is-active .tl-scroll").scrollLeft;'));
     }
 
+    /**
+     * Review Focus 1, before the day's axis starts: the 19th's runs from 08:00, so at
+     * 06:30 now is on no page's axis. The day is still the 19th, so its page opens —
+     * with no line on it and the hours not scrolled.
+     */
+    public function testBeforeTheDaysFirstProgrammeItsPageStillOpensWithoutALine(): void
+    {
+        self::pinClock('2026-09-19T06:30:00+02:00');
+        self::visit('/korbo26/programy');
+        self::waitFor('return document.querySelector(".pg").dataset.pgReady === "1";');
+        self::waitFor('return document.querySelector(".tl-page.is-active").dataset.key === "page-20260919";');
+        self::assertSame(0, self::script('return document.querySelectorAll(".tl-page[data-now]").length;'));
+        self::assertSame('none', self::script('return getComputedStyle(document.querySelector(".tl-page.is-active .tl-now")).display;'));
+        self::assertSame(0, self::script('return document.querySelector(".tl-page.is-active .tl-scroll").scrollLeft;'));
+        self::assertSame('true', self::script('return document.querySelector(\'.day-chip[data-key="page-20260919"]\').getAttribute("aria-current");'));
+    }
+
     /** Review Focus 2: a phone on UTC still reads camp time. */
     public function testTheLabelIsPragueTimeOnAUtcPhone(): void
     {
@@ -104,5 +121,20 @@ final class NowLineTest extends BrowserTestCase
         self::assertSame('day-20260918', self::script('return document.querySelector(\'.pl-item[data-now="next"]\').closest(".pl-day").dataset.key;'));
         self::assertSame('36', self::script('return document.querySelector(\'.pl-item[data-now="next"]\').dataset.key;'));
         self::assertSame(['31'], self::script('return Array.from(document.querySelectorAll(\'.pl-item[data-now="running"]\')).map(function (i) { return i.dataset.key; });'));
+        // "probíhá" is a chip on the card, not ink inside .pl-time's fade
+        $chip = self::script(<<<'JS'
+            var item = document.querySelector('.pl-item[data-now="running"]');
+            var after = getComputedStyle(item, '::after');
+            return {
+                content: after.content,
+                background: after.backgroundColor,
+                timeAfter: getComputedStyle(item.querySelector('.pl-time'), '::after').content,
+                itemOpacity: getComputedStyle(item).opacity,
+            };
+        JS);
+        self::assertSame('"probíhá"', $chip['content']);
+        self::assertNotSame('rgba(0, 0, 0, 0)', $chip['background']);
+        self::assertSame('none', $chip['timeAfter']);
+        self::assertSame('1', $chip['itemOpacity']);
     }
 }
