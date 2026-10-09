@@ -12,6 +12,5 @@
 			{% include '_tie_form.twig' %}
 		{% endif %}
 	</div>
-	{# www/shell.js unhides it once Chrome offers the install, and never in an installed app #}
-	<p class="install" data-install hidden><button type="button" class="btn install-btn">Přidat na plochu</button></p>
+	{% include '_install.twig' %}
 {% endblock %}

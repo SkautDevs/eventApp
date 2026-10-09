@@ -164,16 +164,27 @@
 
 	// --- install ---------------------------------------------------------------
 	// Chrome offers the install once the worker is in; the offer is kept for the button on
-	// /profil rather than shown at once. iOS has no such event: its hint is push.js's.
+	// the homepage and /profil rather than shown at once. iOS has no such event and no way
+	// to install from a page, so there the same place carries how to do it by hand.
 	var deferredPrompt = null;
 
 	function standalone() {
-		return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+		return navigator.standalone === true
+			|| !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+	}
+
+	// iPadOS reports itself as a Mac; the touch points give it away (as in push.js)
+	function ios() {
+		return /iPhone|iPad|iPod/.test(navigator.userAgent)
+			|| (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 	}
 
 	function drawInstall() {
 		document.querySelectorAll('[data-install]').forEach(function (el) {
 			el.hidden = deferredPrompt === null || standalone();
+		});
+		document.querySelectorAll('[data-install-ios]').forEach(function (el) {
+			el.hidden = !ios() || standalone();
 		});
 	}
 

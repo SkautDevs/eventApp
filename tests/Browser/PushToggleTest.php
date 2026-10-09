@@ -98,7 +98,7 @@ final class PushToggleTest extends BrowserTestCase
 
         self::script("Object.defineProperty(navigator, 'userAgent', {get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', configurable: true}); delete window.PushManager; document.querySelector('[data-screen]').dispatchEvent(new CustomEvent('screen:shown', {bubbles: true}));");
 
-        self::waitForStatus('Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.');
+        self::waitForStatus('Na iPhonu zapneš notifikace, až si aplikaci přidáš na plochu.');
         self::assertTrue(self::script('return document.querySelector(".push-enable").hidden;'));
     }
 

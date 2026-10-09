@@ -46,11 +46,22 @@ final class ShellScriptTest extends AppTestCase
         self::assertStringNotContainsString('note.innerHTML', $shell);
     }
 
-    public function testTheProfileOffersAHiddenInstallButton(): void
+    public function testTheHomepageAndTheProfileOfferAHiddenInstall(): void
     {
-        $html = (string) $this->request($this->createApp(), 'GET', '/profil')->getBody();
+        foreach (['/', '/profil'] as $path) {
+            $html = (string) $this->request($this->createApp(), 'GET', $path)->getBody();
 
-        self::assertStringContainsString('<p class="install" data-install hidden><button type="button" class="btn install-btn">Přidat na plochu</button></p>', $html);
+            self::assertStringContainsString('<p class="install" data-install hidden><button type="button" class="btn install-btn">Přidat na plochu</button></p>', $html, $path);
+            self::assertStringContainsString('<p class="install" data-install-ios hidden><span class="notice">Aplikaci si přidáš na plochu v Safari: klepni na Sdílet a pak na Přidat na plochu.</span></p>', $html, $path);
+        }
+    }
+
+    public function testTheIosHintIsDrawnOnlyOutsideAnInstalledApp(): void
+    {
+        $js = self::script();
+
+        self::assertStringContainsString("el.hidden = !ios() || standalone();", $js);
+        self::assertStringContainsString('return navigator.standalone === true', $js);
     }
 
     public function testTheFreshnessWordingIsTheSpecs(): void

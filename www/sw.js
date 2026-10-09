@@ -350,6 +350,34 @@ function purgeHtml() {
 			.then(response => (response && (response.headers.get('Content-Type') || '').startsWith('text/html') ? cache.delete(request) : null)))))))));
 }
 
+/** The TIE code a full page was rendered for (its push-identity meta), '' logged out. */
+function identityOf(html) {
+	const found = html.match(/<meta name="push-identity" content="([^"]*)">/);
+	return found ? found[1] : null;
+}
+
+/**
+ * A page fresh from the network says who the cookie belongs to now. Any stored page
+ * rendered for somebody else means a login or logout this worker never saw — one posted
+ * while it was still installing, before it controlled the page — and every stored page
+ * and fragment goes, as the purge on write would have done; refill() then puts them back
+ * for the identity in the cookie. Without this, a refresh that outlasts NETWORK_TIMEOUT
+ * served the copy from before the login, and the reader looked logged out.
+ */
+function reconcile(key, html) {
+	const who = identityOf(html);
+	if (who === null) {
+		return Promise.resolve();
+	}
+	return currentCache().then(cache => cache && cache.keys()
+		.then(requests => Promise.all(requests
+			.filter(request => request.url !== key.url && !new URL(request.url).searchParams.has('x-screen'))
+			.map(request => cache.match(request).then(response => (response && (response.headers.get('Content-Type') || '').startsWith('text/html')
+				? response.text().then(identityOf)
+				: null)))))
+		.then(identities => (identities.some(other => other !== null && other !== who) ? purgeHtml() : null)));
+}
+
 /**
  * After a purge the next page that arrives from the network puts back every precached
  * document that is missing, rendered for the identity now in the cookie. Without it a
@@ -402,7 +430,11 @@ function page(event) {
 	}
 	const network = fetch(request).then(response => ({
 		response,
-		stored: storable(response) ? putHtml(generation, key, response.clone()).then(refill) : Promise.resolve(),
+		stored: storable(response)
+			? Promise.all([putHtml(generation, key, response.clone()), response.clone().text()])
+				.then(([, html]) => reconcile(key, html))
+				.then(refill)
+			: Promise.resolve(),
 	}));
 	event.waitUntil(network
 		.then(result => result.stored.catch(() => null).then(() => (storable(result.response) ? checkVersion() : null)))
