@@ -12,6 +12,28 @@
 		<img class="logo mainLogo" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
 	{% endif %}
 
+	{# The one block that must work with no signal: the home screen is in the worker's
+	   precache, and a tel: link needs no network to dial. #}
+	{% if emergency.contacts ?? false %}
+		<section class="emergency" aria-labelledby="emergency-title">
+			<h2 id="emergency-title"><i class="fas fa-phone-alt" aria-hidden="true"></i> V nouzi</h2>
+			<ul class="emergency-list">
+				{% for contact in emergency.contacts %}
+					<li>
+						<a class="emergency-call" href="{{ 'tel:' ~ contact.phone|replace({' ': ''}) }}">
+							<span class="emergency-label">{{ contact.label }}</span>
+							<span class="emergency-number">{{ contact.phone }}</span>
+							{% if contact.note ?? false %}<span class="emergency-note">{{ contact.note }}</span>{% endif %}
+						</a>
+					</li>
+				{% endfor %}
+			</ul>
+			{% for line in emergency.info ?? [] %}
+				<p class="emergency-info">{{ line }}</p>
+			{% endfor %}
+		</section>
+	{% endif %}
+
 	{% if 'push' in event.features %}
 		<p class="push-enable">
 			<button type="button" class="btn btn-primary" data-push-toggle>

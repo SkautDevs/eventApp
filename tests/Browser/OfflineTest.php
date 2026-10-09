@@ -46,6 +46,18 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('return document.body.textContent.includes(arguments[0]);', ['Jsi offline a tahle stránka ještě není uložená.']);
     }
 
+    /** Review Focus 4: the crisis line is the one thing that must be there with no signal. */
+    public function testTheEmergencyBoxIsThereWithoutTheServer(): void
+    {
+        self::visit('/obrok27/');
+        self::waitForPrecache('obrok27');
+
+        self::stopServer();
+        self::$browser->reload();
+        self::waitFor('const s = document.querySelector(\'[data-screen="/obrok27/"]\'); return s && !s.hidden;');
+        self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:000000000\']");');
+    }
+
     /** Review Focus 1: the purge on login must not leave the reader with nothing offline. */
     public function testALoginIsCarriedIntoTheOfflineCopy(): void
     {

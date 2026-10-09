@@ -752,6 +752,69 @@ a, a:visited {
 	text-decoration: none;
 }
 
+/* --- the emergency box (home screen) -------------------------------------- */
+
+/* Tonal like a notice, because there is no alarm colour yet (the palette round, see
+   docs/backlog.md). Each number is a full-width tap target: one tap dials. */
+.emergency {
+	margin: 0 8px 16px;
+	padding: 12px;
+	border-radius: var(--radius);
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+	text-align: left;
+}
+
+.emergency h2 {
+	margin: 0 0 8px;
+	font-size: var(--fs-lg);
+	color: inherit;
+}
+
+.emergency-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.emergency-call, .emergency-call:visited {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	column-gap: 8px;
+	min-height: 44px;
+	padding: 8px 0;
+	color: inherit;
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+.emergency-list li + li .emergency-call {
+	border-top: 1px solid currentColor;
+}
+
+.emergency-label {
+	flex: 1 1 auto;
+	font-weight: 700;
+}
+
+.emergency-number {
+	font-size: var(--fs-xl);
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.emergency-note {
+	flex: 1 0 100%;
+	font-size: var(--fs-sm);
+}
+
+.emergency-info {
+	margin: 8px 0 0;
+	font-size: var(--fs-sm);
+}
+
 /* The field sits on the page ground, so it needs its own surface to read as a
    field. It rebinds the surface pair rather than introducing a third name. */
 input[type=text], textarea, .stacked-form select {
