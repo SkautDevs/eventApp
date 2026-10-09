@@ -11,9 +11,9 @@
 	<meta charset="utf-8"/>
 	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 	<link rel="manifest" href="events/{{ event.slug }}/site.webmanifest">
-	<link rel="apple-touch-icon" sizes="180x180" href="events/{{ event.slug }}/apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="events/{{ event.slug }}/favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="events/{{ event.slug }}/favicon-16x16.png">
+	<link rel="apple-touch-icon" sizes="180x180" href="{{ event.assets.appleTouch ?? ('events/' ~ event.slug ~ '/apple-touch-icon.png') }}">
+	<link rel="icon" type="image/png" sizes="32x32" href="{{ event.assets.favicon32 ?? ('events/' ~ event.slug ~ '/favicon-32x32.png') }}">
+	<link rel="icon" type="image/png" sizes="16x16" href="{{ event.assets.favicon16 ?? ('events/' ~ event.slug ~ '/favicon-16x16.png') }}">
 	{# only for an event that ships the drawing: korbo26, miquik26 and navigamus25 do not,
 	   and the old unconditional link was a 404 on every page there #}
 	{% if event.assets.pinnedTab ?? false %}

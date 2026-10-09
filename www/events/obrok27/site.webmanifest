@@ -8,13 +8,32 @@
     "display": "standalone",
     "orientation": "portrait",
     "icons": [
-        { "src": "/events/obrok27/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png" },
-        { "src": "/events/obrok27/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png" },
-        { "src": "/events/obrok27/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+        {
+            "src": "/events/obrok27/icon-035509c1-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/events/obrok27/icon-333d7ac4-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/events/obrok27/icon-f4ce8932-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
     ],
     "shortcuts": [
-        { "name": "Program", "url": "/obrok27/programy" },
-        { "name": "Novinky", "url": "/obrok27/novinky" }
+        {
+            "name": "Program",
+            "url": "/obrok27/programy"
+        },
+        {
+            "name": "Novinky",
+            "url": "/obrok27/novinky"
+        }
     ],
     "theme_color": "#101010",
     "background_color": "#c2ea3a"

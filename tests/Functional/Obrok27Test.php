@@ -66,4 +66,33 @@ final class Obrok27Test extends AppTestCase
         // the 2027 handbook PDF is not uploaded yet → page works, download 404s
         self::assertSame(404, $this->request($this->createApp('obrok27'), 'GET', '/handbook/download')->getStatusCode());
     }
+
+    public function testTheIconsAreTheGhostAndNotThe2019Shield(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        preg_match('#<link rel="icon" type="image/png" sizes="32x32" href="([^"]+)">#', $html, $m32);
+        preg_match('#<link rel="apple-touch-icon" sizes="180x180" href="([^"]+)">#', $html, $mTouch);
+        self::assertMatchesRegularExpression('#^/?events/obrok27/icon-[0-9a-f]{8}-32\.png$#', $m32[1] ?? '');
+        self::assertMatchesRegularExpression('#^/?events/obrok27/icon-[0-9a-f]{8}-180\.png$#', $mTouch[1] ?? '');
+        self::assertSame([32, 32], array_slice(getimagesize($root . '/www/' . ltrim($m32[1], '/')), 0, 2));
+        self::assertSame([180, 180], array_slice(getimagesize($root . '/www/' . ltrim($mTouch[1], '/')), 0, 2));
+        // the 2019 shields are gone, and so is the pinned-tab mask drawn from them
+        self::assertFileDoesNotExist($root . '/www/events/obrok27/favicon-32x32.png');
+        self::assertStringNotContainsString('rel="mask-icon"', $html);
+    }
+
+    public function testTheManifestIconsAreTheNewSet(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/www/events/obrok27/site.webmanifest'), true);
+        $sizes = [];
+        foreach ($manifest['icons'] as $icon) {
+            self::assertMatchesRegularExpression('#^/events/obrok27/icon-[0-9a-f]{8}-(192|512|maskable-512)\.png$#', $icon['src']);
+            self::assertFileExists($root . '/www' . $icon['src']);
+            $sizes[] = $icon['sizes'] . ($icon['purpose'] ?? '');
+        }
+        self::assertSame(['192x192', '512x512', '512x512maskable'], $sizes);
+    }
 }

@@ -33,8 +33,12 @@ final class ManifestTest extends AppTestCase
             foreach ($manifest['icons'] as $icon) {
                 self::assertFileExists($root . '/www' . $icon['src'], $slug . ' ' . $icon['src']);
             }
-            foreach (['favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png'] as $name) {
-                self::assertFileExists($root . '/www/events/' . $slug . '/' . $name, $slug . ' ' . $name);
+            $assets = \App\EventConfig::load($root . '/events', $slug)->get('assets') ?? [];
+            $defaults = ['favicon16' => 'favicon-16x16.png', 'favicon32' => 'favicon-32x32.png', 'appleTouch' => 'apple-touch-icon.png'];
+            foreach ($defaults as $key => $name) {
+                $path = $assets[$key] ?? 'events/' . $slug . '/' . $name;
+                self::assertStringStartsWith('events/' . $slug . '/', $path, $slug . ' ' . $key);
+                self::assertFileExists($root . '/www/' . $path, $slug . ' ' . $key);
             }
         }
     }
@@ -63,7 +67,7 @@ final class ManifestTest extends AppTestCase
         foreach (self::manifests() as [$slug, $manifest]) {
             $maskable = array_values(array_filter($manifest['icons'], static fn (array $icon): bool => ($icon['purpose'] ?? 'any') === 'maskable'));
             self::assertCount(1, $maskable, $slug);
-            self::assertSame('/events/' . $slug . '/maskable-512.png', $maskable[0]['src'], $slug);
+            self::assertMatchesRegularExpression('#^/events/' . $slug . '/(maskable-512|icon-[0-9a-f]{8}-maskable-512)\.png$#', $maskable[0]['src'], $slug);
             self::assertSame(['512x512', 'image/png'], [$maskable[0]['sizes'], $maskable[0]['type']], $slug);
             $size = getimagesize($root . '/www' . $maskable[0]['src']);
             self::assertNotFalse($size, $slug);
@@ -120,6 +124,6 @@ final class ManifestTest extends AppTestCase
         }
         sort($named);
 
-        self::assertSame(['obrok19', 'obrok27'], $named, 'the two events that ship the drawing name it');
+        self::assertSame(['obrok19'], $named, 'only the event that still ships the drawing names it');
     }
 }
