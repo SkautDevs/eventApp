@@ -137,7 +137,7 @@ final class KorboProgramsTest extends AppTestCase
         $html = $this->screen();
         $titles = [1 => 'Pohybová', 2 => 'Tvořivá', 3 => 'Kulturní', 4 => 'Přednáška', 5 => 'Debata', 6 => 'Jiné'];
 
-        preg_match_all('/data-pg-page="(page-\d{8})" data-pg-kind="timeline">([^<]*)<\/button>/u', $html, $pages);
+        preg_match_all('/data-pg-page="(page-\d{8})" data-pg-kind="timeline" aria-current="(?:true|false)" data-morph-keep="aria-current">([^<]*)<\/button>/u', $html, $pages);
         self::assertSame(['page-20260916', 'page-20260917', 'page-20260918', 'page-20260919', 'page-20260920'], $pages[1]);
         self::assertSame(['st 16. 9.', 'čt 17. 9.', 'pá 18. 9.', 'so 19. 9.', 'ne 20. 9.'], $pages[2]);
 

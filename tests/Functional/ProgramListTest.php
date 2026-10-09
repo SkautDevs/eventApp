@@ -8,9 +8,9 @@ namespace Tests\Functional;
  * Můj program is one continuous scroll over the whole event.
  *
  * It used to page by day, one .pl-day visible at a time. Now every day is present and
- * visible in document order, each under its own sticky heading, and the strip on top
- * stops being a pager: the label follows the scroll and the arrows jump between day
- * headings. Only that strip changed — the timeline still pages, by day.
+ * visible in document order, each under its own sticky heading, and the strip of day
+ * chips on top follows the scroll; a tap on a chip scrolls to its day. The timeline
+ * still pages, by day, through a strip of the same chips.
  */
 final class ProgramListTest extends AppTestCase
 {
@@ -35,8 +35,6 @@ final class ProgramListTest extends AppTestCase
         self::assertSame(3, substr_count($html, '<h2 class="pl-head">'));
         self::assertStringContainsString('<h2 class="pl-head">čt 30. 5.</h2>', $html);
         self::assertStringContainsString('<h2 class="pl-head">so 1. 6.</h2>', $html);
-        // the observer's handle on the top of the scroll, which is what disables ↑ there
-        self::assertStringContainsString('data-pg-list-top', $html);
     }
 
     /** The days keep the order of the event, first to last, because the reader scrolls them. */
@@ -47,38 +45,32 @@ final class ProgramListTest extends AppTestCase
         self::assertGreaterThan(0, strpos($html, 'day-20190530'));
         self::assertGreaterThan((int) strpos($html, 'day-20190530'), (int) strpos($html, 'day-20190531'));
         self::assertGreaterThan((int) strpos($html, 'day-20190531'), (int) strpos($html, 'day-20190601'));
-        // the strip opens naming the day at the top of the scroll, not today
-        self::assertStringContainsString('<span data-pg-title="list">čt 30. 5.</span>', $html);
+        // the strip opens on the day at the top of the scroll, not today
+        self::assertMatchesRegularExpression('#data-pg-page="day-20190530" data-pg-kind="list" aria-current="true" data-morph-keep="aria-current">čt 30. 5.</button>#u', $html);
     }
 
-    /**
-     * Two strips, two instruments. Only the list's changed shape: the timeline keeps
-     * its chevrons, its day pages and its zoom pair.
-     */
-    public function testOnlyTheListStripBecameAnOrientationStrip(): void
+    /** Both views pick the day from a strip of chips; no arrows, no day dialog. */
+    public function testBothViewsPickTheDayFromAStripOfChips(): void
     {
         $html = $this->loggedInScreen();
 
-        self::assertStringContainsString('data-pg-step="-1" data-pg-kind="list" aria-label="Předchozí den" disabled>↑', $html);
-        self::assertStringContainsString('data-pg-step="1" data-pg-kind="list" aria-label="Další den">↓', $html);
-        self::assertStringContainsString('data-pg-step="-1" data-pg-kind="timeline" aria-label="Předchozí">‹', $html);
-        self::assertStringContainsString('data-pg-step="1" data-pg-kind="timeline" aria-label="Další">›', $html);
+        foreach (['timeline', 'list'] as $kind) {
+            self::assertMatchesRegularExpression('#<div class="days" role="group" aria-label="Dny" data-pg-days="' . $kind . '">#', $html);
+        }
+        self::assertStringNotContainsString('pager-menu', $html);
+        self::assertStringNotContainsString('data-pg-step', $html);
+        self::assertStringNotContainsString('data-pg-list-top', $html);
+        // exactly one chip per strip is current, and the morph leaves the reader's choice alone
+        self::assertSame(2, substr_count($html, 'aria-current="true" data-morph-keep="aria-current"'));
         // the zoom pair belongs to the axis, so it stays on the timeline's row alone
         self::assertSame(1, substr_count($html, 'class="pager-zoom"'));
     }
 
-    /**
-     * 44px minimum on both strips: the timeline's row gave the width back from its
-     * label, which keeps 144px on a 320px phone.
-     */
-    public function testTheDayArrowsAreFullSizedTouchTargets(): void
+    public function testTheChipsAreFullSizedTouchTargets(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
-
-        // both strips' arrows are 44px wide now; the day arrows only keep their own glyph size
-        self::assertMatchesRegularExpression('/\.pager-arrow \{[^}]*flex: 0 0 44px;/', $css);
-        self::assertMatchesRegularExpression('/\.pager-arrow \{[^}]*height: 44px;/', $css);
-        self::assertDoesNotMatchRegularExpression('/\.pager-arrow-day \{[^}]*flex:/', $css);
+        self::assertMatchesRegularExpression('/\.day-chip\s*\{[^}]*min-height:\s*44px/s', $css);
+        self::assertMatchesRegularExpression('/\.day-chip\s*\{[^}]*min-width:\s*44px/s', $css);
     }
 
     /** Every day is visible: nothing in the list is display:none any more. */

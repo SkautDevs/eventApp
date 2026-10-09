@@ -53,14 +53,14 @@ final class ScreenMorphTest extends AppTestCase
         self::assertMatchesRegularExpression('/<section class="pl-day" data-key="day-\d+"/', $html);
     }
 
-    /** C-I1: .pg's children appear and disappear; positional matching turned the sheet into a day panel. */
+    /** C-I1: .pg's children appear and disappear; positional matching once turned the sheet into a day panel. */
     public function testEveryChildOfTheProgramRootCarriesAKey(): void
     {
         $app = $this->createApp();
         $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
-        foreach (['pager-timeline', 'pager-list', 'menu-timeline', 'menu-list', 'tabs', 'sheet'] as $key) {
+        foreach (['pager-timeline', 'pager-list', 'tabs', 'sheet'] as $key) {
             self::assertStringContainsString('data-key="' . $key . '"', $html);
         }
         self::assertMatchesRegularExpression('/<div class="sheet" data-key="sheet"/', $html);
@@ -81,7 +81,9 @@ final class ScreenMorphTest extends AppTestCase
 
         self::assertStringContainsString('data-pg-root data-morph-keep="data-view data-step"', $html);
         self::assertMatchesRegularExpression('/<section class="tl-page[^"]*" data-morph-keep="class"/', $html);
-        self::assertMatchesRegularExpression('/<button type="button" class="pager-menu-item[^"]*" data-morph-keep="class"/', $html);
+        // the current day chip is the reader's: a morph must not put it back on the server's day
+        self::assertMatchesRegularExpression('/<button type="button" class="day-chip" data-key="page-\d{8}" data-pg-page="page-\d{8}" data-pg-kind="timeline" aria-current="(?:true|false)" data-morph-keep="aria-current">/', $html);
+        self::assertStringNotContainsString('data-morph-keep="class" data-pg-page', $html);
         self::assertStringContainsString("from.getAttribute('data-morph-keep')", $this->loader());
     }
 

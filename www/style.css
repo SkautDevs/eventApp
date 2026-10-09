@@ -154,7 +154,7 @@
 	/* one duration for everything in the app that moves, on a plain curve */
 	--motion: var(--theme-motion, 120ms);
 	/* corner rounding, in the four sizes the app actually uses: the general one,
-	   pills, the bottom sheet and day panel, and the timeline card. An event that
+	   pills, the bottom sheet, and the timeline card. An event that
 	   wants to look blocky sets them all to 0 in one place. */
 	--radius: var(--theme-radius, 8px);
 	--radius-pill: var(--theme-radius-pill, 999px);
@@ -277,9 +277,8 @@ body {
    filled button: one reset, and each rule below states only what differs. .tl-card
    (hairline) and .sheet-close (filled) are not bare and are not in it. */
 .appbar-mode,
-.pager-arrow, .pager-label,
+.day-chip,
 .pager-zoom-btn,
-.pager-menu-item, .pager-menu-close,
 .tabs-tab,
 .pl-open {
 	padding: 0;
@@ -480,8 +479,8 @@ main {
 	max-width: var(--app-width);
 	margin: 0 auto;
 	/* Deliberately NOT a view-transition-name, however tempting: naming an element
-	   makes it a stacking context, and the sheet and the day panel are fixed children
-	   of <main> that have to keep painting over the fixed tab bar. The swap animates
+	   makes it a stacking context, and the sheet is a fixed child of <main> that
+	   has to keep painting over the fixed tab bar. The swap animates
 	   the root snapshot instead — see the transition rules at the foot of this file. */
 }
 
@@ -1153,7 +1152,7 @@ div.news {
    band of chrome behind bold names and wants the ink ratio instead.
 
    The rebinding sits on .tl-scroll and not on .pg, because custom properties
-   inherit: on .pg it would also reach the pager, the day panel, the view tabs
+   inherit: on .pg it would also reach the day strips, the view tabs
    and the personal list, which are page chrome and not grid chrome.
 
    The fallbacks are the neutral Figma grid, mixed out of the TEXT pair rather
@@ -1222,9 +1221,8 @@ div.news {
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
-	/* No gap and no side padding: this row carries five controls on a 320px
-	   phone and the day label — the reader's only orientation on the screen —
-	   gets whatever the other four do not need. Each control keeps its own
+	/* No gap and no side padding: the strip of day chips takes whatever the zoom
+	   pair leaves it and scrolls the rest sideways. Each control keeps its own
 	   touch target through its box, so nothing here shrinks a hit area. */
 	gap: 0;
 	height: var(--pager-height);
@@ -1233,52 +1231,48 @@ div.news {
 	border-bottom: 1px solid var(--edge);
 }
 
-.pager-arrow, .pager-label {
-	border-radius: var(--radius-pill);
-}
-
-.pager-arrow {
-	/* a full 44px target; the label beside it is what gives width back */
-	flex: 0 0 44px;
-	height: 44px;
-	color: var(--emphasis);
-	/* px on purpose: chrome glyph, see --fs-* in :root */
-	font-size: 28px;
-	line-height: 1;
-}
-
-.pager-arrow[disabled] {
-	opacity: 0.25;
-	cursor: default;
-}
-
-/* The glyph is smaller than the timeline's chevrons because ↑ and ↓ draw much more
-   ink than ‹ and › at the same size. */
-.pager-arrow-day {
-	/* px on purpose: chrome glyph, see --fs-* in :root */
-	font-size: 21px;
-}
-
-.pager-label {
+/* The day strip: every day is a chip, and a strip wider than the phone scrolls
+   sideways under the finger. The current day wears the state fill, exactly as the
+   current screen does in the tab bar. */
+.days {
+	position: relative;
 	flex: 1 1 auto;
 	min-width: 0;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	gap: 4px;
-	height: 44px;
-	/* the label is the widest thing here and the first to be squeezed, so its own
-	   padding is the minimum that keeps the text off the arrows */
-	padding: 0 4px;
-	font-size: var(--fs-md);
-	color: var(--on-ground);
+	gap: 6px;
+	height: 100%;
+	padding: 0 8px;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
 }
 
-.pager-label span {
-	min-width: 0;
+.days::-webkit-scrollbar {
+	display: none;
+}
+
+.day-chip {
+	flex: 0 0 auto;
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0 12px;
+	border-radius: var(--radius-pill);
+	color: var(--on-ground);
+	font-size: var(--fs-md);
 	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+}
+
+.day-chip[aria-current="true"] {
+	background-color: var(--state);
+	color: var(--on-state);
+	font-weight: 700;
+}
+
+/* .days scrolls sideways, so it clips: an outset ring would lose its top and bottom */
+.day-chip:focus-visible {
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
 }
 
 /* The hour-scale zoom, at the right end of the pager row and only on the row the
@@ -1291,7 +1285,7 @@ div.news {
 
 /* The visible ink is a 21px glyph, but the box around it is a full 44x44 touch
    target: the padding is the target, not the mark. Two of these cost 88px of a
-   402px row, which is why everything else on the row gave width back. */
+   402px row; the day strip beside them scrolls what does not fit. */
 .pager-zoom-btn {
 	width: 44px;
 	height: 44px;
@@ -1308,94 +1302,6 @@ div.news {
 	cursor: default;
 }
 
-/* The day list, as a panel dropping out of the bottom edge of the app bar — the
-   bottom sheet's mirror image. The overlay starts below the bar rather than at
-   the top of the viewport, so the bar stays fully visible and undimmed, and the
-   panel is clipped against that same edge: closed, none of it shows. Hidden
-   rather than display:none, so the closing slide has something to play on,
-   exactly as .sheet does. */
-.pager-menu {
-	position: fixed;
-	top: calc(var(--appbar-height) + var(--appbar-inset));
-	right: 0;
-	bottom: 0;
-	left: 0;
-	z-index: 40;
-	overflow: hidden;
-	visibility: hidden;
-}
-
-.pager-menu.is-open {
-	visibility: visible;
-}
-
-/* the scrim is its own layer so only it is translucent, not the card on top of it */
-.pager-menu-backdrop {
-	position: absolute;
-	inset: 0;
-	background-color: var(--scrim);
-	opacity: 0;
-}
-
-.pager-menu.is-open .pager-menu-backdrop {
-	opacity: 0.55;
-}
-
-/* Edge to edge across the phone column, hung from the top of that overlay — so
-   it opens flush under the app bar and a plain translateY(-100%) is enough to
-   park it out of sight, the overlay's overflow doing the clipping. Only the
-   bottom corners can round, and they take the sheet's radius so the two panels
-   agree: an event that asks for square gets square in both places. */
-.pager-menu-card {
-	position: absolute;
-	top: 0;
-	left: 50%;
-	width: 100%;
-	max-width: var(--app-width);
-	max-height: 100%;
-	padding: 6px;
-	border-radius: 0 0 var(--radius-sheet) var(--radius-sheet);
-	background-color: var(--ground);
-	border-bottom: var(--edge-width) solid var(--edge);
-	overflow-y: auto;
-	overscroll-behavior: contain;
-	transform: translate(-50%, -100%);
-}
-
-.pager-menu.is-open .pager-menu-card {
-	transform: translate(-50%, 0);
-}
-
-.pager-menu-card:focus {
-	outline: none;
-	box-shadow: none;
-}
-
-.pager-menu-item, .pager-menu-close {
-	display: block;
-	width: 100%;
-	font-size: var(--fs-md);
-	color: var(--on-ground);
-	text-align: left;
-	padding: 12px 14px;
-	min-height: 44px;
-	border-radius: var(--radius);
-}
-
-/* the day you are on: the same tonal vocabulary as a secondary button, not a
-   filled dark row on a light panel */
-.pager-menu-item.is-active {
-	background-color: var(--tonal);
-	color: var(--on-tonal);
-}
-
-.pager-menu-close {
-	margin-top: 6px;
-	border-top: 1px solid var(--edge);
-	border-radius: 0;
-	text-align: center;
-}
-
 /* --- view switching ------------------------------------------------------ */
 
 .view-timeline, .view-list,
@@ -1404,7 +1310,7 @@ div.news {
 	display: none;
 }
 
-/* the active view takes whatever the pager and the switcher leave it */
+/* the active view takes whatever the day strip and the switcher leave it */
 .pg[data-view="timeline"] .view-timeline,
 .pg[data-view="list"] .view-list {
 	display: block;
@@ -1737,21 +1643,12 @@ div.news {
 
 /* --- personal list ------------------------------------------------------- */
 
-/* One continuous scroll over the whole event. The strip above only names where the
+/* One continuous scroll over the whole event. The strip above only marks where the
    reader is; it is the day headings inside the scroll that do the dividing. */
 
-/* 1px rather than nothing: a zero-area target is a case IntersectionObserver
-   implementations disagree about, and this one exists purely to be observed. The
-   negative margin takes its height straight back out of the flow. */
-.pl-top {
-	display: block;
-	height: 1px;
-	margin-bottom: -1px;
-}
-
 /* The last day has to be able to dock under the strip like every other one, and it
-   cannot if the document ends two rows below its heading: ↓ would land short, the
-   strip would never name it and its arrow would never grey out. Its box is therefore
+   cannot if the document ends two rows below its heading: its chip would land short
+   and the strip would never mark it current. Its box is therefore
    at least as tall as the band the reader reads in — the same height the timeline's
    grid takes — so there is always scroll left for it to claim. */
 .pl-day:last-child {
@@ -2024,28 +1921,15 @@ div.news {
    screen with every state change applied instantly.
 
    One duration for the whole app — --motion, which an event may retune through
-   --theme-motion — and a plain ease curve. The two panels still slide in from
-   their own edges and the tab indicator still travels; nothing else animates,
+   --theme-motion — and a plain ease curve. The sheet still slides in from
+   its edge and the tab indicator still travels; nothing else animates,
    so switching view and pressing a card land immediately.
    ------------------------------------------------------------------------- */
 
 @media (prefers-reduced-motion: no-preference) {
-	/* the sheet, and the day panel, stay visible until the slide-out has finished */
-	.sheet, .pager-menu {
+	/* the sheet stays visible until the slide-out has finished */
+	.sheet {
 		transition: visibility 0s linear var(--motion);
-	}
-
-	.pager-menu.is-open {
-		transition-delay: 0s;
-	}
-
-	/* the day panel is the sheet's mirror: same span, same curve, other edge */
-	.pager-menu-backdrop {
-		transition: opacity var(--motion) ease;
-	}
-
-	.pager-menu-card {
-		transition: transform var(--motion) ease;
 	}
 
 	.sheet.is-open {
@@ -2108,8 +1992,8 @@ div.news {
 	   What slides is the root snapshot, i.e. everything that is not separately named
 	   — which is <main> and nothing else, because the two bars claim their own names
 	   below. <main> itself deliberately does NOT carry a name: a view-transition-name
-	   makes an element a stacking context, and the sheet and the day panel are fixed
-	   children of <main> that have to keep painting over the tab bar. */
+	   makes an element a stacking context, and the sheet is a fixed child of <main>
+	   that has to keep painting over the tab bar. */
 	:root::view-transition-old(root) {
 		animation: screen-out var(--motion) ease both;
 	}

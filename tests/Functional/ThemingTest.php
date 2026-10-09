@@ -36,7 +36,7 @@ final class ThemingTest extends AppTestCase
     public function testTheButtonResetIsSaidOnce(): void
     {
         $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
-        $buttons = ['.appbar-mode', '.pager-arrow', '.pager-label', '.pager-zoom-btn', '.pager-menu-item', '.pager-menu-close', '.tabs-tab', '.pl-open'];
+        $buttons = ['.appbar-mode', '.day-chip', '.pager-zoom-btn', '.tabs-tab', '.pl-open'];
 
         self::assertSame(1, preg_match('/(\.appbar-mode,[^{]*)\{([^}]*)\}/', $css, $reset));
         $members = array_map('trim', explode(',', (string) preg_replace('/\s+/', ' ', $reset[1])));
@@ -554,7 +554,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
     {
-        $allowed = ['.appbar-profile', '.appbar-mode', '.tab i', '.pager-arrow', '.pager-arrow-day', '.pager-zoom-btn', '.tl-tick', '.tl-stage', '.tl-card'];
+        $allowed = ['.appbar-profile', '.appbar-mode', '.tab i', '.pager-zoom-btn', '.tl-tick', '.tl-stage', '.tl-card'];
         $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
 
         $offenders = [];
@@ -605,8 +605,8 @@ final class ThemingTest extends AppTestCase
     /**
      * One ring for every control, in the ground pair: ink on ground clears AA in every set,
      * and a halo in the ground separates it from any fill it lands on. The only rings of
-     * their own are the three inset ones whose boxes clip, and the only rules without one
-     * are the two dialog containers and the screen section, which take focus programmatically.
+     * their own are the four inset ones whose boxes clip, and the only rules without one
+     * are the sheet's dialog container and the screen section, which take focus programmatically.
      */
     public function testTheFocusRingIsOneGlobalRule(): void
     {
@@ -620,14 +620,14 @@ final class ThemingTest extends AppTestCase
         preg_match_all('/([^{}]+)\{[^}]*outline:\s*none/', $css, $none);
         $selectors = array_map(static fn (string $s): string => trim((string) preg_replace('/\s+/', ' ', $s)), $none[1]);
         sort($selectors);
-        $exempt = ['.pager-menu-card:focus', '.screen:focus-visible', '.sheet-card:focus'];
+        $exempt = ['.screen:focus-visible', '.sheet-card:focus'];
         self::assertSame($exempt, $selectors);
         foreach ($exempt as $container) {
             self::assertStringContainsString('box-shadow: none;', self::declarationsFor($css, $container), $container . ' still draws the halo');
         }
 
-        // the three inset rings take the global ink; they only move it inside the box
-        foreach (['.tabs-tab:focus-visible', '.tl-card:focus-visible', '.sheet-close:focus-visible'] as $inset) {
+        // the four inset rings take the global ink; they only move it inside the box
+        foreach (['.tabs-tab:focus-visible', '.tl-card:focus-visible', '.sheet-close:focus-visible', '.day-chip:focus-visible'] as $inset) {
             $rule = self::declarationsFor($css, $inset);
             self::assertStringNotContainsString('var(--on-structure)', $rule, $inset);
             self::assertMatchesRegularExpression('/box-shadow: inset 0 0 0 \d+px var\(--ground\);/', $rule, $inset);

@@ -57,11 +57,11 @@ final class TouchTargetTest extends BrowserTestCase
 
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
-        self::assertSame([], self::script(self::SMALL, [['.appbar-mode', '.appbar-profile', '.appbar-brand', '.tab', '.pager-arrow', '.pager-zoom-btn', '.pager-menu-item', '.pager-menu-close']]));
+        self::assertSame([], self::script(self::SMALL, [['.appbar-mode', '.appbar-profile', '.appbar-brand', '.tab', '.day-chip', '.pager-zoom-btn']]));
 
         self::script('document.querySelector(\'[data-pg-view="list"]\').click();');
         self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "list";');
-        self::assertSame([], self::script(self::SMALL, [['.pager-arrow']]));
+        self::assertSame([], self::script(self::SMALL, [['.day-chip']]));
     }
 
     /** Review Focus 2: the minimums must still fit the narrowest phone, logged in, with the toggle. */
@@ -78,7 +78,9 @@ final class TouchTargetTest extends BrowserTestCase
             self::assertGreaterThan(30, $bar['titleWidth'], 'the title was squeezed out');
             self::assertSame([], $bar['overlaps']);
             self::assertSame($bar['clientWidth'], $bar['scrollWidth'], 'the page scrolls sideways');
-            self::assertGreaterThanOrEqual(143, self::script('return document.querySelector(\'[data-pg-pager="timeline"] .pager-label\').getBoundingClientRect().width;'));
+            // the strip keeps room for at least two whole chips beside the zoom pair, and scrolls the rest
+            self::assertGreaterThanOrEqual(143, self::script('return document.querySelector(\'[data-pg-days="timeline"]\').getBoundingClientRect().width;'));
+            self::assertSame([], self::script(self::SMALL, [['.day-chip']]));
         } finally {
             self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
         }

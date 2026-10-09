@@ -14,23 +14,22 @@
 			<p class="notice" data-key="notice">{{ notice }}</p>
 		{% endif %}
 
-		{# One strip per view, and they are not the same instrument. The timeline's is a
-		   pager: it steps through day pages with ‹ ›. The list's is an
-		   orientation strip over one continuous scroll: ↑ ↓ jump between day headings and
-		   the label names the day being read rather than the page being shown. #}
-		{# every child of .pg carries a data-key or an id (the two views): they come and go with the data, and the morph matches unkeyed siblings by position — which once turned the sheet into the day panel #}
+		{# One strip of day chips per view. The timeline's switches the page; the list's
+		   follows the scroll and scrolls to a day when tapped. The chip of the day on
+		   show carries aria-current, which the reader owns: data-morph-keep stops a
+		   background morph putting it back on the server's day. #}
+		{# every child of .pg carries a data-key or an id (the two views): they come and go with the data, and the morph matches unkeyed siblings by position — which once turned the sheet into a day panel #}
 		{% for pager in [
-			{'kind': 'timeline', 'items': pages, 'active': activePage, 'back': '‹', 'forward': '›', 'backLabel': 'Předchozí', 'forwardLabel': 'Další'},
-			{'kind': 'list', 'items': days, 'active': activeDay, 'back': '↑', 'forward': '↓', 'backLabel': 'Předchozí den', 'forwardLabel': 'Další den'}
+			{'kind': 'timeline', 'items': pages, 'active': activePage},
+			{'kind': 'list', 'items': days, 'active': activeDay}
 		] %}
 			{% if pager.items is not empty %}
 				<div class="pager" data-key="pager-{{ pager.kind }}" data-pg-pager="{{ pager.kind }}">
-					<button type="button" class="pager-arrow{{ pager.kind == 'list' ? ' pager-arrow-day' }}" data-pg-step="-1" data-pg-kind="{{ pager.kind }}" aria-label="{{ pager.backLabel }}"{{ pager.kind == 'list' ? ' disabled' }}>{{ pager.back }}</button>
-					<button type="button" class="pager-label" data-pg-menu="{{ pager.kind }}" aria-haspopup="true" aria-expanded="false">
-						<span data-pg-title="{{ pager.kind }}">{{ (pager.items|filter(p => p.key == pager.active)|first).label }}</span>
-						<i class="fas fa-caret-down" aria-hidden="true"></i>
-					</button>
-					<button type="button" class="pager-arrow{{ pager.kind == 'list' ? ' pager-arrow-day' }}" data-pg-step="1" data-pg-kind="{{ pager.kind }}" aria-label="{{ pager.forwardLabel }}"{{ pager.kind == 'list' and pager.items|length < 2 ? ' disabled' }}>{{ pager.forward }}</button>
+					<div class="days" role="group" aria-label="Dny" data-pg-days="{{ pager.kind }}">
+						{% for item in pager.items %}
+							<button type="button" class="day-chip" data-key="{{ item.key }}" data-pg-page="{{ item.key }}" data-pg-kind="{{ pager.kind }}" aria-current="{{ item.key == pager.active ? 'true' : 'false' }}" data-morph-keep="aria-current">{{ item.label }}</button>
+						{% endfor %}
+					</div>
 					{% if pager.kind == 'timeline' %}
 						{# only the timeline carries an hour axis to stretch #}
 						<span class="pager-zoom">
@@ -38,15 +37,6 @@
 							<button type="button" class="pager-zoom-btn" data-pg-zoom="in" aria-label="Přiblížit">+</button>
 						</span>
 					{% endif %}
-				</div>
-				<div class="pager-menu" data-key="menu-{{ pager.kind }}" data-pg-menu-panel="{{ pager.kind }}" aria-hidden="true">
-					<div class="pager-menu-backdrop" data-pg-close></div>
-					<div class="pager-menu-card" role="dialog" aria-modal="true" aria-label="Výběr dne" tabindex="-1" data-pg-menu-card>
-						{% for item in pager.items %}
-							<button type="button" class="pager-menu-item{{ item.key == pager.active ? ' is-active' }}" data-morph-keep="class" data-pg-page="{{ item.key }}" data-pg-kind="{{ pager.kind }}">{{ item.label }}</button>
-						{% endfor %}
-						<button type="button" class="pager-menu-close" data-pg-close>✕ Zavřít</button>
-					</div>
 				</div>
 			{% endif %}
 		{% endfor %}
@@ -106,9 +96,6 @@
 			{% elseif days is empty %}
 				<p class="empty">Zatím nemáš přihlášený žádný program.</p>
 			{% else %}
-				{# the top of the scroll, watched by the same observer as the days: it is
-				   what tells the strip that the up arrow has nowhere left to go #}
-				<span class="pl-top" data-pg-list-top aria-hidden="true"></span>
 				{% for day in days %}
 					<section class="pl-day" data-key="{{ day.key }}" data-label="{{ day.label }}">
 						{# every day is present and scrolled through, so each one names itself

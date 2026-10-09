@@ -262,17 +262,6 @@ final class ProgramsTest extends AppTestCase
         self::assertSame(substr_count($html, 'class="sheet-body"'), substr_count($html, '<h2 class="sheet-name" id="sheet-name-'));
     }
 
-    /** The day panel is a modal like the sheet, and says so. */
-    public function testTheDayMenuIsADialog(): void
-    {
-        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
-
-        self::assertGreaterThan(0, preg_match_all('/<div class="pager-menu-card"[^>]*>/', $html, $cards));
-        foreach ($cards[0] as $card) {
-            self::assertStringContainsString('role="dialog" aria-modal="true" aria-label="Výběr dne"', $card);
-        }
-    }
-
     /** U-M4: a personal list that could not be read dims nothing and claims nothing. */
     public function testAFailedPersonalListDimsNothing(): void
     {

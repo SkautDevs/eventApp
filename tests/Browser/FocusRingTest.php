@@ -70,6 +70,22 @@ final class FocusRingTest extends BrowserTestCase
         self::assertStringContainsString('inset', $shadow);
     }
 
+    /** The day strip scrolls sideways and so clips; a chip's ring is drawn inside its own box. */
+    public function testTheDayChipRingSitsInsideItsBox(): void
+    {
+        self::visit('/korbo26/programy');
+        self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
+        self::$browser->getKeyboard()->sendKeys(WebDriverKeys::TAB);
+        self::script('document.querySelector(\'.day-chip[data-pg-kind="timeline"]\').focus();');
+
+        [$visible, $style, $width, $offset, $shadow] = self::script('const el = document.activeElement; const s = getComputedStyle(el); return [el.matches(".day-chip:focus-visible"), s.outlineStyle, s.outlineWidth, s.outlineOffset, s.boxShadow];');
+        self::assertTrue($visible);
+        self::assertSame('solid', $style);
+        self::assertSame('2px', $width);
+        self::assertSame('-2px', $offset);
+        self::assertStringContainsString('inset', $shadow);
+    }
+
     /**
      * After a keyboard-driven swap the loader focuses the new screen's section; it matches
      * :focus-visible (the link that opened it did) and still draws no ring.
