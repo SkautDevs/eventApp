@@ -1740,6 +1740,35 @@ div.news {
 	cursor: pointer;
 }
 
+/* "now" in Můj program, from the reader's clock (www/programs.js): what is running
+   carries a label, and the next thing to start has the current-time line above it.
+   The label sits in .pl-time, whose 0.75 opacity it inherits; it is bold and in --now,
+   so the slight fade is accepted. */
+.pl-item[data-now="running"] .pl-time::after {
+	content: ' · probíhá';
+	font-weight: 700;
+	color: var(--now);
+}
+
+.pl-item[data-now="next"] {
+	position: relative;
+	border-top: 2px solid var(--now);
+}
+
+.pl-item[data-now="next"]::before {
+	content: 'teď';
+	position: absolute;
+	top: -0.7em;
+	left: 14px;
+	padding: 0 6px;
+	border-radius: var(--radius-card);
+	background-color: var(--now);
+	color: var(--on-action);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	line-height: 1.4;
+}
+
 /* The card is not the control. As <article role="button"> it flattened four lines of
    programme — time, name, place, perex — into one 120-character accessible name, and
    the reader had no way to hear the parts. The NAME is the control and the rest of

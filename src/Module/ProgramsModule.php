@@ -410,6 +410,8 @@ final class ProgramsModule implements ModuleInterface
                     'id' => $p['id'],
                     'name' => $p['name'],
                     'time' => self::timeRange($p),
+                    'start' => self::instant(self::ts($p['start'])),
+                    'end' => self::instant(self::ts($p['end'])),
                     'location' => $p['location'] ?? null,
                     'perex' => $p['perex'] ?? null,
                 ], $programs),
