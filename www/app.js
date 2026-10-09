@@ -240,11 +240,12 @@
 	 * An attribute the fresh node does not carry at all: the server never writes it,
 	 * so it is the client's — --hour-width lives in .pg's style attribute,
 	 * data-hour-step is the ruler's density, data-pg-ready the wiring flag, `disabled`
-	 * the pager's own bookkeeping.
+	 * the zoom pair's own bookkeeping.
 	 *
 	 * And an attribute the markup itself declares as the client's through
 	 * `data-morph-keep`, for the ones the server does write because it has to render
-	 * *some* default: which view .pg is showing, which .tl-page is the active one.
+	 * *some* default: which view .pg is showing, which .tl-page is the active one,
+	 * which day chip is current.
 	 * Writing the server's value and putting it back a line later is not free — in
 	 * between, the screen is briefly a different shape, and a layout landing in that
 	 * window takes the reader's scroll position with it. The loader knows nothing
@@ -418,9 +419,9 @@
 
 	// --- freshness --------------------------------------------------------
 
-	/** A screen the reader is in the middle of must not be pulled out from under them. */
+	/** A screen the reader is in the middle of — the sheet open, a field focused — must not be pulled out from under them. */
 	function busy(section) {
-		if (section.querySelector('.sheet.is-open, .pager-menu.is-open')) {
+		if (section.querySelector('.sheet.is-open')) {
 			return true;
 		}
 		var focused = document.activeElement;

@@ -9,9 +9,10 @@ use Facebook\WebDriver\WebDriverKeys;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * The Program screen's two dialogs — the programme sheet and the day panel — each push a
- * history entry, so Back closes them instead of leaving the app inert under the focus
- * trap; and a morph can no longer turn one into the other.
+ * The Program screen's one dialog, the programme sheet, pushes a history entry, so Back
+ * closes it instead of leaving the app inert under the focus trap; and a morph that adds
+ * a strip in front of it leaves it a sheet. The days are picked from chips, which open
+ * nothing and push nothing.
  */
 #[Group('browser')]
 final class ProgramDialogTest extends BrowserTestCase
@@ -110,16 +111,6 @@ final class ProgramDialogTest extends BrowserTestCase
         self::assertTrue(self::script('return document.querySelector(\'.sheet-body.is-open[data-pg-detail="\' + arguments[0] + \'"]\') !== null;', [$second]));
     }
 
-    public function testBackClosesTheDayPanel(): void
-    {
-        self::openProgramScreen();
-        self::tap('[data-screen="/korbo26/programy"] [data-pg-menu="timeline"]');
-        self::waitFor('return document.querySelector(".pager-menu.is-open") !== null;');
-        self::script('history.back();');
-        self::waitFor('return document.querySelector(".pager-menu.is-open") === null;');
-        self::assertSame(0, self::script('return document.querySelectorAll("[inert]").length;'));
-    }
-
     /** Review Focus 4: a notification tap lands on a deep link; Back closes the sheet and stays. */
     public function testBackClosesADeepLinkedSheetAndStaysOnTheScreen(): void
     {
@@ -134,7 +125,7 @@ final class ProgramDialogTest extends BrowserTestCase
         self::assertSame('/korbo26/programy', self::script('return location.pathname;'));
     }
 
-    /** Picking a day goes back over the panel's entry first; the scroll must survive that. */
+    /** A day chip in Můj program scrolls to its day, and the chip stays current once the scroll has settled. */
     public function testPickingADayInMyProgramLandsOnIt(): void
     {
         self::visit('/korbo26/profil');
@@ -143,12 +134,12 @@ final class ProgramDialogTest extends BrowserTestCase
         self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "TIE KORBO1";');
         self::visit('/korbo26/programy#muj-program');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-view="list"]\') !== null;');
-        $last = self::script('const items = document.querySelectorAll(\'[data-pg-menu-panel="list"] [data-pg-page]\'); return items[items.length - 1].textContent.trim();');
-        self::tap('[data-pg-menu="list"]');
-        self::waitFor('return document.querySelector(\'[data-pg-menu-panel="list"].is-open\') !== null;');
-        self::script('const items = document.querySelectorAll(\'[data-pg-menu-panel="list"] [data-pg-page]\'); items[items.length - 1].click();');
+        $current = 'const c = document.querySelector(\'.day-chip[data-pg-kind="list"][aria-current="true"]\'); return c ? c.textContent.trim() : null;';
+        $second = self::script('return document.querySelectorAll(\'.day-chip[data-pg-kind="list"]\')[1].textContent.trim();');
+        self::script('document.querySelectorAll(\'.day-chip[data-pg-kind="list"]\')[1].click();');
+        self::assertFalse(self::script('return !!(history.state && history.state.pgOverlay);'), 'a chip pushes no history entry');
 
-        self::waitFor('return window.scrollY > 0 && document.querySelector(\'[data-pg-title="list"]\').textContent.trim() === arguments[0];', [$last]);
+        self::waitFor('return window.scrollY > 0 && (function () { ' . $current . ' })() === arguments[0];', [$second]);
         // the smooth scroll has settled: the same offset on two polls in a row
         self::waitFor(<<<'JS'
             const now = window.scrollY;
@@ -156,10 +147,10 @@ final class ProgramDialogTest extends BrowserTestCase
             window.__pgLastScroll = now;
             return was === now;
             JS);
-        self::assertSame($last, self::script('return document.querySelector(\'[data-pg-title="list"]\').textContent.trim();'), 'the history traversal did not scroll it back');
+        self::assertSame($second, self::script($current), 'the scroll did not land on the day');
     }
 
-    /** C-I1: a morph that adds the list's pager must not turn the sheet into the day panel. */
+    /** C-I1: a morph that adds the list's strip in front of the sheet must leave the sheet a sheet. */
     public function testAMorphThatAddsTheListPagerKeepsTheSheetASheet(): void
     {
         self::logOut();
@@ -174,6 +165,7 @@ final class ProgramDialogTest extends BrowserTestCase
         self::waitFor('return document.querySelector(\'[data-screen="/korbo26/programy"] [data-pg-pager="list"]\') !== null;');
 
         self::openFirstCard();
-        self::assertSame(0, self::script('return document.querySelectorAll(".pager-menu.is-open").length;'));
+        self::assertSame(1, self::script('return document.querySelectorAll(\'.is-open[aria-hidden="false"]\').length;'));
+        self::assertTrue(self::script('return document.querySelector(\'[data-screen="/korbo26/programy"] [data-key="sheet"]\').classList.contains("is-open");'));
     }
 }

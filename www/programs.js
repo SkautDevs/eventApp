@@ -23,7 +23,7 @@
 		root.dataset.pgReady = '1';
 
 		// Looked up on every use: a background morph may have replaced or moved them, and a
-		// reference held from the first render is how a tap once opened the day panel.
+		// reference held from the first render is how a tap once opened a day panel.
 		function sheetParts() {
 			return {
 				sheet: root.querySelector('[data-pg-sheet]'),
@@ -31,9 +31,8 @@
 				scroll: root.querySelector('[data-pg-sheet-scroll]'),
 			};
 		}
-		// where focus goes back to when the sheet, and the day panel, close
+		// where focus goes back to when the sheet closes
 		let opener = null;
-		let menuOpener = null;
 		// What the reader owns rather than the server: which view is up and which page
 		// the timeline is on. Held here as well as in the DOM, because a background
 		// morph rewrites the DOM back to the server's defaults and this is what puts
@@ -59,6 +58,38 @@
 		function setDisabled(element, disabled) {
 			if (element.disabled !== disabled) {
 				element.disabled = disabled;
+			}
+		}
+
+		/**
+		 * Marks the chip for `key` current in `kind`'s strip and brings it into the
+		 * strip's view. Only the strip scrolls sideways — never scrollIntoView, which
+		 * would also move the window.
+		 */
+		function markChip(kind, key) {
+			const strip = root.querySelector('[data-pg-days="' + kind + '"]');
+			if (!strip) {
+				return;
+			}
+			let current = null;
+			strip.querySelectorAll('.day-chip').forEach(function (chip) {
+				const on = chip.dataset.pgPage === key;
+				setAttr(chip, 'aria-current', on ? 'true' : 'false');
+				if (on) {
+					current = chip;
+				}
+			});
+			// a strip inside a hidden view measures nothing; it is brought round when shown
+			if (!current || strip.clientWidth === 0) {
+				return;
+			}
+			// .days is position: relative, so offsetLeft is already inside the strip
+			const left = current.offsetLeft;
+			const right = left + current.offsetWidth;
+			if (left < strip.scrollLeft) {
+				strip.scrollLeft = left;
+			} else if (right > strip.scrollLeft + strip.clientWidth) {
+				strip.scrollLeft = right - strip.clientWidth;
 			}
 		}
 
@@ -88,17 +119,7 @@
 			});
 
 			currentPageKey = list[index].dataset.key;
-			const title = root.querySelector('[data-pg-title="' + kind + '"]');
-			if (title) {
-				setText(title, list[index].dataset.label);
-			}
-			root.querySelectorAll('[data-pg-page][data-pg-kind="' + kind + '"]').forEach(function (item) {
-				item.classList.toggle('is-active', item.dataset.pgPage === list[index].dataset.key);
-			});
-			root.querySelectorAll('[data-pg-step][data-pg-kind="' + kind + '"]').forEach(function (arrow) {
-				const target = index + Number(arrow.dataset.pgStep);
-				setDisabled(arrow, target < 0 || target > list.length - 1);
-			});
+			markChip(kind, list[index].dataset.key);
 			// the ruler that is on screen is this page's, so re-check its density
 			applyTickStep();
 		}
@@ -137,9 +158,11 @@
 					tab.tabIndex = active ? 0 : -1;
 				}
 			});
-			// a view switch happens only with no dialog open, or from openSheet(), which
-			// takes the panel's history entry over for the sheet
-			closeMenus(true);
+			if (view === 'timeline' && currentPageKey) {
+				// the strip was hidden with its view and measured nothing while it was;
+				// now it can bring the current chip round
+				markChip('timeline', currentPageKey);
+			}
 			if (view === 'list') {
 				// The saved offset is only written when the reader leaves the list, so
 				// it is older than where they are as soon as they scroll again. It is
@@ -152,7 +175,7 @@
 		}
 
 		// --- the open dialog ---------------------------------------------
-		// The sheet and the day panel are modal to the pointer and to the accessibility
+		// The sheet is modal to the pointer and to the accessibility
 		// tree — a backdrop over the screen, aria-modal on the card — but they were
 		// never modal to Tab: the app bar, the pager, every .pl-open behind the dimming,
 		// the view tabs and the tab bar all stayed in the tab order, with .sheet-close
@@ -218,7 +241,7 @@
 		}
 
 		// --- Back closes the open dialog ------------------------------------
-		// Opening the sheet or the day panel pushes a history entry, so Android's Back (and
+		// Opening the sheet pushes a history entry, so Android's Back (and
 		// the browser's) closes it instead of leaving the screen with every other part of
 		// the app still inert. Closing it any other way goes back over that entry once.
 		//
@@ -231,8 +254,8 @@
 		let leaving = false;
 		let afterLeave = null;
 		// The browser restores the scroll it saved for an entry when Back lands on it —
-		// after popstate has run, so a day picked from the panel would be scrolled straight
-		// back to where the panel was opened. While an overlay entry is up the screen owns
+		// after popstate has run, so anything the screen scrolled after a close would be
+		// scrolled straight back to where the sheet was opened. While an overlay entry is up the screen owns
 		// its scroll instead. The mode belongs to each entry and a pushed entry copies the
 		// current one's, so it is set before the push (covering both entries) and handed
 		// back only once the traversal has finished restoring nothing.
@@ -276,33 +299,6 @@
 			}
 		}
 
-		function closeMenus(fromHistory) {
-			let wasOpen = false;
-			root.querySelectorAll('[data-pg-menu-panel]').forEach(function (menu) {
-				if (!menu.classList.contains('is-open')) {
-					return;
-				}
-				wasOpen = true;
-				menu.classList.remove('is-open');
-				menu.setAttribute('aria-hidden', 'true');
-			});
-			root.querySelectorAll('[data-pg-menu]').forEach(function (button) {
-				setAttr(button, 'aria-expanded', 'false');
-			});
-			// the day panel returns focus to its trigger, exactly as the sheet does —
-			// after the trap is lifted, because focus() on an inert element does nothing
-			if (wasOpen) {
-				releaseFocus();
-			}
-			if (wasOpen && menuOpener && document.contains(menuOpener)) {
-				menuOpener.focus();
-			}
-			menuOpener = null;
-			if (wasOpen && !fromHistory) {
-				leaveOverlay();
-			}
-		}
-
 		/**
 		 * A close's history.back() is still in flight: its popstate has not landed yet,
 		 * and when it does it closes whatever is open. An open asked for in that gap
@@ -321,29 +317,6 @@
 			};
 
 			return true;
-		}
-
-		function openMenu(kind, trigger) {
-			if (deferWhileLeaving(function () {
-				openMenu(kind, trigger);
-			})) {
-				return;
-			}
-			const menu = root.querySelector('[data-pg-menu-panel="' + kind + '"]');
-			if (!menu) {
-				return;
-			}
-			closeMenus(true);
-			menu.classList.add('is-open');
-			enterOverlay();
-			menu.setAttribute('aria-hidden', 'false');
-			trigger.setAttribute('aria-expanded', 'true');
-			menuOpener = trigger;
-			const card = menu.querySelector('[data-pg-menu-card]');
-			if (card) {
-				trapFocus(menu, card);
-				card.focus();
-			}
 		}
 
 		function openSheet(id, followPage, trigger) {
@@ -371,7 +344,6 @@
 				// Můj program after a deep link lands on it rather than at the top
 				pendingListTarget = id;
 			}
-			closeMenus(true);
 			opener = trigger || null;
 			parts.sheet.classList.add('is-open');
 			enterOverlay();
@@ -608,8 +580,8 @@
 		// --- Můj program: one continuous scroll --------------------------
 		// The personal list does not page. Every day of it is in the document, first
 		// to last, each under its own sticky heading, and the strip on top is an
-		// orientation instrument rather than a pager: the label follows the scroll,
-		// the arrows jump between day headings.
+		// orientation instrument rather than a pager: the current chip follows the
+		// scroll, and a tap on a chip scrolls to that day's heading.
 		//
 		// Nothing here runs on a scroll event. An IntersectionObserver watches the
 		// day sections against a band that starts at the bottom edge of the strip, so
@@ -624,7 +596,6 @@
 		const visibleDays = new Set();
 		let listSpy = null;
 		let spyFrame = 0;
-		let atListTop = true;
 		let currentDayKey = null;
 		let listScroll = 0;
 		// a deep link opens the timeline; the list is put on the same programme so
@@ -640,8 +611,8 @@
 		 *
 		 * The notch counts. The strip is docked under the app bar and the bar grows by
 		 * the top safe-area inset, so on a notched standalone install the band starts
-		 * that much further down; without it the arrows scrolled a heading 34px behind
-		 * the strip they were meant to dock it under. --appbar-inset can be read here
+		 * that much further down; without it a tapped chip scrolled a heading 34px behind
+		 * the strip it was meant to dock under. --appbar-inset can be read here
 		 * even though it is an env(): env(), like var(), is substituted while the
 		 * computed value is worked out, so this comes back as a plain length. A calc()
 		 * would not — which is exactly why the inset is a token of its own rather than
@@ -666,11 +637,6 @@
 
 		function onCross(entries) {
 			entries.forEach(function (entry) {
-				if (entry.target.hasAttribute('data-pg-list-top')) {
-					atListTop = entry.isIntersecting;
-
-					return;
-				}
 				if (entry.isIntersecting) {
 					visibleDays.add(entry.target);
 				} else {
@@ -700,10 +666,6 @@
 			targets.forEach(function (day) {
 				listSpy.observe(day);
 			});
-			const top = root.querySelector('[data-pg-list-top]');
-			if (top) {
-				listSpy.observe(top);
-			}
 		}
 
 		/** The day being read is the first one still crossing the band. */
@@ -730,48 +692,9 @@
 				currentDayKey = targets[0].dataset.key;
 			}
 
-			const title = root.querySelector('[data-pg-title="list"]');
-			if (title && index >= 0) {
-				setText(title, targets[index].dataset.label);
+			if (index >= 0) {
+				markChip('list', targets[index].dataset.key);
 			}
-			root.querySelectorAll('[data-pg-page][data-pg-kind="list"]').forEach(function (item) {
-				item.classList.toggle('is-active', item.dataset.pgPage === currentDayKey);
-			});
-			root.querySelectorAll('[data-pg-step][data-pg-kind="list"]').forEach(function (arrow) {
-				// up has nowhere to go at the very top of the scroll, down none at the
-				// last day — the ends of the list are visible rather than silent
-				setDisabled(arrow, Number(arrow.dataset.pgStep) < 0
-					? atListTop
-					: index < 0 || index >= targets.length - 1);
-			});
-		}
-
-		/**
-		 * Up goes to the start of the day being read, and only to the previous day if
-		 * the reader is already standing on that start — the same rule a music player
-		 * uses for "previous track". Down always goes to the next day's start.
-		 */
-		function stepDay(direction) {
-			const targets = listDays();
-			if (targets.length === 0) {
-				return;
-			}
-			let index = targets.findIndex(function (item) {
-				return item.dataset.key === currentDayKey;
-			});
-			if (index < 0) {
-				index = 0;
-			}
-			let target;
-			if (direction > 0) {
-				target = targets[Math.min(index + 1, targets.length - 1)];
-			} else {
-				target = Math.abs(window.scrollY - dayStart(targets[index])) <= 2
-					? targets[Math.max(index - 1, 0)]
-					: targets[index];
-			}
-			scrollWindowTo(dayStart(target));
-			setCurrentDay(target);
 		}
 
 		function scrollToDay(key) {
@@ -843,7 +766,7 @@
 		}
 
 		root.addEventListener('click', function (event) {
-			const el = event.target.closest('[data-pg-view],[data-pg-step],[data-pg-menu],[data-pg-page],[data-pg-close],[data-pg-open],[data-pg-zoom]');
+			const el = event.target.closest('[data-pg-view],[data-pg-page],[data-pg-close],[data-pg-open],[data-pg-zoom]');
 			if (!el) {
 				return;
 			}
@@ -851,36 +774,13 @@
 
 			if (data.pgView !== undefined) {
 				showView(data.pgView);
-			} else if (data.pgStep !== undefined) {
-				// the same two controls, two different instruments: the timeline steps
-				// a page, the list scrolls to a day heading
-				if (data.pgKind === 'list') {
-					stepDay(Number(data.pgStep));
-				} else {
-					showPage(data.pgKind, activeIndex(data.pgKind) + Number(data.pgStep));
-				}
-			} else if (data.pgMenu !== undefined) {
-				const menu = root.querySelector('[data-pg-menu-panel="' + data.pgMenu + '"]');
-				if (menu && menu.classList.contains('is-open')) {
-					closeMenus();
-				} else {
-					openMenu(data.pgMenu, el);
-				}
 			} else if (data.pgPage !== undefined) {
-				// the panel's history entry goes first; the scroll runs after the traversal,
-				// which would otherwise restore the scroll position it saved
-				const kind = data.pgKind;
-				const page = data.pgPage;
-				closeMenus(true);
-				leaveOverlay(function () {
-					if (kind === 'list') {
-						scrollToDay(page);
-					} else {
-						showPageByKey(kind, page);
-					}
-				});
+				if (data.pgKind === 'list') {
+					scrollToDay(data.pgPage);
+				} else {
+					showPageByKey(data.pgKind, data.pgPage);
+				}
 			} else if (data.pgClose !== undefined) {
-				closeMenus();
 				closeSheet();
 			} else if (data.pgOpen !== undefined) {
 				openSheet(data.pgOpen, false, el);
@@ -900,7 +800,6 @@
 			}
 
 			if (event.key === 'Escape') {
-				closeMenus();
 				closeSheet();
 				return;
 			}
@@ -966,7 +865,6 @@
 		// also the backstop for an entry this screen did not push.
 		window.addEventListener('popstate', function () {
 			leaving = false;
-			closeMenus(true);
 			closeSheet(true);
 			restoreScrollRestoration();
 			const run = afterLeave;
@@ -980,7 +878,6 @@
 			if (event.target.contains && event.target.contains(root)) {
 				// nothing deferred may open on a screen nobody is looking at
 				afterLeave = null;
-				closeMenus(true);
 				closeSheet(true);
 				restoreScrollRestoration();
 			}
@@ -1005,8 +902,8 @@
 		// the scale outlives paging and view switching, but not the session
 		restoreZoom();
 		showPage('timeline', Math.max(activeIndex('timeline'), 0));
-		// the strip opens naming the day at the top of the scroll; from here on the
-		// observer names whichever day the reader has scrolled to
+		// the list's strip opens on the day at the top of the scroll; from here on the
+		// observer marks whichever day the reader has scrolled to
 		setCurrentDay(listDays()[0] || null);
 		showView(currentView);
 		fromHash();
