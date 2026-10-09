@@ -815,6 +815,70 @@ a, a:visited {
 	font-size: var(--fs-sm);
 }
 
+/* --- Odkazy: one card per link ------------------------------------------- */
+
+.link-list {
+	margin: 0 8px;
+	padding: 0;
+	list-style: none;
+	text-align: left;
+}
+
+.link-list li + li {
+	margin-top: 8px;
+}
+
+.link-card, .link-card:visited {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 56px;
+	padding: 10px 14px;
+	border-radius: var(--radius-card);
+	background-color: var(--surface);
+	color: var(--on-surface);
+	border: max(var(--edge-width), 1px) solid var(--edge);
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+/* the one the organisers want pressed: the same tonal wash as the link CTA */
+.link-card.is-highlight, .link-card.is-highlight:visited {
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+}
+
+.link-card-icon {
+	flex: 0 0 24px;
+	font-size: var(--fs-xl);
+	text-align: center;
+	color: var(--action-link);
+}
+
+.link-card.is-highlight .link-card-icon {
+	color: inherit;
+}
+
+.link-card-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--fs-md);
+	font-weight: 700;
+}
+
+.link-card-note {
+	display: block;
+	font-size: var(--fs-sm);
+	font-weight: 400;
+	opacity: 0.8;
+}
+
+.link-card-out {
+	flex: 0 0 auto;
+	font-size: var(--fs-sm);
+	opacity: 0.7;
+}
+
 /* The field sits on the page ground, so it needs its own surface to read as a
    field. It rebinds the surface pair rather than introducing a third name. */
 input[type=text], textarea, .stacked-form select {

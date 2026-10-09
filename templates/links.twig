@@ -4,11 +4,28 @@
 {% set activeTab = 'links' %}
 
 {% block content %}
-	{% if 'handbook' in event.features %}
-		<p><a class="highlight" href="{{ url_for('handbook-download') }}">Handbook (PDF) <i class="fas fa-book"></i></a></p>
-	{% endif %}
-
-	{% for link in links %}
-		<p><a {% if link.highlight ?? false %}class="highlight" {% endif %}href="{{ link.href }}">{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
-	{% endfor %}
+	{# one card per link: a list, so a screen reader announces how many there are #}
+	<ul class="link-list">
+		{% if 'handbook' in event.features %}
+			<li>
+				<a class="link-card is-highlight" href="{{ url_for('handbook-download') }}">
+					<i class="link-card-icon fas fa-book" aria-hidden="true"></i>
+					<span class="link-card-text">Handbook (PDF)</span>
+				</a>
+			</li>
+		{% endif %}
+		{% for link in links %}
+			{% set external = link.href starts with 'http://' or link.href starts with 'https://' %}
+			<li>
+				<a class="link-card{{ (link.highlight ?? false) ? ' is-highlight' }}" href="{{ link.href }}">
+					{% if link.icon ?? false %}<i class="link-card-icon {{ link.icon }}" aria-hidden="true"></i>{% endif %}
+					<span class="link-card-text">
+						{{ link.label }}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}
+						{% if link.note ?? false %}<span class="link-card-note">{{ link.note }}</span>{% endif %}
+					</span>
+					{% if external %}<i class="link-card-out fas fa-external-link-alt" aria-hidden="true"></i>{% endif %}
+				</a>
+			</li>
+		{% endfor %}
+	</ul>
 {% endblock %}
