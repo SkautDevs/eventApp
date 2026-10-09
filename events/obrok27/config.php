@@ -266,6 +266,9 @@ return [
         // This is the 2019 Konopiště map, standing in so the tab shows a working
         // map instead of a placeholder — the pins are NOT the 2027 site.
         'embedUrl' => 'https://www.google.com/maps/d/u/1/embed?mid=1-c6E-PUffBQyiivt-tSURDBIwABH9X-I',
+        // TODO organisers: put the handbook's site plan under www/events/obrok27/ and
+        // name it here — 'image' => 'events/obrok27/plan.svg' (or .png/.webp), with an
+        // optional 'imageAlt' — and Mapa gets a second view that works offline.
     ],
 
     'handbook' => [

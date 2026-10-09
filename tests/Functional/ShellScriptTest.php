@@ -40,6 +40,10 @@ final class ShellScriptTest extends AppTestCase
         self::assertStringNotContainsString('mapWatched', $shell);
         // a loaded map offline needs no note
         self::assertStringContainsString("note.hidden = !(map && map.hasAttribute('data-map') && map.hidden);", $shell);
+        // the note may carry the plan's button (www/map.js handles it), so shell.js only
+        // ever shows or hides it and never rewrites what it says
+        self::assertStringNotContainsString('note.textContent', $shell);
+        self::assertStringNotContainsString('note.innerHTML', $shell);
     }
 
     public function testTheProfileOffersAHiddenInstallButton(): void

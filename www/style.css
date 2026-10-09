@@ -188,9 +188,9 @@
 	--tabbar-height: 58px;
 	/* the freshness line's own height: the one-screenful screens give exactly this back */
 	--freshness-height: 20px;
-	/* the view switcher docked above the tab bar on /programy. It is chrome like
-	   the two bars, so screens that carry it subtract it from --screen-height;
-	   every other screen simply never references it. */
+	/* the view switcher docked above the tab bar on /programy and on a /mapa with
+	   two views. It is chrome like the two bars, so screens that carry it subtract it
+	   from --screen-height; every other screen simply never references it. */
 	--tabs-height: 48px;
 	--app-height: 100vh;
 	/* the space a screen actually gets between the two bars */
@@ -1090,6 +1090,88 @@ div.map iframe {
 /* offline, a map that never loaded is hidden behind this note (www/shell.js) */
 .map-offline {
 	margin-bottom: 12px;
+}
+
+/* --- two maps: Google and the handbook's plan ----------------------------- */
+
+/* The same column as the Program screen: the active view takes the height, the pill
+   is docked in flow at the bottom, on top of the tab bar. Hidden panes stay in the
+   document (display: none), so Google's iframe keeps running behind the plan. */
+.mapview {
+	display: flex;
+	flex-direction: column;
+	min-height: calc(var(--screen-height) - var(--freshness-space));
+}
+
+.map-pane {
+	display: none;
+	position: relative;
+	flex: 1 0 auto;
+}
+
+.mapview[data-view="google"] .map-pane-google,
+.mapview[data-view="plan"] .map-pane-plan {
+	display: block;
+}
+
+.mapview div.map {
+	height: calc(var(--screen-height) - var(--freshness-space) - var(--tabs-height));
+}
+
+.mapview[data-view="plan"] .tabs-indicator {
+	transform: translateX(100%);
+}
+
+.plan {
+	height: calc(var(--screen-height) - var(--freshness-space) - var(--tabs-height));
+	overflow: auto;
+	overscroll-behavior: contain;
+	/* pinch is ours (www/map.js); one finger still pans natively */
+	touch-action: pan-x pan-y;
+	background-color: var(--surface);
+}
+
+/* a plan with no pill: the whole screen */
+.mapview:not(:has(.tabs)) .plan {
+	height: calc(var(--screen-height) - var(--freshness-space));
+}
+
+/* zoomed by its width (www/map.js), never by a transform, so the box's own
+   scrolling pans it and the browser knows how large it is */
+.plan-img {
+	display: block;
+	width: 100%;
+	max-width: none;
+	height: auto;
+}
+
+.plan-zoom {
+	position: absolute;
+	right: 8px;
+	bottom: 8px;
+	display: flex;
+	gap: 4px;
+}
+
+/* filled, not bare: it sits on the drawing, whose own colours are anything */
+.plan-zoom-btn {
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius);
+	background-color: var(--structure);
+	color: var(--emphasis);
+	font-family: inherit;
+	/* px on purpose: chrome glyph, like .pager-zoom-btn */
+	font-size: 21px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.plan-zoom-btn[disabled] {
+	opacity: 0.25;
+	cursor: default;
 }
 
 .empty {

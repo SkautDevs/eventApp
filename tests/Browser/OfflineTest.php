@@ -58,6 +58,30 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:000000000\']");');
     }
 
+    /** Google's map is a blank box with no signal, so Mapa opens on the plan, from the cache. */
+    public function testTheMapOpensOnThePlanWithoutTheServer(): void
+    {
+        self::visit('/obrok19/mapa');
+        self::script('sessionStorage.clear();');
+        self::waitForPrecache('obrok19');
+
+        self::stopServer();
+        // a stopped server leaves navigator.onLine true; a phone with no signal does not
+        $devTools = self::devTools();
+        $devTools->execute('Network.enable');
+        $devTools->execute('Network.emulateNetworkConditions', ['offline' => true, 'latency' => 0, 'downloadThroughput' => -1, 'uploadThroughput' => -1]);
+        try {
+            self::$browser->reload();
+            self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/mapa"]\'); return s && !s.hidden;');
+            self::assertFalse(self::script('return navigator.onLine;'));
+            self::waitFor('const root = document.querySelector("[data-map-root]"); return root !== null && root.dataset.mapReady === "1" && root.dataset.view === "plan";');
+            self::waitFor('const img = document.querySelector("[data-plan-img]"); return img.complete && img.naturalWidth > 0;');
+        } finally {
+            $devTools->execute('Network.emulateNetworkConditions', ['offline' => false, 'latency' => 0, 'downloadThroughput' => -1, 'uploadThroughput' => -1]);
+            $devTools->execute('Network.disable');
+        }
+    }
+
     /** Review Focus 1: the purge on login must not leave the reader with nothing offline. */
     public function testALoginIsCarriedIntoTheOfflineCopy(): void
     {

@@ -132,6 +132,10 @@ return [
 
     'map' => [
         'embedUrl' => 'https://www.google.com/maps/d/u/1/embed?mid=1-c6E-PUffBQyiivt-tSURDBIwABH9X-I',
+        // A sample plan, not the 2019 site: it gives the reference event the Mapa
+        // screen's second view, and the browser tests (MapViewsTest, OfflineTest) a plan.
+        'image' => 'events/obrok19/plan-example.svg',
+        'imageAlt' => 'Ukázkový plán areálu',
     ],
 
     'handbook' => [
