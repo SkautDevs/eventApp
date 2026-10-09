@@ -41,7 +41,10 @@ final class PrecacheTest extends AppTestCase
             self::assertContains('/' . $file . '?v=' . $hash, $assets, $file);
         }
         self::assertContains('/events/obrok27/site.webmanifest', $assets);
-        self::assertContains('/events/obrok27/maskable-512.png', $assets);
+        $manifest = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/site.webmanifest'), true);
+        foreach ($manifest['icons'] as $icon) {
+            self::assertContains($icon['src'], $assets, $icon['src']);
+        }
         self::assertContains('/events/obrok27/ghost-160.png', $assets);
     }
 

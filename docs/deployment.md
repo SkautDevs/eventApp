@@ -570,14 +570,16 @@ and are unaffected.
    config.
 3. Copy `www/events/obrok27/` to `www/events/<slug>/` and replace the logos, favicons
    and manifest (its `id`, `start_url`, `scope` and `shortcuts` name the slug; a shortcut
-   only for a screen the event enables). Generate the maskable icon from the 512 one on
-   the manifest's `background_color` — ImageMagick in a throwaway container, there is no
-   image library in the PHP image:
-   `docker run --rm -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" -v "$PWD/www/events/<slug>":/w -w /w alpine:3 sh -c 'apk add --no-cache imagemagick >/dev/null && magick android-chrome-512x512.png -resize 80% -background "<background_color>" -gravity center -extent 512x512 -flatten -strip maskable-512.png && chown "$HOST_UID:$HOST_GID" maskable-512.png'`
-   (`apk add` needs root, hence the `chown` rather than `--user`)
-   and look at it: Android crops it to a circle, so the mark must sit inside the middle
-   80 %. The copied config's `assets.pinnedTab` names obrok27's `safari-pinned-tab.svg`:
-   point it at your own file or remove the key.
+   only for a screen the event enables). Generate the icon set from the event's drawing
+   with `bin/event-icons.php` (usage line in the file: it installs GD in a throwaway
+   container, there is no image library in the PHP image); it writes content-hashed
+   `icon-<hash8>-*.png` files, rewrites the manifest's icons and prints the
+   `assets.favicon16`, `favicon32` and `appleTouch` lines for the config. Look at the
+   maskable one: Android crops it to a circle, so the mark must sit inside the middle
+   80 %. The copied config's `assets.favicon*`/`appleTouch` and `pinnedTab` name
+   obrok27's files: point them at your own or remove the keys (the layout then falls
+   back to `favicon-16x16.png`, `favicon-32x32.png` and `apple-touch-icon.png` in the
+   event's directory).
 4. Add the per-event variables above to `.env` on the host.
 5. Push to `master` (the FTP pipeline deploys it), or on the Docker stack rebuild:
    `APP_RELEASE=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build`.
