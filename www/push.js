@@ -26,7 +26,7 @@
 		tooMany: 'Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.',
 		invalidKey: 'Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.',
 		preparing: 'Připravuji…',
-		ios: 'Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.',
+		ios: 'Na iPhonu zapneš notifikace, až si aplikaci přidáš na plochu.',
 	};
 
 	const supported = () => 'serviceWorker' in navigator && 'PushManager' in window;

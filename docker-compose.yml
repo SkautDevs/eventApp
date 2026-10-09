@@ -4,6 +4,10 @@ services:
         working_dir: /var/www
         # bin/router.php: without it the built-in server 404s /<slug>/precache.json
         command: php -S 0.0.0.0:8080 -t www bin/router.php
+        # one worker queues the page behind the service worker's install burst and the
+        # loader's warm-up, and a navigation slower than 3 s gets the worker's cached copy
+        environment:
+            PHP_CLI_SERVER_WORKERS: 4
         ports:
             - 8080:8080
         volumes:

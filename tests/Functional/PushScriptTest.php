@@ -81,7 +81,7 @@ final class PushScriptTest extends TestCase
             'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
             'Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.',
             'Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.',
-            'Na iPhonu si nejdřív přidej aplikaci na plochu (Sdílet → Přidat na plochu), pak zapneš notifikace.',
+            'Na iPhonu zapneš notifikace, až si aplikaci přidáš na plochu.',
             'Připravuji…',
         ] as $line) {
             self::assertStringContainsString("'" . $line . "'", $js);

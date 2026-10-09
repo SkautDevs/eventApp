@@ -49,4 +49,41 @@ final class InstallTest extends BrowserTestCase
             JS);
         self::assertContains('maskable', array_column($manifest['icons'] ?? [], 'purpose'));
     }
+
+    public function testTheHomepageCarriesTheOfferToo(): void
+    {
+        self::visit('/korbo26/');
+        self::waitFor('return document.readyState === "complete";');
+
+        $offered = self::script(<<<'JS'
+            window.dispatchEvent(new Event('appinstalled'));
+            const before = document.querySelector('.screen:not([hidden]) [data-install]').hidden;
+            window.prompted = 0;
+            const offer = new Event('beforeinstallprompt', {cancelable: true});
+            offer.prompt = () => { window.prompted++; return Promise.resolve(); };
+            window.dispatchEvent(offer);
+            const shown = !document.querySelector('.screen:not([hidden]) [data-install]').hidden;
+            document.querySelector('.screen:not([hidden]) .install-btn').click();
+            return {before, shown, prompted: window.prompted, ios: document.querySelector('[data-install-ios]').hidden};
+            JS);
+        self::assertEquals(['before' => true, 'shown' => true, 'prompted' => 1, 'ios' => true], $offered);
+    }
+
+    /** iOS has no install prompt: an iPhone gets the hint, an installed app neither. */
+    public function testOnIosTheHintShowsUntilInstalled(): void
+    {
+        self::visit('/korbo26/');
+        self::waitFor('return document.readyState === "complete";');
+
+        $drawn = self::script(<<<'JS'
+            Object.defineProperty(navigator, 'userAgent', {get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', configurable: true});
+            const screen = document.querySelector('.screen:not([hidden])');
+            screen.dispatchEvent(new CustomEvent('screen:shown', {bubbles: true}));
+            const browser = !screen.querySelector('[data-install-ios]').hidden;
+            Object.defineProperty(navigator, 'standalone', {get: () => true, configurable: true});
+            screen.dispatchEvent(new CustomEvent('screen:shown', {bubbles: true}));
+            return {browser, installed: !screen.querySelector('[data-install-ios]').hidden};
+            JS);
+        self::assertSame(['browser' => true, 'installed' => false], $drawn);
+    }
 }

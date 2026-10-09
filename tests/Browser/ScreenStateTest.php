@@ -38,6 +38,8 @@ final class ScreenStateTest extends BrowserTestCase
             return Array.from(document.querySelectorAll('.tabbar .tab, .appbar-profile'))
                 .every(link => document.querySelector('[data-screen="' + new URL(link.href).pathname + '"]') !== null);
             JS, [], 15);
+        // the icon fonts are read in too, though no brand icon is on the homepage
+        self::waitFor('return Array.from(document.fonts).filter(f => f.family.includes("Font Awesome")).every(f => f.status === "loaded");');
         // from here on a screen fetch would fail: the tap must be served from the warm copy
         self::script('window.__noReload = 1; window.fetch = () => Promise.reject(new TypeError("offline"));');
 

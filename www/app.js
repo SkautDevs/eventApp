@@ -225,6 +225,7 @@
 		if ((navigator.connection && navigator.connection.saveData) || window.appWarm === false) {
 			return;
 		}
+		warmIcons();
 		var queue = order.filter(function (path) {
 			return !screens.has(path);
 		});
@@ -244,6 +245,23 @@
 				}
 			});
 		})();
+	}
+
+	/**
+	 * The browser reads a font in only when something visible first uses it, and a warmed
+	 * screen is hidden — so Odkazy's brand icons would still blink in on its first show.
+	 * The icon fonts are loaded up front instead (the worker already holds the files; the
+	 * event's own text fonts are in use from the first page anyway).
+	 */
+	function warmIcons() {
+		if (!document.fonts || typeof document.fonts.forEach !== 'function') {
+			return;
+		}
+		document.fonts.forEach(function (face) {
+			if (face.status === 'unloaded' && face.family.indexOf('Font Awesome') >= 0) {
+				face.load().catch(function () {});
+			}
+		});
 	}
 
 	function scheduleWarm() {

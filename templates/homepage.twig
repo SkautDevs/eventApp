@@ -51,6 +51,8 @@
 		</section>
 	{% endif %}
 
+	{% include '_install.twig' %}
+
 	{% if 'push' in event.features %}
 		<p class="push-enable">
 			<button type="button" class="btn btn-primary" data-push-toggle>

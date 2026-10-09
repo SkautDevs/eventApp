@@ -179,7 +179,11 @@ final class ServiceWorkerTest extends TestCase
         $sw = $this->source();
 
         self::assertStringContainsString("return response.ok && response.type === 'basic' && !response.redirected;", $sw);
-        self::assertStringContainsString('putHtml(generation, key, response.clone()).then(refill)', $sw);
+        self::assertStringContainsString('Promise.all([putHtml(generation, key, response.clone()), response.clone().text()])', $sw);
+        // a page for another identity in the cache means a login the worker never saw
+        self::assertStringContainsString('.then(([, html]) => reconcile(key, html))', $sw);
+        self::assertStringContainsString('.then(refill)', $sw);
+        self::assertStringContainsString('identities.some(other => other !== null && other !== who) ? purgeHtml() : null', $sw);
         self::assertStringContainsString('function refill() {', $sw);
         // a write whose request started before a purge carries the old identity: dropped
         self::assertStringContainsString('purges += 1;', $sw);
