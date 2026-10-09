@@ -112,7 +112,7 @@
 							   opens the sheet — the handler matches the nearest one. tabindex="-1"
 							   rather than "0": no longer a tab stop, still focusable, which is what
 							   closing the sheet needs to hand focus back to the card it came from. #}
-							<article class="pl-item" data-key="{{ item.id }}" data-pg-open="{{ item.id }}" tabindex="-1">
+							<article class="pl-item" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-pg-open="{{ item.id }}" tabindex="-1">
 								<p class="pl-time">{{ item.time }}</p>
 								<h3 class="pl-name"><button type="button" class="pl-open" data-pg-open="{{ item.id }}">{{ item.name }}</button></h3>
 								{% if item.location %}<p class="pl-loc">{{ item.location }}</p>{% endif %}

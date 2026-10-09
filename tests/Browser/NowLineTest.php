@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
+use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -88,5 +89,20 @@ final class NowLineTest extends BrowserTestCase
         } finally {
             self::devTools()->execute('Emulation.setTimezoneOverride', ['timezoneId' => '']);
         }
+    }
+
+    /** KORBO1 runs 14:00–15:00 and 17:00–19:00 on the 18th: at 14:30 the first runs and the second is next. */
+    public function testMyProgramMarksWhatIsRunningAndWhatIsNext(): void
+    {
+        self::visit('/korbo26/profil');
+        self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
+        self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
+        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "TIE KORBO1";');
+        self::pinClock('2026-09-18T14:30:00+02:00');
+        self::visit('/korbo26/programy#muj-program');
+        self::waitFor('return document.querySelectorAll(\'.pl-item[data-now="next"]\').length === 1;');
+        self::assertSame('day-20260918', self::script('return document.querySelector(\'.pl-item[data-now="next"]\').closest(".pl-day").dataset.key;'));
+        self::assertSame('36', self::script('return document.querySelector(\'.pl-item[data-now="next"]\').dataset.key;'));
+        self::assertSame(['31'], self::script('return Array.from(document.querySelectorAll(\'.pl-item[data-now="running"]\')).map(function (i) { return i.dataset.key; });'));
     }
 }

@@ -23,6 +23,20 @@ final class ProgramListTest extends AppTestCase
         return (string) $this->request($app, 'GET', '/programy')->getBody();
     }
 
+    public function testListItemsCarryTheirTimesAsInstants(): void
+    {
+        $html = $this->loggedInScreen();
+
+        preg_match_all('#<article class="pl-item" data-key="\d+" data-start="([^"]+)" data-end="([^"]+)"#', $html, $m, PREG_SET_ORDER);
+        self::assertNotEmpty($m);
+        foreach ($m as [, $start, $end]) {
+            self::assertNotFalse(\DateTimeImmutable::createFromFormat(DATE_ATOM, $start));
+            self::assertNotFalse(\DateTimeImmutable::createFromFormat(DATE_ATOM, $end));
+        }
+        // "now" is the reader's clock's business, never the server's
+        self::assertDoesNotMatchRegularExpression('#class="pl-item"[^>]*\sdata-now=#', $html);
+    }
+
     public function testEveryDayIsRenderedAndNoneIsSingledOut(): void
     {
         $html = $this->loggedInScreen();

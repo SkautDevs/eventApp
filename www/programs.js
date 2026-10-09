@@ -611,8 +611,44 @@
 			}) || null;
 		}
 
+		let dayFormat = null;
+
+		/** "20260917" for the event's calendar day of `ms`, matching the list's day keys. */
+		function formatDay(ms) {
+			try {
+				dayFormat = dayFormat || new Intl.DateTimeFormat('en-CA', {timeZone: 'Europe/Prague', year: 'numeric', month: '2-digit', day: '2-digit'});
+				return dayFormat.format(ms).replace(/-/g, '');
+			} catch (e) {
+				const d = new Date(ms);
+				return String(d.getFullYear()) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+			}
+		}
+
 		function updateNow() {
 			const ms = pgNow();
+			// Můj program: what is running is marked, and the next thing to start carries
+			// the "teď" line above it — only on the day that is today, so a list read the
+			// evening before shows nothing.
+			let next = null;
+			const todayKey = 'day-' + formatDay(ms);
+			root.querySelectorAll('.view-list .pl-item').forEach(function (item) {
+				const start = Date.parse(item.dataset.start);
+				const end = Date.parse(item.dataset.end);
+				let state = null;
+				if (start <= ms && ms < end) {
+					state = 'running';
+				} else if (start > ms && !next && item.closest('.pl-day') && item.closest('.pl-day').dataset.key === todayKey) {
+					next = item;
+					state = 'next';
+				}
+				if (state === null) {
+					if (item.hasAttribute('data-now')) {
+						item.removeAttribute('data-now');
+					}
+				} else {
+					setAttr(item, 'data-now', state);
+				}
+			});
 			const today = pageAt(ms);
 			panels('timeline').forEach(function (page) {
 				if (page !== today && page.hasAttribute('data-now')) {
