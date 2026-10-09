@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" font-family="sans-serif">
+	<title>Ukázkový plán areálu</title>
+	<rect width="1200" height="800" fill="#eef3e6"/>
+	<path d="M0 640 C 300 600, 500 700, 800 640 S 1100 600, 1200 620 L 1200 800 L 0 800 Z" fill="#b9d8ef"/>
+	<path d="M120 0 L 160 800" stroke="#c9b48a" stroke-width="18" fill="none"/>
+	<path d="M140 380 L 1200 340" stroke="#c9b48a" stroke-width="14" fill="none"/>
+	<g stroke="#2a5b45" stroke-width="3">
+		<rect x="230" y="80" width="300" height="200" fill="#d6e9c9"/>
+		<rect x="620" y="70" width="260" height="220" fill="#f3dfb0"/>
+		<rect x="940" y="90" width="200" height="180" fill="#e7c9c9"/>
+		<rect x="260" y="440" width="240" height="140" fill="#d9d4ef"/>
+		<rect x="600" y="430" width="320" height="150" fill="#d6e9c9"/>
+		<circle cx="1030" cy="500" r="60" fill="#f5c58a"/>
+	</g>
+	<g fill="#1e3a2e" font-size="28" font-weight="700" text-anchor="middle">
+		<text x="380" y="190">Tábořiště A</text>
+		<text x="750" y="190">Hlavní stage</text>
+		<text x="1040" y="190">Zdravotníci</text>
+		<text x="380" y="520">Jídelna</text>
+		<text x="760" y="515">Tábořiště B</text>
+		<text x="1030" y="510">Oheň</text>
+		<text x="600" y="730">Rybník</text>
+		<text x="180" y="40" text-anchor="start">Vstup</text>
+	</g>
+</svg>

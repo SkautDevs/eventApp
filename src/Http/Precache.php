@@ -37,6 +37,10 @@ final class Precache
         if ($event->isEnabled('programs')) {
             $scripts[] = 'programs.js';
         }
+        // and map.js only for an event with the Mapa screen
+        if ($event->isEnabled('map')) {
+            $scripts[] = 'map.js';
+        }
         $assets = [];
         foreach ($scripts as $file) {
             $assets[] = '/' . $versions->url($file);
@@ -54,6 +58,11 @@ final class Precache
         $homepage = $event->get('homepage');
         if (is_array($homepage) && is_string($homepage['footerLogo'] ?? null) && $homepage['footerLogo'] !== '') {
             $files[] = $homepage['footerLogo'];
+        }
+        $map = $event->get('map');
+        if (is_array($map) && is_string($map['image'] ?? null) && $map['image'] !== '') {
+            // the plan is the map that works offline, so it is part of the offline copy
+            $files[] = $map['image'];
         }
         // the fonts and icons the event renders with, so an installed app keeps its look offline
         foreach (Fonts::files($event->fontFamilies()) as $font) {

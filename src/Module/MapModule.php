@@ -23,15 +23,25 @@ final class MapModule implements ModuleInterface
     public function registerRoutes(App $app): void
     {
         $app->get('/mapa', function ($request, $response) {
-            $embedUrl = $this->get(EventConfig::class)->get('map')['embedUrl'] ?? null;
+            $map = $this->get(EventConfig::class)->get('map') ?? [];
+            $map = is_array($map) ? $map : [];
+            $embedUrl = is_string($map['embedUrl'] ?? null) ? $map['embedUrl'] : null;
 
             // A config still carrying the REPLACE-ME placeholder would embed a Google 404.
             // Say so instead — the organisers have not published the map yet.
             if ($embedUrl === null || $embedUrl === '' || str_contains($embedUrl, 'REPLACE-ME')) {
                 $embedUrl = null;
             }
+            // the handbook's own drawing, self-hosted so it works offline; an <img>, so an
+            // SVG is shown and never run
+            $image = is_string($map['image'] ?? null) && $map['image'] !== '' ? '/' . ltrim($map['image'], '/') : null;
+            $imageAlt = is_string($map['imageAlt'] ?? null) && $map['imageAlt'] !== '' ? $map['imageAlt'] : 'Plán areálu';
 
-            return $this->get(Twig::class)->render($response, 'map.twig', ['embedUrl' => $embedUrl]);
+            return $this->get(Twig::class)->render($response, 'map.twig', [
+                'embedUrl' => $embedUrl,
+                'image' => $image,
+                'imageAlt' => $imageAlt,
+            ]);
         })->setName('map');
     }
 }

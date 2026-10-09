@@ -114,6 +114,21 @@ final class PrecacheTest extends AppTestCase
         }
     }
 
+    /** The plan is the map that works offline, so it and the script that shows it are kept. */
+    public function testTheMapsScriptAndPlanAreKept(): void
+    {
+        $hash = substr((string) hash_file('sha256', dirname(__DIR__, 2) . '/www/map.js'), 0, 8);
+
+        $plan = $this->listFor('map-plan', fixtureEvent: true)['assets'];
+        self::assertContains('/map.js?v=' . $hash, $plan);
+        self::assertContains('/events/obrok19/Obrok19_minilogo.png', $plan);
+
+        // korbo26 has no Mapa tab: neither the script nor a plan
+        $korbo26 = $this->listFor('korbo26')['assets'];
+        self::assertSame([], preg_grep('~^/map\.js~', $korbo26));
+        self::assertNotContains('/events/obrok19/Obrok19_minilogo.png', $korbo26);
+    }
+
     public function testTheHandbookIsOptionalAndOnlyWhenItsFileExists(): void
     {
         self::assertSame(['/obrok19/handbook/download'], $this->listFor('obrok19')['optional']);

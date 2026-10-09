@@ -92,6 +92,16 @@ final class ScreenMorphTest extends AppTestCase
         self::assertStringContainsString("from.getAttribute('data-morph-keep')", $this->loader());
     }
 
+    /** The map's view is the reader's: a morph must not put the screen back on Google's. */
+    public function testTheMapViewIsTheReaders(): void
+    {
+        $html = (string) $this->request($this->createApp('map-plan', fixtureEvent: true), 'GET', '/mapa', null, ['X-Screen' => '1'])->getBody();
+
+        self::assertStringContainsString('data-view="google" data-morph-keep="data-view"', $html);
+        // written by www/map.js only
+        self::assertStringNotContainsString('data-map-ready', $html);
+    }
+
     /**
      * The map is the screen the morph must be gentlest with: its iframe is the one
      * node in the app that cannot be moved or re-created without refetching Google.

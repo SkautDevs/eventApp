@@ -98,6 +98,10 @@
 		   could ever reach; it lives here now and the loader calls into it #}
 		<script src="{{ asset_version('programs.js') }}" defer></script>
 	{% endif %}
+	{% if 'map' in event.features %}
+		{# the Mapa screen's two views, Google's and the plan; the loader calls into it too #}
+		<script src="{{ asset_version('map.js') }}" defer></script>
+	{% endif %}
 	<title>{{ pageTitle == event.name ? event.name : pageTitle ~ ' · ' ~ event.name }}</title>
 	{% block header %}{% endblock %}
 </head>
