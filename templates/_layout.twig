@@ -83,6 +83,10 @@
 	{% endif %}
 	</style>
 	<link rel="stylesheet" href="{{ asset_version('style.css') }}">
+	{# versioned like style.css so a changed sheet is refetched #}
+	{% if event.assets.stylesheet ?? false %}
+		<link rel="stylesheet" href="{{ asset_version(event.assets.stylesheet) }}">
+	{% endif %}
 	<meta name="vapid-public-key" content="{{ vapidPublicKey }}">
 	<meta name="event-base" content="{{ base }}/">
 	<meta name="push-icon" content="{{ event.assets.notificationIcon }}">
@@ -121,7 +125,9 @@
 		   belongs on a surface that follows the mode; here it put obrok27's lime
 		   ghost on lime and made the mark disappear at night. `menuLogoOnState` is by
 		   contract the drawing for a state fill, the same one the active tab uses. #}
-		{% if event.assets.menuLogoOnState ?? false %}
+		{% if event.assets.appBarLogo ?? false %}
+			<img class="appbar-logo" src="{{ event.assets.appBarLogo }}" alt="">
+		{% elseif event.assets.menuLogoOnState ?? false %}
 			<img class="appbar-logo" src="{{ event.assets.menuLogoOnState }}" alt="">
 		{% elseif event.assets.menuLogo %}
 			<img class="appbar-logo" src="{{ event.assets.menuLogo }}" alt="">
