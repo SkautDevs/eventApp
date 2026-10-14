@@ -45,7 +45,9 @@ final class PrecacheTest extends AppTestCase
         foreach ($manifest['icons'] as $icon) {
             self::assertContains($icon['src'], $assets, $icon['src']);
         }
-        self::assertContains('/events/obrok27/ghost-160.png', $assets);
+        self::assertContains('/events/obrok27/O27_lilie_w.svg', $assets);
+        self::assertCount(1, preg_grep('~^/events/obrok27/style\.css\?v=[0-9a-f]{8}$~', $assets));
+        self::assertNotContains('/events/obrok27/style.css', $assets);
     }
 
     /**
@@ -97,10 +99,10 @@ final class PrecacheTest extends AppTestCase
         $root = dirname(__DIR__, 2) . '/www';
 
         $obrok27 = $this->listFor('obrok27')['assets'];
-        foreach (['/fonts/montserrat/montserrat-v31-latin.woff2', '/fonts/montserrat/montserrat-v31-latin-ext.woff2', ...$fontAwesome] as $file) {
+        foreach (['/fonts/montserrat/montserrat-v31-latin.woff2', '/fonts/montserrat/montserrat-v31-latin-ext.woff2', '/fonts/themix/TheMix_LT_400.woff2', '/fonts/themix/TheMix_LT_700.woff2', ...$fontAwesome] as $file) {
             self::assertContains($file, $obrok27);
         }
-        self::assertSame([], preg_grep('~^/fonts/(themix|skautbold)/~', $obrok27), 'obrok27 renders neither themix nor skautbold');
+        self::assertSame([], preg_grep('~^/fonts/skautbold/~', $obrok27), 'obrok27 does not render skautbold');
 
         $korbo26 = $this->listFor('korbo26')['assets'];
         foreach (['/fonts/themix/TheMix_LT_400.woff2', '/fonts/themix/TheMix_LT_700.woff2', '/fonts/skautbold/skaut-bold-webfont.woff2', ...$fontAwesome] as $file) {

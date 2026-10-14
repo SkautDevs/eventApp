@@ -79,7 +79,7 @@ final class HomepageTest extends AppTestCase
         self::assertSame(8, substr_count($html, 'class="link-card is-highlight next-card"'));
         // in 2027, so the server's pick is the first one, and only it is shown
         self::assertMatchesRegularExpression('#<section class="next-up" aria-label="Tvůj program" data-next-up>#', $html);
-        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/obrok27/programy\#muj-program-1" data-key="1" data-start="2027-06-02T12:00:00\+02:00" data-end="[^"]+" data-deep-link>#', $html);
+        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/obrok27/programy\#muj-program-1" data-key="1" data-start="2027-05-19T12:00:00\+02:00" data-end="[^"]+" data-deep-link>#', $html);
         self::assertSame(7, preg_match_all('#class="link-card is-highlight next-card"[^>]* data-deep-link hidden>#', $html));
         self::assertStringContainsString('Tvůj další program', $html);
         // under the emergency box, above the push button

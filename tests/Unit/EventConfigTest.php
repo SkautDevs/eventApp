@@ -112,10 +112,10 @@ final class EventConfigTest extends TestCase
         self::assertSame(['themix', 'skautbold', 'Font Awesome'], $event->fontFamilies());
     }
 
-    /** obrok27 sets both to Montserrat: listed once, and neither default comes along. */
+    /** obrok27 pairs TheMix for text with Montserrat for headings: skautbold does not come along. */
     public function testFontFamiliesFollowTheTheme(): void
     {
-        self::assertSame(['Montserrat', 'Font Awesome'], EventConfig::load($this->eventsDir, 'obrok27')->fontFamilies());
+        self::assertSame(['themix', 'Montserrat', 'Font Awesome'], EventConfig::load($this->eventsDir, 'obrok27')->fontFamilies());
     }
 
     /** The first family of each value counts, its quotes stripped; a value may set only one of the two. */
