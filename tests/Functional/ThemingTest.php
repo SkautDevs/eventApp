@@ -206,10 +206,9 @@ final class ThemingTest extends AppTestCase
     /** A typo in an event config would otherwise be a token nothing ever reads. */
     public function testEveryTokenDeclaredByAnEventIsConsumedByTheStylesheet(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
-
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
+            $css = $this->cssOfEvent($slug);
             foreach (\App\EventConfig::load($this->eventsDir(), $slug)->theme as $name => $value) {
                 self::assertStringContainsString('var(--theme-' . $name . ',', $css, sprintf('%s declares an unused theme key "%s"', $slug, $name));
             }
@@ -254,10 +253,9 @@ final class ThemingTest extends AppTestCase
     /** A role an event declares that nothing reads is a typo, not a feature. */
     public function testEveryRoleAnEventDeclaresIsConsumed(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
-
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
+            $css = $this->cssOfEvent($slug);
             foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
                 foreach (array_keys($set) as $name) {
                     self::assertStringContainsString('var(--role-' . $name . ',', $css, sprintf('%s/%s declares an unread role "%s"', $slug, $mode, $name));
@@ -325,7 +323,8 @@ final class ThemingTest extends AppTestCase
      * ramp. A near-black app bar in a light set is precisely the "black element in
      * the light mode" this round removed, and a mid-grey card in a dark one is the
      * same mistake upside down. The accents are deliberately not in this list: they
-     * are small by construction, which is what lets them be vivid.
+     * are small by construction, which is what lets them be vivid. obrok27's brand bars
+     * are a deliberate, user-approved exception that lives in its own stylesheet.
      */
     public function testTheLargeFilledAreasFollowTheMode(): void
     {
@@ -456,11 +455,15 @@ final class ThemingTest extends AppTestCase
                 }
                 $checked++;
 
-                self::assertGreaterThanOrEqual(
-                    1.3,
-                    self::contrast($set['grid-structure'], $set['grid']),
-                    sprintf('%s/%s: the programme card sits on the grid with no tone step at all', $slug, $mode),
-                );
+                // a strong outline separates on its own: obrok27's white cards on #F1F1F4 are 1.12:1
+                $outlined = self::contrast($set['hairline'], $set['grid-structure']) >= 4.5 && self::contrast($set['hairline'], $set['grid']) >= 4.5;
+                if ($outlined === false) {
+                    self::assertGreaterThanOrEqual(
+                        1.3,
+                        self::contrast($set['grid-structure'], $set['grid']),
+                        sprintf('%s/%s: the programme card sits on the grid with no tone step at all', $slug, $mode),
+                    );
+                }
                 self::assertGreaterThanOrEqual(
                     3.0,
                     self::contrast($set['hairline'], $set['grid-structure']),
@@ -780,6 +783,73 @@ final class ThemingTest extends AppTestCase
         // the running label hangs off the card, outside .pl-time's opacity
         self::assertStringNotContainsString('.pl-time::after', $css);
         self::assertDoesNotMatchRegularExpression('/(?<![-\w])color:\s*var\(--now\)/', $css);
+    }
+
+    /** The shared stylesheet followed by the event's own, when it declares one. */
+    private function cssOfEvent(string $slug): string
+    {
+        $root = dirname(__DIR__, 2);
+        $css = (string) file_get_contents($root . '/www/style.css');
+        $own = \App\EventConfig::load($this->eventsDir(), $slug)->get('assets', [])['stylesheet'] ?? null;
+
+        return is_string($own) && $own !== '' ? $css . "\n" . file_get_contents($root . '/www/' . $own) : $css;
+    }
+
+    /** @return list<array{string, string}> slug and absolute path of every declared per-event stylesheet */
+    private function eventStylesheets(): array
+    {
+        $found = [];
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            $own = \App\EventConfig::load($this->eventsDir(), $slug)->get('assets', [])['stylesheet'] ?? null;
+            if (is_string($own) && $own !== '') {
+                $found[] = [$slug, dirname(__DIR__, 2) . '/www/' . $own];
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * A per-event stylesheet carries shape and type, never colour: it reads the same
+     * roles and tokens as the shared one, so dark mode works through the toggle and
+     * through prefers-color-scheme alike, and every read has a fallback.
+     */
+    public function testAnEventStylesheetNamesNoColourAndReadsEveryRoleWithAFallback(): void
+    {
+        // the checker is proved on samples first, so it is not vacuous while no event ships a sheet
+        self::assertSame([], self::stylesheetViolations('a { color: var(--role-ink, CanvasText); clip-path: none; } /* #fff */'));
+        self::assertCount(1, self::stylesheetViolations('a { color: #fff; }'));
+        self::assertCount(1, self::stylesheetViolations('a { color: rgb(0 0 0); }'));
+        self::assertCount(1, self::stylesheetViolations('a { color: var(--color-base); }'));
+        self::assertCount(1, self::stylesheetViolations('a { color: var(--role-ink); }'));
+        self::assertCount(1, self::stylesheetViolations('a { color: var(--theme-x ); }'));
+
+        foreach ($this->eventStylesheets() as [$slug, $file]) {
+            self::assertFileExists($file, $slug);
+            self::assertSame([], self::stylesheetViolations((string) file_get_contents($file)), $slug);
+        }
+    }
+
+    /** @return list<string> */
+    private static function stylesheetViolations(string $css): array
+    {
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', $css);
+        $found = [];
+        if (preg_match('/#[0-9a-fA-F]{3,6}\b|rgba?\(|hsla?\(|\b(?:white|black)\b(?!-)/i', $css) === 1) {
+            $found[] = 'names a colour';
+        }
+        if (preg_match('/var\(\s*--color-/', $css) === 1) {
+            $found[] = 'reads the palette instead of a role';
+        }
+        preg_match_all('/var\(\s*(--(?:role|theme)-[a-z0-9-]+)\s*([,)])/i', $css, $matches, PREG_SET_ORDER);
+        foreach ($matches as [$whole, $token, $next]) {
+            if ($next !== ',') {
+                $found[] = sprintf('%s is read without a fallback: %s', $token, $whole);
+            }
+        }
+
+        return $found;
     }
 
     /** The shared stylesheet, as written. */

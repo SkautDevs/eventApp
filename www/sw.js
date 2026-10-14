@@ -331,7 +331,7 @@ self.addEventListener('fetch', event => {
 	}
 
 	// the fonts and the icons never change in place: a changed file gets a new name
-	if ((url.searchParams.has('v') && /^\/[a-z]+\.(css|js)$/.test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {
+	if ((url.searchParams.has('v') && new RegExp('^/(events/' + SLUG + '/)?[a-z]+\\.(css|js)$').test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {
 		event.respondWith(cacheFirst(event));
 	} else if (url.pathname.startsWith('/events/' + SLUG + '/')) {
 		event.respondWith(staleWhileRevalidate(event));

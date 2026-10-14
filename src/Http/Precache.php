@@ -41,6 +41,11 @@ final class Precache
         if ($event->isEnabled('map')) {
             $scripts[] = 'map.js';
         }
+        $stylesheet = $event->get('assets', [])['stylesheet'] ?? null;
+        if (is_string($stylesheet) && $stylesheet !== '') {
+            // versioned so a changed sheet reaches installed apps
+            $scripts[] = $stylesheet;
+        }
         $assets = [];
         foreach ($scripts as $file) {
             $assets[] = '/' . $versions->url($file);
@@ -50,8 +55,8 @@ final class Precache
         foreach (self::EVENT_FILES as $name) {
             $files[] = 'events/' . $event->slug . '/' . $name;
         }
-        foreach ((array) $event->get('assets', []) as $path) {
-            if (is_string($path) && $path !== '') {
+        foreach ((array) $event->get('assets', []) as $key => $path) {
+            if ($key !== 'stylesheet' && is_string($path) && $path !== '') {
                 $files[] = $path;
             }
         }

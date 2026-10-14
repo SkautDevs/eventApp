@@ -125,7 +125,7 @@ final class ServiceWorkerTest extends TestCase
         $sw = $this->source();
 
         self::assertStringContainsString(
-            "if ((url.searchParams.has('v') && /^\\/[a-z]+\\.(css|js)$/.test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {\n\t\tevent.respondWith(cacheFirst(event));",
+            "if ((url.searchParams.has('v') && new RegExp('^/(events/' + SLUG + '/)?[a-z]+\\\\.(css|js)$').test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {\n\t\tevent.respondWith(cacheFirst(event));",
             $sw,
         );
     }

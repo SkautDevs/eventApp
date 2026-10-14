@@ -65,7 +65,8 @@ final class PrecacheTest extends AppTestCase
             }
 
             $event = EventConfig::load($root . '/events', $slug);
-            $named = array_filter((array) $event->get('assets', []), static fn ($path): bool => is_string($path) && $path !== '');
+            // the stylesheet is listed by its versioned URL, which EventStylesheetTest covers
+            $named = array_filter((array) $event->get('assets', []), static fn ($path, $key): bool => $key !== 'stylesheet' && is_string($path) && $path !== '', ARRAY_FILTER_USE_BOTH);
             $footer = $event->get('homepage')['footerLogo'] ?? null;
             if (is_string($footer) && $footer !== '') {
                 $named[] = $footer;
