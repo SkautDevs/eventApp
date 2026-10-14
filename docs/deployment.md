@@ -579,7 +579,10 @@ and are unaffected.
    80 %. The copied config's `assets.favicon*`/`appleTouch` and `pinnedTab` name
    obrok27's files: point them at your own or remove the keys (the layout then falls
    back to `favicon-16x16.png`, `favicon-32x32.png` and `apple-touch-icon.png` in the
-   event's directory).
+   event's directory). The rest of obrok27's brand is in the copy too: remove
+   `assets.stylesheet` (or point it at the event's own `style.css`), the `bar` and
+   `tabbar` roles, and replace `appBarLogo`, `mainLogo`, `mainLogoDark` and
+   `notificationIcon`, or the new event renders with obrok27's bars, cards and logos.
 4. Add the per-event variables above to `.env` on the host.
 5. Push to `master` (the FTP pipeline deploys it), or on the Docker stack rebuild:
    `APP_RELEASE=$(git rev-parse --short HEAD) docker compose -f docker-compose.prod.yml up -d --build`.

@@ -839,8 +839,13 @@ final class ThemingTest extends AppTestCase
         self::assertCount(1, self::stylesheetViolations('a { color: var(--color-base); }'));
         self::assertCount(1, self::stylesheetViolations('a { color: var(--role-ink); }'));
         self::assertCount(1, self::stylesheetViolations('a { color: var(--theme-x ); }'));
+        self::assertCount(1, self::stylesheetViolations('a { color: #15133f80; }'));
+        self::assertCount(1, self::stylesheetViolations('@media (prefers-color-scheme: dark) { a { clip-path: none; } }'));
+        self::assertCount(1, self::stylesheetViolations(':root[data-mode="dark"] a { clip-path: none; }'));
 
-        foreach ($this->eventStylesheets() as [$slug, $file]) {
+        $sheets = $this->eventStylesheets();
+        self::assertContains('obrok27', array_column($sheets, 0));
+        foreach ($sheets as [$slug, $file]) {
             self::assertFileExists($file, $slug);
             self::assertSame([], self::stylesheetViolations((string) file_get_contents($file)), $slug);
         }
@@ -851,11 +856,15 @@ final class ThemingTest extends AppTestCase
     {
         $css = (string) preg_replace('!/\*.*?\*/!s', '', $css);
         $found = [];
-        if (preg_match('/#[0-9a-fA-F]{3,6}\b|rgba?\(|hsla?\(|\b(?:white|black)\b(?!-)/i', $css) === 1) {
+        if (preg_match('/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(|\b(?:white|black)\b(?!-)/i', $css) === 1) {
             $found[] = 'names a colour';
         }
         if (preg_match('/var\(\s*--color-/', $css) === 1) {
             $found[] = 'reads the palette instead of a role';
+        }
+        // the roles already flip with the mode; a branch here would miss one of the two paths into dark mode
+        if (preg_match('/prefers-color-scheme|data-mode/i', $css) === 1) {
+            $found[] = 'branches on the colour mode';
         }
         preg_match_all('/var\(\s*(--(?:role|theme)-[a-z0-9-]+)\s*([,)])/i', $css, $matches, PREG_SET_ORDER);
         foreach ($matches as [$whole, $token, $next]) {
