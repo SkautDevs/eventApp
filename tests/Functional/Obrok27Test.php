@@ -22,24 +22,24 @@ final class Obrok27Test extends AppTestCase
         }
     }
 
-    public function testVisualIdentityIsLimeBlackAndPurple(): void
+    public function testVisualIdentityIsTheBrandPalette(): void
     {
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
-        self::assertStringContainsString('--color-background: #c2ea3a', $html); // lime
-        self::assertStringContainsString('--color-base: #101010', $html);       // dark bars
-        self::assertStringContainsString('--color-primary: #6122eb', $html);    // purple accent
+        self::assertStringContainsString('--color-background: #f1f1f4', $html);
+        self::assertStringContainsString('--color-base: #15133f', $html);
+        self::assertStringContainsString('--color-primary: #ff5733', $html);
+        self::assertStringContainsString('--role-bar: #15133f', $html);
+        self::assertStringContainsString('--role-tabbar: #4d2f90', $html);
+        self::assertStringNotContainsString('#c2ea3a', $html);
     }
 
-    /**
-     * The purple accent measures 2.7:1 on the dark tab bar, so the active tab uses
-     * lime instead — an event-specific override of the default inverted text colour.
-     */
-    public function testActiveTabUsesTheLimeOverride(): void
+    public function testActiveTabIsGreenWithDeepBlueInk(): void
     {
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/novinky')->getBody();
 
-        self::assertStringContainsString('--color-nav-active: #c2ea3a', $html);
+        self::assertStringContainsString('--role-state: #e0ff00', $html);
+        self::assertStringContainsString('--role-on-state: #15133f', $html);
         self::assertStringContainsString('class="tab is-active" href="/obrok27/novinky"', $html);
     }
 
@@ -50,14 +50,21 @@ final class Obrok27Test extends AppTestCase
         self::assertStringContainsString('<span>Obrok 27</span>', $html);
     }
 
-    public function testLogoIsTheGhost(): void
+    public function testTheAppBarCarriesTheLilieAndTheHomepageTheLogoWithoutIt(): void
     {
+        $root = dirname(__DIR__, 2);
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
-        self::assertStringContainsString('events/obrok27/ghost.png', $html);
 
-        // the ghost is drawn in lime for the menu so it shows on the black bar
-        foreach (['ghost.png', 'ghost-lime.png'] as $file) {
-            self::assertFileExists(dirname(__DIR__, 2) . '/www/events/obrok27/' . $file);
+        self::assertStringContainsString('<img class="appbar-logo" src="events/obrok27/O27_lilie_w.svg" alt="">', $html);
+        self::assertStringContainsString('class="logo mainLogo mode-light-only" src="events/obrok27/O27_logo_d.svg"', $html);
+        self::assertStringContainsString('class="logo mainLogo mode-dark-only" src="events/obrok27/O27_logo_w.svg"', $html);
+        self::assertSame(1, preg_match('~<nav class="tabbar".*?</nav>~s', $html, $tabbar));
+        self::assertStringContainsString('fas fa-home', $tabbar[0]);
+        self::assertStringNotContainsString('tab-logo', $tabbar[0]);
+        self::assertStringNotContainsString('events/obrok27/ghost', $html);
+        self::assertSame([], glob($root . '/www/events/obrok27/ghost*') ?: []);
+        foreach (['O27_lilie_w.svg', 'O27_logo_d.svg', 'O27_logo_w.svg'] as $file) {
+            self::assertFileExists($root . '/www/events/obrok27/' . $file);
         }
     }
 
@@ -67,7 +74,7 @@ final class Obrok27Test extends AppTestCase
         self::assertSame(404, $this->request($this->createApp('obrok27'), 'GET', '/handbook/download')->getStatusCode());
     }
 
-    public function testTheIconsAreTheGhostAndNotThe2019Shield(): void
+    public function testTheIconsAreTheLilieOnDeepBlue(): void
     {
         $root = dirname(__DIR__, 2);
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
@@ -94,5 +101,20 @@ final class Obrok27Test extends AppTestCase
             $sizes[] = $icon['sizes'] . ($icon['purpose'] ?? '');
         }
         self::assertSame(['192x192', '512x512', '512x512maskable'], $sizes);
+    }
+
+    public function testTheManifestColoursAreTheBrandsDeepBlue(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $manifest = json_decode((string) file_get_contents($root . '/www/events/obrok27/site.webmanifest'), true);
+        self::assertSame('#15133F', $manifest['theme_color']);
+        self::assertSame('#15133F', $manifest['background_color']);
+    }
+
+    public function testTheEventRunsFrom19To23May2027(): void
+    {
+        $config = require dirname(__DIR__, 2) . '/events/obrok27/config.php';
+
+        self::assertSame(['start' => '2027-05-19', 'end' => '2027-05-23'], $config['dates']);
     }
 }

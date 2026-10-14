@@ -29,12 +29,13 @@
 }
 
 /* Montserrat (SIL OFL 1.1, www/fonts/montserrat/OFL.txt), obrok27's face. Google's v31
-   variable files, one per subset, each covering 400-700; the unicode-range lines are
-   Google's own, so a page fetches latin-ext only when it shows a character from it. */
+   variable files, one per subset, with a wght axis of 100-900 (obrok27's headings are 800);
+   the unicode-range lines are Google's own, so a page fetches latin-ext only when it shows
+   a character from it. */
 @font-face {
 	font-family: 'Montserrat';
 	src: url('/fonts/montserrat/montserrat-v31-latin-ext.woff2') format('woff2');
-	font-weight: 400 700;
+	font-weight: 400 900;
 	font-style: normal;
 	font-display: swap;
 	unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
@@ -43,7 +44,7 @@
 @font-face {
 	font-family: 'Montserrat';
 	src: url('/fonts/montserrat/montserrat-v31-latin.woff2') format('woff2');
-	font-weight: 400 700;
+	font-weight: 400 900;
 	font-style: normal;
 	font-display: swap;
 	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
@@ -75,7 +76,7 @@
    that this system existed to stop. Two consequences the rules below depend on:
    an accent can only appear as INK or as a small filled chip carrying dark ink,
    never as a large fill (an event's identity colour is routinely under 3:1 on a
-   pale ground — obrok27's lime is 1.25:1), and separation cannot come from a step
+   pale ground), and separation cannot come from a step
    alone, because content scrolls under a bar of very nearly its own colour. Every
    bar, sheet and card therefore carries a HAIRLINE as well, in both modes: light
    mode's is neutral, dark mode's is tinted with the accent. `--edge-width` is 0
@@ -587,8 +588,7 @@ main > .screen[hidden] {
 
 /* 2px along the tab bar's top edge while the loader waits for a screen it has never shown
    (data-loading, set by www/shell.js). In the bar's own ink, because a 2px line has to
-   read against the bar it sits on: `state` measured 1.39:1 on obrok27's pale light-mode
-   bar. Without motion it is a static full-width bar. */
+   read against the bar it sits on: a light `state` can be near its pale bar's own colour. Without motion it is a static full-width bar. */
 .progress {
 	position: absolute;
 	top: 0;
@@ -621,8 +621,7 @@ main > .screen[hidden] {
 	/* An inactive tab steps back by fading its ink into the bar, which means the ink
 	   it ends up with is the one that owes AA, not the one declared. At 0.6 obrok19's
 	   soft grey landed on its own pale bar at 3.31:1 — below AA for an 11px label.
-	   0.75 is the step where every shipped pairing clears it: obrok19 4.76:1,
-	   obrok27 8.12:1 light and 7.64:1 dark. */
+	   0.75 is the step where every shipped pairing clears it: obrok19 4.76:1. */
 	opacity: 0.75;
 }
 
@@ -645,8 +644,8 @@ main > .screen[hidden] {
 
 /* The one place in the shell that carries `state`: which screen you are on. The
    whole tab is filled with the event's identity colour, because that is the only
-   shape it survives in light mode — obrok27's lime is 1.25:1 as ink on a pale bar
-   and 13.14:1 as a fill under dark ink — and it gives `state` one form in both modes.
+   shape it survives in light mode (a bright accent is far under 3:1 as ink on a
+   pale bar but fine as a fill under dark ink), and it gives `state` one form in both modes.
 
    The ink comes with the fill. It used to be left on --on-structure, which is the
    bar's ink and flips with the mode, while the fill under it does not: obrok27's
@@ -667,7 +666,7 @@ main > .screen[hidden] {
 /* A glyph takes the active tab's ink; a LOGO cannot, and a drawing in the event's
    own colour is exactly what disappears on a tab filled with it. So an event that
    puts artwork in the home tab names a second drawing for that state — obrok19's
-   inverted shield, obrok27's purple ghost on its lime — and the class is only
+   inverted shield — and the class is only
    emitted when it does, so an event with one drawing keeps showing it. */
 .tab-logo-chip {
 	display: none;
@@ -1100,7 +1099,7 @@ div.map iframe {
 }
 
 /* With the plan beside it the note ends in a tonal "Zobrazit plán" button, which
-   .empty's 0.8 opacity would push under AA (4.25:1 on obrok27's light set): the note
+   .empty's 0.8 opacity would push under AA (under AA on a light set): the note
    stays opaque and only its sentence takes the fade. Two classes, to outrank .empty,
    which comes later. */
 .empty.map-offline-plan {
@@ -1762,7 +1761,7 @@ div.news {
 	align-items: center;
 	padding: 2px 7px;
 	/* a hairline in the grid's line colour, so the card edge stays crisp where the
-	   ink and the ground are closest — obrok19's pair is 3.1:1, obrok27's 4.0:1 */
+	   ink and the ground are closest — obrok19's pair is 3.1:1 */
 	border: 1px solid var(--hairline);
 	border-radius: var(--radius-card);
 	background-color: var(--structure);
@@ -2046,7 +2045,7 @@ div.news {
 }
 
 /* 0.7 put obrok19's soft grey on its pale sheet at 4.20:1, below AA for a 13px
-   line; 0.75 is 4.80:1 there and 8.12:1 on obrok27 and still reads as the quiet
+   line; 0.75 is 4.80:1 there and still reads as the quiet
    line above the description. */
 .sheet-section {
 	margin: 0 0 8px;
@@ -2096,7 +2095,7 @@ div.news {
    dark red on a dark green sheet measures 1.2:1 and disappears. An event whose
    sheet is a light surface overrides both, where full strength reads as the
    action and a tint of it would wash out. Measured: default 3.3:1 off obrok19's
-   sheet carrying a 4.7:1 label; obrok27's override 7.0:1 carrying 7.2:1. */
+   sheet carrying a 4.7:1 label. */
 .sheet-close {
 	flex: 0 0 auto;
 	display: block;

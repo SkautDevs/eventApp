@@ -19,8 +19,8 @@
 	{% if event.assets.pinnedTab ?? false %}
 		<link rel="mask-icon" href="{{ event.assets.pinnedTab }}" color="{{ event.colors.base }}">
 	{% endif %}
-	<meta name="theme-color" content="{{ hasDark ? event.roles.light.structure|default(event.colors.base) : event.colors.base }}"
-		{% if hasDark %}data-light="{{ event.roles.light.structure|default(event.colors.base) }}" data-dark="{{ event.roles.dark.structure }}"{% endif %}>
+	<meta name="theme-color" content="{{ hasDark ? (event.roles.light.bar ?? event.roles.light.structure ?? event.colors.base) : event.colors.base }}"
+		{% if hasDark %}data-light="{{ (event.roles.light.bar ?? event.roles.light.structure ?? event.colors.base) }}" data-dark="{{ event.roles.dark.bar ?? event.roles.dark.structure }}"{% endif %}>
 	{% if hasDark %}
 		{# Before first paint, not from the deferred script at the bottom: the mode has to
 		   be on the root element by the time the stylesheet applies, or the reader sees a
@@ -122,9 +122,10 @@
 		<span class="sr-only">{{ event.name }} – úvod</span>
 		{# The bar is filled with `state`, and `state` is the one fill that does NOT
 		   flip with the mode — so the mark on it must not flip either. The mode pair
-		   belongs on a surface that follows the mode; here it put obrok27's lime
-		   ghost on lime and made the mark disappear at night. `menuLogoOnState` is by
-		   contract the drawing for a state fill, the same one the active tab uses. #}
+		   belongs on a surface that follows the mode, and on a state fill it can
+		   make the mark disappear. `menuLogoOnState` is by
+		   contract the drawing for a state fill, the same one the active tab uses.
+		   `appBarLogo` overrides both for an event whose bar is not a state fill. #}
 		{% if event.assets.appBarLogo ?? false %}
 			<img class="appbar-logo" src="{{ event.assets.appBarLogo }}" alt="">
 		{% elseif event.assets.menuLogoOnState ?? false %}

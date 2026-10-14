@@ -1,0 +1,9 @@
+.appbar {
+	background-color: var(--role-bar, var(--structure));
+	color: var(--role-on-bar, var(--on-structure));
+}
+
+.tabbar {
+	background-color: var(--role-tabbar, var(--structure));
+	color: var(--role-on-tabbar, var(--on-structure));
+}

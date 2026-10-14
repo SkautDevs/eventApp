@@ -98,7 +98,9 @@ final class ThemingTest extends AppTestCase
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/programy')->getBody();
 
         self::assertStringContainsString('--theme-radius: 0', $html);
-        self::assertStringContainsString("--theme-font: 'Montserrat', sans-serif", $html);
+        self::assertStringContainsString("--theme-font: 'themix', sans-serif", $html);
+        self::assertStringContainsString("--theme-font-display: 'Montserrat', sans-serif", $html);
+        self::assertStringContainsString('--theme-font-display-weight: 800', $html);
         // colour left the theme map for the role layer, which has to exist twice
         self::assertStringNotContainsString('--theme-stage-bg', $html);
         self::assertStringContainsString('--role-structure:', $html);
@@ -123,6 +125,20 @@ final class ThemingTest extends AppTestCase
         }
     }
 
+    /** The browser chrome follows the app bar's `bar` role where an event has one, and `structure` elsewhere. */
+    public function testThemeColorFollowsTheBarRoleWhenDeclared(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+        self::assertStringContainsString('<meta name="theme-color" content="#15133f"', $html);
+        self::assertStringContainsString('data-light="#15133f" data-dark="#4d2f90"', $html);
+
+        $event = \App\EventConfig::load($this->eventsDir(), 'obrok19');
+        $html = (string) $this->request($this->createApp('obrok19'), 'GET', '/')->getBody();
+        self::assertArrayNotHasKey('bar', $event->roles['light'] ?? []);
+        $expected = isset($event->roles['dark']) ? ($event->roles['light']['structure'] ?? $event->colors['base']) : $event->colors['base'];
+        self::assertStringContainsString('<meta name="theme-color" content="' . $expected . '"', $html);
+    }
+
     /**
      * The page ground is its own token: --color-background stays the identity
      * colour the accents are mixed from, while the largest surface in the app
@@ -135,10 +151,9 @@ final class ThemingTest extends AppTestCase
 
         self::assertStringContainsString('background-color: var(--ground);', self::declarationsFor($css, 'body'));
         self::assertStringContainsString('--ground: var(--role-ground, var(--color-background));', $css);
-        // a near-white carrying only a trace of the hue, not the identity colour itself
-        self::assertStringContainsString('--role-ground: #f6f7f3', $html);
-        // the identity value is untouched — it is what the accents are made of
-        self::assertStringContainsString('--color-background: #c2ea3a', $html);
+        // obrok27's ground is the brand's pale tint, and the palette key it falls back to agrees
+        self::assertStringContainsString('--role-ground: #f1f1f4', $html);
+        self::assertStringContainsString('--color-background: #f1f1f4', $html);
     }
 
     /** The coral belonged to no palette and to no job, so it is gone from both events. */
@@ -162,7 +177,7 @@ final class ThemingTest extends AppTestCase
     {
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
-        self::assertStringContainsString("--theme-font: 'Montserrat', sans-serif", $html);
+        self::assertStringContainsString("--theme-font-display: 'Montserrat', sans-serif", $html);
         self::assertStringNotContainsString('&#039;Montserrat&#039;', $html);
     }
 
@@ -273,7 +288,7 @@ final class ThemingTest extends AppTestCase
         self::assertSame(array_keys($roles['light']), array_keys($roles['dark']));
         // and they are genuinely different values, not the same set twice
         self::assertNotSame($roles['light']['ground'], $roles['dark']['ground']);
-        self::assertNotSame($roles['light']['action'], $roles['dark']['action']);
+        self::assertNotSame($roles['light']['bar'], $roles['dark']['bar']);
     }
 
     /**
@@ -354,7 +369,7 @@ final class ThemingTest extends AppTestCase
     /**
      * The active tab is a filled chip in the event's colour with the glyph on top of
      * it, in both modes — the only shape an identity colour survives in light mode,
-     * where obrok27's lime is 1.25:1 as ink on white. So the chip's ink owes AA on
+     * where a bright accent is far under 3:1 as ink on white. So the chip's ink owes AA on
      * the chip in every event that declares one.
      *
      * Measured against the active tab's OWN declarations. The two strings this used to
@@ -645,7 +660,7 @@ final class ThemingTest extends AppTestCase
 
     /**
      * The loading bar is 2px on the tab bar's top edge, so it has to read against that bar.
-     * `state` did not: obrok27's lime on its pale light-mode bar is 1.39:1. The bar's own
+     * `state` did not: a bright accent on a pale light-mode bar is far under 3:1. The bar's own
      * ink is held to the non-text minimum in every set that declares one.
      */
     public function testTheLoadingBarClearsThreeToOneOnTheTabBar(): void

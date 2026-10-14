@@ -15,7 +15,7 @@ final class FontsTest extends BrowserTestCase
 {
     /**
      * Whether a face of $family (quotes ignored) covering $weight has actually loaded;
-     * a variable face declares a range, "400 700".
+     * a variable face declares a range, "400 900".
      */
     private const string LOADED = <<<'JS'
         const [family, weight] = arguments;
@@ -54,7 +54,7 @@ final class FontsTest extends BrowserTestCase
         self::visit('/obrok27/');
         self::waitFor('return document.readyState === "complete";');
 
-        self::waitFor(self::LOADED, ['Montserrat', '400']);
-        self::assertTrue(self::script('return document.fonts.check(\'16px Montserrat\');'));
+        self::waitFor(self::LOADED, ['Montserrat', '800']);
+        self::assertTrue(self::script('return document.fonts.check(\'800 16px Montserrat\');'));
     }
 }
