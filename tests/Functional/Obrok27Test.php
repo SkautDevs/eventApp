@@ -117,4 +117,48 @@ final class Obrok27Test extends AppTestCase
 
         self::assertSame(['start' => '2027-05-19', 'end' => '2027-05-23'], $config['dates']);
     }
+
+    public function testThePageLinksTheBrandStylesheet(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
+
+        self::assertMatchesRegularExpression('~<link rel="stylesheet" href="events/obrok27/style\.css\?v=[0-9a-f]{8}">~', $html);
+    }
+
+    public function testBothBarsCarryTheHradbaStep(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/style.css');
+
+        foreach (['.appbar', '.tabbar'] as $bar) {
+            // the fill is a clipped layer, so the notch shows the bar's own ground and never the content under it
+            self::assertMatchesRegularExpression('/clip-path:\s*polygon\((?=[^;]*var\(--o27-step\))([^;]*,){5}[^;]*\);/', self::rulesOf($css, $bar . '::before'), $bar);
+            self::assertStringContainsString('background-color: var(--ground);', self::rulesOf($css, $bar), $bar);
+            self::assertStringNotContainsString('clip-path', self::rulesOf($css, $bar), $bar);
+        }
+
+        // the step is cut out of each bar's own box, so the heights stay what www/programs.js and --screen-height assume
+        self::assertStringContainsString('padding-bottom: var(--o27-step);', self::rulesOf($css, '.appbar'));
+        self::assertStringContainsString('padding-top: var(--o27-step);', self::rulesOf($css, '.tabbar'));
+        self::assertStringContainsString('min-height: calc(var(--tabbar-height) - var(--o27-step));', self::rulesOf($css, '.tab'));
+        self::assertMatchesRegularExpression('/--o27-step:\s*8px;/', $css);
+    }
+
+    /** The declarations of every rule whose selector list names $selector exactly, comments stripped. */
+    private static function rulesOf(string $css, string $selector): string
+    {
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', $css);
+        $found = '';
+        foreach (explode('}', $css) as $block) {
+            $open = strrpos($block, '{');
+            if ($open === false) {
+                continue;
+            }
+            $selectors = array_map('trim', explode(',', substr($block, 0, $open)));
+            if (in_array($selector, $selectors, true)) {
+                $found .= substr($block, $open + 1);
+            }
+        }
+
+        return $found;
+    }
 }

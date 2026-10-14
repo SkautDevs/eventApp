@@ -1,9 +1,219 @@
-.appbar {
-	background-color: var(--role-bar, var(--structure));
-	color: var(--role-on-bar, var(--on-structure));
+/* Obrok 27 brand shapes and type (kissj public/eventSpecificCss/stylesObrok27.css). Colour comes only from roles. */
+
+:root {
+	/* the hradba step of both bars, cut out of the bar's own box so its height stays what www/programs.js reads */
+	--o27-step: 8px;
+	--o27-card-shape: polygon(5px 0, 100% 3px, calc(100% - 3px) calc(100% - 4px), 0 100%);
+	--o27-card-shape-b: polygon(0 4px, calc(100% - 6px) 0, 100% 100%, 4px calc(100% - 3px));
+	--o27-card-shape-c: polygon(4px 3px, 100% 0, calc(100% - 5px) 100%, 0 calc(100% - 3px));
+	--o27-button-shape: polygon(3px 0, 100% 2px, calc(100% - 2px) 100%, 0 calc(100% - 3px));
+	--o27-button-shape-b: polygon(0 2px, calc(100% - 3px) 0, 100% calc(100% - 2px), 2px 100%);
+	--o27-chip-shape: polygon(1.5px 0, 100% 1px, calc(100% - 1px) 100%, 0 calc(100% - 1.5px));
 }
 
+/* --- type ---------------------------------------------------------------- */
+
+body,
+p,
+.btn, .btn:visited,
+.day-chip,
+.tabs-tab {
+	font-weight: 700;
+}
+
+.appbar-title,
+h2,
+.sheet-name {
+	font-family: var(--theme-font-display, 'Montserrat', sans-serif);
+	font-weight: var(--theme-font-display-weight, 800);
+	text-transform: uppercase;
+}
+
+input[type=text],
+textarea,
+.stacked-form select,
+.freshness,
+div.news h3,
+.news-programme,
+.colophon p {
+	font-weight: 400;
+}
+
+/* the palette has no transparency, so text does not fade */
+.tab, .tab:visited,
+.tabs-tab,
+.link-card-note,
+.link-card-out,
+.credit,
+.sheet-section,
+.pl-time {
+	opacity: 1;
+}
+
+/* --- both bars: the fill is a clipped layer over the page ground, so the notch never shows content scrolling under the bar --- */
+
+.appbar,
 .tabbar {
+	background-color: var(--ground);
+}
+
+.appbar::before,
+.tabbar::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+}
+
+/* --- app bar: a hradba whose right part steps up --------------------------- */
+
+.appbar {
+	padding-bottom: var(--o27-step);
+	color: var(--role-on-bar, var(--on-state));
+	border-bottom: none;
+}
+
+.appbar::before {
+	background-color: var(--role-bar, var(--state));
+	clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--o27-step)), 63% calc(100% - var(--o27-step) + 1px), calc(63% - 1px) 100%, 0 calc(100% - 1px));
+}
+
+.appbar-brand {
+	padding-inline: 6px;
+}
+
+.appbar-brand, .appbar-brand:visited,
+.appbar-profile, .appbar-profile:visited,
+.appbar-mode {
+	color: var(--role-on-bar, var(--on-state));
+}
+
+/* rings sit inside the control, on the bar's own fill */
+.appbar :focus-visible,
+.tabbar :focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -4px;
+	box-shadow: none;
+}
+
+/* --- tab bar: a hradba whose left half steps down ------------------------- */
+
+.tabbar {
+	padding-top: var(--o27-step);
+	border-top: none;
+}
+
+.tabbar::before {
 	background-color: var(--role-tabbar, var(--structure));
+	clip-path: polygon(0 var(--o27-step), calc(50% - 1px) calc(var(--o27-step) - 1px), 50% 0, 100% 2px, 100% 100%, 0 100%);
+}
+
+.progress {
+	top: var(--o27-step);
+	background: var(--role-on-tabbar, var(--on-structure));
+}
+
+.tab, .tab:visited {
+	min-height: calc(var(--tabbar-height) - var(--o27-step));
 	color: var(--role-on-tabbar, var(--on-structure));
+}
+
+.tab.is-active, .tab.is-active:visited {
+	clip-path: var(--o27-chip-shape);
+}
+
+/* --- cards and notices: jittered corners, the outline drawn by the box under the fill --- */
+
+.link-card, .link-card:visited,
+div.news,
+.emergency,
+.notice {
+	--o27-fill: var(--surface);
+	--o27-shape: var(--o27-card-shape);
+	position: relative;
+	border: none;
+	background-color: var(--edge);
+	clip-path: var(--o27-shape);
+}
+
+.link-card::before,
+div.news::before,
+.emergency::before,
+.notice::before {
+	content: '';
+	position: absolute;
+	inset: var(--edge-width);
+	z-index: -1;
+	background-color: var(--o27-fill);
+	clip-path: var(--o27-shape);
+}
+
+.link-card.is-highlight,
+.emergency,
+.notice {
+	--o27-fill: var(--tonal);
+}
+
+.link-list li:nth-child(3n+2) .link-card,
+div.news:nth-of-type(3n+2) {
+	--o27-shape: var(--o27-card-shape-b);
+}
+
+.link-list li:nth-child(3n) .link-card,
+div.news:nth-of-type(3n),
+.notice {
+	--o27-shape: var(--o27-card-shape-c);
+}
+
+/* the border the two-layer outline replaced, which also kept the children's margins inside */
+.link-card, .link-card:visited {
+	padding: 12px 16px;
+}
+
+div.news {
+	display: flow-root;
+	padding: 0 12px;
+}
+
+/* body copy is 700 too, so the title keeps its rank by size */
+div.news p strong {
+	font-size: var(--fs-lg);
+}
+
+/* --- buttons and chips: corners jitter by 3px at most --------------------- */
+
+.btn, .btn:visited,
+.highlight, .highlight:visited {
+	clip-path: var(--o27-button-shape);
+}
+
+.btn-primary, .btn-primary:visited,
+.screen[data-tab="homepage"] > p:nth-of-type(even) .highlight {
+	clip-path: var(--o27-button-shape-b);
+}
+
+.day-chip,
+.tabs-indicator {
+	clip-path: var(--o27-chip-shape);
+}
+
+/* a clipped box would cut the outset ring away, so it is drawn inside in the control's own ink */
+.btn:focus-visible,
+.highlight:focus-visible,
+.link-card:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -6px;
+	box-shadow: none;
+}
+
+.day-chip:focus-visible {
+	outline-offset: -4px;
+}
+
+.sheet-meta {
+	max-width: 45%;
+}
+
+.sheet-when {
+	white-space: nowrap;
 }
