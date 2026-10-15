@@ -689,12 +689,13 @@
 			// for the same reason the wiring does: the screen's own script measures
 			// after one, and every measurement inside a hidden subtree returns 0.
 			applyPending(entry);
+			// a keyboard or screen-reader user lands in the new screen instead of
+			// carrying on reading the old one; before the wiring, so a dialog the
+			// wiring opens (a deep link) keeps the focus it takes
+			entry.section.focus({preventScroll: true});
 			// insert -> show -> init, in that order and inside the transition's own
 			// update, so the snapshot the browser animates is the wired screen
 			announce(entry.section);
-			// a keyboard or screen-reader user lands in the new screen instead of
-			// carrying on reading the old one
-			entry.section.focus({preventScroll: true});
 		}, back);
 
 		evict();
@@ -836,13 +837,20 @@
 		if (link.hasAttribute('data-deep-link') && url.search === '' && url.hash !== ''
 			&& url.pathname !== currentPath && order.indexOf(url.pathname) >= 0) {
 			event.preventDefault();
-			var known = screens.has(url.pathname);
+			var known = screens.get(url.pathname);
 			history.pushState({screen: url.pathname}, '', url.pathname + url.hash);
 			wantedPath = url.pathname;
-			go(url.pathname, false);
+			// A screen ignores a hash while it is hidden, and with motion the swap waits
+			// for the view transition, so the hash goes out once the screen is shown.
 			if (known) {
-				window.dispatchEvent(new HashChangeEvent('hashchange'));
+				document.addEventListener('screen:shown', function deliver(shown) {
+					if (shown.target === known.section) {
+						document.removeEventListener('screen:shown', deliver);
+						window.dispatchEvent(new HashChangeEvent('hashchange'));
+					}
+				});
 			}
+			go(url.pathname, false);
 
 			return;
 		}
