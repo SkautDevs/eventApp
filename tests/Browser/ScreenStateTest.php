@@ -79,4 +79,72 @@ final class ScreenStateTest extends BrowserTestCase
         self::assertTrue(self::script('return document.querySelector(\'[data-screen="/obrok19/mapa"] iframe\') === window.__frame && window.__frame.isConnected;'));
         self::assertSame(1, self::script('return window.__noReload;'));
     }
+
+    /**
+     * A screen switch snapshots the tab bar, and the snapshot is rounded to whole device
+     * pixels: a bar centred by translateX(-50%) sits on a half pixel at 375px on a 3x
+     * phone, so it jumped sideways for the switch and back after it.
+     */
+    public function testTheTabBarIsPlacedWithoutATransform(): void
+    {
+        self::visit('/obrok27/');
+
+        self::assertSame('none', self::script('return getComputedStyle(document.querySelector(".tabbar")).transform;'));
+    }
+
+    /** Sideways the home screen scrolls rather than squeezing its mark away. */
+    public function testASidewaysPhoneKeepsAReadableHomeMark(): void
+    {
+        self::overrideViewport(740, 400);
+        try {
+            foreach (['obrok27', 'obrok19'] as $slug) {
+                self::visit('/' . $slug . '/');
+                self::waitFor('return Array.from(document.querySelectorAll(\'[data-screen="/' . $slug . '/"] img.mainLogo\')).some(img => img.complete);');
+                $mark = self::script('return Array.from(document.querySelectorAll(\'[data-screen="/' . $slug . '/"] img.mainLogo\')).map(img => img.getBoundingClientRect().height).find(h => h > 0) || 0;');
+
+                self::assertGreaterThanOrEqual(96, $mark, $slug);
+            }
+        } finally {
+            self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
+        }
+    }
+
+    /**
+     * A phone widens its layout viewport to fit anything that sticks out sideways, which
+     * aborts the screen switch and drops the fixed tab bar below the fold. The timeline's
+     * day page slides in from 14px to the right every time the Program screen is shown.
+     */
+    public function testShowingTheProgramScreenNeverWidensThePage(): void
+    {
+        self::devTools()->execute('Emulation.setEmulatedMedia', ['features' => [['name' => 'prefers-reduced-motion', 'value' => 'no-preference']]]);
+        try {
+            self::visit('/obrok27/');
+            self::waitFor('return document.querySelector(\'[data-screen="/obrok27/programy"]\') !== null;', [], 15);
+            self::script(<<<'JS'
+                window.__widest = 0;
+                const original = document.startViewTransition.bind(document);
+                const sample = frames => {
+                    window.__widest = Math.max(window.__widest, document.documentElement.scrollWidth - document.documentElement.clientWidth);
+                    if (frames > 0) {
+                        requestAnimationFrame(() => sample(frames - 1));
+                    } else {
+                        window.__sampled = true;
+                    }
+                };
+                document.startViewTransition = update => {
+                    const transition = original(update);
+                    transition.updateCallbackDone.then(() => sample(10));
+
+                    return transition;
+                };
+                JS);
+
+            self::tap('.tabbar a[href="/obrok27/programy"]');
+            self::waitFor('return window.__sampled === true;');
+
+            self::assertSame(0, self::script('return window.__widest;'));
+        } finally {
+            self::devTools()->execute('Emulation.setEmulatedMedia', ['features' => []]);
+        }
+    }
 }
