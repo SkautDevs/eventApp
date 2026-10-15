@@ -1,9 +1,7 @@
 <?php
 
-// TODO organisers: the crisis line below is a MOCK. Replace it with the real
-// number before the event goes live.
 return [
     'contacts' => [
-        ['label' => 'Krizová linka Obroku', 'phone' => '+420 000 000 000', 'note' => 'nonstop po celou dobu akce'],
+        ['label' => 'Krizová linka Obroku', 'phone' => '+420 704 444 015', 'note' => 'nonstop po celou dobu akce'],
     ],
 ];

@@ -55,7 +55,7 @@ final class OfflineTest extends BrowserTestCase
         self::stopServer();
         self::$browser->reload();
         self::waitFor('const s = document.querySelector(\'[data-screen="/obrok27/"]\'); return s && !s.hidden;');
-        self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:+420000000000\']");');
+        self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:+420704444015\']");');
     }
 
     /** Google's map is a blank box with no signal, so Mapa opens on the plan, from the cache. */
