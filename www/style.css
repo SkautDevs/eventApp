@@ -572,11 +572,14 @@ main > .screen[hidden] {
 
 /* --- tab bar ------------------------------------------------------------- */
 
+/* Centred by its margins, not translateX(-50%): a half-pixel offset is rounded one way
+   live and another in a screen switch's snapshot, so the bar jumped for every switch. */
 .tabbar {
 	position: fixed;
 	bottom: 0;
-	left: 50%;
-	transform: translateX(-50%);
+	left: 0;
+	right: 0;
+	margin-inline: auto;
 	width: 100%;
 	max-width: var(--app-width);
 	z-index: 20;
@@ -959,7 +962,7 @@ img.logo {
 
 /* The home screen is a single screenful, not a document: it fills the space
    between the two bars and the two logos are capped in viewport units so the
-   whole thing still fits on a short phone instead of scrolling. */
+   whole thing fits an ordinary phone. Below 520px of height it scrolls instead. */
 .screen[data-tab="homepage"] {
 	position: relative;
 	display: flex;
@@ -980,6 +983,13 @@ img.logo {
 
 .screen[data-tab="homepage"] > * {
 	margin: 0;
+}
+
+/* The line is out of the flow, so the mark keeps its height clear itself. Its full
+   height, not --freshness-space: the line is unhidden by script after first paint,
+   and the mark would jump down when it is. */
+.screen[data-tab="homepage"] > img.mainLogo {
+	margin-top: calc(var(--freshness-height) + 8px);
 }
 
 /* the home screen centres its children, which would leave a page action as wide
@@ -1006,36 +1016,15 @@ img.mainLogo {
 }
 
 /* A phone held sideways is about 400px tall, and the home screen's proportions are
-   written for a portrait column: 38% of the height for the mark, then the buttons,
-   then the colophon. Sideways they add up to more than the screen — obrok19 ran 92px
-   past it and its colophon sat half under the fixed tab bar — and a screen that
-   states it is one screenful should be one at every height, not just tall ones.
-
-   Three changes, and the threshold is a height rather than an orientation because a
-   short portrait phone has exactly the same problem.
-
-   The height becomes definite instead of a floor. That is what lets a flex item give
-   way at all: with `min-height` the column simply grows and free space is never
-   negative, so nothing ever shrinks.
-
-   The bottom padding shrinks to the home indicator. --screen-height has ALREADY
-   subtracted the tab bar, so on the one screen sized by it the shared .screen
-   padding was reserving that bar a second time — 58px of the 92 that overflowed.
-
-   And the mark absorbs whatever is still missing. It is the only elastic thing in
-   the column: the buttons and the colophon are type, and type shrinking is text
-   getting cut off. object-fit keeps the drawing's proportions while its box loses
-   height, and min-height: 0 is what allows the box to lose any. */
+   written for a portrait column. Squeezed into one screenful the mark shrank to
+   nothing, so here the screen scrolls instead and the mark keeps a readable floor.
+   The shared .screen padding still reserves the tab bar, which is what lets the
+   colophon scroll out from under it.
+   The threshold is a height rather than an orientation because a short portrait
+   phone has exactly the same problem. */
 @media (max-height: 520px) {
-	.screen[data-tab="homepage"] {
-		height: var(--screen-height);
-		padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
-	}
-
-	.screen[data-tab="homepage"] img.mainLogo {
-		flex: 0 1 auto;
-		min-height: 0;
-		object-fit: contain;
+	img.mainLogo {
+		max-height: max(96px, calc(var(--app-height) * 0.25));
 	}
 
 	.colophon img.logo {
@@ -1554,7 +1543,7 @@ div.news {
 	--reg-fg: var(--role-on-registered, var(--on-structure));
 	display: flex;
 	flex-direction: column;
-	height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
+	height: calc(var(--screen-height) - var(--freshness-space) - var(--pager-height) - var(--tabs-height));
 	overflow: auto;
 	overscroll-behavior: contain;
 	background-color: var(--surface);
@@ -1812,7 +1801,7 @@ div.news {
    at least as tall as the band the reader reads in — the same height the timeline's
    grid takes — so there is always scroll left for it to claim. */
 .pl-day:last-child {
-	min-height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
+	min-height: calc(var(--screen-height) - var(--freshness-space) - var(--pager-height) - var(--tabs-height));
 }
 
 /* Sticky against the bottom edge of the strip, so the day being read is named twice —
@@ -2170,6 +2159,12 @@ div.news {
 	   would be a twitch, not a transition. */
 	.tl-page.is-active {
 		animation: pg-page-next var(--motion) ease;
+	}
+
+	/* A page sliding in sticks out sideways, and a phone widens the whole layout to fit
+	   it, dropping the fixed tab bar under the fold. clip, unlike hidden, is no scroller. */
+	.view-timeline {
+		overflow-x: clip;
 	}
 
 	.pg[data-step="prev"] .tl-page.is-active {
