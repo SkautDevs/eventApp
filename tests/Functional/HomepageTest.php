@@ -45,7 +45,7 @@ final class HomepageTest extends AppTestCase
         // no visible heading; the box is named for assistive tech only
         self::assertStringContainsString('<section class="emergency" aria-label="V nouzi">', $html);
         self::assertStringNotContainsString('<h2 id="emergency-title"', $html);
-        self::assertStringContainsString('<a class="emergency-call" href="tel:+420000000000">', $html);
+        self::assertStringContainsString('<a class="emergency-call" href="tel:+420704444015">', $html);
         self::assertStringNotContainsString('tel:112', $html);
         // under the logo and above the push button
         self::assertLessThan(strpos($html, 'data-push-toggle'), strpos($html, 'class="emergency"'));
