@@ -16,7 +16,35 @@
         },
         {
             "id": 3,
-            "name": "Mimo areál",
+            "name": "VaPro",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        },
+        {
+            "id": 4,
+            "name": "VýRo",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        },
+        {
+            "id": 5,
+            "name": "Semináře",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        },
+        {
+            "id": 6,
+            "name": "RoPro",
+            "subtitle": null,
+            "imageUrl": null,
+            "attachment": null
+        },
+        {
+            "id": 7,
+            "name": "Inspiromat",
             "subtitle": null,
             "imageUrl": null,
             "attachment": null
@@ -138,7 +166,7 @@
         {
             "id": 9,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-19T21:00:00+02:00",
@@ -180,7 +208,7 @@
         {
             "id": 12,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Les 1/2",
             "start": "2027-05-19T21:00:00+02:00",
@@ -236,7 +264,7 @@
         {
             "id": 16,
             "name": "VýRoN (dešťová varianta)",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Malé šapitó",
             "start": "2027-05-19T21:00:00+02:00",
@@ -390,7 +418,7 @@
         {
             "id": 27,
             "name": "VýRoN",
-            "sectionId": 3,
+            "sectionId": 4,
             "description": "",
             "place": "Kostel",
             "start": "2027-05-19T21:00:00+02:00",
@@ -460,7 +488,7 @@
         {
             "id": 32,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Louka u stage",
             "start": "2027-05-20T14:30:00+02:00",
@@ -572,7 +600,7 @@
         {
             "id": 40,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-20T14:30:00+02:00",
@@ -586,7 +614,7 @@
         {
             "id": 41,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-20T19:30:00+02:00",
@@ -614,7 +642,7 @@
         {
             "id": 43,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Žlutá louka",
             "start": "2027-05-20T14:30:00+02:00",
@@ -684,7 +712,7 @@
         {
             "id": 48,
             "name": "VýRo",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Červená louka",
             "start": "2027-05-20T09:00:00+02:00",
@@ -698,7 +726,7 @@
         {
             "id": 49,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Červená louka",
             "start": "2027-05-20T14:30:00+02:00",
@@ -754,7 +782,7 @@
         {
             "id": 53,
             "name": "VýRo",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Les",
             "start": "2027-05-20T09:00:00+02:00",
@@ -796,7 +824,7 @@
         {
             "id": 56,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Les",
             "start": "2027-05-20T19:30:00+02:00",
@@ -810,7 +838,7 @@
         {
             "id": 57,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Chillzóna",
             "start": "2027-05-20T14:30:00+02:00",
@@ -852,7 +880,7 @@
         {
             "id": 60,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Iluzivní brány",
             "start": "2027-05-20T14:30:00+02:00",
@@ -880,7 +908,7 @@
         {
             "id": 62,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Velké šapitó",
             "start": "2027-05-20T14:30:00+02:00",
@@ -922,7 +950,7 @@
         {
             "id": 65,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Malé šapitó",
             "start": "2027-05-20T14:30:00+02:00",
@@ -978,7 +1006,7 @@
         {
             "id": 69,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "Programový stan",
             "start": "2027-05-20T14:30:00+02:00",
@@ -1006,7 +1034,7 @@
         {
             "id": 71,
             "name": "VaPro",
-            "sectionId": 2,
+            "sectionId": 3,
             "description": "",
             "place": "FoodCourt stan",
             "start": "2027-05-20T14:30:00+02:00",
@@ -1020,7 +1048,7 @@
         {
             "id": 72,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "FoodCourt stan",
             "start": "2027-05-20T19:30:00+02:00",
@@ -1230,7 +1258,7 @@
         {
             "id": 87,
             "name": "VýRo",
-            "sectionId": 3,
+            "sectionId": 4,
             "description": "",
             "place": "Kostel",
             "start": "2027-05-20T09:00:00+02:00",
@@ -1258,7 +1286,7 @@
         {
             "id": 89,
             "name": "VýRoN",
-            "sectionId": 3,
+            "sectionId": 4,
             "description": "",
             "place": "Kostel",
             "start": "2027-05-20T19:30:00+02:00",
@@ -1356,7 +1384,7 @@
         {
             "id": 96,
             "name": "Inspiromat aktivity (RoPro)",
-            "sectionId": 2,
+            "sectionId": 7,
             "description": "",
             "place": "Louka u stage",
             "start": "2027-05-21T09:30:00+02:00",
@@ -1384,7 +1412,7 @@
         {
             "id": 98,
             "name": "Inspiromat aktivity (RoPro)",
-            "sectionId": 2,
+            "sectionId": 7,
             "description": "",
             "place": "Louka u stage",
             "start": "2027-05-21T15:00:00+02:00",
@@ -1496,7 +1524,7 @@
         {
             "id": 106,
             "name": "RoPro (Zelená trasa)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-21T09:30:00+02:00",
@@ -1510,7 +1538,7 @@
         {
             "id": 107,
             "name": "RoPro (Zelená trasa)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-21T15:00:00+02:00",
@@ -1524,7 +1552,7 @@
         {
             "id": 108,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-21T19:30:00+02:00",
@@ -1552,7 +1580,7 @@
         {
             "id": 110,
             "name": "RoPro (Žlutá trasa)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Žlutá louka",
             "start": "2027-05-21T15:00:00+02:00",
@@ -1594,7 +1622,7 @@
         {
             "id": 113,
             "name": "RoPro (PaV)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Modrá louka",
             "start": "2027-05-21T09:30:00+02:00",
@@ -1608,7 +1636,7 @@
         {
             "id": 114,
             "name": "RoPro (PaV)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Modrá louka",
             "start": "2027-05-21T15:00:00+02:00",
@@ -1622,7 +1650,7 @@
         {
             "id": 115,
             "name": "RoPro (Červená trasa)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Červená louka",
             "start": "2027-05-21T09:30:00+02:00",
@@ -1636,7 +1664,7 @@
         {
             "id": 116,
             "name": "RoPro (Červená trasa)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Červená louka",
             "start": "2027-05-21T15:00:00+02:00",
@@ -1650,7 +1678,7 @@
         {
             "id": 117,
             "name": "RoPro (+registr dárců kostní dřeně)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Plaza",
             "start": "2027-05-21T09:30:00+02:00",
@@ -1678,7 +1706,7 @@
         {
             "id": 119,
             "name": "RoPro (+stánek Červený kříž)",
-            "sectionId": 2,
+            "sectionId": 6,
             "description": "",
             "place": "Plaza",
             "start": "2027-05-21T14:30:00+02:00",
@@ -1706,7 +1734,7 @@
         {
             "id": 121,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Les",
             "start": "2027-05-21T19:30:00+02:00",
@@ -1804,7 +1832,7 @@
         {
             "id": 128,
             "name": "Inspiromat",
-            "sectionId": 2,
+            "sectionId": 7,
             "description": "",
             "place": "Velké šapitó",
             "start": "2027-05-21T09:30:00+02:00",
@@ -1818,7 +1846,7 @@
         {
             "id": 129,
             "name": "Inspiromat",
-            "sectionId": 2,
+            "sectionId": 7,
             "description": "",
             "place": "Velké šapitó",
             "start": "2027-05-21T14:30:00+02:00",
@@ -2098,7 +2126,7 @@
         {
             "id": 149,
             "name": "VýRoN",
-            "sectionId": 3,
+            "sectionId": 4,
             "description": "",
             "place": "Kostel",
             "start": "2027-05-21T19:30:00+02:00",
@@ -2252,7 +2280,7 @@
         {
             "id": 160,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Stage",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2308,7 +2336,7 @@
         {
             "id": 164,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Zelená louka",
             "start": "2027-05-22T21:00:00+02:00",
@@ -2322,7 +2350,7 @@
         {
             "id": 165,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Žlutá louka",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2406,7 +2434,7 @@
         {
             "id": 171,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Červená louka",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2448,7 +2476,7 @@
         {
             "id": 174,
             "name": "VýRoN",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Les",
             "start": "2027-05-22T21:00:00+02:00",
@@ -2462,7 +2490,7 @@
         {
             "id": 175,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Chillzóna",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2490,7 +2518,7 @@
         {
             "id": 177,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Iluzivní brány",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2504,7 +2532,7 @@
         {
             "id": 178,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Velké šapitó",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2546,7 +2574,7 @@
         {
             "id": 181,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Malé šapitó",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2602,7 +2630,7 @@
         {
             "id": 185,
             "name": "Semináře",
-            "sectionId": 2,
+            "sectionId": 5,
             "description": "",
             "place": "Programový stan",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2630,7 +2658,7 @@
         {
             "id": 187,
             "name": "VýRoN (mokrá varianta)",
-            "sectionId": 2,
+            "sectionId": 4,
             "description": "",
             "place": "Programový stan",
             "start": "2027-05-22T21:00:00+02:00",
@@ -2826,7 +2854,7 @@
         {
             "id": 201,
             "name": "Semináře",
-            "sectionId": 3,
+            "sectionId": 5,
             "description": "",
             "place": "Kostel",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2840,7 +2868,7 @@
         {
             "id": 202,
             "name": "VýRoN",
-            "sectionId": 3,
+            "sectionId": 4,
             "description": "",
             "place": "Kostel",
             "start": "2027-05-22T21:00:00+02:00",
@@ -2854,7 +2882,7 @@
         {
             "id": 203,
             "name": "Semináře",
-            "sectionId": 3,
+            "sectionId": 5,
             "description": "",
             "place": "Náměstí",
             "start": "2027-05-22T09:00:00+02:00",
@@ -2868,7 +2896,7 @@
         {
             "id": 204,
             "name": "Semináře",
-            "sectionId": 3,
+            "sectionId": 5,
             "description": "",
             "place": "Škola",
             "start": "2027-05-22T09:00:00+02:00",

@@ -139,7 +139,7 @@
         "id": 9,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-19 21:00:00"
@@ -190,7 +190,7 @@
         "id": 12,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-19 21:00:00"
@@ -258,7 +258,7 @@
         "id": 16,
         "name": "VýRoN (dešťová varianta)",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-19 21:00:00"
@@ -445,7 +445,7 @@
         "id": 27,
         "name": "VýRoN",
         "section": {
-            "id": 3
+            "id": 4
         },
         "start": {
             "date": "2027-05-19 21:00:00"
@@ -530,7 +530,7 @@
         "id": 32,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -666,7 +666,7 @@
         "id": 40,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -683,7 +683,7 @@
         "id": 41,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 19:30:00"
@@ -717,7 +717,7 @@
         "id": 43,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -802,7 +802,7 @@
         "id": 48,
         "name": "VýRo",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 09:00:00"
@@ -819,7 +819,7 @@
         "id": 49,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -887,7 +887,7 @@
         "id": 53,
         "name": "VýRo",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 09:00:00"
@@ -938,7 +938,7 @@
         "id": 56,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 19:30:00"
@@ -955,7 +955,7 @@
         "id": 57,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -1006,7 +1006,7 @@
         "id": 60,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -1040,7 +1040,7 @@
         "id": 62,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -1091,7 +1091,7 @@
         "id": 65,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -1159,7 +1159,7 @@
         "id": 69,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -1193,7 +1193,7 @@
         "id": 71,
         "name": "VaPro",
         "section": {
-            "id": 2
+            "id": 3
         },
         "start": {
             "date": "2027-05-20 14:30:00"
@@ -1210,7 +1210,7 @@
         "id": 72,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 19:30:00"
@@ -1465,7 +1465,7 @@
         "id": 87,
         "name": "VýRo",
         "section": {
-            "id": 3
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 09:00:00"
@@ -1499,7 +1499,7 @@
         "id": 89,
         "name": "VýRoN",
         "section": {
-            "id": 3
+            "id": 4
         },
         "start": {
             "date": "2027-05-20 19:30:00"
@@ -1618,7 +1618,7 @@
         "id": 96,
         "name": "Inspiromat aktivity (RoPro)",
         "section": {
-            "id": 2
+            "id": 7
         },
         "start": {
             "date": "2027-05-21 09:30:00"
@@ -1652,7 +1652,7 @@
         "id": 98,
         "name": "Inspiromat aktivity (RoPro)",
         "section": {
-            "id": 2
+            "id": 7
         },
         "start": {
             "date": "2027-05-21 15:00:00"
@@ -1788,7 +1788,7 @@
         "id": 106,
         "name": "RoPro (Zelená trasa)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 09:30:00"
@@ -1805,7 +1805,7 @@
         "id": 107,
         "name": "RoPro (Zelená trasa)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 15:00:00"
@@ -1822,7 +1822,7 @@
         "id": 108,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-21 19:30:00"
@@ -1856,7 +1856,7 @@
         "id": 110,
         "name": "RoPro (Žlutá trasa)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 15:00:00"
@@ -1907,7 +1907,7 @@
         "id": 113,
         "name": "RoPro (PaV)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 09:30:00"
@@ -1924,7 +1924,7 @@
         "id": 114,
         "name": "RoPro (PaV)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 15:00:00"
@@ -1941,7 +1941,7 @@
         "id": 115,
         "name": "RoPro (Červená trasa)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 09:30:00"
@@ -1958,7 +1958,7 @@
         "id": 116,
         "name": "RoPro (Červená trasa)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 15:00:00"
@@ -1975,7 +1975,7 @@
         "id": 117,
         "name": "RoPro (+registr dárců kostní dřeně)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 09:30:00"
@@ -2009,7 +2009,7 @@
         "id": 119,
         "name": "RoPro (+stánek Červený kříž)",
         "section": {
-            "id": 2
+            "id": 6
         },
         "start": {
             "date": "2027-05-21 14:30:00"
@@ -2043,7 +2043,7 @@
         "id": 121,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-21 19:30:00"
@@ -2162,7 +2162,7 @@
         "id": 128,
         "name": "Inspiromat",
         "section": {
-            "id": 2
+            "id": 7
         },
         "start": {
             "date": "2027-05-21 09:30:00"
@@ -2179,7 +2179,7 @@
         "id": 129,
         "name": "Inspiromat",
         "section": {
-            "id": 2
+            "id": 7
         },
         "start": {
             "date": "2027-05-21 14:30:00"
@@ -2519,7 +2519,7 @@
         "id": 149,
         "name": "VýRoN",
         "section": {
-            "id": 3
+            "id": 4
         },
         "start": {
             "date": "2027-05-21 19:30:00"
@@ -2706,7 +2706,7 @@
         "id": 160,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -2774,7 +2774,7 @@
         "id": 164,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-22 21:00:00"
@@ -2791,7 +2791,7 @@
         "id": 165,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -2893,7 +2893,7 @@
         "id": 171,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -2944,7 +2944,7 @@
         "id": 174,
         "name": "VýRoN",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-22 21:00:00"
@@ -2961,7 +2961,7 @@
         "id": 175,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -2995,7 +2995,7 @@
         "id": 177,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -3012,7 +3012,7 @@
         "id": 178,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -3063,7 +3063,7 @@
         "id": 181,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -3131,7 +3131,7 @@
         "id": 185,
         "name": "Semináře",
         "section": {
-            "id": 2
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -3165,7 +3165,7 @@
         "id": 187,
         "name": "VýRoN (mokrá varianta)",
         "section": {
-            "id": 2
+            "id": 4
         },
         "start": {
             "date": "2027-05-22 21:00:00"
@@ -3403,7 +3403,7 @@
         "id": 201,
         "name": "Semináře",
         "section": {
-            "id": 3
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -3420,7 +3420,7 @@
         "id": 202,
         "name": "VýRoN",
         "section": {
-            "id": 3
+            "id": 4
         },
         "start": {
             "date": "2027-05-22 21:00:00"
@@ -3437,7 +3437,7 @@
         "id": 203,
         "name": "Semináře",
         "section": {
-            "id": 3
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
@@ -3454,7 +3454,7 @@
         "id": 204,
         "name": "Semináře",
         "section": {
-            "id": 3
+            "id": 5
         },
         "start": {
             "date": "2027-05-22 09:00:00"
