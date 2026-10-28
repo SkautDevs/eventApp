@@ -33,14 +33,8 @@ final class StubProgramProviderTest extends TestCase
         $sections = $this->provider->getSections();
 
         self::assertSame([10, 12, 13, 1, 2, 11, 14, 15, 16, 3, 4, 17, 18], array_keys($sections));
-        self::assertSame(['id' => 10, 'title' => 'Putování', 'subTitle' => null, 'image' => null, 'attachment' => null], $sections[10]);
-        // relative paths, as www/ serves them today
+        self::assertSame(['id' => 10, 'title' => 'Putování', 'subTitle' => null], $sections[10]);
         self::assertSame('1. blok', $sections[3]['subTitle']);
-        self::assertSame('events/obrok19/map-vzlet.png', $sections[2]['image']);
-        self::assertSame(
-            ['href' => 'events/obrok19/netradicni-sporty.pdf', 'label' => 'Pravidla a více informací zde'],
-            $sections[17]['attachment'],
-        );
     }
 
     public function testNoSectionsFixtureMeansNoSections(): void

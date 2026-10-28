@@ -2,50 +2,36 @@
     {
         "id": 1,
         "name": "Účastníci",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     },
     {
         "id": 2,
         "name": "V areálu",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     },
     {
         "id": 3,
         "name": "VaPro",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     },
     {
         "id": 4,
         "name": "VýRo",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     },
     {
         "id": 5,
         "name": "Semináře",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     },
     {
         "id": 6,
         "name": "RoPro",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     },
     {
         "id": 7,
         "name": "Inspiromat",
-        "subtitle": null,
-        "imageUrl": null,
-        "attachment": null
+        "subtitle": null
     }
 ]

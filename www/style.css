@@ -1739,7 +1739,7 @@ div.news {
    grid's geometry is the Figma card and is frozen; it clears the WCAG 2.5.8 24px floor.
    .pl-open is a one-line button, but the pointer target is the whole .pl-item card
    (44px and up), which is what the handler matches on. Inline text links (colophon,
-   .credit, the sheet attachment) are exempt by the standard. */
+   .credit) are exempt by the standard. */
 .tl-card {
 	position: absolute;
 	top: 4px;
@@ -2058,19 +2058,6 @@ div.news {
 
 .sheet-lector {
 	margin: 0 0 8px;
-}
-
-.sheet-map {
-	max-width: 100%;
-	height: auto;
-	border-radius: var(--radius);
-}
-
-/* the palette's link colour is picked to read on the page ground, not on the
-   sheet's, so inside the sheet a link is underlined sheet type instead */
-.sheet-link, .sheet-link:visited {
-	color: var(--on-surface);
-	text-decoration: underline;
 }
 
 /* Figma paints this row a coral that belonged to no event's palette and to no

@@ -16,7 +16,7 @@ interface ProgramProviderInterface
      * The event's programme sections — the detail sheet names a programme's section,
      * and a programme whose section is not listed here is not shown.
      *
-     * @return array<int, array{id: int, title: string, subTitle: ?string, image: ?string, attachment: ?array{href: string, label: string}}>
+     * @return array<int, array{id: int, title: string, subTitle: ?string}>
      *         keyed by id, in display order
      */
     public function getSections(): array;

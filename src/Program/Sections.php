@@ -13,7 +13,7 @@ final class Sections
 {
     /**
      * @param mixed $raw the `sections` value as decoded, trusted for nothing
-     * @return array<int, array{id: int, title: string, subTitle: ?string, image: ?string, attachment: ?array{href: string, label: string}}>
+     * @return array<int, array{id: int, title: string, subTitle: ?string}>
      *         keyed by id, in the order kissj sent them — which is the display order
      */
     public static function fromKissj(mixed $raw): array
@@ -34,23 +34,10 @@ final class Sections
                 throw new ProgramDataException('kissj section record has no name');
             }
 
-            $attachment = $section['attachment'] ?? null;
-            if ($attachment !== null) {
-                if (!is_array($attachment)
-                    || !isset($attachment['url'], $attachment['label'])
-                    || !is_string($attachment['url'])
-                    || !is_string($attachment['label'])) {
-                    throw new ProgramDataException('kissj section attachment needs a url and a label');
-                }
-                $attachment = ['href' => self::url($attachment['url']), 'label' => $attachment['label']];
-            }
-
             $sections[$section['id']] = [
                 'id' => $section['id'],
                 'title' => $section['name'],
                 'subTitle' => self::optionalString($section, 'subtitle'),
-                'image' => ($image = self::optionalString($section, 'imageUrl')) === null ? null : self::url($image),
-                'attachment' => $attachment,
             ];
         }
 
@@ -65,19 +52,5 @@ final class Sections
         }
 
         return $value === '' ? null : $value;
-    }
-
-    /**
-     * Both URLs end up in the page as a `src` and an `href`, and Twig's escaping does not
-     * make `javascript:` inert. kissj sends absolute http(s) URLs; the stub's fixtures
-     * carry paths relative to www/. Anything with another scheme is not a link.
-     */
-    private static function url(string $url): string
-    {
-        if (preg_match('/^[a-z][a-z0-9+.-]*:/i', $url) === 1 && preg_match('#^https?://#i', $url) !== 1) {
-            throw new ProgramDataException(sprintf('kissj sent a URL that is not http(s): %s', $url));
-        }
-
-        return $url;
     }
 }

@@ -115,8 +115,8 @@ final class KissjProgramProviderTest extends TestCase
         ]);
 
         self::assertSame([
-            10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null, 'image' => null, 'attachment' => null],
-            1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null, 'image' => null, 'attachment' => null],
+            10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null],
+            1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null],
         ], $this->provider($mock)->getSections());
     }
 
@@ -132,10 +132,8 @@ final class KissjProgramProviderTest extends TestCase
                     'id' => 17,
                     'name' => 'Netradiční sporty',
                     'subtitle' => '1. blok',
-                    'imageUrl' => 'https://kissj.example/img/map.png',
-                    'attachment' => ['url' => 'https://kissj.example/files/rules.pdf', 'label' => 'Pravidla'],
                 ],
-                ['id' => 18, 'name' => 'Mše', 'subtitle' => '', 'imageUrl' => null, 'attachment' => null],
+                ['id' => 18, 'name' => 'Mše', 'subtitle' => ''],
             ]])),
         ]);
 
@@ -145,10 +143,8 @@ final class KissjProgramProviderTest extends TestCase
             'id' => 17,
             'title' => 'Netradiční sporty',
             'subTitle' => '1. blok',
-            'image' => 'https://kissj.example/img/map.png',
-            'attachment' => ['href' => 'https://kissj.example/files/rules.pdf', 'label' => 'Pravidla'],
         ], $sections[17]);
-        self::assertSame(['id' => 18, 'title' => 'Mše', 'subTitle' => null, 'image' => null, 'attachment' => null], $sections[18]);
+        self::assertSame(['id' => 18, 'title' => 'Mše', 'subTitle' => null], $sections[18]);
     }
 
     /** The screen asks for both in one request, and kissj serves both in one response. */
@@ -316,13 +312,6 @@ final class KissjProgramProviderTest extends TestCase
             'section without name' => json_encode(['sections' => [['id' => 10]], 'programmes' => []]),
             'section with a non-string name' => json_encode(['sections' => [['id' => 10, 'name' => 7]], 'programmes' => []]),
             'section with a non-string subtitle' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'subtitle' => 3]], 'programmes' => []]),
-            'section with a non-string imageUrl' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'imageUrl' => ['x']]], 'programmes' => []]),
-            'attachment not an object' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => 'x.pdf']], 'programmes' => []]),
-            'attachment without url' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => ['label' => 'L']]], 'programmes' => []]),
-            'attachment without label' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => ['url' => 'https://k.example/a.pdf']]], 'programmes' => []]),
-            // the attachment becomes an <a href>, so a scheme that runs script is not a link
-            'attachment with a javascript: url' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'attachment' => ['url' => 'javascript:alert(1)', 'label' => 'L']]], 'programmes' => []]),
-            'image with a data: url' => json_encode(['sections' => [['id' => 10, 'name' => 'P', 'imageUrl' => 'data:image/svg+xml,<svg/>']], 'programmes' => []]),
         ];
 
         foreach ($bodies as $label => $body) {

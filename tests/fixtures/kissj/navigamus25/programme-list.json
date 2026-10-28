@@ -4,9 +4,7 @@
         {
             "id": 1,
             "name": "Doprovodný program",
-            "subtitle": null,
-            "imageUrl": null,
-            "attachment": null
+            "subtitle": null
         }
     ],
     "programmes": [

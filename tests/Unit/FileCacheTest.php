@@ -52,8 +52,8 @@ final class FileCacheTest extends TestCase
     {
         $data = [
             'sections' => [
-                10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null, 'image' => null, 'attachment' => null],
-                1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null, 'image' => null, 'attachment' => null],
+                10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null],
+                1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null],
             ],
             'programmes' => [],
         ];

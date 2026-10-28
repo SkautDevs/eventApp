@@ -60,8 +60,6 @@ final class KissjKorboFixtureTest extends TestCase
         // kissj sends nulls for every presentation field of a real section
         foreach ($sections as $section) {
             self::assertNull($section['subTitle']);
-            self::assertNull($section['image']);
-            self::assertNull($section['attachment']);
         }
     }
 

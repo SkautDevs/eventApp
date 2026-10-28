@@ -17,8 +17,7 @@
     },
     {
         "id": 2,
-        "name": "Vzlet",
-        "imageUrl": "events/obrok19/map-vzlet.png"
+        "name": "Vzlet"
     },
     {
         "id": 11,
@@ -26,13 +25,11 @@
     },
     {
         "id": 14,
-        "name": "M(a)y Day",
-        "imageUrl": "events/obrok19/map-mayday.png"
+        "name": "M(a)y Day"
     },
     {
         "id": 15,
-        "name": "Velká hra",
-        "imageUrl": "events/obrok19/map-velkahra.png"
+        "name": "Velká hra"
     },
     {
         "id": 16,
@@ -50,12 +47,7 @@
     },
     {
         "id": 17,
-        "name": "Netradiční sporty",
-        "imageUrl": "events/obrok19/map-netradicni-sporty.png",
-        "attachment": {
-            "url": "events/obrok19/netradicni-sporty.pdf",
-            "label": "Pravidla a více informací zde"
-        }
+        "name": "Netradiční sporty"
     },
     {
         "id": 18,

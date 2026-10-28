@@ -18,8 +18,8 @@ use PHPUnit\Framework\TestCase;
 final class CachingProgramProviderTest extends TestCase
 {
     private const array SECTIONS = [
-        10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null, 'image' => null, 'attachment' => null],
-        1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null, 'image' => null, 'attachment' => null],
+        10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null],
+        1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null],
     ];
 
     private const array PROGRAMMES = [[

@@ -468,8 +468,6 @@ final class ProgramsModule implements ModuleInterface
             'lector' => $program['lector'] ?? null,
             'tools' => $program['tools'] ?? null,
             'section' => $section === null ? null : self::sectionTitle($section),
-            'image' => $section['image'] ?? null,
-            'attachment' => $section['attachment'] ?? null,
             'page' => $pageOfProgram[$program['id']] ?? null,
             'registered' => isset($registeredIds[$program['id']]),
         ];

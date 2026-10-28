@@ -270,7 +270,7 @@ final class ProgramsModuleTest extends TestCase
     /** @return array<string, mixed> */
     private static function buildViewModel(array $all, array $mine = []): array
     {
-        $sections = [1 => ['id' => 1, 'title' => 'Sekce', 'subTitle' => null, 'image' => null, 'attachment' => null]];
+        $sections = [1 => ['id' => 1, 'title' => 'Sekce', 'subTitle' => null]];
 
         return self::call('buildViewModel', $sections, $all, $mine, $mine !== []);
     }
