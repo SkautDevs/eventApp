@@ -5,29 +5,118 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 /**
- * Můj program is one continuous scroll over the whole event.
+ * Přehled and Moje are one list component: one continuous scroll over the whole event.
  *
  * It used to page by day, one .pl-day visible at a time. Now every day is present and
  * visible in document order, each under its own sticky heading, and the strip of day
- * chips on top follows the scroll; a tap on a chip scrolls to its day. The timeline
- * still pages, by day, through a strip of the same chips.
+ * chips on top follows the scroll; a tap on a chip scrolls to its day. Přehled lists every
+ * programme, Moje the participant's own. The timeline still pages, by day, through a strip
+ * of the same chips.
  */
 final class ProgramListTest extends AppTestCase
 {
-    /** tie:ABC123 is registered for eight programmes across three days of obrok19. */
+    /** obrok19 has 69 programmes, all in listed sections. */
+    private const int PROGRAMMES = 69;
+
+    /** obrok19's fixture participant 1 is registered for eight programmes across three days. */
+    private const array MINE = [5, 22, 29, 34, 49, 62, 73, 84];
+
     private function loggedInScreen(): string
     {
         $app = $this->createApp();
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $this->pair($app);
 
         return (string) $this->request($app, 'GET', '/programy')->getBody();
+    }
+
+    /** The markup of one view of the screen: `overview`, `timeline` or `list`. */
+    private static function view(string $html, string $kind): string
+    {
+        $start = strpos($html, 'id="pg-view-' . $kind . '"');
+        self::assertNotFalse($start, "no {$kind} view");
+        $ends = array_filter([
+            strpos($html, 'id="pg-view-', $start + 1),
+            strpos($html, 'data-key="tabs"', $start),
+        ]);
+
+        return substr($html, $start, min($ends) - $start);
+    }
+
+    /** @return array<int, string> the classes of every list row of the view, by programme id */
+    private static function rows(string $view): array
+    {
+        preg_match_all('#<article class="(pl-item[^"]*)" data-key="(\d+)"#', $view, $m, PREG_SET_ORDER);
+        $rows = [];
+        foreach ($m as [, $classes, $id]) {
+            $rows[(int) $id] = $classes;
+        }
+
+        return $rows;
+    }
+
+    public function testPrehledListsEveryProgrammeAndDimsWhatIsNotTheParticipants(): void
+    {
+        $overview = self::view($this->loggedInScreen(), 'overview');
+        $rows = self::rows($overview);
+
+        self::assertCount(self::PROGRAMMES, $rows);
+        foreach ($rows as $id => $classes) {
+            $mine = in_array($id, self::MINE, true);
+            self::assertSame($mine, str_contains($classes, 'is-registered'), "programme {$id}");
+            self::assertSame(!$mine, str_contains($classes, 'is-dimmed'), "programme {$id}");
+        }
+        // the tag is on the participant's rows and nowhere else
+        self::assertSame(count(self::MINE), substr_count($overview, '<span class="pl-tag">Přihlášen</span>'));
+        // every row: the start time, the name, then "do HH:MM · place"
+        self::assertMatchesRegularExpression('#<p class="pl-time">\d{2}:\d{2}</p>#', $overview);
+        self::assertMatchesRegularExpression('#<p class="pl-meta">do \d{2}:\d{2}( · [^<]+)?</p>#u', $overview);
+    }
+
+    public function testLoggedOutPrehledListsEveryProgrammeAndDimsNothing(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+        $rows = self::rows(self::view($html, 'overview'));
+
+        self::assertCount(self::PROGRAMMES, $rows);
+        self::assertStringNotContainsString('is-dimmed', implode(' ', $rows));
+        self::assertStringNotContainsString('is-registered', implode(' ', $rows));
+        self::assertStringNotContainsString('Přihlášen<', $html);
+        self::assertStringNotContainsString('pl-tag', $html);
+    }
+
+    /** Moje is the participant's own, so every row of it carries the tag and none is dimmed. */
+    public function testEveryRowOfMojeIsTaggedAndNoneIsDimmed(): void
+    {
+        $list = self::view($this->loggedInScreen(), 'list');
+        $rows = self::rows($list);
+
+        self::assertEqualsCanonicalizing(self::MINE, array_keys($rows));
+        foreach ($rows as $id => $classes) {
+            self::assertSame('pl-item is-registered', $classes, "programme {$id}");
+        }
+        self::assertSame(count(self::MINE), substr_count($list, '<span class="pl-tag">Přihlášen</span>'));
+    }
+
+    /** The pill names the three views in their order, Harmonogram still the default. */
+    public function testThePillNamesTheThreeViews(): void
+    {
+        $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
+
+        self::assertMatchesRegularExpression(
+            '#data-pg-view="overview"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span>.*'
+            . 'data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span>.*'
+            . 'data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span>#su',
+            $html,
+        );
+        self::assertStringContainsString('data-pg-root data-morph-keep="data-view data-step" data-pg-event="obrok19" data-view="timeline"', $html);
+        self::assertMatchesRegularExpression('#aria-selected="true"[^>]*data-pg-view="timeline"#', $html);
     }
 
     public function testListItemsCarryTheirTimesAsInstants(): void
     {
         $html = $this->loggedInScreen();
 
-        preg_match_all('#<article class="pl-item" data-key="\d+" data-start="([^"]+)" data-end="([^"]+)"#', $html, $m, PREG_SET_ORDER);
+        preg_match_all('#<article class="pl-item[^"]*" data-key="\d+" data-start="([^"]+)" data-end="([^"]+)"#', $html, $m, PREG_SET_ORDER);
         self::assertNotEmpty($m);
         foreach ($m as [, $start, $end]) {
             self::assertNotFalse(\DateTimeImmutable::createFromFormat(DATE_ATOM, $start));
@@ -39,7 +128,7 @@ final class ProgramListTest extends AppTestCase
 
     public function testEveryDayIsRenderedAndNoneIsSingledOut(): void
     {
-        $html = $this->loggedInScreen();
+        $html = self::view($this->loggedInScreen(), 'list');
 
         self::assertSame(3, substr_count($html, '<section class="pl-day"'));
         // the class that used to mean "the page you are on" is gone from the list:
@@ -55,12 +144,14 @@ final class ProgramListTest extends AppTestCase
     public function testTheDaysAreInDocumentOrder(): void
     {
         $html = $this->loggedInScreen();
-
-        self::assertGreaterThan(0, strpos($html, 'day-20190530'));
-        self::assertGreaterThan((int) strpos($html, 'day-20190530'), (int) strpos($html, 'day-20190531'));
-        self::assertGreaterThan((int) strpos($html, 'day-20190531'), (int) strpos($html, 'day-20190601'));
-        // the strip opens on the day at the top of the scroll, not today
-        self::assertMatchesRegularExpression('#data-pg-page="day-20190530" data-pg-kind="list" aria-current="true" data-morph-keep="aria-current">čt 30. 5.</button>#u', $html);
+        foreach (['overview', 'list'] as $kind) {
+            $view = self::view($html, $kind);
+            self::assertGreaterThan(0, strpos($view, 'day-20190530'));
+            self::assertGreaterThan((int) strpos($view, 'day-20190530'), (int) strpos($view, 'day-20190531'));
+            self::assertGreaterThan((int) strpos($view, 'day-20190531'), (int) strpos($view, 'day-20190601'));
+            // the strip opens on the day at the top of the scroll, not today
+            self::assertMatchesRegularExpression('#data-pg-page="day-20190530" data-pg-kind="' . $kind . '" aria-current="true" data-morph-keep="aria-current">čt 30. 5.</button>#u', $html);
+        }
     }
 
     /** Both views pick the day from a strip of chips; no arrows, no day dialog. */
@@ -68,14 +159,14 @@ final class ProgramListTest extends AppTestCase
     {
         $html = $this->loggedInScreen();
 
-        foreach (['timeline', 'list'] as $kind) {
+        foreach (['overview', 'timeline', 'list'] as $kind) {
             self::assertMatchesRegularExpression('#<div class="days" role="group" aria-label="Dny" data-pg-days="' . $kind . '">#', $html);
         }
         self::assertStringNotContainsString('pager-menu', $html);
         self::assertStringNotContainsString('data-pg-step', $html);
         self::assertStringNotContainsString('data-pg-list-top', $html);
         // exactly one chip per strip is current, and the morph leaves the reader's choice alone
-        self::assertSame(2, substr_count($html, 'aria-current="true" data-morph-keep="aria-current"'));
+        self::assertSame(3, substr_count($html, 'aria-current="true" data-morph-keep="aria-current"'));
         // the zoom pair belongs to the axis, so it stays on the timeline's row alone
         self::assertSame(1, substr_count($html, 'class="pager-zoom"'));
     }
@@ -109,46 +200,48 @@ final class ProgramListTest extends AppTestCase
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
-        self::assertStringNotContainsString('class="pl-day"', $html);
+        self::assertStringNotContainsString('class="pl-day"', self::view($html, 'list'));
         self::assertStringNotContainsString('data-pg-pager="list"', $html);
-        self::assertStringContainsString('Přihlas se TIE kódem', $html);
+        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+        // Přehled is everybody's
+        self::assertStringContainsString('class="pl-day"', self::view($html, 'overview'));
+        self::assertStringContainsString('data-pg-pager="overview"', $html);
     }
 
-    /** Logged out, the list asks for the TIE code in place instead of sending the reader to /profil. */
-    public function testLoggedOutTheListCarriesTheTieForm(): void
+    /** Logged out, the list sends the reader to Profil, where the pairing starts: no form of its own. */
+    public function testLoggedOutTheListLinksToProfil(): void
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
-        self::assertStringContainsString('action="/obrok19/profil/tie"', $html);
-        self::assertStringContainsString('name="tieCode"', $html);
-        self::assertStringContainsString('<input type="hidden" name="return" value="programy">', $html);
+        // with the gutter of the other empty states, not flush against the column's edge
+        self::assertStringContainsString('<p class="empty"><a href="/obrok19/profil">Pro svůj program se přihlas kódem z KissJ.</a></p>', $html);
+        self::assertStringNotContainsString('<input type="hidden" name="return"', $html);
+        self::assertStringNotContainsString('<input type="text"', $html);
     }
 
-    public function testALoginFromTheListLandsBackOnTheList(): void
-    {
-        $response = $this->request($this->createApp(), 'POST', '/profil/tie', ['tieCode' => 'ABC123', 'return' => 'programy']);
-
-        self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/obrok19/programy#muj-program', $response->getHeaderLine('Location'));
-    }
-
-    public function testAFailedLoginFromTheListIsExplainedOnTheList(): void
+    /** A pairing is collected on Profil, so its start lands there whatever the form says. */
+    public function testAPairingStartAlwaysLandsOnProfil(): void
     {
         $app = $this->createApp();
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NOPE99', 'return' => 'programy']);
-        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+        foreach (['programy', 'https://evil.example', ''] as $return) {
+            $response = $this->request($app, 'POST', '/profil/propojit', ['return' => $return]);
 
-        self::assertStringContainsString('Neplatný TIE kód.', $html);
-        // shown once, then gone
-        $again = (string) $this->request($app, 'GET', '/programy')->getBody();
-        self::assertStringNotContainsString('Neplatný TIE kód.', $again);
+            self::assertSame(302, $response->getStatusCode());
+            self::assertSame('/obrok19/profil', $response->getHeaderLine('Location'), $return);
+        }
     }
 
-    /** Only a known screen is a return target; anything else keeps the old /profil redirect. */
-    public function testAnUnknownReturnFallsBackToTheProfile(): void
+    /** After the logout the list is the logged-out one again: no days, the link back. */
+    public function testAfterTheLogoutTheListIsEmptyAgain(): void
     {
-        $response = $this->request($this->createApp(), 'POST', '/profil/tie', ['tieCode' => 'ABC123', 'return' => 'https://evil.example']);
+        $app = $this->createApp();
+        $this->pair($app);
+        self::assertStringContainsString('class="pl-day"', self::view((string) $this->request($app, 'GET', '/programy')->getBody(), 'list'));
 
-        self::assertSame('/obrok19/profil', $response->getHeaderLine('Location'));
+        $this->request($app, 'POST', '/profil/odpojit');
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+
+        self::assertStringNotContainsString('class="pl-day"', self::view($html, 'list'));
+        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
     }
 }

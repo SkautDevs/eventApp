@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace App\Auth;
 
 /**
- * A limit against guessing TIE codes. Only an unknown code counts: a camp behind one
- * NAT puts hundreds of readers on one address, and a provider outage or a typo rush on
- * the first evening must not lock them all out. Sixty failures per ten minutes per
- * address is far above any honest rush and 360 tries an hour against billions of codes.
+ * A limit on pairing starts, so one phone cannot burn kissj's cap on pending pairings.
+ * Every start counts. A camp behind one NAT puts hundreds of readers on one address, so
+ * the limit is per (event, address) and far above any honest rush: three hundred starts
+ * per ten minutes, the same room SubscribeThrottle gives a camp.
  */
-final class LoginThrottle
+final class PairingThrottle
 {
-    public const int LIMIT = 60;
+    public const int LIMIT = 300;
 
     private const string WINDOW = 'PT10M';
 
@@ -26,20 +26,20 @@ final class LoginThrottle
     public function tooMany(string $event, string $ip, ?\DateTimeImmutable $now = null): bool
     {
         $since = ($now ?? new \DateTimeImmutable())->sub(new \DateInterval(self::WINDOW));
-        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM tie_attempts WHERE event = ? AND ip = ? AND attempted_at > ?');
+        $statement = $this->pdo->prepare('SELECT COUNT(*) FROM pairing_attempts WHERE event = ? AND ip = ? AND attempted_at > ?');
         $statement->execute([$event, $ip, self::stamp($since)]);
 
         return (int) $statement->fetchColumn() >= self::LIMIT;
     }
 
-    public function recordFailure(string $event, string $ip, ?\DateTimeImmutable $at = null): void
+    public function record(string $event, string $ip, ?\DateTimeImmutable $at = null): void
     {
         $at ??= new \DateTimeImmutable();
-        $this->pdo->prepare('INSERT INTO tie_attempts (event, ip, attempted_at) VALUES (?, ?, ?)')
+        $this->pdo->prepare('INSERT INTO pairing_attempts (event, ip, attempted_at) VALUES (?, ?, ?)')
             ->execute([$event, $ip, self::stamp($at)]);
 
         if (random_int(1, 100) === 1) {
-            $this->pdo->prepare('DELETE FROM tie_attempts WHERE attempted_at < ?')
+            $this->pdo->prepare('DELETE FROM pairing_attempts WHERE attempted_at < ?')
                 ->execute([self::stamp($at->sub(new \DateInterval(self::KEEP)))]);
         }
     }

@@ -103,11 +103,18 @@ final class ErrorPageTest extends AppTestCase
         self::assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
     }
 
-    public function testTheErrorAndOfflinePagesCarryNoFreshnessLine(): void
+    /** No page carries a freshness line any more; the error and offline pages are documents, so they carry the shell's banner. */
+    public function testTheErrorAndOfflinePagesCarryTheBannerAndNoFreshnessLine(): void
     {
         $app = $this->createApp();
 
-        self::assertStringNotContainsString('data-freshness', (string) $this->request($app, 'GET', '/tohle-tady-neni')->getBody());
-        self::assertStringNotContainsString('data-freshness', (string) $this->request($app, 'GET', '/offline')->getBody());
+        foreach (['/tohle-tady-neni', '/offline'] as $path) {
+            $html = (string) $this->request($app, 'GET', $path)->getBody();
+            self::assertStringNotContainsString('freshness', $html, $path);
+            self::assertSame(1, preg_match_all('~\sdata-netstate[\s>]~', $html), $path);
+        }
+        foreach (['error.twig', 'offline.twig', 'programs.twig'] as $template) {
+            self::assertStringNotContainsString('showFreshness', (string) file_get_contents(dirname(__DIR__, 2) . '/templates/' . $template), $template);
+        }
     }
 }

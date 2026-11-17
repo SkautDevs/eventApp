@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -31,7 +30,7 @@ final class OfflineTest extends BrowserTestCase
         self::$browser->reload();
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/"]\'); return s && !s.hidden;');
 
-        foreach (['/korbo26/programy' => '.tl-card', '/korbo26/novinky' => 'p'] as $path => $content) {
+        foreach (['/korbo26/programy' => '.tl-card', '/korbo26/informace' => 'p'] as $path => $content) {
             self::tap('.tabbar a[href="' . $path . '"]');
             self::waitFor(
                 'const s = document.querySelector(\'[data-screen="\' + arguments[0] + \'"]\'); return s && !s.hidden && s.querySelector(arguments[1]) !== null;',
@@ -47,15 +46,15 @@ final class OfflineTest extends BrowserTestCase
     }
 
     /** Review Focus 4: the crisis line is the one thing that must be there with no signal. */
-    public function testTheEmergencyBoxIsThereWithoutTheServer(): void
+    public function testTheCrisisContactIsThereWithoutTheServer(): void
     {
-        self::visit('/obrok27/');
+        self::visit('/obrok27/informace');
         self::waitForPrecache('obrok27');
 
         self::stopServer();
         self::$browser->reload();
-        self::waitFor('const s = document.querySelector(\'[data-screen="/obrok27/"]\'); return s && !s.hidden;');
-        self::waitFor('return !!document.querySelector(".emergency a.emergency-call[href=\'tel:+420704444015\']");');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/obrok27/informace"]\'); return s && !s.hidden;');
+        self::waitFor('return !!document.querySelector(".info-contact a.emergency-call[href=\'tel:+420704444015\']");');
     }
 
     /** Google's map is a blank box with no signal, so Mapa opens on the plan, from the cache. */
@@ -85,11 +84,12 @@ final class OfflineTest extends BrowserTestCase
     /** Review Focus 1: the purge on login must not leave the reader with nothing offline. */
     public function testALoginIsCarriedIntoTheOfflineCopy(): void
     {
+        // logged out first, whatever ran before: this is about the login's purge
+        self::visit('/korbo26/');
+        self::$browser->manage()->deleteAllCookies();
         self::visit('/korbo26/profil');
         $cache = self::waitForPrecache('korbo26');
-        self::$browser->findElement(WebDriverBy::cssSelector('[data-screen="/korbo26/profil"] input[name="tieCode"]'))->sendKeys('KORBO1');
-        self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
+        self::pair();
 
         // the Program page the worker refilled after the purge is the logged-in one
         self::waitForAsync(<<<'JS'
@@ -103,29 +103,37 @@ final class OfflineTest extends BrowserTestCase
         self::stopServer();
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(".tl-card.is-registered") !== null;');
-        self::assertSame('KORBO1', self::script('return document.querySelector(".appbar-who").textContent;'));
+        self::assertSame('JN', self::script('return document.querySelector(".appbar-avatar").textContent;'));
     }
 
     /**
-     * C-I3: a login tapped with no signal shows the worker's own offline page as a 503, not
-     * the browser's error page. Logged out first, whatever ran before: the form is only
-     * there for a reader who is not logged in.
+     * A login tapped with no signal goes back where the reader was: the worker answers the
+     * POST with a 303 to its referrer plus #offline, the page comes from the cache, and the
+     * shell says what happened in a toast and takes the hash away again. Logged out first,
+     * whatever ran before: the start is only there for a reader who is not logged in.
      */
-    public function testALoginWithoutTheServerGetsTheOfflinePage(): void
+    public function testALoginWithoutTheServerGoesBackWithTheOfflineToast(): void
     {
         self::visit('/korbo26/');
         self::$browser->manage()->deleteAllCookies();
         self::visit('/korbo26/profil');
         self::waitForPrecache('korbo26');
-        self::waitFor('return document.querySelector(\'[data-screen="/korbo26/profil"] input[name="tieCode"]\') !== null;');
+        $start = '[data-screen="/korbo26/profil"] form[action="/korbo26/profil/propojit"] button[type="submit"]';
+        self::waitFor('return document.querySelector(arguments[0]) !== null;', [$start]);
+        self::script('window.__before = 1;');
         self::stopServer();
 
-        self::$browser->findElement(WebDriverBy::cssSelector('[data-screen="/korbo26/profil"] input[name="tieCode"]'))->sendKeys('KORBO1');
-        self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
+        self::tap($start);
 
-        self::waitFor('return document.body && document.body.textContent.includes("Přihlášení potřebuje signál.");');
-        self::assertSame(503, self::script('return performance.getEntriesByType("navigation")[0].responseStatus;'));
-        self::assertStringStartsWith('http', (string) self::script('return location.href;'), 'not chrome-error://');
+        self::waitFor('const t = document.querySelector("[data-toast]"); return window.__before === undefined && t !== null && t.textContent.includes(arguments[0]);', ['Akci není možné provést, protože jsi offline.']);
+        self::assertStringContainsString('Zkus to znovu až najdeš místo se signálem.', (string) self::script('return document.querySelector("[data-toast]").textContent;'));
+        self::assertTrue(self::script('const t = document.querySelector("[data-toast]"); return t.closest("[data-screen]") === document.querySelector(\'[data-screen="/korbo26/profil"]\') && t.getClientRects().length > 0;'), 'on the visible Profil');
+        self::assertStringEndsWith('/korbo26/profil', (string) self::script('return location.href;'), 'no #offline left behind');
+        self::assertStringContainsString('Nejsi přihlášen', (string) self::script('return document.querySelector(\'[data-screen="/korbo26/profil"]\').textContent;'));
+
+        // the close button takes it away
+        self::tap('[data-toast-close]');
+        self::assertNull(self::script('return document.querySelector("[data-toast]");'));
     }
 
     /**
@@ -137,8 +145,8 @@ final class OfflineTest extends BrowserTestCase
     {
         self::visit('/korbo26/');
         self::waitForPrecache('korbo26');
-        self::tap('.tabbar a[href="/korbo26/novinky"]');
-        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/novinky"]\'); return s && !s.hidden;');
+        self::tap('.tabbar a[href="/korbo26/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
         self::stopServer();
 
         // counts the loader's revalidations (cache: 'no-cache') and their answers
@@ -154,15 +162,15 @@ final class OfflineTest extends BrowserTestCase
                 }
                 return promise;
             };
-            navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'screen-updated', path: '/korbo26/novinky'}}));
+            navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'screen-updated', path: '/korbo26/informace'}}));
             JS);
         self::waitFor('return window.__checks.length === 1 && window.__checks[0].done;');
         self::assertSame('1', self::script('return window.__checks[0].fromCache;'), 'answered from the cache, and marked so');
 
         self::tap('.appbar-profile');
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/profil"]\'); return s && !s.hidden;');
-        self::tap('.tabbar a[href="/korbo26/novinky"]');
-        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/novinky"]\'); return s && !s.hidden;');
+        self::tap('.tabbar a[href="/korbo26/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
         // shown again: still due, so asked again
         self::waitFor('return window.__checks.filter(check => check.done).length >= 2;');
     }

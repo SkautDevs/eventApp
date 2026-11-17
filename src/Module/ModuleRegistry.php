@@ -8,8 +8,7 @@ final class ModuleRegistry
 {
     /** @var array<string, class-string<ModuleInterface>> */
     private const array MODULES = [
-        'news' => NewsModule::class,
-        'links' => LinksModule::class,
+        'info' => InfoModule::class,
         'map' => MapModule::class,
         'handbook' => HandbookModule::class,
         'programs' => ProgramsModule::class,

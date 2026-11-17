@@ -65,11 +65,11 @@ final class AdminNotifyTest extends AppTestCase
         return $m[1];
     }
 
-    /** A programme KORBO1 is registered for, read from the fixture rather than hardcoded. */
+    /** A programme participant 1 is registered for, read from the fixture rather than hardcoded. */
     private function korboProgramme(): array
     {
         $dir = dirname(__DIR__, 2) . '/events/korbo26/fixtures';
-        $id = json_decode((string) file_get_contents($dir . '/registered.json'), true)['tie:KORBO1'][0];
+        $id = json_decode((string) file_get_contents($dir . '/registered.json'), true)['1'][0];
         foreach (json_decode((string) file_get_contents($dir . '/programs.json'), true) as $programme) {
             if ($programme['id'] === $id) {
                 return $programme;
@@ -370,7 +370,7 @@ final class AdminNotifyTest extends AppTestCase
 
         self::assertSame(303, $response->getStatusCode());
         self::assertNull($this->sender->calls[0][5]);
-        self::assertSame('/korbo26/novinky', $this->sender->calls[0][4]);
+        self::assertSame('/korbo26/informace', $this->sender->calls[0][4]);
         self::assertCount(7, $this->sender->calls[0]);
         self::assertNull($this->sender->calls[0][6], 'a message for everyone names no programme');
         $logged = $this->messages->page('korbo26', 1)[0];
@@ -393,7 +393,7 @@ final class AdminNotifyTest extends AppTestCase
         $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => (string) $programme['id'], 'csrf' => $csrf, 'nonce' => $this->nonceOnPage($app)]);
 
         self::assertSame(303, $response->getStatusCode());
-        self::assertContains('KORBO1', $this->sender->calls[0][5]);
+        self::assertContains(1, $this->sender->calls[0][5]);
         self::assertSame(sprintf('/korbo26/programy#section-%d-program-%d', $programme['section']['id'], $programme['id']), $this->sender->calls[0][4]);
         self::assertCount(7, $this->sender->calls[0]);
         self::assertSame($programme['id'], $this->sender->calls[0][6], 'the payload names the programme');
@@ -471,7 +471,7 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testKissjFailingToListParticipantsSendsNothing(): void
     {
-        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures');
+        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState);
         $provider = new class ($stub) implements \App\Program\ProgramProviderInterface {
             public function __construct(private readonly \App\Program\StubProgramProvider $stub)
             {
@@ -487,14 +487,44 @@ final class AdminNotifyTest extends AppTestCase
                 return $this->stub->getSections();
             }
 
-            public function getProgramsForIdentity(\App\Auth\Identity $identity): array
+            public function getRegistrationWindow(): \App\Program\RegistrationWindow
             {
-                return $this->stub->getProgramsForIdentity($identity);
+                return $this->stub->getRegistrationWindow();
             }
 
-            public function getTieCodesForProgramme(int $programmeId): array
+            public function getParticipant(string $sessionToken): \App\Program\Participant
+            {
+                return $this->stub->getParticipant($sessionToken);
+            }
+
+            public function getParticipantIdsForProgramme(int $programmeId): array
             {
                 throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
+            }
+
+            public function startPairing(string $deviceId): \App\Program\Pairing
+            {
+                return $this->stub->startPairing($deviceId);
+            }
+
+            public function pollPairing(string $deviceCode): \App\Program\PairingPoll
+            {
+                return $this->stub->pollPairing($deviceCode);
+            }
+
+            public function register(string $sessionToken, int $programmeId): void
+            {
+                $this->stub->register($sessionToken, $programmeId);
+            }
+
+            public function unregister(string $sessionToken, int $programmeId): void
+            {
+                $this->stub->unregister($sessionToken, $programmeId);
+            }
+
+            public function revokeSession(string $sessionToken): void
+            {
+                $this->stub->revokeSession($sessionToken);
             }
         };
         $programme = $this->korboProgramme();
@@ -505,7 +535,7 @@ final class AdminNotifyTest extends AppTestCase
 
         self::assertSame(502, $response->getStatusCode());
         $html = (string) $response->getBody();
-        self::assertStringContainsString('Nepodařilo se načíst přihlášené z kissj, nic nebylo odesláno.', $html);
+        self::assertStringContainsString('Nepodařilo se načíst přihlášené z KissJ, nic nebylo odesláno.', $html);
         self::assertStringContainsString('Začínáme v 15:00</textarea>', $html);
         self::assertSame([], $this->sender->calls);
         self::assertSame(0, $this->messages->count('korbo26'));
@@ -581,15 +611,15 @@ final class AdminNotifyTest extends AppTestCase
         self::assertSame([], $this->messages->visible('korbo26'));
 
         $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
-        self::assertStringContainsString('Zobrazit v Novinkách', $html);
-        self::assertStringContainsString('Skryto z Novinek (Jana', $html);
+        self::assertStringContainsString('Zobrazit v Informacích', $html);
+        self::assertStringContainsString('Skryto z Informací (Jana', $html);
 
         $show = $this->request($app, 'POST', '/admin/notify/' . $id . '/hidden', ['csrf' => $csrf, 'hidden' => '0', 'signature' => 'Petr']);
         self::assertSame(303, $show->getStatusCode());
         self::assertCount(1, $this->messages->visible('korbo26'));
         $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Znovu zobrazeno (Petr', $html);
-        self::assertStringContainsString('Skrýt z Novinek', $html);
+        self::assertStringContainsString('Skrýt z Informací', $html);
     }
 
     public function testHidingNeedsAPodpis(): void
@@ -646,7 +676,7 @@ final class AdminNotifyTest extends AppTestCase
             self::assertSame('no-store', $response->getHeaderLine('Cache-Control'), $what);
             self::assertSame('no-referrer', $response->getHeaderLine('Referrer-Policy'), $what);
         }
-        $news = $this->request($app, 'GET', '/novinky');
+        $news = $this->request($app, 'GET', '/informace');
         self::assertSame('same-origin', $news->getHeaderLine('Referrer-Policy'));
         self::assertNotSame('no-store', $news->getHeaderLine('Cache-Control'));
     }
@@ -664,7 +694,7 @@ final class AdminNotifyTest extends AppTestCase
         self::assertCount(1, $records);
         self::assertSame('push.sent', $records[0]->message);
         self::assertSame(\Monolog\Level::Info, $records[0]->level);
-        // no TIE code, no title, no body
+        // no participant id, no title, no body
         self::assertSame(['event' => 'korbo26', 'sent' => 2, 'removed' => 1, 'failed' => 0, 'programme' => $programme['id']], $records[0]->context);
     }
 
@@ -733,7 +763,7 @@ final class AdminNotifyTest extends AppTestCase
     {
         $pdo = AppTestCase::memoryDb();
         $throwing = new class implements \App\Push\PushSenderInterface {
-            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $tieCodes = null, ?int $programme = null): array
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $participantIds = null, ?int $programme = null): array
             {
                 throw new \RuntimeException('push service exploded');
             }
@@ -813,14 +843,44 @@ final class AdminNotifyTest extends AppTestCase
                 return [];
             }
 
-            public function getProgramsForIdentity(\App\Auth\Identity $identity): array
+            public function getRegistrationWindow(): \App\Program\RegistrationWindow
             {
-                return [];
+                return new \App\Program\RegistrationWindow(null, null);
             }
 
-            public function getTieCodesForProgramme(int $programmeId): array
+            public function getParticipant(string $sessionToken): \App\Program\Participant
+            {
+                return new \App\Program\Participant(1, null, []);
+            }
+
+            public function getParticipantIdsForProgramme(int $programmeId): array
             {
                 throw new \GuzzleHttp\Exception\ConnectException('kissj down', new \GuzzleHttp\Psr7\Request('GET', 'https://kissj.example/'));
+            }
+
+            public function startPairing(string $deviceId): \App\Program\Pairing
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function pollPairing(string $deviceCode): \App\Program\PairingPoll
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function register(string $sessionToken, int $programmeId): void
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function unregister(string $sessionToken, int $programmeId): void
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function revokeSession(string $sessionToken): void
+            {
+                throw new \LogicException('not used by this test');
             }
         };
         $app = $this->korbo([\App\Program\ProgramProviderInterface::class => $failing]);

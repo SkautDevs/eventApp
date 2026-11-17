@@ -52,6 +52,20 @@ final class TelemetryTest extends TestCase
         self::assertNull(SentrySdk::getCurrentHub()->getClient());
     }
 
+    /** Arguments never reach a stack trace, whatever the host's ini says: a token is a plain string argument. */
+    public function testInitTurnsExceptionArgumentsOff(): void
+    {
+        $before = ini_get('zend.exception_ignore_args');
+        ini_set('zend.exception_ignore_args', '0');
+        try {
+            Telemetry::init();
+
+            self::assertSame('1', ini_get('zend.exception_ignore_args'));
+        } finally {
+            ini_set('zend.exception_ignore_args', (string) $before);
+        }
+    }
+
     public function testAppReleaseWins(): void
     {
         $_ENV['APP_RELEASE'] = 'abc1234';

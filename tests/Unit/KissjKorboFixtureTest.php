@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Auth\Identity;
 use App\Program\KissjProgramProvider;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -118,20 +117,34 @@ final class KissjKorboFixtureTest extends TestCase
 
     /**
      * `isPreregistered` and `targetRoles` are in every record, and three records carry
-     * `isPreregistered: true`. Neither is in the contract, so neither reaches the screen.
+     * `isPreregistered: true`. The first becomes `preregistered`; `targetRoles` is not in
+     * the internal shape, so it does not reach the screen.
      */
-    public function testFieldsOutsideTheContractDoNotLeakIntoTheInternalShape(): void
+    public function testOnlyTheContractsFieldsReachTheInternalShape(): void
     {
         $raw = KorboResponses::decoded(KorboResponses::LIST)['programmes'];
         self::assertCount(3, array_filter($raw, static fn (array $p): bool => $p['isPreregistered'] === true));
 
-        foreach ($this->programmesById() as $program) {
+        $preregistered = [];
+        foreach ($this->programmesById() as $id => $program) {
             self::assertSame(
-                ['id', 'name', 'section', 'start', 'end', 'lector', 'location', 'perex', 'tools'],
+                ['id', 'name', 'section', 'start', 'end', 'lector', 'location', 'perex', 'tools', 'preregistered'],
                 array_keys($program),
             );
             self::assertSame(['id'], array_keys($program['section']));
+            if ($program['preregistered']) {
+                $preregistered[] = $id;
+            }
         }
+        self::assertSame([3, 36, 51], $preregistered);
+    }
+
+    public function testTheRegistrationWindowIsTheFixtureEventsOpenOne(): void
+    {
+        $window = $this->provider(KorboResponses::LIST)->getRegistrationWindow();
+
+        self::assertSame('2020-01-01T00:00:00+01:00', $window->start?->format(\DATE_ATOM));
+        self::assertSame('2099-01-01T00:00:00+01:00', $window->end?->format(\DATE_ATOM));
     }
 
     /** Text passes through untouched — escaping is the template's job, done once, there. */
@@ -160,7 +173,7 @@ final class KissjKorboFixtureTest extends TestCase
         }
         self::assertStringContainsString("\n", $list[35]['description']);
 
-        $file = KorboResponses::TIE;
+        $file = KorboResponses::PARTICIPANT;
         $body = KorboResponses::body($file);
         foreach (KorboResponses::decoded($file)['programmes'] as $programme) {
             self::assertSame($list[$programme['id']], $programme, "{$file}, programme {$programme['id']}");
@@ -181,13 +194,22 @@ final class KissjKorboFixtureTest extends TestCase
         return substr($body, $open, $close - $open + 1);
     }
 
-    public function testTheTieParticipantGetsTheirEightProgrammes(): void
+    /**
+     * Six, none of them preregistered: kissj's session read lists real registrations only,
+     * and a preregistered programme (3, 36 and 51 here) holds none.
+     */
+    public function testTheFixtureParticipantGetsTheirSixProgrammes(): void
     {
-        $provider = $this->provider(KorboResponses::TIE);
+        $provider = $this->provider(KorboResponses::PARTICIPANT);
 
-        $mine = $provider->getProgramsForIdentity(new Identity(displayName: 'TIE KORBO1', tieCode: 'KORBO1'));
+        $participant = $provider->getParticipant('stub-session-token');
 
-        self::assertSame([3, 5, 10, 26, 31, 36, 45, 50], array_column($mine, 'id'));
-        self::assertSame('/v3/programme/participant/tie/KORBO1', $this->history[0]['request']->getUri()->getPath());
+        self::assertSame(1, $participant->id);
+        self::assertSame('Testovací Korbák', $participant->nickname);
+        self::assertSame([5, 10, 26, 31, 45, 50], array_column($participant->programmes, 'id'));
+        self::assertSame([], array_filter(array_column($participant->programmes, 'preregistered')));
+        $request = $this->history[0]['request'];
+        self::assertSame('/v3/programme/participant/session', $request->getUri()->getPath());
+        self::assertSame('stub-session-token', $request->getHeaderLine('X-Kissj-Device-Session'));
     }
 }

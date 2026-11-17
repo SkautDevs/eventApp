@@ -32,8 +32,7 @@ h2,
 input[type=text],
 textarea,
 .stacked-form select,
-.freshness,
-div.news h3,
+.news-when,
 .news-programme,
 .colophon p {
 	font-weight: 400;
@@ -45,7 +44,6 @@ div.news h3,
 .link-card-note,
 .link-card-out,
 .credit,
-.sheet-section,
 .pl-time {
 	opacity: 1;
 }
@@ -83,8 +81,7 @@ div.news h3,
 }
 
 .appbar-brand, .appbar-brand:visited,
-.appbar-profile, .appbar-profile:visited,
-.appbar-mode {
+.appbar-profile, .appbar-profile:visited {
 	color: var(--role-on-bar, var(--on-state));
 }
 
@@ -210,10 +207,3 @@ div.news p strong {
 	outline-offset: -4px;
 }
 
-.sheet-meta {
-	max-width: 45%;
-}
-
-.sheet-when {
-	white-space: nowrap;
-}

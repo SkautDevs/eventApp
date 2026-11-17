@@ -1,16 +1,58 @@
 {% extends fragment ? "_screen.twig" : "_layout.twig" %}
 
-{% set pageTitle = 'Přihlášení' %}
+{% set pageTitle = 'Profil' %}
+{# an event is dark-capable only if it hand-authored a full dark role set #}
+{% set hasDark = event.roles.dark is defined and event.roles.dark is not empty %}
 
 {% block content %}
+	{# a login's or a logout's toast, on the first full Profil after it (Kernel::takeToast()) #}
+	{% if toast ?? null %}
+		{% include '_toast.twig' with toast only %}
+	{% endif %}
 	<div class="login-box">
-		{% if isLogged %}
-			{# there is no logout: a reader stays logged in until the code stops being valid #}
-			<p>Zvýrazňuje se program pro <strong>{{ identity }}</strong></p>
+		{% if identity %}
+			{# paired: who, and what this browser can do; no code of any kind is shown #}
+			<h2 class="profile-who">{% if identity.initials %}<span class="avatar">{{ identity.initials }}</span>{% else %}<i class="fas fa-user-circle" aria-hidden="true"></i>{% endif %} {{ identity.displayName }}</h2>
+		{% elseif pairing %}
+			{# pending: www/profile.js polls while this paragraph is on a visible screen #}
+			<p class="pairing-code" data-pairing-poll>{{ pairing.userCode }}</p>
+			<p>Zadej kód v KissJ, nebo</p>
+			<a class="btn btn-primary" href="{{ pairing.verificationUrl }}" target="_blank" rel="noopener">Otevřít KissJ ↗</a>
+			{# not .push-status: www/push.js hides every one of those while it has no push status #}
+			<p class="pairing-status" role="status" data-pairing-status>Čekám na potvrzení v KissJ…</p>
+			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form">
+				<button type="submit" class="btn">Začít znovu</button>
+			</form>
 		{% else %}
-			<p>Přihlas se a v programu se ti zvýrazní, na co máš registraci.</p>
-			{% include '_tie_form.twig' %}
+			<h2>Nejsi přihlášen</h2>
+			{% if outcome %}
+				<p class="notice">{{ outcome }}</p>
+			{% endif %}
+			<p>Obsah můžeš jen prohlížet. Pro výběr programů a další akce je třeba být registrovaným účastníkem této akce a přihlásit se:</p>
+			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form">
+				<button type="submit" class="btn btn-primary">Přihlásit kódem z KissJ</button>
+			</form>
+			{% if event.website ?? false %}
+				<p class="profile-web">Nejsi ještě registrovaný účastník? Navštiv <a href="{{ event.website }}" target="_blank" rel="noopener">web akce ↗</a> a zjisti víc!</p>
+			{% endif %}
 		{% endif %}
 	</div>
-	{% include '_install.twig' %}
+	{% include '_install.twig' with {installCard: 'profile'} %}
+	{% if hasDark %}
+		{# Logged in or not: the look is the browser's, not the participant's. The choice
+		   lives in localStorage, so nothing is checked here: www/app.js checks the stored
+		   one, or "system". #}
+		<fieldset class="mode-control" data-mode-control>
+			<legend>Vzhled</legend>
+			<label><input type="radio" name="mode" value="light"> Světlý</label>
+			<label><input type="radio" name="mode" value="dark"> Tmavý</label>
+			<label><input type="radio" name="mode" value="system"> Podle systému</label>
+		</fieldset>
+	{% endif %}
+	{% if identity %}
+		{# the first tap asks, the second submits (www/shell.js) #}
+		<form method="post" action="{{ url_for('pairing-revoke') }}" class="stacked-form profile-logout">
+			<button type="submit" class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z aplikace</button>
+		</form>
+	{% endif %}
 {% endblock %}

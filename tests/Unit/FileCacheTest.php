@@ -60,11 +60,11 @@ final class FileCacheTest extends TestCase
         $sequential = ['sections' => [0 => ['id' => 0, 'title' => 'Nultá']], 'programmes' => []];
 
         $this->cache()->set('list', $data);
-        $this->cache()->set('tie-0123456789abcdef0123456789abcdef', $sequential);
+        $this->cache()->set('session-0123456789abcdef0123456789abcdef', $sequential);
 
         self::assertSame($data, $this->cache()->get('list')->data);
         self::assertSame([10, 1], array_keys($this->cache()->get('list')->data['sections']));
-        self::assertSame($sequential, $this->cache()->get('tie-0123456789abcdef0123456789abcdef')->data);
+        self::assertSame($sequential, $this->cache()->get('session-0123456789abcdef0123456789abcdef')->data);
     }
 
     public function testAnEntryIsFreshUpToTheTtlAndStaleOneSecondLater(): void
@@ -117,7 +117,7 @@ final class FileCacheTest extends TestCase
     public function testABadKeyThrows(): void
     {
         $cache = $this->cache();
-        foreach (['', 'List', 'tie_x', '../escape', 'a/b', 'list.json'] as $key) {
+        foreach (['', 'List', 'session_x', '../escape', 'a/b', 'list.json'] as $key) {
             foreach ([
                 'get' => static fn () => $cache->get($key),
                 'set' => static fn () => $cache->set($key, []),
@@ -176,7 +176,7 @@ final class FileCacheTest extends TestCase
 
         $this->cache()->delete('list');
         $this->cache()->delete('list');
-        $this->cache()->delete('tie-0123456789abcdef0123456789abcdef');
+        $this->cache()->delete('session-0123456789abcdef0123456789abcdef');
 
         self::assertNull($this->cache()->get('list'));
     }
@@ -187,7 +187,7 @@ final class FileCacheTest extends TestCase
         $release = $cache->tryLock('list');
         self::assertNotNull($release);
         self::assertNull($cache->tryLock('list'), 'a second holder is refused');
-        self::assertNotNull($other = $cache->tryLock('tie-abc'), 'locks are per key');
+        self::assertNotNull($other = $cache->tryLock('session-abc'), 'locks are per key');
         $other();
         $release();
         self::assertNotNull($cache->tryLock('list'));

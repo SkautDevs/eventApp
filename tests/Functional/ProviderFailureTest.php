@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\UnknownParticipantException;
 use App\Program\ProgramDataException;
+use App\Program\Pairing;
 use App\Program\ProgramProviderInterface;
+use App\Program\SessionExpiredException;
+use App\Program\StubProgramProvider;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Psr7\Request;
 
@@ -31,102 +33,109 @@ final class ProviderFailureTest extends AppTestCase
     public function testProgramsDegradeUnpersonalizedOnProviderOutage(): void
     {
         $provider = new ThrowingProgramProvider(
-            identityExceptionAfterFirstCall: new ConnectException('down', new Request('GET', 'x')),
-        );
-        $app = $this->createApp(overrides: [
-            ProgramProviderInterface::class => $provider,
-        ]);
-
-        // the first call (TIE code login) goes through fine
-        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
-        self::assertSame(302, $login->getStatusCode());
-
-        // on the second call (during GET /programy) kissj no longer answers
-        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
-
-        self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
-        // the user stays logged in, just without a highlighted program
-        self::assertStringContainsString('<span class="appbar-who">ABC123</span>', $html);
-    }
-
-    public function testTieLoginDegradesGracefullyOnProviderOutage(): void
-    {
-        $provider = new ThrowingProgramProvider(
             identityException: new ConnectException('down', new Request('GET', 'x')),
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
         ]);
+        $this->loginAs($app, 1, 'Jana Nováková');
 
-        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
-        self::assertSame(302, $login->getStatusCode());
+        // the participant read (during GET /programy) finds kissj not answering
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
-        // the TIE error belongs to the login screen, which now lives at /profil
-        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
-        self::assertStringContainsString('Přihlášení se teď nedaří', $html);
+        self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
+        // the reader stays paired, just without a highlighted program
+        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
     }
 
-    public function testAMalformedParticipantAnswerOnLoginDegradesLikeAnOutage(): void
+    /** A pairing start kissj does not answer is explained on Profil, and nothing is pending. */
+    public function testAPairingStartDegradesGracefullyOnProviderOutage(): void
     {
-        $provider = new ThrowingProgramProvider(
-            identityException: new ProgramDataException('kissj sent no list of programmes for v3/programme/participant/tie/x'),
-        );
-        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $provider]);
+        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $this->failingStart(new ConnectException('down', new Request('POST', 'x')))]);
 
-        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $start = $this->request($app, 'POST', '/profil/propojit');
+        self::assertSame(302, $start->getStatusCode());
 
-        self::assertSame(302, $login->getStatusCode());
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
-        self::assertStringContainsString('Přihlášení se teď nedaří, zkus to prosím později.', $html);
-        self::assertStringNotContainsString('<span class="appbar-who">', $html);
+        self::assertStringContainsString('Propojení se teď nedaří, zkus to prosím později.', $html);
+        self::assertStringNotContainsString('data-pairing-poll', $html);
     }
 
-    public function testProgramsLogOutOnUnknownParticipantAfterInitialLogin(): void
+    public function testAMalformedPairingAnswerDegradesLikeAnOutage(): void
+    {
+        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $this->failingStart(new ProgramDataException('kissj sent no pairing for v3/programme/pairing/start'))]);
+
+        $start = $this->request($app, 'POST', '/profil/propojit');
+
+        self::assertSame(302, $start->getStatusCode());
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
+        self::assertStringContainsString('Propojení se teď nedaří, zkus to prosím později.', $html);
+        self::assertStringNotContainsString('appbar-avatar', $html);
+    }
+
+    public function testProgramsLogOutOnAnExpiredSession(): void
     {
         $provider = new ThrowingProgramProvider(
-            identityExceptionAfterFirstCall: new UnknownParticipantException('Unknown TIE code: ABC123'),
+            identityException: new SessionExpiredException(),
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
         ]);
+        $this->loginAs($app, 1, 'Jana Nováková');
 
-        // the first call (TIE code login) goes through fine
-        $login = $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
-        self::assertSame(302, $login->getStatusCode());
-
-        // the participant vanished in the meantime (kissj returns 404) → the user is logged out on the next load
+        // kissj no longer knows the device session (its 401) → the reader is logged out on the next load
         $response = $this->request($app, 'GET', '/programy');
         $html = (string) $response->getBody();
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('Tvůj TIE kód už neplatí, odhlásili jsme tě.', $html);
-        self::assertStringNotContainsString('<span class="appbar-who">ABC123</span>', $html);
-        self::assertStringContainsString('Přihlas se TIE kódem', $html);
+        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+        // the same toast as Domů says why, and the worker keeps the page out of the offline copy
+        self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
+        self::assertSame('1', $response->getHeaderLine('X-Toast'));
+        self::assertStringNotContainsString('class="notice"', $html);
+        // and Profil says it too (Kernel::sessionGone())
+        self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
     /**
      * The normal case when kissj is down is that BOTH calls fail in the same request.
      * The first one signs the participant out, and its explanation used to be
      * overwritten by the second one's notice — so the reader was logged out with no
-     * reason given at all.
+     * reason given at all. The logout now speaks in the toast, the outage in the notice.
      */
     public function testTheLogoutExplanationSurvivesASecondFailureInTheSameRequest(): void
     {
         $provider = new ThrowingProgramProvider(
             programsException: new ConnectException('down', new Request('GET', 'x')),
-            identityExceptionAfterFirstCall: new UnknownParticipantException('Unknown TIE code: ABC123'),
+            identityException: new SessionExpiredException(),
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
         ]);
-
-        self::assertSame(302, $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123'])->getStatusCode());
+        $this->loginAs($app, 1, 'Jana Nováková');
 
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
-        self::assertStringNotContainsString('<span class="appbar-who">ABC123</span>', $html, 'the participant was not logged out');
-        self::assertStringContainsString('Tvůj TIE kód už neplatí, odhlásili jsme tě.', $html);
-        self::assertStringContainsString('Programy se nepodařilo načíst, zkus to prosím později.', $html);
+        self::assertStringNotContainsString('appbar-avatar', $html, 'the participant was not logged out');
+        self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
+        self::assertStringContainsString('<p class="notice" data-key="notice">Programy se nepodařilo načíst, zkus to prosím později.</p>', $html);
+    }
+
+    /** obrok19's local source, with a start that fails as told. */
+    private function failingStart(\Throwable $failure): ProgramProviderInterface
+    {
+        return new class (new StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState), $failure) extends DelegatingProvider {
+            public function __construct(ProgramProviderInterface $inner, private readonly \Throwable $failure)
+            {
+                parent::__construct($inner);
+            }
+
+            public function startPairing(string $deviceId): Pairing
+            {
+                throw $this->failure;
+            }
+        };
     }
 
     /**

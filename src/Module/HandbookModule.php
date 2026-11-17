@@ -17,7 +17,7 @@ final class HandbookModule implements ModuleInterface
 
     public function menuItem(): ?array
     {
-        // no tab of its own — the handbook is the first entry on the Odkazy screen
+        // no tab of its own — the handbook is the first of the quick links on Informace
         return null;
     }
 

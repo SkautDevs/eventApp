@@ -20,13 +20,13 @@ final class KorboEventTest extends AppTestCase
         self::assertCount(59, array_unique($details[1]));
     }
 
-    public function testTheKorboTieCodeLogsIn(): void
+    public function testTheKorboFixtureParticipantPairs(): void
     {
         $app = $this->createApp('korbo26');
-        self::assertSame(302, $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'KORBO1'])->getStatusCode());
+        $this->pair($app);
 
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
-        self::assertStringContainsString('<span class="appbar-who">KORBO1</span>', $html);
+        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
         self::assertStringContainsString('is-registered', $html);
     }
 }

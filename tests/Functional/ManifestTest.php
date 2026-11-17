@@ -93,7 +93,7 @@ final class ManifestTest extends AppTestCase
     /** A shortcut to a screen the event does not have would open a 404 from the home screen. */
     public function testEveryShortcutIsARouteOfAnEnabledFeature(): void
     {
-        $screens = ['programs' => ['Program', 'programy'], 'news' => ['Novinky', 'novinky']];
+        $screens = ['programs' => ['Program', 'programy'], 'info' => ['Notifikace', 'informace']];
         foreach (self::manifests() as [$slug, $manifest]) {
             $event = \App\EventConfig::load(dirname(__DIR__, 2) . '/events', $slug);
             $expected = [];

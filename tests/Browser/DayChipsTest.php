@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -15,16 +14,10 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class DayChipsTest extends BrowserTestCase
 {
-    /** Logged in as KORBO1, who has programmes on more than one day, on the Program screen. */
+    /** Paired as the fixture participant, who has programmes on more than one day, on the Program screen. */
     private static function openProgramScreen(): void
     {
-        self::visit('/korbo26/profil');
-        self::waitFor('return document.readyState === "complete";');
-        if (self::script('return document.querySelector(".appbar-who") === null;')) {
-            self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
-            self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-            self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
-        }
+        self::pair();
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
     }
@@ -47,18 +40,41 @@ final class DayChipsTest extends BrowserTestCase
         self::openProgramScreen();
         self::script('document.querySelector(\'[data-pg-view="list"]\').click();');
         self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "list";');
-        self::assertGreaterThanOrEqual(2, self::script('return document.querySelectorAll(".pl-day").length;'));
+        self::assertGreaterThanOrEqual(2, self::script('return document.querySelectorAll(".view-list .pl-day").length;'));
         // the second day's heading 20px past the line the strip docks it under — the same
         // three tokens bandTop() adds up
         self::script(<<<'JS'
             const css = getComputedStyle(document.querySelector('[data-pg-root]'));
             const px = name => parseFloat(css.getPropertyValue(name)) || 0;
             const band = px('--appbar-height') + px('--appbar-inset') + px('--pager-height');
-            const day = document.querySelectorAll('.pl-day')[1];
+            const day = document.querySelectorAll('.view-list .pl-day')[1];
             window.scrollTo(0, window.scrollY + day.getBoundingClientRect().top - band + 20);
             JS);
-        self::waitFor('var d = document.querySelectorAll(".pl-day")[1].dataset.key;'
+        self::waitFor('var d = document.querySelectorAll(".view-list .pl-day")[1].dataset.key;'
             . ' return document.querySelector(\'.day-chip[data-pg-kind="list"][data-pg-page="\' + d + \'"]\').getAttribute("aria-current") === "true";');
+        self::assertSame(1, self::script('return document.querySelectorAll(\'.day-chip[data-pg-kind="list"][aria-current="true"]\').length;'));
+    }
+
+    /** Přehled is the same list component: a chip tap scrolls to its day, and the chip follows. */
+    public function testTappingAnOverviewChipScrollsToItsDay(): void
+    {
+        self::openProgramScreen();
+        self::script('document.querySelector(\'[data-pg-view="overview"]\').click();');
+        self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "overview";');
+        $third = self::script('return document.querySelectorAll(\'.day-chip[data-pg-kind="overview"]\')[2].dataset.pgPage;');
+        self::script('document.querySelectorAll(\'.day-chip[data-pg-kind="overview"]\')[2].click();');
+        self::assertFalse(self::script('return !!(history.state && history.state.pgOverlay);'), 'a chip pushes no history entry');
+        // the day's heading lands docked under the strip, and its chip is the current one
+        self::waitFor(<<<'JS'
+            const css = getComputedStyle(document.querySelector('[data-pg-root]'));
+            const px = name => parseFloat(css.getPropertyValue(name)) || 0;
+            const band = px('--appbar-height') + px('--appbar-inset') + px('--pager-height');
+            const day = document.querySelector('.view-overview .pl-day[data-key="' + arguments[0] + '"]');
+            const chip = document.querySelector('.day-chip[data-pg-kind="overview"][data-pg-page="' + arguments[0] + '"]');
+            return window.scrollY > 0 && Math.abs(day.getBoundingClientRect().top - band) <= 2 && chip.getAttribute('aria-current') === 'true';
+            JS, [$third]);
+        self::assertSame(1, self::script('return document.querySelectorAll(\'.day-chip[data-pg-kind="overview"][aria-current="true"]\').length;'));
+        // the other list's strip is not touched
         self::assertSame(1, self::script('return document.querySelectorAll(\'.day-chip[data-pg-kind="list"][aria-current="true"]\').length;'));
     }
 

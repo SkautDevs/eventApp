@@ -54,6 +54,8 @@ final class EventConfig
         public readonly bool $listed,
         /** @var array{start: string, end: string}|null  Y-m-d, both inclusive */
         public readonly ?array $dates,
+        /** The event's own website, an absolute http(s) URL: what Profil's "web akce" opens. */
+        public readonly ?string $website,
         public readonly array $raw,
         public readonly string $dir,
     ) {
@@ -77,8 +79,8 @@ final class EventConfig
             }
         }
 
-        if (in_array('news', $data['features'], true) && !in_array('push', $data['features'], true)) {
-            throw new \RuntimeException(sprintf('Event config "%s" enables news without push: News lists the sent notifications', $slug));
+        if (in_array('info', $data['features'], true) && !in_array('push', $data['features'], true)) {
+            throw new \RuntimeException(sprintf('Event config "%s" enables info without push: Informace lists the sent notifications', $slug));
         }
 
         foreach (self::REQUIRED_COLORS as $color) {
@@ -107,6 +109,15 @@ final class EventConfig
         // the picker orders by date, so a listed event without one would have no place in it
         if ($listed && $dates === null) {
             throw new \RuntimeException(sprintf('Event config "%s" is listed but has no dates', $slug));
+        }
+
+        $website = $data['website'] ?? null;
+        if ($website !== null) {
+            $scheme = is_string($website) ? parse_url($website, \PHP_URL_SCHEME) : null;
+            $host = is_string($website) ? parse_url($website, \PHP_URL_HOST) : null;
+            if (!in_array(is_string($scheme) ? strtolower($scheme) : null, ['http', 'https'], true) || !is_string($host) || $host === '') {
+                throw new \RuntimeException(sprintf('Event config "%s" has an invalid website (expected an absolute http(s) URL)', $slug));
+            }
         }
 
         $csp = $data['csp'] ?? [];
@@ -138,6 +149,7 @@ final class EventConfig
             features: $data['features'],
             listed: $listed,
             dates: $dates,
+            website: $website,
             raw: $data,
             dir: dirname($file),
         );

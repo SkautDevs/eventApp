@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Program;
 
-use App\Auth\Identity;
-use App\Auth\UnknownParticipantException;
 use App\Cache\CacheEntry;
 use App\Cache\FileCache;
 use App\Telemetry\Collector;
@@ -13,8 +11,10 @@ use App\Telemetry\Tracer;
 use GuzzleHttp\Exception\TransferException;
 
 /**
- * kissj's answers, kept on disk. A fresh entry is served without asking; an expired or
- * missing one is fetched and rewritten; an expired one is served — however old — when
+ * kissj's answers, kept on disk: the `list` entry (sections, programmes and the
+ * registration window, from one list response) and one `session-…` entry per device
+ * session (the participant and their programmes). A fresh entry is served without
+ * asking; an expired or missing one is fetched and rewritten; an expired one is served — however old — when
  * kissj fails, and the failure goes to Sentry instead of the reader. Only a missing entry
  * lets kissj's trouble through to the modules' notices.
  *
@@ -35,16 +35,40 @@ use GuzzleHttp\Exception\TransferException;
  * Where the cache directory cannot be written all three quietly do nothing, and the
  * provider behaves as it did without them.
  *
+ * The pairing calls, the revoke and a programme's participants are never cached. A
+ * register or unregister that succeeds deletes the session's entry and this request's
+ * memo of it, so the very next read — the redirect after the write — asks kissj again;
+ * a read that was already asking kissj meanwhile does not store its answer
+ * (forgetChanged()).
+ * A refusal saying the list is out of date (STALE_LIST_REFUSALS) deletes the list too.
+ *
  * Installed by Kernel around KissjProgramProvider only: the stub's fixture files are
  * already a local copy.
  */
 final class CachingProgramProvider implements ProgramProviderInterface
 {
-    /** sections and programmes together, as one list response brings them */
+    /** sections, programmes and the registration window together, as one list response brings them */
     public const string LIST_KEY = 'list';
 
     /** how long after a failure an expired entry is served without asking kissj */
     public const int BREAKER_SECONDS = 60;
+
+    /** refusals that prove the cached participant stale: kissj's list differs from ours */
+    private const array STALE_REFUSALS = ['alreadyRegistered', 'notRegistered'];
+
+    /**
+     * refusals that prove the cached list stale: the programme is gone (`notFound`), the
+     * window is not what we show (`closed`), or the programme became preregistered
+     * (`notPossible`) — docs/kissj-contract.md's codes
+     */
+    private const array STALE_LIST_REFUSALS = ['notFound', 'closed', 'notPossible'];
+
+    /**
+     * The prefix of an entry's write marker: a random value rewritten whenever the entry is
+     * forgotten because kissj's answer changed (forgetChanged()). A fetch that saw another value
+     * before it asked does not store its answer, which may predate the change.
+     */
+    public const string WRITTEN_PREFIX = 'written-';
 
     /** at most one report of a hidden failure per this many seconds */
     public const int REPORT_SECONDS = 300;
@@ -95,10 +119,10 @@ final class CachingProgramProvider implements ProgramProviderInterface
         return $this->inner;
     }
 
-    /** The code is the participant's access secret, so no filename carries it. */
-    public static function tieKey(string $tieCode): string
+    /** The token is the device's access secret, so no filename carries it. */
+    public static function sessionKey(string $sessionToken): string
     {
-        return 'tie-' . substr(hash('sha256', $tieCode), 0, 32);
+        return 'session-' . substr(hash('sha256', $sessionToken), 0, 32);
     }
 
     public function getPrograms(): array
@@ -111,46 +135,196 @@ final class CachingProgramProvider implements ProgramProviderInterface
         return $this->list()['sections'];
     }
 
-    public function getProgramsForIdentity(Identity $identity): array
+    public function getRegistrationWindow(): RegistrationWindow
     {
-        $key = self::tieKey($identity->tieCode);
+        $window = $this->list()['registration'];
+
+        return new RegistrationWindow(self::instant($window['start']), self::instant($window['end']));
+    }
+
+    public function getParticipant(string $sessionToken): Participant
+    {
+        $key = self::sessionKey($sessionToken);
         try {
-            return $this->read(
+            $data = $this->read(
                 $key,
-                fn (): array => $this->inner->getProgramsForIdentity($identity),
-                static fn (mixed $data): bool => is_array($data) && array_is_list($data),
+                function () use ($sessionToken): array {
+                    $participant = $this->inner->getParticipant($sessionToken);
+
+                    return ['id' => $participant->id, 'nickname' => $participant->nickname, 'programmes' => $participant->programmes];
+                },
+                static fn (mixed $data): bool => is_array($data)
+                    && is_int($data['id'] ?? null)
+                    && array_key_exists('nickname', $data) && ($data['nickname'] === null || is_string($data['nickname']))
+                    && is_array($data['programmes'] ?? null) && array_is_list($data['programmes']),
             );
-        } catch (UnknownParticipantException $e) {
-            // An answer, not an outage: a stale entry here would keep a participant kissj
-            // has deleted logged in and marked.
-            $this->cache->delete($key);
-            unset($this->memo[$key]);
+        } catch (SessionExpiredException $e) {
+            // An answer, not an outage: a stale entry here would keep a device kissj no
+            // longer knows logged in and marked.
+            $this->forget($key);
             throw $e;
         }
+
+        return new Participant($data['id'], $data['nickname'], $data['programmes']);
     }
 
     /**
      * Never cached: an organiser sending to one programme wants who is registered now, and
      * a few calls a day from one browser cost nothing.
      */
-    public function getTieCodesForProgramme(int $programmeId): array
+    public function getParticipantIdsForProgramme(int $programmeId): array
     {
         return Tracer::span(
             'program.cache',
             'programme-participants',
-            fn (): array => $this->inner->getTieCodesForProgramme($programmeId),
+            fn (): array => $this->inner->getParticipantIdsForProgramme($programmeId),
             ['cache.result' => 'bypass'],
         );
     }
 
-    /** @return array{sections: array, programmes: list<array>} */
+    /** A pairing is a conversation with kissj: every start reaches it. */
+    public function startPairing(string $deviceId): Pairing
+    {
+        return $this->inner->startPairing($deviceId);
+    }
+
+    /** Every poll reaches kissj: an approval is collected once and never again. */
+    public function pollPairing(string $deviceCode): PairingPoll
+    {
+        return $this->inner->pollPairing($deviceCode);
+    }
+
+    public function register(string $sessionToken, int $programmeId): void
+    {
+        $this->write($sessionToken, fn () => $this->inner->register($sessionToken, $programmeId));
+    }
+
+    public function unregister(string $sessionToken, int $programmeId): void
+    {
+        $this->write($sessionToken, fn () => $this->inner->unregister($sessionToken, $programmeId));
+    }
+
+    /** The session ends whatever kissj answers, so its entry and memo go either way. */
+    public function revokeSession(string $sessionToken): void
+    {
+        try {
+            $this->inner->revokeSession($sessionToken);
+        } finally {
+            $this->forget(self::sessionKey($sessionToken));
+        }
+    }
+
+    /**
+     * A write passes through. Its success changes the participant's programmes, so their
+     * entry and this request's memo go and the next read asks kissj; a refusal changed
+     * nothing and keeps both — except alreadyRegistered and notRegistered, which say the
+     * cached list is not what kissj holds, so it goes too, and notFound, closed and
+     * notPossible, which say the same of the programme list, so the list goes; a session kissj no longer knows
+     * goes as on a read. An outage keeps the entry: whether the write landed is unknown,
+     * and the entry expires anyway.
+     *
+     * @param \Closure(): void $call
+     */
+    private function write(string $sessionToken, \Closure $call): void
+    {
+        $key = self::sessionKey($sessionToken);
+        try {
+            $call();
+        } catch (SessionExpiredException $e) {
+            $this->forget($key);
+            throw $e;
+        } catch (RegistrationRefusedException $e) {
+            if (in_array($e->refusal, self::STALE_REFUSALS, true)) {
+                $this->forgetChanged($key);
+            }
+            if (in_array($e->refusal, self::STALE_LIST_REFUSALS, true)) {
+                $this->forgetChanged(self::LIST_KEY);
+            }
+            throw $e;
+        }
+        $this->forgetChanged($key);
+    }
+
+    /** Drops an entry and this request's memo of it. */
+    private function forget(string $key): void
+    {
+        $this->cache->delete($key);
+        unset($this->memo[$key]);
+    }
+
+    /**
+     * forget(), for an entry whose answer kissj has just changed, so that no read stores an
+     * answer from before the change. Another request may be reading the same entry right
+     * now, with kissj's answer from before the write in hand: the write marker, rewritten
+     * first, stops it from storing that answer if it has not checked the marker yet
+     * (resolve()), and the entry's lock — which that read holds while it checks and stores
+     * — makes the delete wait for one that already has. A session that ended (a revoke, an
+     * expiry) needs none of it: nobody reads its entry again.
+     */
+    private function forgetChanged(string $key): void
+    {
+        try {
+            $this->cache->set(self::WRITTEN_PREFIX . $key, bin2hex(random_bytes(8)));
+        } catch (\RuntimeException) {
+            // an unwritable cache stores nothing either
+        }
+        $release = $this->cache->waitLock($key, $this->lockWait);
+        try {
+            $this->forget($key);
+        } finally {
+            $release();
+        }
+    }
+
+    /** The entry's write marker (forgetChanged()), or null while it has never been forgotten. */
+    private function writeMark(string $key): ?string
+    {
+        $data = $this->cache->get(self::WRITTEN_PREFIX . $key)?->data;
+
+        return is_string($data) ? $data : null;
+    }
+
+    /** A stored window end, written by this class as DATE_ATOM or null, in Europe/Prague. */
+    private static function instant(?string $atom): ?\DateTimeImmutable
+    {
+        if ($atom === null) {
+            return null;
+        }
+        $parsed = \DateTimeImmutable::createFromFormat(\DATE_ATOM, $atom);
+        \assert($parsed !== false, 'the list entry was checked as usable');
+
+        return $parsed->setTimezone(new \DateTimeZone('Europe/Prague'));
+    }
+
+    /** Whether a stored window end is null or a DATE_ATOM instant. */
+    private static function storedInstant(mixed $value): bool
+    {
+        return $value === null || (is_string($value) && \DateTimeImmutable::createFromFormat(\DATE_ATOM, $value) !== false);
+    }
+
+    /** @return array{sections: array, programmes: list<array>, registration: array{start: ?string, end: ?string}} */
     private function list(): array
     {
         return $this->read(
             self::LIST_KEY,
-            // the inner provider memoises its list response: one HTTP request for both
-            fn (): array => ['sections' => $this->inner->getSections(), 'programmes' => $this->inner->getPrograms()],
-            static fn (mixed $data): bool => is_array($data) && is_array($data['sections'] ?? null) && is_array($data['programmes'] ?? null),
+            // the inner provider memoises its list response: one HTTP request for all three
+            function (): array {
+                $sections = $this->inner->getSections();
+                $programmes = $this->inner->getPrograms();
+                $window = $this->inner->getRegistrationWindow();
+
+                return [
+                    'sections' => $sections,
+                    'programmes' => $programmes,
+                    'registration' => ['start' => $window->start?->format(\DATE_ATOM), 'end' => $window->end?->format(\DATE_ATOM)],
+                ];
+            },
+            static fn (mixed $data): bool => is_array($data)
+                && is_array($data['sections'] ?? null)
+                && is_array($data['programmes'] ?? null)
+                && is_array($data['registration'] ?? null)
+                && array_key_exists('start', $data['registration']) && self::storedInstant($data['registration']['start'])
+                && array_key_exists('end', $data['registration']) && self::storedInstant($data['registration']['end']),
         );
     }
 
@@ -229,10 +403,13 @@ final class CachingProgramProvider implements ProgramProviderInterface
                 return $this->fallBack($current, $now);
             }
 
+            // taken before kissj is asked: a forgetChanged() after this point means kissj may have
+            // answered from before the change, and the answer is then served but not stored
+            $mark = $this->writeMark($key);
             try {
                 $data = $fetch();
             } catch (TransferException|ProgramDataException $e) {
-                // UnknownParticipantException is an answer and passes by without tripping this
+                // SessionExpiredException is an answer and passes by without tripping this
                 $this->failure = ['generation' => $generation, 'error' => $e, 'reported' => false];
                 $this->markDown();
 
@@ -240,11 +417,13 @@ final class CachingProgramProvider implements ProgramProviderInterface
             }
 
             $this->cache->delete(self::DOWN_KEY);
-            try {
-                $this->cache->set($key, $data);
-            } catch (\RuntimeException $e) {
-                // the reader has the fresh answer; only the next request pays for the lost write
-                ($this->report)($e);
+            if ($this->writeMark($key) === $mark) {
+                try {
+                    $this->cache->set($key, $data);
+                } catch (\RuntimeException $e) {
+                    // the reader has the fresh answer; only the next request pays for the lost write
+                    ($this->report)($e);
+                }
             }
 
             return ['data' => $data, 'result' => 'miss', 'age' => null, 'fetchedAt' => $now, 'stale' => false];

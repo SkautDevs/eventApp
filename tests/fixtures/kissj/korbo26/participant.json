@@ -1,21 +1,9 @@
 {
     "participant": {
+        "id": 1,
         "nickname": "Testovací Korbák"
     },
     "programmes": [
-        {
-            "id": 3,
-            "name": "Postavme si Korbo  - v tuto dobu prosím neplánuj jiné aktivity.",
-            "description": "Čeká nás stavba společných stanů, vyhrazení ploch, rozmístění cedulí, stavba registrace, sociálního zařízení, subjektových stanů a dalších.",
-            "place": "",
-            "start": "2026-09-16T10:00:00+02:00",
-            "end": "2026-09-16T16:00:00+02:00",
-            "isPreregistered": true,
-            "targetRoles": [
-                "ist"
-            ],
-            "sectionId": 2
-        },
         {
             "id": 5,
             "name": "Speed dating (i pro zadané :D)",
@@ -63,19 +51,6 @@
             "start": "2026-09-18T14:00:00+02:00",
             "end": "2026-09-18T15:00:00+02:00",
             "isPreregistered": false,
-            "targetRoles": [
-                "ist"
-            ],
-            "sectionId": 3
-        },
-        {
-            "id": 36,
-            "name": "Korbo ples",
-            "description": "Ani letos na Korbu nebude chybět příležitost k tanci. Vítáni jsou všichni tanečníci od úplných začátečníků až po chronické vymetače plesů.\n\nBudeme tančit předevšímn klasiku a latinu. Pro ty, kdo by si potřebovali kroky osvěžit, nebo budou tančit úplně poprvé budu k dispozici. Můžeme také okoukat nějaké nové figiury od ostatních párů a vzájemně se obohatit.",
-            "place": "Jiné místo - specifikuj",
-            "start": "2026-09-18T17:00:00+02:00",
-            "end": "2026-09-18T19:00:00+02:00",
-            "isPreregistered": true,
             "targetRoles": [
                 "ist"
             ],

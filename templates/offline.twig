@@ -1,7 +1,6 @@
 {% extends fragment ? "_screen.twig" : "_layout.twig" %}
 
 {% set pageTitle = 'Offline' %}
-{% set showFreshness = false %}
 
 {% block content %}
 	{# Shown by the service worker for a page it never cached while there is no network.

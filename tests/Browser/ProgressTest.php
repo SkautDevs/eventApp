@@ -21,9 +21,9 @@ final class ProgressTest extends BrowserTestCase
                 : real(url, options);
             JS);
 
-        self::tap('.tabbar a[href="/korbo26/novinky"]');
+        self::tap('.tabbar a[href="/korbo26/informace"]');
         self::waitFor('return document.documentElement.hasAttribute("data-loading");', [], 2);
-        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/novinky"]\'); return s && !s.hidden && !document.documentElement.hasAttribute("data-loading");');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden && !document.documentElement.hasAttribute("data-loading");');
 
         self::assertFalse(self::script('return document.documentElement.hasAttribute("data-loading");'));
     }
@@ -46,13 +46,13 @@ final class ProgressTest extends BrowserTestCase
                 : real(url, options);
             JS);
 
-        self::tap('.tabbar a[href="/korbo26/novinky"]');
+        self::tap('.tabbar a[href="/korbo26/informace"]');
         // still waiting well before the deadline
         self::waitFor('return document.documentElement.hasAttribute("data-loading");', [], 2);
         self::assertSame(1, self::script('return window.__noReload;'));
 
-        // the document was replaced: the marker is gone and the server rendered Novinky
-        self::waitFor('return window.__noReload === undefined && location.pathname === "/korbo26/novinky" && document.readyState === "complete";', [], 15);
-        self::assertSame('/korbo26/novinky', self::script('return document.querySelector("[data-screen]").getAttribute("data-screen");'));
+        // the document was replaced: the marker is gone and the server rendered Informace
+        self::waitFor('return window.__noReload === undefined && location.pathname === "/korbo26/informace" && document.readyState === "complete";', [], 15);
+        self::assertSame('/korbo26/informace', self::script('return document.querySelector("[data-screen]").getAttribute("data-screen");'));
     }
 }

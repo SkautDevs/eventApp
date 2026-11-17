@@ -10,7 +10,7 @@
 return [
     'name' => 'Navigamus 2025',
     'shortName' => 'Navigamus',
-    'features' => ['programs', 'push', 'news'],
+    'features' => ['programs', 'push', 'info'],
     'listed' => true,
     'dates' => ['start' => '2025-06-05', 'end' => '2025-06-08'],
     'theme' => ['radius' => '6px', 'radius-card' => '6px', 'radius-sheet' => '6px'],

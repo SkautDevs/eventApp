@@ -14,7 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class PushToggleTest extends BrowserTestCase
 {
-    private const string ENABLE = 'Aktivuj si notifikace o akci!';
+    private const string ENABLE = 'Povolit notifikace';
     private const string ON = 'Notifikace máš zapnuté, jupí!';
 
     /**
@@ -203,7 +203,7 @@ final class PushToggleTest extends BrowserTestCase
     {
         self::visit('/korbo26/');
         self::fake(['status' => 502, 'body' => ['saved' => false, 'welcome' => false, 'error' => 'subscription-rejected']], subscribed: true);
-        self::script("localStorage.setItem('pushIdentity:/korbo26/', 'TIE SOMEONE-ELSE');");
+        self::script("localStorage.setItem('pushIdentity:/korbo26/', '999');");
 
         self::restart();
 
@@ -219,7 +219,7 @@ final class PushToggleTest extends BrowserTestCase
         foreach (['network', ['status' => 500, 'body' => []]] as $answer) {
             self::visit('/korbo26/');
             self::fake($answer, subscribed: true);
-            self::script("localStorage.setItem('pushIdentity:/korbo26/', 'TIE SOMEONE-ELSE');");
+            self::script("localStorage.setItem('pushIdentity:/korbo26/', '999');");
 
             self::restart();
 

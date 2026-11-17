@@ -122,7 +122,7 @@ final class ProgramsModuleTest extends TestCase
         $cards = array_values(array_filter(self::cardsOf($model['pages']), static fn (array $c): bool => $c['id'] === 1));
         self::assertCount(3, $cards);
         foreach ($cards as $card) {
-            self::assertSame('čt 3. 6. 20:00 – so 5. 6. 02:00', $card['time']);
+            self::assertSame('čt 3. 6. 20:00 – so 5. 6. 2:00', $card['time']);
             self::assertTrue($card['registered']);
             self::assertFalse($card['dimmed']);
         }
@@ -130,16 +130,31 @@ final class ProgramsModuleTest extends TestCase
         self::assertSame(['20:00', '00:00', '00:00'], array_map(static fn (array $p): string => $p['ruler'][0]['label'], $model['pages']));
         self::assertSame([4, 24, 2], array_column($model['pages'], 'hours'));
 
-        // the list keeps it once, under the day it starts on, with its whole run
+        // the list keeps it once, under the day it starts on, and names the day it ends on
         self::assertSame(['day-20270603'], array_column($model['days'], 'key'));
-        self::assertSame(['čt 3. 6. 20:00 – so 5. 6. 02:00'], array_column($model['days'][0]['items'], 'time'));
+        self::assertSame(['20:00'], array_column($model['days'][0]['items'], 'time'));
+        self::assertSame(['do so 5. 6. 2:00'], array_column($model['days'][0]['items'], 'until'));
     }
 
-    /** Midnight does not count as another day in the labels either. */
+    /**
+     * Midnight does not count as another day in the labels either. A time range is written
+     * as the toast writes it — no leading zero, an unspaced en dash — and only a range
+     * between two dates is spaced.
+     */
     public function testATimeLabelEndingAtMidnightNamesNoDay(): void
     {
-        self::assertSame('23:45 – 00:00', self::call('timeRange', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:00:00')));
-        self::assertSame('čt 3. 6. 23:45 – pá 4. 6. 00:30', self::call('timeRange', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:30:00')));
+        self::assertSame('23:45–0:00', self::call('timeRange', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:00:00')));
+        self::assertSame('čt 3. 6. 23:45 – pá 4. 6. 0:30', self::call('timeRange', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:30:00')));
+    }
+
+    /** The sheet's Kdy and the register toast write one programme's time the same way. */
+    public function testTheSheetAndTheToastWriteTheTimeAlike(): void
+    {
+        $program = self::program(1, '2027-06-03 08:00:00', '2027-06-03 22:00:00');
+
+        self::assertSame('čt 3. 6. 8:00–22:00', self::call('whenLabel', $program));
+        self::assertStringContainsString(' · 8:00–22:00', ProgramsModule::toastLine($program));
+        self::assertSame('8:00–22:00', self::call('timeRange', $program));
     }
 
     // --- day grouping -------------------------------------------------------
@@ -150,12 +165,90 @@ final class ProgramsModuleTest extends TestCase
             self::program(1, '2027-06-04 09:00:00', '2027-06-04 10:00:00', name: 'Druhý den'),
             self::program(2, '2027-06-03 14:00:00', '2027-06-03 15:00:00', name: 'Odpoledne'),
             self::program(3, '2027-06-03 08:00:00', '2027-06-03 09:00:00', name: 'Ráno'),
-        ]);
+        ], [3 => true], true);
 
         self::assertSame(['day-20270603', 'day-20270604'], array_column($days, 'key'));
         self::assertSame(['Ráno', 'Odpoledne'], array_column($days[0]['items'], 'name'));
         self::assertSame('čt 3. 6.', $days[0]['label']);
-        self::assertSame('08:00 – 09:00', $days[0]['items'][0]['time']);
+        $first = $days[0]['items'][0];
+        self::assertSame('8:00', $first['time']);
+        self::assertSame('do 9:00', $first['until']);
+        self::assertSame('8:00–9:00', $first['range']);
+        self::assertSame('Louka', $first['location']);
+        self::assertTrue($first['registered']);
+        self::assertFalse($first['dimmed']);
+        // with the personal list read, what is not the participant's steps back
+        self::assertFalse($days[0]['items'][1]['registered']);
+        self::assertTrue($days[0]['items'][1]['dimmed']);
+    }
+
+    /**
+     * kissj's personal list holds real registrations only: a preregistered programme
+     * belongs to a role eventApp does not know, so it is never "not yours" — not dimmed in
+     * Přehled nor on the timeline — and, absent from that list, not in Moje either.
+     */
+    public function testAPreregisteredProgrammeIsNeverDimmed(): void
+    {
+        $fixed = self::program(1, '2027-06-03 08:00:00', '2027-06-03 09:00:00') + ['preregistered' => true];
+        $free = self::program(2, '2027-06-03 10:00:00', '2027-06-03 11:00:00') + ['preregistered' => false];
+
+        $model = self::call('buildViewModel', [1 => ['id' => 1, 'title' => 'Blok']], [$fixed, $free], [], true);
+
+        $dimmed = array_column($model['overview'][0]['items'], 'dimmed', 'id');
+        self::assertSame([1 => false, 2 => true], $dimmed);
+        self::assertSame([1 => false, 2 => true], array_column(self::cardsOf($model['pages']), 'dimmed', 'id'));
+        self::assertSame([], $model['days']);
+    }
+
+    /** Without a personal list nothing is dimmed: "not yours" would be a guess. */
+    public function testTheListDimsNothingWhenThePersonalListWasNotRead(): void
+    {
+        $days = self::call('buildDays', [self::program(1, '2027-06-03 08:00:00', '2027-06-03 09:00:00')], [], false);
+
+        self::assertFalse($days[0]['items'][0]['registered']);
+        self::assertFalse($days[0]['items'][0]['dimmed']);
+    }
+
+    /**
+     * Přehled is every programme of the event, by day, with the participant's own marked and
+     * the rest dimmed; Moje (`days`) is the participant's alone. Measured on korbo26's fixtures.
+     */
+    public function testTheOverviewHoldsEveryProgrammeAndTheListOnlyTheParticipants(): void
+    {
+        $fixtures = dirname(__DIR__, 2) . '/events/korbo26/fixtures';
+        $provider = new \App\Program\StubProgramProvider($fixtures, sys_get_temp_dir() . '/eventapp-unused-' . bin2hex(random_bytes(4)));
+        $all = $provider->getPrograms();
+        $mineIds = json_decode((string) file_get_contents($fixtures . '/registered.json'), true)['1'];
+        $mine = array_values(array_filter($all, static fn (array $p): bool => in_array($p['id'], $mineIds, true)));
+
+        $model = self::call('buildViewModel', $provider->getSections(), $all, $mine, true);
+        $preregistered = array_column(array_filter($all, static fn (array $p): bool => $p['preregistered']), 'id');
+        self::assertSame([3, 36, 51], $preregistered);
+        self::assertSame([], array_intersect($preregistered, $mineIds), 'kissj lists no preregistered programme as anybody\'s');
+
+        $overviewIds = [];
+        foreach ($model['overview'] as $day) {
+            foreach ($day['items'] as $item) {
+                $overviewIds[] = $item['id'];
+                // grouped under the day it starts on
+                self::assertSame($day['key'], 'day-' . (new \DateTimeImmutable($item['start']))->format('Ymd'), "programme {$item['id']}");
+                // a preregistered programme is everybody's as far as eventApp can tell: never dimmed
+                self::assertSame(!in_array($item['id'], $mineIds, true) && !in_array($item['id'], $preregistered, true), $item['dimmed'], "programme {$item['id']}");
+                self::assertSame(in_array($item['id'], $mineIds, true), $item['registered'], "programme {$item['id']}");
+            }
+        }
+        $allIds = array_column($all, 'id');
+        sort($allIds);
+        sort($overviewIds);
+        self::assertSame($allIds, $overviewIds);
+        self::assertSame(['day-20260916', 'day-20260917', 'day-20260918', 'day-20260919', 'day-20260920'], array_column($model['overview'], 'key'));
+        self::assertSame('day-20260916', $model['activeOverview']);
+
+        $listIds = [];
+        foreach ($model['days'] as $day) {
+            array_push($listIds, ...array_column($day['items'], 'id'));
+        }
+        self::assertSame($mineIds, $listIds);
     }
 
     // --- the page the screen opens on ---------------------------------------
@@ -248,8 +341,9 @@ final class ProgramsModuleTest extends TestCase
             $models[$zone] = self::withTimezone($zone, static fn (): array => self::buildViewModel($programs, $programs));
         }
 
-        self::assertSame('09:00 – 10:30', $models['UTC']['days'][0]['items'][0]['time']);
-        self::assertSame('čt 3. 6. 09:00 – 10:30', $models['UTC']['details'][0]['when']);
+        self::assertSame('9:00', $models['UTC']['days'][0]['items'][0]['time']);
+        self::assertSame('do 10:30', $models['UTC']['days'][0]['items'][0]['until']);
+        self::assertSame('čt 3. 6. 9:00–10:30', $models['UTC']['details'][0]['when']);
         // the axis handed to the client is an instant in the event's own zone
         self::assertSame('2027-06-03T09:00:00+02:00', $models['UTC']['pages'][0]['axisStart']);
         self::assertSame('2027-06-03T11:00:00+02:00', $models['UTC']['pages'][0]['axisEnd']);

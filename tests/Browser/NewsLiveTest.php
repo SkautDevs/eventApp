@@ -9,13 +9,13 @@ use App\Storage\Database;
 use App\Storage\Migrator;
 use PHPUnit\Framework\Attributes\Group;
 
-/** A push arrives while Novinky is open: the message appears without a reload. */
+/** A push arrives while Informace is open: the message appears without a reload. */
 #[Group('browser')]
 final class NewsLiveTest extends BrowserTestCase
 {
     public function testAPushBringsTheNewMessageWithoutAReload(): void
     {
-        self::visit('/korbo26/novinky');
+        self::visit('/korbo26/informace');
         self::script('window.__noReload = 1;');
 
         $pdo = Database::open(dirname(__DIR__, 2) . '/' . self::DATABASE);
@@ -35,7 +35,7 @@ final class NewsLiveTest extends BrowserTestCase
         // what the worker posts after it has shown the notification
         self::script("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'news-updated', programme: null}}));");
 
-        self::waitFor('return [...document.querySelectorAll(\'[data-screen="/korbo26/novinky"] .news strong\')].some(el => el.textContent === arguments[0]);', ['Zpráva z testu']);
+        self::waitFor('return [...document.querySelectorAll(\'[data-screen="/korbo26/informace"] .news strong\')].some(el => el.textContent === arguments[0]);', ['Zpráva z testu']);
         self::assertSame(1, self::script('return window.__noReload;'));
     }
 }

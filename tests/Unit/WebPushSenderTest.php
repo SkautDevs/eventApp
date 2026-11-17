@@ -70,9 +70,9 @@ final class WebPushSenderTest extends TestCase
         return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
     }
 
-    private function subscribe(string $endpoint, ?string $tieCode = null): void
+    private function subscribe(string $endpoint, ?int $participantId = null): void
     {
-        $this->repository->save(['endpoint' => $endpoint, 'keys' => self::$browser], 'korbo26', $tieCode);
+        $this->repository->save(['endpoint' => $endpoint, 'keys' => self::$browser], 'korbo26', $participantId);
     }
 
     /**
@@ -111,7 +111,7 @@ final class WebPushSenderTest extends TestCase
 
     private function welcome(WebPushSender $sender, string $endpoint = 'https://push.example/a'): SendOutcome
     {
-        return $sender->sendToSubscription('korbo26', $endpoint, 'Korbo', 'Notifikace jsou zapnuté. Novinky z akce ti budou chodit sem.');
+        return $sender->sendToSubscription('korbo26', $endpoint, 'Korbo', 'Notifikace jsou zapnuté. Další notifikace z akce ti budou chodit sem.');
     }
 
     public function testAnAcceptedWelcomeIsDelivered(): void
@@ -189,7 +189,7 @@ final class WebPushSenderTest extends TestCase
         $this->subscribe('https://push.example/c');
 
         $result = $this->sender([new Response(201), new Response(500), new Response(403)])
-            ->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', tieCodes: null);
+            ->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', participantIds: null);
 
         self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], $result);
         self::assertSame([], $this->reported, 'an HTTP answer is not an exception');
@@ -212,11 +212,11 @@ final class WebPushSenderTest extends TestCase
     /** Final review M2: a throwable out of flush() reaches the collector and counts as failed. */
     public function testAThrowableInTheBatchIsCollectedAndCountedAsFailed(): void
     {
-        $this->subscribe('https://push.example/a', 'KORBO1');
+        $this->subscribe('https://push.example/a', 1);
         $this->subscribe('https://push.example/b');
 
         // not a Guzzle exception: the library's rejection handler cannot map it and flush() throws
-        $result = $this->sender([new \RuntimeException('handler broke')])->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', tieCodes: ['KORBO1']);
+        $result = $this->sender([new \RuntimeException('handler broke')])->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', participantIds: [1]);
 
         self::assertSame(['recipients' => 1, 'sent' => 0, 'removed' => 0, 'failed' => 1], $result);
         self::assertCount(1, $this->reported);
@@ -224,7 +224,7 @@ final class WebPushSenderTest extends TestCase
         self::assertSame(
             ['event' => 'korbo26', 'target' => 'programme', 'recipients' => 1, 'sent' => 0, 'removed' => 0, 'failed' => 1],
             $this->logger->records[0]['context'],
-            'a programme send: recipients counts the rows the TIE codes matched',
+            'a programme send: recipients counts the rows the participant ids matched',
         );
     }
 
@@ -461,8 +461,8 @@ final class WebPushSenderTest extends TestCase
     public function testThePayloadCarriesTheProgrammeOrNull(): void
     {
         self::assertSame(
-            ['title' => 'Změna', 'body' => 'Nástup v 18:00', 'icon' => 'events/korbo26/logo.png', 'url' => '/korbo26/novinky', 'programme' => null],
-            json_decode(WebPushSender::payload('Změna', 'Nástup v 18:00', 'events/korbo26/logo.png', '/korbo26/novinky', null), true),
+            ['title' => 'Změna', 'body' => 'Nástup v 18:00', 'icon' => 'events/korbo26/logo.png', 'url' => '/korbo26/informace', 'programme' => null],
+            json_decode(WebPushSender::payload('Změna', 'Nástup v 18:00', 'events/korbo26/logo.png', '/korbo26/informace', null), true),
         );
         self::assertSame(7, json_decode(WebPushSender::payload('T', 'B', null, null, 7), true)['programme']);
     }

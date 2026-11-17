@@ -32,7 +32,7 @@ final class Precache
         $documents[] = $routes->urlFor('profile');
         $documents[] = $routes->urlFor('offline');
 
-        $scripts = ['style.css', 'app.js', 'shell.js', 'push.js'];
+        $scripts = ['style.css', 'app.js', 'shell.js', 'push.js', 'profile.js'];
         // the layout loads programs.js only for an event with the Program screen
         if ($event->isEnabled('programs')) {
             $scripts[] = 'programs.js';

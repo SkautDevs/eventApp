@@ -17,6 +17,10 @@ final class Telemetry
 {
     public static function init(): void
     {
+        // A session token or a device code is a plain string argument; with arguments in the
+        // traces (the host's ini may leave this off) they would reach Sentry's frames. The
+        // Scrubber drops frame vars too, for what was captured before this ran.
+        ini_set('zend.exception_ignore_args', '1');
         $dsn = $_ENV['SENTRY_DSN'] ?? '';
         if (!is_string($dsn) || $dsn === '') {
             return;

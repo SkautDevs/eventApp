@@ -9,8 +9,8 @@ interface PushSenderInterface
     /**
      * @param string|null $url the page a tap on the notification opens; the service worker
      *                         only honours one inside the event's own scope
-     * @param list<string>|null $tieCodes null reaches every subscriber of the event, a list
-     *                                    only the subscriptions of those TIE codes
+     * @param list<int>|null $participantIds null reaches every subscriber of the event, a list
+     *                                       only the subscriptions of those participants
      * @param int|null $programme the programme a message is about, or null; it travels in
      *                            the payload so the open app can refresh that screen too
      *
@@ -27,7 +27,7 @@ interface PushSenderInterface
         string $body,
         ?string $icon = null,
         ?string $url = null,
-        ?array $tieCodes = null,
+        ?array $participantIds = null,
         ?int $programme = null,
     ): array;
 

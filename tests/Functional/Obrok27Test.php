@@ -17,7 +17,7 @@ final class Obrok27Test extends AppTestCase
     public function testEveryEnabledFeatureRenders(): void
     {
         $app = $this->createApp('obrok27');
-        foreach (['/novinky', '/mapa', '/odkazy', '/programy', '/profil'] as $uri) {
+        foreach (['/informace', '/mapa', '/programy', '/profil'] as $uri) {
             self::assertSame(200, $this->request($app, 'GET', $uri)->getStatusCode(), $uri);
         }
     }
@@ -36,11 +36,11 @@ final class Obrok27Test extends AppTestCase
 
     public function testActiveTabIsGreenWithDeepBlueInk(): void
     {
-        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/novinky')->getBody();
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/informace')->getBody();
 
         self::assertStringContainsString('--role-state: #e0ff00', $html);
         self::assertStringContainsString('--role-on-state: #15133f', $html);
-        self::assertStringContainsString('class="tab is-active" href="/obrok27/novinky"', $html);
+        self::assertStringContainsString('class="tab is-active" href="/obrok27/informace"', $html);
     }
 
     public function testHomeTabUsesTheShortEventName(): void
@@ -66,6 +66,16 @@ final class Obrok27Test extends AppTestCase
         foreach (['O27_lilie_w.svg', 'O27_logo_d.svg', 'O27_logo_w.svg'] as $file) {
             self::assertFileExists($root . '/www/events/obrok27/' . $file);
         }
+    }
+
+    public function testMistaEmbedsThe2027Map(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/mapa')->getBody();
+
+        self::assertStringContainsString('<iframe src="https://www.google.com/maps/d/embed?mid=1KLPkQqPYxomrNmxTc0FfPZ44P5AxLRg"', $html);
+        self::assertStringNotContainsString('1-c6E-PUffBQyiivt-tSURDBIwABH9X-I', $html);
+        self::assertSame(1, preg_match('~<a class="tab is-active" href="/obrok27/mapa"[^>]*>.*?</a>~s', $html, $tab));
+        self::assertStringContainsString('<span>Místa</span>', $tab[0]);
     }
 
     public function testHandbookDownloadMissingFileIs404(): void

@@ -16,10 +16,10 @@ final class ScrubberTest extends TestCase
         $event->setTransaction('GET /korbo26/admin/notify?token=abc');
         $event->setRequest([
             // not an admin route: those have their whole body replaced (see the admin tests below)
-            'url' => 'https://app.example/korbo26/profil/tie?token=abc&page=2',
+            'url' => 'https://app.example/korbo26/profil/propojit?token=abc&page=2',
             'method' => 'POST',
             'query_string' => 'token=abc&page=2',
-            'data' => ['tieCode' => 'KORBO1', 'token' => 'abc', 'return' => 'programy'],
+            'data' => ['token' => 'abc', 'return' => 'programy'],
             'headers' => ['Authorization' => ['Bearer key'], 'cookie' => 'eventapp=session', 'Accept' => ['text/html']],
         ]);
         $event->setContext('http', ['url' => 'https://app.example/korbo26/admin/notify?token=abc']);
@@ -29,9 +29,9 @@ final class ScrubberTest extends TestCase
 
         $request = $scrubbed->getRequest();
         self::assertSame('GET /korbo26/admin/notify?token=<redacted>', $scrubbed->getTransaction());
-        self::assertSame('https://app.example/korbo26/profil/tie?token=<redacted>&page=2', $request['url']);
+        self::assertSame('https://app.example/korbo26/profil/propojit?token=<redacted>&page=2', $request['url']);
         self::assertSame('token=<redacted>&page=2', $request['query_string']);
-        self::assertSame(['tieCode' => '<redacted>', 'token' => '<redacted>', 'return' => 'programy'], $request['data']);
+        self::assertSame(['token' => '<redacted>', 'return' => 'programy'], $request['data']);
         self::assertSame(['Authorization' => '<redacted>', 'cookie' => '<redacted>', 'Accept' => ['text/html']], $request['headers']);
         self::assertSame('https://app.example/korbo26/admin/notify?token=<redacted>', $scrubbed->getContexts()['http']['url']);
         self::assertSame(['https://app.example/?token=<redacted>'], $scrubbed->getMessageParams());
@@ -102,12 +102,12 @@ final class ScrubberTest extends TestCase
     {
         $event = Event::createEvent();
         $event->setRequest([
-            'url' => 'https://app.example/obrok27/profil/tie',
+            'url' => 'https://app.example/obrok27/profil/propojit',
             'method' => 'POST',
-            'data' => ['tieCode' => 'OBROK1', 'return' => 'programy'],
+            'data' => ['token' => 'abc', 'return' => 'programy', 'code' => '483291'],
         ]);
 
-        self::assertSame(['tieCode' => '<redacted>', 'return' => 'programy'], Scrubber::scrub($event)->getRequest()['data']);
+        self::assertSame(['token' => '<redacted>', 'return' => 'programy', 'code' => '483291'], Scrubber::scrub($event)->getRequest()['data']);
     }
 
     public function testAnEventWithNoSecretIsReturnedUnchanged(): void
@@ -139,5 +139,28 @@ final class ScrubberTest extends TestCase
 
         self::assertSame('https://app.example/x?csrftoken=1&token=<redacted>', $request['url']);
         self::assertSame('csrftoken=1&token=<redacted>', $request['query_string']);
+    }
+
+    /**
+     * A token or a device code is a plain string argument, and where the host leaves
+     * zend.exception_ignore_args off a frame's vars carry it: every frame loses its vars,
+     * the event's own stack trace and every exception's alike.
+     */
+    public function testEveryStackFrameLosesItsVars(): void
+    {
+        $frame = static fn (): \Sentry\Frame => new \Sentry\Frame('getParticipant', 'src/Program/KissjProgramProvider.php', 42, vars: ['sessionToken' => 'secret-token', 'deviceCode' => 'secret-code']);
+        $exceptionFrames = [$frame(), $frame()];
+        $eventFrames = [$frame()];
+        $event = Event::createEvent();
+        $event->setExceptions([new \Sentry\ExceptionDataBag(new \RuntimeException('kissj down'), new \Sentry\Stacktrace($exceptionFrames))]);
+        $event->setStacktrace(new \Sentry\Stacktrace($eventFrames));
+
+        $scrubbed = Scrubber::scrub($event);
+
+        foreach ($scrubbed->getExceptions()[0]->getStacktrace()->getFrames() as $kept) {
+            self::assertSame([], $kept->getVars());
+        }
+        self::assertSame([], $scrubbed->getStacktrace()->getFrames()[0]->getVars());
+        self::assertSame('getParticipant', $scrubbed->getStacktrace()->getFrames()[0]->getFunctionName(), 'only the vars go');
     }
 }

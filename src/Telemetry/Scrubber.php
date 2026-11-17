@@ -8,10 +8,11 @@ use Sentry\Event;
 
 /**
  * Takes this app's secrets out of every event before it leaves: the admin token in a
- * URL (old links still carry it), a TIE code or token in a form body, a whole push
+ * URL (old links still carry it), a token in a form body, a whole push
  * subscribe or unsubscribe body (endpoint and keys together are the credential to push to a device),
- * a whole admin form (the message, its Podpis and the CSRF token), and the Authorization and Cookie headers. The exception message and the stack frames
- * are never touched — nothing secret is put there in the first place.
+ * a whole admin form (the message, its Podpis and the CSRF token), the Authorization and Cookie headers, and every stack frame's
+ * vars (its arguments: a session token or a device code is one). The exception message is never touched — nothing secret is
+ * put there in the first place.
  */
 final class Scrubber
 {
@@ -21,7 +22,7 @@ final class Scrubber
 
     public const string ADMIN_REDACTED = '<admin form redacted>';
 
-    private const array BODY_FIELDS = ['tieCode', 'token'];
+    private const array BODY_FIELDS = ['token'];
 
     private const array HEADERS = ['authorization', 'cookie'];
 
@@ -52,7 +53,7 @@ final class Scrubber
                     }
                 }
             } elseif (is_string($request['data'] ?? null)) {
-                $request['data'] = preg_replace('~(^|&)(tieCode|token)=[^&]*~', '$1$2=' . self::REDACTED, $request['data']) ?? self::REDACTED;
+                $request['data'] = preg_replace('~(^|&)(token)=[^&]*~', '$1$2=' . self::REDACTED, $request['data']) ?? self::REDACTED;
             }
 
             if (is_array($request['headers'] ?? null)) {
@@ -80,6 +81,17 @@ final class Scrubber
                 array_map(static fn (mixed $param): mixed => is_string($param) ? self::redact($param) : $param, $event->getMessageParams()),
                 $formatted === null ? null : self::redact($formatted),
             );
+        }
+
+        // a frame's vars are its arguments, and a token or a device code is one
+        $stacktraces = [$event->getStacktrace()];
+        foreach ($event->getExceptions() as $exception) {
+            $stacktraces[] = $exception->getStacktrace();
+        }
+        foreach ($stacktraces as $stacktrace) {
+            foreach ($stacktrace?->getFrames() ?? [] as $frame) {
+                $frame->setVars([]);
+            }
         }
 
         return $event;

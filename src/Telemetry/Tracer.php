@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telemetry;
 
-use App\Auth\UnknownParticipantException;
+use App\Program\SessionExpiredException;
 use GuzzleHttp\Exception\RequestException;
 use Sentry\SentrySdk;
 use Sentry\State\Scope;
@@ -58,17 +58,18 @@ final class Tracer
     }
 
     /**
-     * The status a failed span carries. An HTTP answer keeps its own meaning — kissj's 404
-     * for an unknown TIE code is `not_found`, an answer rather than a fault, and so is the
-     * exception the provider turns it into — and everything else is `internal_error`.
+     * The status a failed span carries. An HTTP answer keeps its own meaning — kissj's 401
+     * for a device session that is no longer valid is `unauthenticated`, an answer rather
+     * than a fault — and so does the exception the provider turns it into, once the
+     * response is no longer at hand. Everything else is `internal_error`.
      */
     public static function statusFor(\Throwable $e): SpanStatus
     {
         if ($e instanceof RequestException && $e->getResponse() !== null) {
             return SpanStatus::createFromHttpStatusCode($e->getResponse()->getStatusCode());
         }
-        if ($e instanceof UnknownParticipantException) {
-            return SpanStatus::notFound();
+        if ($e instanceof SessionExpiredException) {
+            return SpanStatus::unauthenticated();
         }
 
         return SpanStatus::internalError();

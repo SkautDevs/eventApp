@@ -40,7 +40,7 @@ final class WorkerRegistrationTest extends BrowserTestCase
         $cache = self::waitForPrecache('korbo26');
         self::asyncScript(<<<'JS'
             const done = arguments[arguments.length - 1];
-            caches.open(arguments[0]).then(cache => cache.put(location.origin + '/korbo26/novinky', new Response(
+            caches.open(arguments[0]).then(cache => cache.put(location.origin + '/korbo26/informace', new Response(
                 '<!DOCTYPE html><meta name="push-identity" content="SOMEONE-ELSE"><p>stale</p>',
                 {headers: {'Content-Type': 'text/html; charset=utf-8'}},
             ))).then(() => done(true), () => done(false));
@@ -51,7 +51,7 @@ final class WorkerRegistrationTest extends BrowserTestCase
         self::waitForAsync(<<<'JS'
             const done = arguments[arguments.length - 1];
             caches.open(arguments[0])
-                .then(cache => cache.match(location.origin + '/korbo26/novinky'))
+                .then(cache => cache.match(location.origin + '/korbo26/informace'))
                 .then(hit => (hit ? hit.text() : ''))
                 .then(html => done(html.includes('<meta name="push-identity" content="">') && !html.includes('SOMEONE-ELSE')), () => done(false));
             JS, [$cache]);

@@ -7,15 +7,16 @@ namespace App\Program;
 use GuzzleHttp\Exception\TransferException;
 
 /**
- * A kissj call that failed on an endpoint whose path carries a TIE code. Guzzle's own
- * message names the request URI, code included, and Sentry reports every chained
- * exception's message too — so this one says what happened in words and chains nothing.
- * It is a TransferException, so every caller that degrades on an outage still does.
+ * A kissj call that failed: a status the contract does not give a meaning, or no answer at
+ * all. Guzzle's own message names the request URI and quotes the response body, and Sentry
+ * reports every chained exception's message too — so this one names the endpoint in words
+ * and chains nothing, and no device session token or code can ride along. It is a
+ * TransferException, so every caller that degrades on an outage still does.
  */
 final class KissjTransferException extends TransferException
 {
     /**
-     * @param string   $where  what the message names instead of the path, e.g. "the participant endpoint"
+     * @param string   $where  what the message names instead of the path, e.g. "the session endpoint"
      * @param int|null $status the HTTP status kissj answered, null when it never answered
      */
     public static function on(string $where, ?int $status, \Throwable $cause): self

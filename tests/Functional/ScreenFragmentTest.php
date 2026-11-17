@@ -12,13 +12,12 @@ namespace Tests\Functional;
  */
 final class ScreenFragmentTest extends AppTestCase
 {
-    /** The five tab destinations plus /profil — the screens the loader participates in. */
+    /** The four tab destinations plus /profil — the screens the loader participates in. */
     private const array SCREENS = [
         '/' => 'homepage',
         '/programy' => 'programs',
         '/mapa' => 'map',
-        '/novinky' => 'news',
-        '/odkazy' => 'links',
+        '/informace' => 'info',
         '/profil' => '',
     ];
 
@@ -181,8 +180,12 @@ final class ScreenFragmentTest extends AppTestCase
         parent::tearDown();
     }
 
-    /** shell.js fills it; the server only states where it goes. */
-    public function testEveryScreenHasAnEmptyFreshnessLineRightAfterItsHeading(): void
+    /**
+     * The per-screen freshness line is gone: the section still says when its data was
+     * fetched, and the one network banner (www/shell.js) reads that off the visible screen.
+     * The banner is the shell's, so it is in the document once and in no fragment.
+     */
+    public function testEveryScreenCarriesItsFetchTimeAndTheDocumentOneBanner(): void
     {
         $app = $this->createApp();
 
@@ -191,10 +194,18 @@ final class ScreenFragmentTest extends AppTestCase
                 $html = (string) $this->request($app, 'GET', $path, null, $headers)->getBody();
                 $mode = $path . ($headers === [] ? ' (page)' : ' (fragment)');
 
-                self::assertSame(1, substr_count($html, 'data-freshness'), $mode);
-                self::assertMatchesRegularExpression('~<section class="screen"[^>]*\sdata-fetched-at="[^"]+"[^>]*><h1 class="sr-only">[^<]*</h1><p class="freshness" data-freshness hidden></p>~', $html, $mode);
+                self::assertStringNotContainsString('freshness', $html, $mode);
+                self::assertMatchesRegularExpression('~<section class="screen"[^>]*\sdata-fetched-at="[^"]+"[^>]*><h1 class="sr-only">[^<]*</h1>~', $html, $mode);
+                self::assertSame($headers === [] ? 1 : 0, preg_match_all('~\sdata-netstate[\s>]~', $html), $mode);
+                self::assertSame($headers === [] ? 1 : 0, substr_count($html, 'data-netstate-live'), $mode);
             }
         }
+        // before the tab bar, hidden until shell.js has something to say. The banner's age
+        // ticks, so it is hidden from assistive tech, and its own live region speaks for it.
+        self::assertMatchesRegularExpression(
+            '~<p class="sr-only" role="status" data-netstate-live></p>\s*<p class="netstate" data-netstate aria-hidden="true" hidden></p>\s*<nav class="tabbar"~',
+            (string) $this->request($app, 'GET', '/')->getBody(),
+        );
     }
 
     public function testTheNoscriptNoticeIsInTheDocumentOnly(): void
@@ -214,8 +225,8 @@ final class ScreenFragmentTest extends AppTestCase
 
         self::assertMatchesRegularExpression(
             '~<nav class="tabbar" aria-label="Hlavní menu">\s*<span class="progress" data-progress aria-hidden="true"></span>~',
-            (string) $this->request($app, 'GET', '/novinky')->getBody(),
+            (string) $this->request($app, 'GET', '/informace')->getBody(),
         );
-        self::assertStringNotContainsString('data-progress', (string) $this->request($app, 'GET', '/novinky', null, ['X-Screen' => '1'])->getBody());
+        self::assertStringNotContainsString('data-progress', (string) $this->request($app, 'GET', '/informace', null, ['X-Screen' => '1'])->getBody());
     }
 }

@@ -73,7 +73,7 @@ final class PushScriptTest extends TestCase
         $js = self::code();
 
         foreach ([
-            'Aktivuj si notifikace o akci!',
+            'Povolit notifikace',
             'Hotovo! Právě ti přišla uvítací notifikace.',
             'Notifikace máš zapnuté, jupí!',
             'Notifikace jsou vypnuté.',

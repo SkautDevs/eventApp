@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Push;
 
 /**
- * Every message an organiser sent, kept forever. The News screen and a programme's sheet
+ * Every message an organiser sent, kept forever. Informace and a programme's sheet
  * are built from it, which is why a message can be hidden — never deleted, and the last
  * hide or show records who did it and when.
  */
@@ -52,7 +52,7 @@ final class MessageRepository
 
     /**
      * Logs a message before it is sent: its counts stay NULL until finish(), so a send that
-     * dies half-way still leaves the message on News and in the admin log.
+     * dies half-way still leaves the message on Informace and in the admin log.
      */
     public function begin(
         string $event,

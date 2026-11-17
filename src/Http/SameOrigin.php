@@ -7,9 +7,10 @@ namespace App\Http;
 use Psr\Http\Message\ServerRequestInterface;
 
 /**
- * Whether a state-changing request came from this site's own pages. The TIE login and
- * logout use it: a cross-site form could otherwise log a reader in as the attacker (whose
- * code push.js would then bind to the reader's subscription) or log them out.
+ * Whether a state-changing request came from this site's own pages. The pairing start and
+ * the logout use it: a cross-site form could otherwise start a pairing the attacker then
+ * approves in their own KissJ, logging the reader in as the attacker (whose participant id
+ * push.js would then bind to the reader's subscription), or log the reader out.
  *
  * Sec-Fetch-Site decides when the browser sends it (every current one does). Only without
  * it is Origin compared — by host alone, because behind a TLS-terminating proxy the scheme

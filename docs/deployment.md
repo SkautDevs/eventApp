@@ -4,8 +4,10 @@ One instance of the app serves every event. The event is the first path segment
 (`/obrok27/`, `/korbo26/programy`); `/` is a picker of the events whose config says
 `listed => true`. There is nothing to deploy per event except its directory.
 
-Login is by TIE code only. There is no SkautIS app to register and no `soap`
-extension to install.
+Login is kissj's device pairing (`docs/kissj-contract.md`, "Device pairing"): a reader
+starts it on `/<slug>/profil`, confirms the code in KissJ, and the app keeps kissj's
+device session token in its server-side session. There is no SkautIS app to register and
+no `soap` extension to install.
 
 Production is a classic Apache/PHP host fed by GitHub Actions over FTP: **every push to
 `master` deploys**. A Docker stack (php-fpm and nginx) is described at the end as the
@@ -81,8 +83,10 @@ so removed assets are also deleted from the server.
   about 20 (the default 5 lets a few slow kissj answers stall everybody), and a
   FastCGI/proxy timeout of at least 45 s, as in the Docker stack. Set
   `display_errors = Off` and `log_errors = On` so a PHP fatal error never reaches a
-  reader, and `zend.exception_ignore_args = On` (PHP's production default) so a TIE
-  code passed as a call argument never reaches a Sentry stack trace.
+  reader. `zend.exception_ignore_args` is set on by the app itself (`Telemetry::init()`)
+  and the Sentry scrubber drops every stack frame's arguments, so a session token or a
+  device code passed as a call argument never reaches a Sentry stack trace; keeping
+  PHP's production default `On` in the host's ini costs nothing.
 - Apache with mod_rewrite and the docroot on `www/`. mod_headers, mod_expires and
   mod_deflate are recommended: `www/.htaccess` uses them for security headers, asset
   caching and compression. Every block is in `<IfModule>`, so a host without one still
@@ -98,8 +102,9 @@ so removed assets are also deleted from the server.
 2. Create **`var/`** in the private root, writable by the user PHP runs as. PHP keeps
    everything it writes there: `sessions/` (created 0700 on first use), `cache/<slug>/`
    (the kissj answers), `push.sqlite` (push subscriptions and the message log, the only
-   durable state) and `twig/` (compiled templates). `var/` is excluded from the mirror,
-   so it survives every deploy. Permissions `750` (`700` on shared hosting), **not
+   durable state), `twig/` (compiled templates) and, for an event on `local`, `stub/`
+   (the registrations made in the app and the logged-out device sessions). `var/` is
+   excluded from the mirror, so it survives every deploy. Permissions `750` (`700` on shared hosting), **not
    `775`**: group-writable means writable for other tenants of the server.
    `var/push.sqlite` itself `0600`. Inside the docroot `push.sqlite` would be
    downloadable over HTTP, and with it every push endpoint and subscriber key.
@@ -107,7 +112,7 @@ so removed assets are also deleted from the server.
    why the whole directory must be writable; a backup copies all three, or runs
    `sqlite3 push.sqlite ".backup /path/push-backup.sqlite"`.
 3. Check once that PHP's `REMOTE_ADDR` is the reader's address (print it from a
-   throwaway script, or look at `phpinfo()`): the TIE login and the push subscribe
+   throwaway script, or look at `phpinfo()`): the pairing and the push subscribe
    limits count by it. A host that puts its own proxy in front of Apache must restore
    the address with `mod_remoteip`, or set `TRUSTED_PROXY_COUNT` (see
    [Proxies and the reader's address](#proxies-and-the-readers-address)).
@@ -115,26 +120,23 @@ so removed assets are also deleted from the server.
    event's screens. On a production event check that the programme matches reality and
    not the demo fixtures (see `PROGRAM_PROVIDER_<SLUG>` below).
 
-**Back up `var/push.sqlite` before deploying this version.** The first request that
-opens it migrates the schema in place (steps 3–5: a strike counter on subscriptions, the
-subscribe limit's table, and the message log rebuilt with nullable counts and a `failed`
-column), one transaction per step; `PRAGMA user_version` records the step reached, a
-failed step is rolled back whole while the steps before it stay committed, the request
-answers 500 and reaches Sentry, and the next request tries again from that step.
+**The schema.** The first request that opens `var/push.sqlite` creates it
+(`App\Storage\Migrator`, one numbered step per transaction; `PRAGMA user_version`
+records the step reached, a failed step is rolled back whole, the request answers 500 and
+reaches Sentry, and the next request tries again). The schema is version 1: the steps of
+the versions before the pairing login were collapsed into one, because nothing was in
+production. A database at a higher `user_version` is refused, and every request that needs
+it (Domů, Informace, Program, the push and admin routes) answers 500, so **the first deploy of the pairing login deletes `var/push.sqlite`**
+(with its `-wal` and `-shm` files) together with `var/cache/` and `var/sessions/`.
+That drops every stored push subscription and the message log; a reader stays
+subscribed in the browser, but the server learns of the subscription again only when it
+is re-sent, which `push.js` does after the next login or logout in that browser. Readers
+logged in by TIE code are logged out and pair again. From the first production deploy
+on, schema changes are appended as new steps; a shipped step is never edited.
 
-**Deploy this version in a quiet moment, ideally a short maintenance window.** Two things
-make it different from a routine update:
-
-- It changes `vendor/` (`minishlink/web-push` 9 → 10), and the FTP mirror uploads `src/`
-  before `vendor/`, so requests during the upload can run the new code against the old
-  library and fail. They stop failing once the upload completes; the first request after it
-  also runs migration steps 3–5 above.
-- **Readers logged in on the previously deployed version are logged out once.** The
-  session store moved to `var/sessions`, where their old session ID is unknown; they log
-  in again with their TIE code. If the host ever set `session.cookie_domain`, the old
-  domain-wide cookie would be sent before the new host-only one and PHP reads the first,
-  so a login would not stick: clear that setting, and a reader whose login does not stick
-  clears the site's cookies.
+If the host ever set `session.cookie_domain`, a domain-wide cookie would be sent before
+the app's host-only one and PHP reads the first, so a login would not stick: clear that
+setting, and a reader whose login does not stick clears the site's cookies.
 
 ### Updates
 
@@ -176,8 +178,9 @@ app root gets the same ownership and permission check.
 
 ### Proxies and the reader's address
 
-The TIE login limit (60 unknown codes per address and event per 10 minutes) and the push
-subscribe limit (300 new subscriptions per address and event per 10 minutes) count by
+The pairing limit (300 pairing starts per address and event per 10 minutes, so one phone
+cannot use up kissj's cap on pending pairings while a camp behind one NAT still logs in)
+and the push subscribe limit (300 new subscriptions per address and event per 10 minutes) count by
 `App\Http\ClientIp`: an IPv4 address as it is, an IPv6 one as its **/64** (a phone or a
 home is handed a whole /64), an IPv4-mapped IPv6 address as the IPv4 address it carries.
 `TRUSTED_PROXY_COUNT` makes the app take the address that many hops from the right end of
@@ -190,15 +193,17 @@ by the count alone. A reader who connects straight from the internet wrote any
 
 On a typical FTP host PHP sees the readers directly: leave `TRUSTED_PROXY_COUNT=0`.
 
-### The TIE login refuses cross-site requests
+### Pairing, logout and registration refuse cross-site requests
 
-`POST /<slug>/profil/tie` and `/<slug>/profil/tie-logout` answer **403** with a short
-Czech page ("Přihlášení se nepodařilo…" or "Odhlášení se nepodařilo…", with a link back to
-`/profil`) unless the request comes from the site's own pages (`App\Http\SameOrigin`):
+`POST /<slug>/profil/propojit` (start a pairing), `/<slug>/profil/odpojit` (log out) and
+`/<slug>/programy/{id}/prihlasit` or `/odhlasit` (register or unregister for a programme)
+answer **403** with a short Czech page ("Přihlášení se nepodařilo…", "Odhlášení se
+nepodařilo…", or the same for a programme, with a link back) unless the request comes
+from the site's own pages (`App\Http\SameOrigin`):
 `Sec-Fetch-Site` decides when the browser sends it (`same-origin` and `none` pass); only
 without it is `Origin` compared, **by host alone**, against the request's host. A reverse
 proxy in front of the app must therefore pass the original `Host` (nginx:
-`proxy_set_header Host $host;`), or a browser that sends no `Sec-Fetch-Site` cannot log in.
+`proxy_set_header Host $host;`), or a browser that sends no `Sec-Fetch-Site` cannot log in or register.
 
 ### The admin token and the access log
 
@@ -250,37 +255,39 @@ Instance-wide:
 | Variable | Meaning |
 | --- | --- |
 | `APP_DEBUG` | `0` in production, exactly. Only `1`, `true` and `on` turn debugging on, but debug pages print stack traces with paths and configuration, so leave the value at `0`. |
-| `KISSJ_BASE_URL` | kissj root, e.g. `https://kissj.net`. Required as soon as any event uses `kissj`; without it that event's pages fail with a `RuntimeException`. |
-| `PROGRAM_CACHE_TTL` | Seconds a kissj answer (the programme list, one participant's registrations) is served from `var/cache/<slug>/` before kissj is asked again; whole seconds, default `300`. When kissj fails, the last answer is served however old it is, so the Program screen keeps working through an outage. `0` asks kissj on every request and still falls back. Events on `stub` are never cached. See [kissj](#kissj-and-its-cache). |
+| `PROGRAM_CACHE_TTL` | Seconds a kissj answer (the programme list with the registration window, one device session's participant and registrations) is served from `var/cache/<slug>/` before kissj is asked again; whole seconds, default `300`. When kissj fails, the last answer is served however old it is, so the Program screen keeps working through an outage. `0` asks kissj on every request and still falls back. Events on `local` are never cached. See [kissj](#kissj-and-its-cache). |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Push keys: `php bin/generate-vapid.php` (run it locally or in any PHP container with the repo mounted; `bin/` is neither in the FTP release nor in the image). One pair for the whole instance. **Required:** every event has push, and an event refuses to boot when a key is missing or is not a base64url P-256 key (public: 65 bytes starting `0x04`; private: 32 bytes). Every request to that event then fails with a bare 500 before the app exists; the `RuntimeException` naming the variable is in the PHP log and in Sentry, not on the page. |
 | `VAPID_SUBJECT` | `mailto:` contact for the push services. Must start with `mailto:` or `https://`; checked at boot like the keys. |
-| `PUSH_DB_PATH` | Defaults to `var/push.sqlite`; may be relative to the project root. Holds the push subscriptions and the message log that News is built from. |
+| `PUSH_DB_PATH` | Defaults to `var/push.sqlite`; may be relative to the project root. Holds the push subscriptions, the message log that Informace and Domů show, and the two per-address limits' counters. |
 | `SESSION_PATH` | Directory of the session files; defaults to `var/sessions` and, like `PUSH_DB_PATH`, may be relative to the project root. Leave it unset: the browser tests set it to keep their sessions out of the tree. A path outside the app root must belong to PHP's user and grant nothing to group or others, or the store falls back (see [Sessions](#sessions)). |
 | `SENTRY_DSN` | Sentry project DSN. Empty (the default) switches error reporting and tracing off entirely. |
 | `SENTRY_TRACES_SAMPLE_RATE` | Share of requests traced, `0`..`1`; `.env.example` suggests `0.05`. Missing or empty means `0`. |
 | `SENTRY_PROFILES_SAMPLE_RATE` | Share of traced requests profiled, `0`..`1`; leave at `0` unless the excimer extension is installed. |
 | `APP_RELEASE` | Release name in Sentry. The Docker build sets it from the deploy command; leave it out of `.env` there (it is commented out in `.env.example`), because any line here, even an empty `APP_RELEASE=`, overrides the build's hash. The FTP release carries no `.git/` and sets nothing, so on the FTP host the release is whatever this line says, and `unknown` without it. |
-| `TRUSTED_PROXY_COUNT` | Reverse proxies in front of the app whose `X-Forwarded-For` entries are trusted — honoured only on a connection from a loopback or private address or one `TRUSTED_PROXIES` names. `1` behind the Docker stack's proxy, `0` (default) when PHP sees the readers directly, as on the FTP host. Wrong here, the login and subscribe limits are either global (too low) or spoofable (too high). |
+| `TRUSTED_PROXY_COUNT` | Reverse proxies in front of the app whose `X-Forwarded-For` entries are trusted — honoured only on a connection from a loopback or private address or one `TRUSTED_PROXIES` names. `1` behind the Docker stack's proxy, `0` (default) when PHP sees the readers directly, as on the FTP host. Wrong here, the pairing and subscribe limits are either global (too low) or spoofable (too high). |
 | `TRUSTED_PROXIES` | Extra proxy addresses allowed to send `X-Forwarded-For` besides the loopback and private ones: comma-separated addresses or CIDR ranges, IPv4 or IPv6 (a CDN, a hosted balancer). A malformed entry is skipped. Never `/0`. Empty by default. |
 | `PUSH_ENDPOINT_HOSTS` | Extra push-service hosts a browser subscription may name, comma-separated, `*.example` allowed. Empty in production: the known services (Google, Apple, Mozilla, Microsoft, Samsung) are built in. Narrowing the list deletes the stored subscriptions on hosts no longer allowed at the next send to them. |
 
 Per event, each name suffixed with the slug in upper case and `-` turned into `_`
-(`obrok27` becomes `OBROK27`). Only the events that need a value need a line.
+(`obrok27` becomes `OBROK27`). `PROGRAM_PROVIDER_<SLUG>` is required for every event; the others only where an event needs a value.
 
 | Variable | Meaning |
 | --- | --- |
-| `PROGRAM_PROVIDER_<SLUG>` | **The most important line per event.** `stub` (the default when the line is missing) serves the demo data from `events/<slug>/fixtures/`; `kissj` reads the real programme from the registration API. A missing line boots fine and shows the demo programme as if it were real, with no error and no log entry. Production events stay on `stub` until kissj serves the contract endpoints (see below). |
-| `KISSJ_API_KEY_<SLUG>` | The event's programme API key. kissj tells the event from the key, so no slug is configured there. Required when the provider is `kissj`. |
+| `PROGRAM_PROVIDER_<SLUG>` | **The most important line per event, and required.** `local` serves the demo data from `events/<slug>/fixtures/`; the http(s) root URL of a kissj instance (e.g. `https://kissj.net`, no trailing slash needed) reads the real programme from its registration API. It must be kissj's public address, the one a reader's browser can open, because kissj builds the links it hands out from it. A missing line, or any other value (`stub` and `kissj` included), stops that event from booting: every request to it fails with a bare 500, and the `RuntimeException` naming the variable is in the PHP log and in Sentry. Events of one instance may read different kissj instances. The deployed instance reads kissj staging for now (see below). |
+| `KISSJ_API_KEY_<SLUG>` | The event's programme API key. kissj tells the event from the key, so no slug is configured there. Required when the provider is a kissj URL; without it the event does not boot either. There is no instance-wide kissj URL (`KISSJ_BASE_URL` is gone): delete such a line. |
 | `ADMIN_TOKEN_<SLUG>` | Long random string (`openssl rand -hex 24`). The organisers open `/<slug>/admin/notify?token=<token>`; the link logs that browser in for 24 hours and redirects to `/<slug>/admin/notify`, and the pages after it carry no token (the forms carry a CSRF field). Re-open the link after a day. Empty means the page is refused, also for a browser that is already logged in. Every event has the page. **Rotate it after the event**: the opened links are in the host's access log (see [above](#the-admin-token-and-the-access-log)). |
 
-**Production events stay on `PROGRAM_PROVIDER_<SLUG>=stub` until kissj serves the
-endpoints of `docs/kissj-contract.md`.** Do not switch one to `kissj` before that.
-Sending a notification to one programme also needs kissj's
-`GET /v3/programme/{id}/participants` once the event is on `kissj`: it names the TIE
-codes the message goes to.
+**The deployed instance reads kissj staging for now**: every event kissj staging has is
+`PROGRAM_PROVIDER_<SLUG>=https://staging.kissj.net` with that event's
+`KISSJ_API_KEY_<SLUG>`; `obrok19`, which kissj does not have, is `local`. A missing
+line stops that event from booting. kissj must implement contract **2.0**
+(`docs/kissj-contract.md`, "Versions"): a kissj on 1.0 sends no participant id and has
+no revoke, so pairing an event to it fails. Sending a notification to one programme
+asks kissj's `GET /v3/programme/{id}/participants` for the ids of the participants the
+message goes to.
 
-Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an event is on
-`kissj`):
+Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an event reads a
+kissj URL):
 
 | Event | Variables |
 | --- | --- |
@@ -288,7 +295,7 @@ Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an even
 | `obrok27` | `PROGRAM_PROVIDER_OBROK27`, `KISSJ_API_KEY_OBROK27`, `ADMIN_TOKEN_OBROK27` |
 | `korbo26` | `PROGRAM_PROVIDER_KORBO26`, `KISSJ_API_KEY_KORBO26`, `ADMIN_TOKEN_KORBO26` |
 | `navigamus25` | `PROGRAM_PROVIDER_NAVIGAMUS25`, `KISSJ_API_KEY_NAVIGAMUS25`, `ADMIN_TOKEN_NAVIGAMUS25` |
-| `miquik26` | `ADMIN_TOKEN_MIQUIK26` only (unlisted; dev fixtures from the lecture workbook, no kissj data yet) |
+| `miquik26` | `PROGRAM_PROVIDER_MIQUIK26`, `KISSJ_API_KEY_MIQUIK26`, `ADMIN_TOKEN_MIQUIK26` (unlisted; `local` serves the fixtures made from the lecture workbook, for as long as kissj staging does not have the event) |
 
 ## TLS
 
@@ -354,8 +361,8 @@ What the server does with subscriptions and sends:
   reader their subscription. A delivery, or new keys behind the same endpoint, start the count again; a re-sent
   subscription with the same keys keeps its strikes.
 - The admin page logs a message **before** it sends it, with empty counts that are filled
-  in when the send returns, so a send that dies half-way still leaves the message on News
-  and in the log (where the counts then read `–`). The result line reads `Odesláno: N,
+  in when the send returns, so a send that dies half-way still leaves the message on
+  Informace and in the log (where the counts then read `–`). The result line reads `Odesláno: N,
   odstraněno neplatných odběrů: N`, plus `nedoručeno: N` when some failed. Each rendered
   send form is **one-time**: its nonce is consumed right before the send, so a double tap
   or a re-send after a timeout whose first send did complete answers 409 with the typed
@@ -364,9 +371,16 @@ What the server does with subscriptions and sends:
 
 ## kissj and its cache
 
-On `kissj`, the answers are cached in `var/cache/<slug>/`, one JSON file per entry
-(`list.json`, and one `tie-<hash>.json` per participant), served for
-`PROGRAM_CACHE_TTL` seconds and then refetched. Under load and through an outage:
+On kissj, the answers are cached in `var/cache/<slug>/`, one JSON file per entry
+(`list.json` — sections, programmes and the registration window — and one
+`session-<hash>.json` per device session, the participant and their registrations; the
+token is in no filename), served for `PROGRAM_CACHE_TTL` seconds and then refetched. The
+pairing calls, the revoke and a programme's participants are never cached. A register or
+unregister that succeeds deletes that session's entry, so the page its redirect lands on
+asks kissj again (a `written-<entry>.json` marker keeps a read that was already under way
+from storing the answer from before the write); a refusal that shows the cached copy out
+of date (`alreadyRegistered`, `notRegistered` for the session, `notFound`, `closed`,
+`notPossible` for the list) deletes that entry too. Under load and through an outage:
 
 - **Single-flight per entry.** One request holds `<entry>.lock` and fetches; another one
   that has an expired copy serves it meanwhile, and one with nothing to show waits up to
@@ -377,13 +391,14 @@ On `kissj`, the answers are cached in `var/cache/<slug>/`, one JSON file per ent
   One participant's bad answer opens the breaker for the whole event.
 - **Sentry hears of a hidden failure at most once per 5 minutes** across all requests
   (`kissj-reported.json`).
-- **Only a 404 with an empty body means "unknown TIE code"** and logs the reader out. Any
-  other 404 — a maintenance page, a wrong base path, an event switched to kissj before
-  the endpoints exist — is an outage.
+- **Only a 401 with an empty body on a call that carries a device session means the
+  session ended** (revoked, expired, unknown) and logs the reader out; Profil says why. A
+  401 with a body (a rejected API key) and any other failed answer is an outage, so a
+  wrong key never logs every reader out.
 
 `var/cache/` stays safe to delete at any time: the next request per event asks kissj
-again. The lock files are empty and accumulate, one per participant who logged in; they
-cost nothing and go with the directory. Where `var/cache/` cannot be written, all three
+again. The lock files are empty and accumulate, like the write markers, one per device
+session and one for the list; they cost nothing and go with the directory. Where `var/cache/` cannot be written, all three
 mechanisms quietly do nothing and the provider behaves as it did without the cache, only
 reporting each failed write.
 
@@ -407,8 +422,11 @@ templates or the reverse.
    in `.env` wins over the build argument because `env_file` is applied at run time,
    and so does an empty one: keep `APP_RELEASE` out of `.env` (`.env.example` has it
    commented out), or Sentry shows `unknown` instead of the hash.
-   **Before the first deploy of this version, back up `var/push.sqlite`** (see the `var`
-   volume below): its first request migrates the schema.
+   **At the first deploy of the pairing login, delete `var/push.sqlite`** (with
+   `-wal` and `-shm`), `var/cache/` and `var/sessions/` in the `var` volume: the schema
+   was collapsed into one step and a database from before is refused (see
+   [The schema](#first-setup-on-the-host)). Later deploys migrate it in place; back it up
+   first.
 3. **Never publish php-fpm's port 9000** (no `ports:` on `app`): it speaks FastCGI with no authentication, so anyone who reaches it can run PHP. Only nginx reaches it, over the compose network.
 4. The stack publishes port `8080` on the loopback interface only (`127.0.0.1:8080:80`
    in the compose file): Docker's published ports bypass ufw, and a port open to the
@@ -416,9 +434,9 @@ templates or the reverse.
    **on the same host** in front of it; change the `8080` if something else holds it.
    Set `TRUSTED_PROXY_COUNT=1` in `.env` behind that proxy. It must send
    `X-Forwarded-For` and pass the original `Host` (`proxy_set_header Host $host;`, see
-   [the TIE login](#the-tie-login-refuses-cross-site-requests)). Without the count every
-   reader shares the proxy's address and the login and subscribe limits become one limit
-   for everybody.
+   [the cross-site rule](#pairing-logout-and-registration-refuse-cross-site-requests)).
+   Without the count every reader shares the proxy's address and the pairing and
+   subscribe limits become one limit for everybody.
 5. Open `/`, then each event's screens (`/<slug>/`, `/<slug>/programy`, ...).
    Which screens exist depends on `features` in the event's config. On a
    production event check that the programme matches reality and not the demo
@@ -442,10 +460,10 @@ What the stack does, and why:
 - **Environment reaches PHP.** php-fpm clears the environment of its workers by
   default and PHP's `variables_order` would leave `$_ENV` empty. `docker/php-fpm.conf`
   sets `clear_env = no` and `docker/php.ini` sets `variables_order = "EGPCS"`. Without
-  them every variable would read as unset and the app would silently run on
-  its defaults (stub programmes, empty admin token).
+  them every variable would read as unset: no event would boot, its
+  `PROGRAM_PROVIDER_<SLUG>` being required, and the admin token would be empty.
 - **The `var` volume** (`/app/var`) holds `push.sqlite` (push subscriptions and the
-  log of sent messages, which is what News shows), the compiled Twig cache,
+  log of sent messages, which is what Informace shows), the compiled Twig cache,
   `sessions/` and `cache/<slug>/` (see [kissj](#kissj-and-its-cache)). The entrypoint
   leaves `cache/` alone on purpose, so a kissj outage right after a redeploy still has
   data to fall back on. Back up `push.sqlite`; the subscriptions and the message log
@@ -555,7 +573,7 @@ and the same with `php:8.5-alpine`. The browser tests run against
 (`docker compose --profile browser stop chrome` afterwards). The `test` service runs as
 root, as `slim` does, so a browser run leaves root-owned files under `var/`; if a later
 run as your own user cannot write there, remove them from a container:
-`docker run --rm -v "$PWD":/app -w /app php:8.3-alpine sh -c 'rm -rf var/twig/* var/sessions var/cache'`.
+`docker run --rm -v "$PWD":/app -w /app php:8.3-alpine sh -c 'rm -rf var/twig/* var/sessions var/cache var/stub'`.
 There is no Node anywhere in the project. Composer under the `php:8.3-alpine` image
 needs `--ignore-platform-req=ext-gmp --ignore-platform-req=ext-zip` (php-webdriver
 declares `ext-zip`, which Chrome never needs); the production installs are `--no-dev`
@@ -566,8 +584,10 @@ and are unaffected.
 1. Copy `events/obrok27/` to `events/<slug>/` and edit `config.php` and `content/`.
    The slug matches `/^[a-z0-9-]+$/` and ends in a two-digit year (`korbo26`).
 2. Set `listed` (shown in the picker or not; a missing key means unlisted) and `dates`
-   (`start`, `end` as `YYYY-MM-DD`; the picker splits upcoming from past on `end`) in the
-   config.
+   (`start`, `end` as `YYYY-MM-DD`; the picker splits upcoming from past on `end`, and
+   Domů shows its before, during and after halves by them) in the config, and point
+   `website` (what a logged-out Profil's "web akce" opens) at the event's own site or
+   remove the key.
 3. Copy `www/events/obrok27/` to `www/events/<slug>/` and replace the logos, favicons
    and manifest (its `id`, `start_url`, `scope` and `shortcuts` name the slug; a shortcut
    only for a screen the event enables). Generate the icon set from the event's drawing

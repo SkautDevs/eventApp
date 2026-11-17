@@ -20,12 +20,14 @@ final class NewEventsTest extends AppTestCase
         self::assertStringNotContainsString('mapy.cz', $html);
     }
 
-    public function testNavigamusTieParticipantLogsIn(): void
+    public function testNavigamusFixtureParticipantPairs(): void
     {
         $app = $this->createApp('navigamus25');
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'NAVIGAMUS1']);
+        $this->pair($app);
 
-        self::assertStringContainsString('pro <strong>NAVIGAMUS1</strong>', (string) $this->request($app, 'GET', '/profil')->getBody());
+        // no participants.json: kissj has no nickname for the fixture participant
+        self::assertStringContainsString('Účastník</h2>', (string) $this->request($app, 'GET', '/profil')->getBody());
+        self::assertGreaterThan(0, substr_count((string) $this->request($app, 'GET', '/programy')->getBody(), '<p class="sheet-mine">'));
     }
 
     public function testMiquikServesItsLectureGrid(): void
@@ -38,12 +40,13 @@ final class NewEventsTest extends AppTestCase
         self::assertStringNotContainsString('Program zatím není k dispozici.', $html);
     }
 
-    public function testMiquikLogsInItsFixtureParticipant(): void
+    public function testMiquikPairsItsFixtureParticipant(): void
     {
         $app = $this->createApp('miquik26');
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'MIQUIK1']);
+        $this->pair($app);
 
-        self::assertStringContainsString('pro <strong>MIQUIK1</strong>', (string) $this->request($app, 'GET', '/profil')->getBody());
+        self::assertStringContainsString('Účastník</h2>', (string) $this->request($app, 'GET', '/profil')->getBody());
+        self::assertGreaterThan(0, substr_count((string) $this->request($app, 'GET', '/programy')->getBody(), '<p class="sheet-mine">'));
     }
 
     public function testMiquikHomepageRendersNoEmptyImageSource(): void

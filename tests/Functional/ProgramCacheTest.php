@@ -42,10 +42,15 @@ final class ProgramCacheTest extends AppTestCase
     private function appDuringAnOutage(bool $withEntry = true): App
     {
         if ($withEntry) {
-            $stub = new StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures');
+            $stub = new StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
             $written = new \DateTimeImmutable('2026-10-01 09:15:00', new \DateTimeZone('Europe/Prague'));
             (new FileCache($this->dir, static fn (): \DateTimeImmutable => $written))
-                ->set(CachingProgramProvider::LIST_KEY, ['sections' => $stub->getSections(), 'programmes' => $stub->getPrograms()]);
+                ->set(CachingProgramProvider::LIST_KEY, [
+                    'sections' => $stub->getSections(),
+                    'programmes' => $stub->getPrograms(),
+                    // obrok19 has no registration.json: no window
+                    'registration' => ['start' => null, 'end' => null],
+                ]);
         }
         $down = new ThrowingProgramProvider(programsException: new ConnectException('down', new Request('GET', 'v3/programme/list')));
 
@@ -106,18 +111,22 @@ final class ProgramCacheTest extends AppTestCase
 
     /**
      * Carry-over: with nothing cached the screen carries the request time and no data-stale
-     * beside the outage notice — any freshness wording would be a lie, so there is none.
-     * A stale entry keeps the line ("naposledy načteno", from its data-stale).
+     * beside the outage notice, so the network banner says nothing while online. A stale
+     * entry marks the section data-stale, which the banner reads ("Nepodařilo se načíst
+     * aktuální data").
      */
-    public function testAnOutageWithoutAnEntryCarriesNoFreshnessLine(): void
+    public function testAnOutageWithoutAnEntryIsNotMarkedStale(): void
     {
         foreach ([[], ['X-Screen' => '1']] as $headers) {
             $html = (string) $this->request($this->appDuringAnOutage(withEntry: false), 'GET', '/programy', null, $headers)->getBody();
             self::assertStringContainsString('Programy se nepodařilo načíst', $html);
-            self::assertStringNotContainsString('data-freshness', $html);
+            self::assertStringNotContainsString('data-stale', $html);
+            self::assertStringNotContainsString('freshness', $html);
         }
 
-        $stale = (string) $this->request($this->appDuringAnOutage(), 'GET', '/programy')->getBody();
-        self::assertStringContainsString('<p class="freshness" data-freshness hidden></p>', $stale);
+        foreach ([[], ['X-Screen' => '1']] as $headers) {
+            $stale = (string) $this->request($this->appDuringAnOutage(), 'GET', '/programy', null, $headers)->getBody();
+            self::assertMatchesRegularExpression('~<section class="screen"[^>]*\sdata-stale="1"[^>]*>~', $stale);
+        }
     }
 }

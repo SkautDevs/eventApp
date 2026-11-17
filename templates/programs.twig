@@ -1,25 +1,56 @@
 {% extends fragment ? "_screen.twig" : "_layout.twig" %}
 
+{# Přehled and Moje are one list component: every day of the given programmes under its
+   own sticky heading, in its own view container. The morph matches keys among siblings,
+   so the two views may reuse the day keys and the programme ids. Dimming is Přehled's
+   only; the perex is Moje's, where the list is short enough to carry it. #}
+{% macro dayList(kind, days) %}
+	{% for day in days %}
+		<section class="pl-day" data-key="{{ day.key }}" data-label="{{ day.label }}">
+			{# every day is present and scrolled through, so each one names itself
+			   inside the scroll rather than in the strip alone #}
+			<h2 class="pl-head">{{ day.label }}</h2>
+			{% for item in day.items %}
+				{# The card is not itself a control: as role="button" it collapsed its lines
+				   into one accessible name a hundred characters long. The name is the
+				   control, and the card keeps data-pg-open so a press anywhere on it still
+				   opens the sheet — the handler matches the nearest one. tabindex="-1"
+				   rather than "0": no longer a tab stop, still focusable, which is what
+				   closing the sheet needs to hand focus back to the card it came from. #}
+				<article class="pl-item{{ item.registered ? ' is-registered' }}{{ kind == 'overview' and item.dimmed ? ' is-dimmed' }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-pg-open="{{ item.id }}" tabindex="-1">
+					<p class="pl-time">{{ item.time }}</p>
+					<h3 class="pl-name"><button type="button" class="pl-open" data-pg-open="{{ item.id }}">{{ item.name }}</button></h3>
+					<p class="pl-meta">{{ item.until }}{% if item.location %} · {{ item.location }}{% endif %}</p>
+					{% if item.registered %}<span class="pl-tag">Přihlášen</span>{% endif %}
+					{% if kind == 'list' and item.perex %}<p class="pl-perex">{{ item.perex }}</p>{% endif %}
+				</article>
+			{% endfor %}
+		</section>
+	{% endfor %}
+{% endmacro %}
+
 {% set pageTitle = 'Programy' %}
 {% set activeTab = 'programs' %}
-{# with no programme list at all the outage notice says it; "aktualizováno" beside it would lie #}
-{% set showFreshness = not programmesUnavailable %}
 
 {% block content %}
+	{% import _self as pg %}
 	{# data-morph-keep names the attributes on this element that belong to the reader
 	   rather than to the server: a background morph must not put the screen back on the
 	   timeline because that is what a fresh render defaults to. #}
 	<div class="pg" data-pg-root data-morph-keep="data-view data-step" data-pg-event="{{ event.slug }}" data-view="timeline" data-step="next">
+		{# what a register or unregister said, over the sheet its deep link reopens #}
+		{% if toast %}{% include '_toast.twig' with toast %}{% endif %}
 		{% if notice %}
 			<p class="notice" data-key="notice">{{ notice }}</p>
 		{% endif %}
 
-		{# One strip of day chips per view. The timeline's switches the page; the list's
+		{# One strip of day chips per view. The timeline's switches the page; each list's
 		   follows the scroll and scrolls to a day when tapped. The chip of the day on
 		   show carries aria-current, which the reader owns: data-morph-keep stops a
 		   background morph putting it back on the server's day. #}
 		{# every child of .pg carries a data-key or an id (the two views): they come and go with the data, and the morph matches unkeyed siblings by position — which once turned the sheet into a day panel #}
 		{% for pager in [
+			{'kind': 'overview', 'items': overview, 'active': activeOverview},
 			{'kind': 'timeline', 'items': pages, 'active': activePage},
 			{'kind': 'list', 'items': days, 'active': activeDay}
 		] %}
@@ -40,6 +71,14 @@
 				</div>
 			{% endif %}
 		{% endfor %}
+
+		{# --- Přehled: every programme, by day --- #}
+		<div class="view view-overview" id="pg-view-overview" role="tabpanel" aria-labelledby="pg-tab-overview">
+			{% if overview is empty and not programmesUnavailable %}
+				<p class="empty">Program zatím není k dispozici.</p>
+			{% endif %}
+			{{ pg.dayList('overview', overview) }}
+		</div>
 
 		{# --- timeline: every programme of the active day, from every section --- #}
 		<div class="view view-timeline" id="pg-view-timeline" role="tabpanel" aria-labelledby="pg-tab-timeline">
@@ -88,48 +127,26 @@
 			{% endfor %}
 		</div>
 
-		{# --- list: only the programmes the logged-in participant is registered for --- #}
+		{# --- Moje: only the programmes the logged-in participant is registered for --- #}
 		<div class="view view-list" id="pg-view-list" role="tabpanel" aria-labelledby="pg-tab-list">
 			{% if not isLogged %}
-				<div class="login-box">
-					<p>Přihlas se TIE kódem a uvidíš tady svůj vlastní program.</p>
-					{% include '_tie_form.twig' with {'return': 'programy'} %}
-				</div>
+				<p class="empty"><a href="{{ url_for('profile') }}">Pro svůj program se přihlas kódem z KissJ.</a></p>
 			{% elseif not mineRead %}
 				{# the notice above says the personal list could not be read; "nothing registered" would be a guess #}
 			{% elseif days is empty %}
 				<p class="empty">Zatím nemáš přihlášený žádný program.</p>
 			{% else %}
-				{% for day in days %}
-					<section class="pl-day" data-key="{{ day.key }}" data-label="{{ day.label }}">
-						{# every day is present and scrolled through, so each one names itself
-						   inside the scroll rather than in the strip alone #}
-						<h2 class="pl-head">{{ day.label }}</h2>
-						{% for item in day.items %}
-							{# The card is not itself a control: as role="button" it collapsed its four
-							   lines into one accessible name a hundred characters long. The name is the
-							   control, and the card keeps data-pg-open so a press anywhere on it still
-							   opens the sheet — the handler matches the nearest one. tabindex="-1"
-							   rather than "0": no longer a tab stop, still focusable, which is what
-							   closing the sheet needs to hand focus back to the card it came from. #}
-							<article class="pl-item" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-pg-open="{{ item.id }}" tabindex="-1">
-								<p class="pl-time">{{ item.time }}</p>
-								<h3 class="pl-name"><button type="button" class="pl-open" data-pg-open="{{ item.id }}">{{ item.name }}</button></h3>
-								{% if item.location %}<p class="pl-loc">{{ item.location }}</p>{% endif %}
-								{% if item.perex %}<p class="pl-perex">{{ item.perex }}</p>{% endif %}
-							</article>
-						{% endfor %}
-					</section>
-				{% endfor %}
+				{{ pg.dayList('list', days) }}
 			{% endif %}
 		</div>
 
-		{# both views are named at once, in a bar docked on top of the main tab bar #}
+		{# the three views are named at once, in a bar docked on top of the main tab bar #}
 		<div class="tabs-wrap" data-key="tabs">
 			<div class="tabs" role="tablist" aria-label="Zobrazení programu">
 				<span class="tabs-indicator" aria-hidden="true"></span>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-overview" aria-controls="pg-view-overview" aria-selected="false" tabindex="-1" data-pg-view="overview"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span></button>
 				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="true" data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></button>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="false" tabindex="-1" data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Můj program</span></button>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="false" tabindex="-1" data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span></button>
 			</div>
 		</div>
 
@@ -147,18 +164,15 @@
 						<div class="sheet-body" data-key="{{ detail.id }}" data-pg-detail="{{ detail.id }}" data-page="{{ detail.page }}">
 							<div class="sheet-head">
 								<h2 class="sheet-name" id="sheet-name-{{ detail.id }}">{{ detail.name }}</h2>
-								<div class="sheet-meta">
-									<p class="sheet-when">{{ detail.when }}</p>
-									{% if detail.location %}<p class="sheet-where">{{ detail.location }}</p>{% endif %}
-								</div>
+								{% if detail.section %}<span class="sheet-chip">{{ detail.section }}</span>{% endif %}
 							</div>
-							{% if detail.section %}<p class="sheet-section">{{ detail.section }}</p>{% endif %}
+							<dl class="sheet-facts"><dt>Kdy</dt><dd>{{ detail.when }}</dd>{% if detail.location %}<dt>Kde</dt><dd>{{ detail.location }}</dd>{% endif %}</dl>
 							{% if detail.registered %}<p class="sheet-mine"><i class="fas fa-star" aria-hidden="true"></i> Tvůj program</p>{% endif %}
 							{% if detail.messages %}
 								<div class="sheet-messages">
 									<h3>Oznámení</h3>
 									{% for message in detail.messages %}
-										<p class="sheet-message"><strong>{{ message.title }}</strong> <small>{{ message.when }}</small></p>
+										<p class="sheet-message"><strong>{{ message.title }}</strong> <small{% if message.at %} data-sent-at="{{ message.at }}"{% endif %}>{{ message.when }}</small></p>
 										<p class="sheet-perex">{{ message.body }}</p>
 									{% endfor %}
 								</div>
@@ -166,6 +180,27 @@
 							{% if detail.perex %}<p class="sheet-perex">{{ detail.perex }}</p>{% endif %}
 							{% if detail.lector %}<p class="sheet-lector">{{ detail.lector }}</p>{% endif %}
 							{% if detail.tools %}<p><b>S sebou:</b> {{ detail.tools }}</p>{% endif %}
+							{# What the reader can do about it: one line, one button, or nothing. The
+							   one child is keyed by its state, so a morph from "unregister" to
+							   "register" replaces the form rather than patching it: the morph never
+							   removes an attribute the fresh markup lacks, and a patched register
+							   button would keep the unregister's data-confirm. No whitespace inside,
+							   or .sheet-footer:empty stops matching. #}
+							<div class="sheet-footer">
+								{%- if detail.footer -%}
+									{%- if detail.footer.state == 'unpaired' -%}
+										<a class="btn" href="{{ url_for('profile') }}" data-key="unpaired">Pro přihlašování se přihlas kódem z KissJ</a>
+									{%- elseif detail.footer.state in ['before', 'after', 'none'] -%}
+										<p class="sheet-line" data-key="{{ detail.footer.state }}">{{ detail.footer.line }}</p>
+									{%- elseif detail.footer.state == 'register' -%}
+										{#- data-pg-write: www/programs.js disables the button on submit and notes the view it was sent from -#}
+										<form method="post" action="{{ url_for('program-register', {id: detail.id}) }}" data-key="register" data-pg-write="{{ detail.id }}"><button class="btn btn-primary">Přihlásit se</button></form>
+									{%- elseif detail.footer.state == 'unregister' -%}
+										{#- the first tap asks, the second submits (www/shell.js) -#}
+										<form method="post" action="{{ url_for('program-unregister', {id: detail.id}) }}" data-key="unregister" data-pg-write="{{ detail.id }}"><button class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z programu</button></form>
+									{%- endif -%}
+								{%- endif -%}
+							</div>
 						</div>
 					{% endfor %}
 				</div>

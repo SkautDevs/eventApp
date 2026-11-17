@@ -1,0 +1,24 @@
+[
+    {
+        "id": 1,
+        "name": "Ranní workshop",
+        "section": {"id": 1},
+        "start": {"date": "2098-06-03 09:00:00"},
+        "end": {"date": "2098-06-03 10:30:00"},
+        "lector": null,
+        "location": "Louka",
+        "perex": null,
+        "tools": null
+    },
+    {
+        "id": 2,
+        "name": "Odpolední hra",
+        "section": {"id": 1},
+        "start": {"date": "2098-06-03 14:00:00"},
+        "end": {"date": "2098-06-03 16:00:00"},
+        "lector": null,
+        "location": null,
+        "perex": null,
+        "tools": null
+    }
+]

@@ -9,7 +9,7 @@
 return [
     'name' => 'Miquik 2026',
     'shortName' => 'Miquik',
-    'features' => ['programs', 'push', 'news'],
+    'features' => ['programs', 'push', 'info'],
     'theme' => ['radius' => '6px', 'radius-card' => '6px', 'radius-sheet' => '6px'],
     'colors' => [
         'background' => '#e6ebed',

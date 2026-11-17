@@ -3,12 +3,11 @@
 {% extends "_layout.twig" %}
 
 {% set pageTitle = notFound ? 'Nenalezeno' : 'Chyba' %}
-{% set showFreshness = false %}
 
 {% block content %}
 	<div class="error-page">
 		{% if message is defined %}
-			{# a refusal a route words itself (the cross-site TIE login) #}
+			{# a refusal a route words itself (a cross-site pairing start or logout) #}
 			<p>{{ message }}</p>
 		{% elseif notFound %}
 			<p>Tohle tady není.</p>

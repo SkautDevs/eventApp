@@ -173,7 +173,7 @@
 	   (the zoom pairs, one floating on the plan; www/programs.js reads the bar heights as
 	   plain pixel numbers) and the timeline grid's own type, whose geometry is frozen. Můj program is the large-type path through the schedule. */
 	--fs-2xs: 0.6875rem; /* 11: tab bar labels */
-	--fs-xs: 0.8125rem; /* 13: credit, who, section line, freshness */
+	--fs-xs: 0.8125rem; /* 13: credit, who, section line */
 	--fs-sm: 0.875rem; /* 14: list meta, sheet meta */
 	--fs-md: 1rem; /* 16: body, buttons, fields, strips */
 	--fs-lg: 1.0625rem; /* 17: h3, list item name */
@@ -187,15 +187,18 @@
 	   and a calc() there would parse as zero. */
 	--appbar-inset: env(safe-area-inset-top, 0px);
 	--tabbar-height: 58px;
-	/* the freshness line's own height: the one-screenful screens give exactly this back */
-	--freshness-height: 20px;
 	/* the view switcher docked above the tab bar on /programy and on a /mapa with
 	   two views. It is chrome like the two bars, so screens that carry it subtract it
 	   from --screen-height; every other screen simply never references it. */
 	--tabs-height: 48px;
+	/* The network banner's height while it is up (www/shell.js writes it on the root), 0px
+	   while it is hidden. It docks on the tab bar, so it is bottom chrome like the bar: the
+	   space a screen gets, its bottom padding and the docked view switcher all make room
+	   for it, and it covers nothing. */
+	--netstate-height: 0px;
 	--app-height: 100vh;
-	/* the space a screen actually gets between the two bars */
-	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--appbar-inset) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px));
+	/* the space a screen actually gets between the two bars (and the banner, when it is up) */
+	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--appbar-inset) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px) - var(--netstate-height));
 }
 
 /* dvh excludes the mobile browser's collapsing toolbars, which vh does not */
@@ -282,7 +285,6 @@ body {
 /* The controls that are a glyph or a label on whatever is under them, rather than a
    filled button: one reset, and each rule below states only what differs. .tl-card
    (hairline) and .sheet-close (filled) are not bare and are not in it. */
-.appbar-mode,
 .day-chip,
 .pager-zoom-btn,
 .tabs-tab,
@@ -305,8 +307,8 @@ body {
 	justify-content: space-between;
 	/* The bar's geometry, named once so the brand's cap below can be derived from it
 	   rather than restated: the gap between the two ends, every control's touch
-	   target, the gap between the controls, and the controls' floor — the link alone,
-	   or the toggle, its gap and the link. */
+	   target, the gap between the controls, and the controls' floor — the profile
+	   link, the one control at that end. */
 	--appbar-gap: 8px;
 	--appbar-target: 44px;
 	--appbar-tools-gap: 2px;
@@ -336,10 +338,6 @@ body {
 	align-items: center;
 	color: var(--on-state);
 	text-decoration: none;
-}
-
-.appbar:has(.appbar-mode) {
-	--appbar-tools-floor: calc(2 * var(--appbar-target) + var(--appbar-tools-gap));
 }
 
 /* The brand end never takes part in the bar's shrinking: it keeps its natural width,
@@ -381,7 +379,7 @@ body {
 	min-width: 4ch;
 }
 
-/* the right-hand end of the bar: the mode toggle, then the profile link */
+/* the right-hand end of the bar: the profile link */
 .appbar-tools {
 	display: flex;
 	align-items: center;
@@ -408,8 +406,7 @@ body {
 	}
 }
 
-/* the identity's text is the end of the bar that gives way (.appbar-who ellipsises);
-   the link itself keeps a 44 × 44 target */
+/* the link keeps a 44 × 44 target around the icon or the avatar */
 .appbar-profile {
 	gap: 6px;
 	/* px on purpose: chrome glyph, see --fs-* in :root */
@@ -419,30 +416,12 @@ body {
 	justify-content: center;
 }
 
-/* 44x44 of target around a 20px glyph — the padding is the target */
-.appbar-mode {
-	flex: 0 0 auto;
-	width: var(--appbar-target);
-	height: var(--appbar-target);
-	/* on the app bar's fill, like everything else on it */
-	color: var(--on-state);
-	/* px on purpose: chrome glyph, see --fs-* in :root */
-	font-size: 20px;
-	line-height: 1;
-}
-
-/* the icon names the mode you would switch TO, so light shows a moon */
-.mode-sun,
+/* the second drawing of a mode pair stays out until its mode is on */
 .mode-dark-only {
 	display: none;
 }
 
 @media (prefers-color-scheme: dark) {
-	:root:not([data-mode="light"]) .mode-sun {
-		display: inline;
-	}
-
-	:root:not([data-mode="light"]) .mode-moon,
 	:root:not([data-mode="light"]) .mode-light-only {
 		display: none;
 	}
@@ -452,11 +431,6 @@ body {
 	}
 }
 
-:root[data-mode="dark"] .mode-sun {
-	display: inline;
-}
-
-:root[data-mode="dark"] .mode-moon,
 :root[data-mode="dark"] .mode-light-only {
 	display: none;
 }
@@ -465,17 +439,31 @@ body {
 	display: block;
 }
 
-/* the glyph is the link; it keeps its size while the name beside it gives way */
+/* the glyph, or the avatar, is the link */
 .appbar-profile i {
 	flex: 0 0 auto;
 }
 
-.appbar-who {
-	font-size: var(--fs-xs);
-	max-width: 96px;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
+/* The paired reader's initials in a ring of the bar's own ink: no fill, so nothing but
+   the bar's own pair is on the bar. */
+.avatar,
+.appbar-avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	border: 2px solid currentColor;
+	border-radius: 50%;
+	font-family: var(--theme-font, themix, sans-serif);
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: 0;
+}
+
+.appbar-avatar {
+	width: 32px;
+	height: 32px;
+	font-size: var(--fs-sm);
 }
 
 /* --- content ------------------------------------------------------------- */
@@ -499,8 +487,9 @@ main {
    both run edge to edge. */
 .screen {
 	display: block;
-	/* clear the fixed tab bar, plus the home indicator on notched phones */
-	padding: 8px 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + 16px);
+	/* clear the fixed tab bar, plus the home indicator on notched phones and the network
+	   banner while it is up, so the last line can be scrolled clear of both */
+	padding: 8px 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height) + 16px);
 }
 
 /* the per-screen rules below out-specify the UA's own [hidden], so say it again
@@ -535,28 +524,7 @@ main > .screen[hidden] {
 	font-size: var(--fs-xs);
 }
 
-/* --- freshness, no-JS, install ------------------------------------------- */
-
-/* "aktualizováno 14:05", filled by www/shell.js from the screen's data-fetched-at. It
-   has a fixed height so the screens that are exactly one screenful (the Program screen,
-   the map) can give that height back through --freshness-space. */
-.screen {
-	--freshness-space: 0px;
-}
-
-.screen:has(> .freshness:not([hidden])) {
-	--freshness-space: var(--freshness-height);
-}
-
-.freshness {
-	margin: 0;
-	padding: 0 16px;
-	height: var(--freshness-height);
-	line-height: var(--freshness-height);
-	font-size: var(--fs-xs);
-	text-align: right;
-	color: var(--on-ground);
-}
+/* --- no-JS, install ------------------------------------------------------ */
 
 .noscript {
 	margin: 16px;
@@ -568,6 +536,82 @@ main > .screen[hidden] {
 
 .install {
 	margin: 16px 0;
+}
+
+/* --- the network banner and the toast ------------------------------------ */
+
+/* "Jsi offline. Data byla naposledy aktualizována v …" — once per document, docked right
+   above the tab bar and centred in the column the way the bar is (www/shell.js fills it
+   and unhides it). Chrome like the bars, so structure under its own ink, with the hairline
+   every bar carries; under the tab bar (20). The docked view switcher (15) stands on it
+   rather than under it: --netstate-height lifts the switcher and every screen's foot. */
+.netstate {
+	position: fixed;
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+	left: 0;
+	right: 0;
+	margin: 0 auto;
+	width: 100%;
+	max-width: var(--app-width);
+	z-index: 19;
+	padding: 8px 16px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border-top: var(--edge-width) solid var(--edge);
+	font-size: var(--fs-sm);
+	line-height: 1.35;
+}
+
+/* A title, an optional second line and the close button, under the app bar and across
+   the column minus its 8px gutter. The same pair as the banner: the prototype draws it
+   as a dark strip in both modes, which the colour rules exclude in light mode. Over an
+   open sheet (50): a register's toast lands with that sheet open, and its close button
+   is in the sheet's Tab ring (www/programs.js). */
+.toast {
+	position: fixed;
+	top: calc(var(--appbar-height) + var(--appbar-inset) + 8px);
+	left: 0;
+	right: 0;
+	margin: 0 auto;
+	width: calc(100% - 16px);
+	max-width: calc(var(--app-width) - 16px);
+	z-index: 60;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 4px 4px 16px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius);
+}
+
+.toast p {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 8px 0;
+}
+
+.toast strong,
+.toast span {
+	display: block;
+}
+
+.toast span {
+	font-size: var(--fs-sm);
+}
+
+.toast-close {
+	flex: 0 0 auto;
+	width: 2.75rem;
+	height: 2.75rem;
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	color: inherit;
+	font-family: inherit;
+	font-size: var(--fs-lg);
+	cursor: pointer;
 }
 
 /* --- tab bar ------------------------------------------------------------- */
@@ -698,7 +742,7 @@ a, a:visited {
 
    This is layout, not identity, so unlike the colour work it reaches every
    event. The controls it deliberately does not reach are the ones that share a
-   row with something else: the zoom pair, the day arrows, the five bottom tabs
+   row with something else: the zoom pair, the day arrows, the four bottom tabs
    and the view tabs. */
 .btn, .btn:visited,
 .highlight, .highlight:visited {
@@ -758,10 +802,11 @@ a, a:visited {
 	text-decoration: none;
 }
 
-/* --- the emergency box (home screen) -------------------------------------- */
+/* --- the crisis contact (Informace) ---------------------------------------- */
 
 /* Tonal like a notice, because there is no alarm colour yet (that waits for
-   the 2027 palette). Each number is a full-width tap target: one tap dials. */
+   the 2027 palette). Each number carries its own full-width Zavolat button:
+   one tap dials. */
 .emergency {
 	margin: 0 8px 16px;
 	padding: 12px;
@@ -771,25 +816,29 @@ a, a:visited {
 	text-align: left;
 }
 
+/* the box's own ink: the page's heading colour is chosen for the ground, not the wash */
+.info-contact h2 {
+	margin: 0 0 4px;
+	font-size: var(--fs-lg);
+	color: inherit;
+}
+
 .emergency-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.emergency-call, .emergency-call:visited {
+.emergency-contact {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: baseline;
 	column-gap: 8px;
-	min-height: 44px;
 	padding: 8px 0;
-	color: inherit;
-	text-decoration: none;
 	overflow-wrap: anywhere;
 }
 
-.emergency-list li + li .emergency-call {
+.emergency-list li + li {
 	border-top: 1px solid currentColor;
 }
 
@@ -810,9 +859,104 @@ a, a:visited {
 	font-size: var(--fs-sm);
 }
 
+/* the button fills its row inside the box rather than the column's gutter */
+.emergency-call, .emergency-call:visited {
+	flex: 1 0 100%;
+	width: 100%;
+	margin: 8px 0 0;
+	text-align: center;
+}
+
 .emergency-info {
 	margin: 8px 0 0;
 	font-size: var(--fs-sm);
+}
+
+/* --- the home screen's cards ------------------------------------------------ */
+
+/* Domů's cards are blocks of text with an action under them, not one-line links: the
+   link-card's row turns into a column. */
+.pair-card,
+article.link-card,
+.link-card.countdown,
+.link-card.countdown:visited {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+	text-align: left;
+}
+
+.pair-card h2,
+article.link-card h3,
+.countdown h3 {
+	margin: 0;
+	font-size: var(--fs-lg);
+	color: inherit;
+}
+
+.pair-card p,
+article.link-card p,
+.countdown p {
+	margin: 0;
+}
+
+/* the card's button fills the card, not the column's gutter */
+.pair-card .btn,
+article.link-card .btn {
+	width: 100%;
+	margin: 8px 0 0;
+	text-align: center;
+}
+
+.link-card.countdown[hidden] {
+	display: none;
+}
+
+/* the two headings that open a half of the screen */
+.home-kicker,
+.home-date {
+	margin: 8px 8px 0;
+	text-align: left;
+}
+
+.home-kicker {
+	font-size: var(--fs-md);
+}
+
+/* the install offer and the notifications button under one heading (Domů and Profil) */
+.install-card {
+	margin: 16px 8px;
+	padding: 12px 14px;
+	border-radius: var(--radius-card);
+	background-color: var(--surface);
+	color: var(--on-surface);
+	border: max(var(--edge-width), 1px) solid var(--edge);
+	text-align: left;
+}
+
+.install-card[hidden] {
+	display: none;
+}
+
+.install-card h2 {
+	margin: 0 0 4px;
+	font-size: var(--fs-lg);
+	color: inherit;
+}
+
+.install-card p {
+	margin: 0 0 8px;
+}
+
+/* inside the card the buttons fill it rather than the column */
+.install-card .btn {
+	width: 100%;
+}
+
+.install-card .install,
+.install-card p.push-enable,
+.install-card p.push-status {
+	margin: 8px 0 0;
 }
 
 /* --- the next programme (home screen) ------------------------------------ */
@@ -822,11 +966,34 @@ a, a:visited {
 	text-align: left;
 }
 
+.next-up h2 {
+	margin: 0 0 8px;
+	font-size: var(--fs-md);
+}
+
+.next-up .next-card + .next-card {
+	margin-top: 8px;
+}
+
 .next-card[hidden] {
 	display: none;
 }
 
-/* --- Odkazy: one card per link ------------------------------------------- */
+.next-card p {
+	margin: 0;
+}
+
+.next-lead,
+.next-section {
+	font-size: var(--fs-sm);
+	font-weight: 400;
+}
+
+.next-section {
+	opacity: 0.8;
+}
+
+/* --- the quick links (Informace): one card per link ----------------------- */
 
 .link-list {
 	margin: 0 8px;
@@ -974,28 +1141,25 @@ img.logo {
 	padding-top: 0;
 }
 
-/* out of the even spacing: the line sits on top of the screen instead of taking a share */
-.screen[data-tab="homepage"] > .freshness {
-	position: absolute;
-	top: 0;
-	right: 0;
-}
-
 .screen[data-tab="homepage"] > * {
 	margin: 0;
 }
 
-/* The line is out of the flow, so the mark keeps its height clear itself. Its full
-   height, not --freshness-space: the line is unhidden by script after first paint,
-   and the mark would jump down when it is. */
+/* the column's own top margin is zeroed with the rest; the mark keeps a little air */
 .screen[data-tab="homepage"] > img.mainLogo {
-	margin-top: calc(var(--freshness-height) + 8px);
+	margin-top: 8px;
 }
 
 /* the home screen centres its children, which would leave a page action as wide
    as its own label; the paragraphs that carry one take the full column instead */
 .screen[data-tab="homepage"] > p {
 	align-self: stretch;
+}
+
+/* the cards and headings are blocks of the column, each in the 8px gutter */
+.screen[data-tab="homepage"] > :is(section, article, h2, div.news, a.link-card, div.link-card) {
+	align-self: stretch;
+	margin-inline: 8px;
 }
 
 /* Both caps are a share of --app-height rather than of vh: that token is already
@@ -1045,9 +1209,10 @@ img.mainLogo {
 	opacity: 0.8;
 }
 
-/* the notification opt-in and the login box: centred */
+/* the notification opt-in, the pairing's waiting line and the login box: centred */
 p.push-enable,
 p.push-status,
+p.pairing-status,
 div.login-box {
 	text-align: center;
 }
@@ -1056,14 +1221,96 @@ div.login-box {
 	margin: 8px 0;
 }
 
-/* Most of the labels on the Odkazy screen are bare hostnames and addresses —
-   facebook.com/skautskyobrok, info@obrok19.cz — and a bare URL contains no break
-   opportunity at all. At 200% zoom the column is under 200px and those lines ran
-   past it; with body { overflow-x: hidden } there was then no way to scroll to the
-   rest of the text. Only this screen: everywhere else the copy is prose, and prose
-   breaking mid-word is a regression, not a fix. */
-.screen[data-tab="links"] p {
-	overflow-wrap: anywhere;
+/* --- Profil ---------------------------------------------------------------- */
+
+/* the paired reader: the avatar ring and the name, on one line */
+.profile-who {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+}
+
+.profile-who .avatar {
+	width: 48px;
+	height: 48px;
+	font-size: var(--fs-lg);
+}
+
+/* the code the reader types into KissJ: large, spaced, and never broken across lines */
+.pairing-code {
+	margin: 16px 0 8px;
+	font-size: var(--fs-2xl);
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.profile-web {
+	font-size: var(--fs-sm);
+}
+
+.profile-logout {
+	margin: 24px 0;
+}
+
+/* Světlý / Tmavý / Podle systému as one segmented bar. The radios stay real radios
+   (one name, arrow keys move between them) and are only drawn by their labels: the
+   chosen one wears the state fill under its own ink, as the current day chip does. */
+.mode-control {
+	display: flex;
+	margin: 16px 8px;
+	padding: 0;
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius-pill);
+	overflow: hidden;
+	background-color: var(--structure);
+	color: var(--on-structure);
+}
+
+.mode-control legend {
+	/* a fieldset's legend sits in its border; the bar names itself to assistive tech
+	   and the three labels say the rest */
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.mode-control label {
+	position: relative;
+	flex: 1 1 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	padding: 0 8px;
+	font-size: var(--fs-sm);
+	cursor: pointer;
+}
+
+.mode-control input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.mode-control label:has(input:checked) {
+	background-color: var(--state);
+	color: var(--on-state);
+	font-weight: 700;
+}
+
+/* the bar clips, so the ring goes inside the chosen segment, as on a day chip */
+.mode-control label:has(input:focus-visible) {
+	outline: 2px solid var(--on-ground);
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
 }
 
 /* the map is the screen — it runs edge to edge between the two bars */
@@ -1072,7 +1319,7 @@ div.login-box {
 }
 
 div.map {
-	height: calc(var(--screen-height) - var(--freshness-space));
+	height: var(--screen-height);
 }
 
 div.map iframe {
@@ -1107,7 +1354,7 @@ div.map iframe {
 .mapview {
 	display: flex;
 	flex-direction: column;
-	min-height: calc(var(--screen-height) - var(--freshness-space));
+	min-height: var(--screen-height);
 }
 
 .map-pane {
@@ -1122,7 +1369,7 @@ div.map iframe {
 }
 
 .mapview div.map {
-	height: calc(var(--screen-height) - var(--freshness-space) - var(--tabs-height));
+	height: calc(var(--screen-height) - var(--tabs-height));
 }
 
 .mapview[data-view="plan"] .tabs-indicator {
@@ -1130,7 +1377,7 @@ div.map iframe {
 }
 
 .plan {
-	height: calc(var(--screen-height) - var(--freshness-space) - var(--tabs-height));
+	height: calc(var(--screen-height) - var(--tabs-height));
 	overflow: auto;
 	overscroll-behavior: contain;
 	/* pinch is ours (www/map.js); one finger still pans natively */
@@ -1140,7 +1387,7 @@ div.map iframe {
 
 /* a plan with no pill: the whole screen */
 .mapview:not(:has(.tabs)) .plan {
-	height: calc(var(--screen-height) - var(--freshness-space));
+	height: var(--screen-height);
 }
 
 /* zoomed by its width (www/map.js), never by a transform, so the box's own
@@ -1194,12 +1441,27 @@ div.map iframe {
    A hairline rather than the 4px frame it used to be: with a neutral separator
    the frame reads as a border treatment, and the block is now told apart from the
    ground by its own tone as well. */
+/* A card of text, so it reads from the left like one (body centres by default) */
 div.news {
 	border: 1px solid var(--edge);
 	border-radius: var(--radius);
 	margin: 0 8px 8px;
+	padding: 0 16px;
+	text-align: left;
 	background-color: var(--surface);
 	color: var(--on-surface);
+}
+
+/* Informace lists the notifications under the day they were sent on */
+.news-day h3 {
+	margin: 16px 8px 8px;
+}
+
+/* the relative time sits after the title, quieter than it */
+.news-when {
+	font-size: var(--fs-sm);
+	font-weight: 400;
+	white-space: nowrap;
 }
 
 /* A message is plain text whose line breaks are meant, like a perex */
@@ -1271,10 +1533,11 @@ div.news {
 .screen[data-tab="programs"] {
 	/* The screen manages its own vertical rhythm — pager, view, docked switcher —
 	   so the shared top padding goes. The bottom padding stays and holds exactly
-	   the tab bar's height: it is what puts the end of the column on top of that
-	   fixed bar, so a long list can be scrolled all the way to its last row and
-	   the switcher's docked position and its in-flow position coincide. */
-	padding: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+	   the tab bar's height, and the network banner's while it is up: it is what
+	   puts the end of the column on top of that fixed chrome, so a long list can be
+	   scrolled all the way to its last row and the switcher's docked position and
+	   its in-flow position coincide. */
+	padding: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height));
 }
 
 /* The screen is a column exactly one screenful tall: the pager on top, the
@@ -1284,7 +1547,7 @@ div.news {
 .pg {
 	display: flex;
 	flex-direction: column;
-	min-height: calc(var(--screen-height) - var(--freshness-space));
+	min-height: var(--screen-height);
 	/* One hour of programme, in pixels, and the only thing the zoom changes —
 	   everything on the grid is positioned as a multiple of it, so setting the
 	   property IS the zoom. Figma's literal 40px leaves a 45-minute card 30px
@@ -1370,7 +1633,7 @@ div.news {
 }
 
 /* The hour-scale zoom, at the right end of the pager row and only on the row the
-   timeline uses — the personal list has no time axis to stretch. */
+   timeline uses — the two lists have no time axis to stretch. */
 .pager-zoom {
 	flex: 0 0 auto;
 	display: flex;
@@ -1398,13 +1661,15 @@ div.news {
 
 /* --- view switching ------------------------------------------------------ */
 
-.view-timeline, .view-list,
-.pg[data-view="timeline"] [data-pg-pager="list"],
-.pg[data-view="list"] [data-pg-pager="timeline"] {
+.view-overview, .view-timeline, .view-list,
+.pg:not([data-view="overview"]) [data-pg-pager="overview"],
+.pg:not([data-view="timeline"]) [data-pg-pager="timeline"],
+.pg:not([data-view="list"]) [data-pg-pager="list"] {
 	display: none;
 }
 
 /* the active view takes whatever the day strip and the switcher leave it */
+.pg[data-view="overview"] .view-overview,
 .pg[data-view="timeline"] .view-timeline,
 .pg[data-view="list"] .view-list {
 	display: block;
@@ -1418,7 +1683,8 @@ div.news {
    positions coincide, because the column ends exactly where the tab bar begins. */
 .tabs-wrap {
 	position: sticky;
-	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+	/* on the tab bar, or on the network banner while it is up */
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height));
 	z-index: 15;
 	flex: 0 0 auto;
 }
@@ -1448,8 +1714,47 @@ div.news {
 	background-color: var(--state);
 }
 
+/* The Program screen's pill has three segments — Přehled, Harmonogram, Moje — and
+   three equal thirds cut "Harmonogram" short on a 390px phone. So each segment's share
+   follows its label, still in percent of the bar: Harmonogram takes the most, Moje the
+   least, and all three labels fit whole down to 320px in every event's fonts, each
+   with about the same 13 to 15px to spare there (tests/Browser/ViewPillTest). The indicator moves by left and width rather than by a
+   translate, because the segments it travels between are no longer one size. */
+.pg .tabs {
+	--pill-overview: 30%;
+	--pill-timeline: 46%;
+	--pill-list: 24%;
+}
+
+.pg .tabs-tab {
+	gap: 4px;
+	padding-inline: 4px;
+}
+
+.pg .tabs-tab[data-pg-view="overview"] {
+	flex: 0 0 var(--pill-overview);
+}
+
+.pg .tabs-tab[data-pg-view="timeline"] {
+	flex: 0 0 var(--pill-timeline);
+}
+
+.pg .tabs-tab[data-pg-view="list"] {
+	flex: 0 0 var(--pill-list);
+}
+
+.pg .tabs-indicator {
+	width: var(--pill-overview);
+}
+
+.pg[data-view="timeline"] .tabs-indicator {
+	left: var(--pill-overview);
+	width: var(--pill-timeline);
+}
+
 .pg[data-view="list"] .tabs-indicator {
-	transform: translateX(100%);
+	left: calc(var(--pill-overview) + var(--pill-timeline));
+	width: var(--pill-list);
 }
 
 .tabs-tab {
@@ -1543,7 +1848,7 @@ div.news {
 	--reg-fg: var(--role-on-registered, var(--on-structure));
 	display: flex;
 	flex-direction: column;
-	height: calc(var(--screen-height) - var(--freshness-space) - var(--pager-height) - var(--tabs-height));
+	height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
 	overflow: auto;
 	overscroll-behavior: contain;
 	background-color: var(--surface);
@@ -1780,9 +2085,13 @@ div.news {
 	font-weight: 700;
 }
 
-/* logged in, everything you are not registered for steps back — opacity, never a colour */
-.tl-card.is-dimmed {
-	opacity: 0.45;
+/* logged in, everything you are not registered for steps back — opacity, never a colour;
+   Přehled's rows the same way, and only there. Stepping back is not fading out: 0.75 keeps
+   body ink at AA on its ground in every shipped set (obrok19's light grey ink is the
+   tightest, 4.6:1 composited; ThemingTest measures it), where 0.45 left it at 2.3:1. */
+.tl-card.is-dimmed,
+.pl-item.is-dimmed {
+	opacity: 0.75;
 }
 
 .tl-card:focus-visible {
@@ -1790,10 +2099,11 @@ div.news {
 	box-shadow: inset 0 0 0 5px var(--ground);
 }
 
-/* --- personal list ------------------------------------------------------- */
+/* --- the list: Přehled and Moje ------------------------------------------ */
 
-/* One continuous scroll over the whole event. The strip above only marks where the
-   reader is; it is the day headings inside the scroll that do the dividing. */
+/* One continuous scroll over the whole event, in each of the two list views. The
+   strip above only marks where the reader is; it is the day headings inside the
+   scroll that do the dividing. */
 
 /* The last day has to be able to dock under the strip like every other one, and it
    cannot if the document ends two rows below its heading: its chip would land short
@@ -1801,7 +2111,7 @@ div.news {
    at least as tall as the band the reader reads in — the same height the timeline's
    grid takes — so there is always scroll left for it to claim. */
 .pl-day:last-child {
-	min-height: calc(var(--screen-height) - var(--freshness-space) - var(--pager-height) - var(--tabs-height));
+	min-height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
 }
 
 /* Sticky against the bottom edge of the strip, so the day being read is named twice —
@@ -1823,10 +2133,25 @@ div.news {
 	line-height: 1.2;
 }
 
+/* A start-time column, then the name, "do HH:MM · place" and the tag in the second.
+   Every line but the time is placed in the second column; each takes the next row. */
 .pl-item {
+	display: grid;
+	grid-template-columns: 3.25em minmax(0, 1fr);
+	column-gap: 10px;
+	align-items: start;
 	padding: 12px 14px;
 	border-bottom: 1px solid var(--edge);
 	cursor: pointer;
+}
+
+.pl-item > * {
+	grid-column: 2;
+}
+
+.pl-item > .pl-time {
+	grid-column: 1;
+	grid-row: 1 / span 4;
 }
 
 /* "now" in Můj program, from the reader's clock (www/programs.js): what is running
@@ -1835,13 +2160,13 @@ div.news {
    — the same pair as the timeline's label, AA by construction (ThemingTest) — and
    neither is ink of --now on the ground: --now is the action FILL, which as text on
    a pale ground falls to 2.8:1. The running chip hangs off the card itself, top
-   right, so it is outside .pl-time's 0.75 opacity; .pl-time leaves room for it. */
+   right, so it is outside .pl-time's 0.75 opacity; the name beside it leaves room. */
 .pl-item[data-now] {
 	position: relative;
 }
 
-.pl-item[data-now="running"] .pl-time {
-	padding-right: 6em;
+.pl-item[data-now="running"] .pl-name {
+	padding-right: 5.5em;
 }
 
 .pl-item[data-now="running"]::after,
@@ -1887,20 +2212,37 @@ div.news {
 }
 
 .pl-time {
-	margin: 0 0 2px;
-	font-size: var(--fs-sm);
+	margin: 0;
+	font-size: var(--fs-md);
+	font-weight: 700;
+	line-height: 1.5;
 	opacity: 0.75;
 }
 
 .pl-name {
-	margin: 0 0 4px;
+	margin: 0 0 2px;
 	font-size: var(--fs-lg);
 }
 
-.pl-loc {
+.pl-meta {
 	margin: 0 0 4px;
 	font-size: var(--fs-sm);
+}
+
+/* "Přihlášen": a small fill of the state the active tab wears, under its own ink, with
+   the ground's hairline round it — obrok27's light state is 1.01:1 on its pale ground,
+   and the pill had no edge at all there */
+.pl-tag {
+	justify-self: start;
+	margin: 0 0 4px;
+	padding: 0 8px;
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius-pill);
+	background-color: var(--state);
+	color: var(--on-state);
+	font-size: var(--fs-xs);
 	font-weight: 700;
+	line-height: 1.6;
 }
 
 /* a description is plain text whose line breaks are meant (docs/kissj-contract.md) */
@@ -1994,20 +2336,19 @@ div.news {
 	display: block;
 }
 
-/* název on the left, time over místo on the right, both right-aligned — Figma 23:411 */
+/* the name, with the section as a chip under it */
 .sheet-head {
 	display: flex;
+	flex-direction: column;
 	align-items: flex-start;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 10px;
+	gap: 8px;
+	margin-bottom: 12px;
 }
 
 /* the sheet's own heading colour: everywhere else an h2 is --color-darker, but
    on the sheet it takes the same end of the ramp as the rest of the sheet's type */
 .sheet-name {
-	flex: 1 1 auto;
-	min-width: 0;
+	max-width: 100%;
 	margin: 0;
 	color: var(--on-surface);
 	font-size: var(--fs-2xl);
@@ -2016,30 +2357,36 @@ div.news {
 	overflow-wrap: anywhere;
 }
 
-.sheet-meta {
-	flex: 0 1 auto;
-	text-align: right;
-}
-
-.sheet-when {
-	margin: 0 0 2px;
-	font-size: var(--fs-sm);
-	font-weight: 700;
-}
-
-.sheet-where {
-	margin: 0;
-	font-size: var(--fs-md);
-	font-weight: 700;
-}
-
-/* 0.7 put obrok19's soft grey on its pale sheet at 4.20:1, below AA for a 13px
-   line; 0.75 is 4.80:1 there and still reads as the quiet
-   line above the description. */
-.sheet-section {
-	margin: 0 0 8px;
+/* the section, tonal like a secondary button: the pair carries its own ink */
+.sheet-chip {
+	display: inline-block;
+	max-width: 100%;
+	padding: 2px 10px;
+	border-radius: var(--radius-pill);
+	background-color: var(--tonal);
+	color: var(--on-tonal);
 	font-size: var(--fs-xs);
-	opacity: 0.75;
+	font-weight: 700;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+/* Kdy and Kde, two columns: the label, then what it says */
+.sheet-facts {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 4px 12px;
+	margin: 0 0 12px;
+	font-size: var(--fs-md);
+}
+
+.sheet-facts dt {
+	font-weight: 700;
+}
+
+.sheet-facts dd {
+	margin: 0;
+	overflow-wrap: anywhere;
 }
 
 /* the star carries the accent here; the primary would be a poor read on the
@@ -2058,6 +2405,29 @@ div.news {
 
 .sheet-lector {
 	margin: 0 0 8px;
+}
+
+/* What the reader can do about the programme: one line, one button, or nothing. The
+   buttons take the sheet's width, like its close row under them. */
+.sheet-footer {
+	margin: 16px 0 0;
+}
+
+.sheet-footer:empty {
+	display: none;
+}
+
+.sheet-footer form {
+	margin: 0;
+}
+
+.sheet-footer .btn {
+	width: 100%;
+}
+
+.sheet-line {
+	margin: 0;
+	font-weight: 700;
 }
 
 /* Figma paints this row a coral that belonged to no event's palette and to no
@@ -2125,6 +2495,11 @@ div.news {
 
 	.tabs-indicator {
 		transition: transform var(--motion) ease;
+	}
+
+	/* the Program pill's segments differ in width, so its indicator travels by its box */
+	.pg .tabs-indicator {
+		transition: left var(--motion) ease, width var(--motion) ease;
 	}
 
 	.tabs-tab {

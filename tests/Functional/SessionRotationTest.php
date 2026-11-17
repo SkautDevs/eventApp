@@ -10,7 +10,7 @@ use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Panther\ProcessManager\WebServerManager;
 
 /**
- * The session ID rotates on login (and on the logout an expired code forces), and a request that still carries the old ID
+ * The session ID rotates on login (the pairing poll that collects the approval) and on logout, and a request that still carries the old ID
  * — one of the service worker's install or refill bursts, sent before the answer to the
  * login arrived — must neither log the reader out nor hand the browser a new cookie.
  *
@@ -31,17 +31,26 @@ final class SessionRotationTest extends TestCase
 
     private static bool $sessionsPreexisting = false;
 
+    /** The server's STUB_STATE_PATH: the logout's revoke must not write var/stub. */
+    private static string $stubState = '';
+
+    /** What Profil shows a paired korbo26 reader (participants.json names participant 1). */
+    private const string PAIRED = '<h2 class="profile-who"><span class="avatar">JN</span> Jana Nováková</h2>';
+
     private Client $http;
 
     public static function setUpBeforeClass(): void
     {
         $root = dirname(__DIR__, 2);
         self::$sessionsPreexisting = is_dir($root . '/var/sessions');
+        self::$stubState = sys_get_temp_dir() . '/eventapp-rotation-stub-' . bin2hex(random_bytes(6));
+        mkdir(self::$stubState, 0o700);
         $server = new WebServerManager($root . '/www', '127.0.0.1', self::PORT, $root . '/bin/router.php', '/', [
             'APP_DEBUG' => '0',
             'SENTRY_DSN' => '',
-            'PROGRAM_PROVIDER_KORBO26' => 'stub',
+            'PROGRAM_PROVIDER_KORBO26' => 'local',
             'PUSH_DB_PATH' => self::DATABASE,
+            'STUB_STATE_PATH' => self::$stubState,
             'ADMIN_TOKEN_KORBO26' => self::ADMIN_TOKEN,
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one
             'VAPID_PUBLIC_KEY' => (string) ($_ENV['VAPID_PUBLIC_KEY'] ?? ''),
@@ -56,6 +65,10 @@ final class SessionRotationTest extends TestCase
     {
         self::$server?->quit();
         self::$server = null;
+        if (self::$stubState !== '' && is_dir(self::$stubState)) {
+            array_map('unlink', glob(self::$stubState . '/*') ?: []);
+            rmdir(self::$stubState);
+        }
         $file = dirname(__DIR__, 2) . '/' . self::DATABASE;
         foreach ([$file, $file . '-wal', $file . '-shm'] as $path) {
             if (is_file($path)) {
@@ -90,15 +103,30 @@ final class SessionRotationTest extends TestCase
         $late = $this->get('/korbo26/profil', $before);
         self::assertSame(200, $late->getStatusCode());
         self::assertSame([], $late->getHeader('Set-Cookie'), 'a late request must not replace the logged-in cookie');
-        self::assertStringNotContainsString('pro <strong>KORBO1</strong>', (string) $late->getBody());
+        self::assertStringNotContainsString(self::PAIRED, (string) $late->getBody());
 
         $current = $this->get('/korbo26/profil', $after);
-        self::assertStringContainsString('pro <strong>KORBO1</strong>', (string) $current->getBody());
+        self::assertStringContainsString(self::PAIRED, (string) $current->getBody());
+    }
+
+    public function testARequestWithTheIdBeforeTheLogoutStaysLoggedOutAndSetsNoCookie(): void
+    {
+        $paired = $this->cookieOf($this->login($this->anonymousSession()));
+        $logout = $this->http->post('/korbo26/profil/odpojit', ['headers' => ['Cookie' => 'eventapp=' . $paired]]);
+        self::assertSame(302, $logout->getStatusCode());
+        $after = $this->cookieOf($logout);
+        self::assertNotSame($paired, $after, 'the logout rotates the session ID');
+
+        $late = $this->get('/korbo26/profil', $paired);
+        self::assertSame(200, $late->getStatusCode());
+        self::assertSame([], $late->getHeader('Set-Cookie'), 'a late request must not replace the logged-out cookie');
+        self::assertStringNotContainsString(self::PAIRED, (string) $late->getBody(), 'the old ID still held the identity');
+        self::assertStringContainsString('Nejsi přihlášen', (string) $this->get('/korbo26/profil', $after)->getBody());
     }
 
     public function testACookielessReadStartsNoSession(): void
     {
-        foreach (['/korbo26/', '/korbo26/programy', '/korbo26/profil', '/korbo26/novinky'] as $path) {
+        foreach (['/korbo26/', '/korbo26/programy', '/korbo26/profil', '/korbo26/informace'] as $path) {
             self::assertSame([], $this->get($path)->getHeader('Set-Cookie'), $path . ' started a session for a reader who never wrote');
         }
     }
@@ -121,21 +149,21 @@ final class SessionRotationTest extends TestCase
     /** Review Focus 2 */
     public function testAFirstLoginWithoutAnyCookieLogsIn(): void
     {
-        $response = $this->http->post('/korbo26/profil/tie', ['form_params' => ['tieCode' => 'KORBO1']]);
-        self::assertSame(302, $response->getStatusCode());
-        self::assertStringContainsString('pro <strong>KORBO1</strong>', (string) $this->get('/korbo26/profil', $this->cookieOf($response))->getBody());
+        $start = $this->http->post('/korbo26/profil/propojit');
+        self::assertSame(302, $start->getStatusCode());
+        $response = $this->login($this->cookieOf($start));
+        self::assertStringContainsString(self::PAIRED, (string) $this->get('/korbo26/profil', $this->cookieOf($response))->getBody());
     }
 
     /** Review Focus 1 */
     public function testAWriteUnderAnUnknownCookieLandsInTheSessionTheBrowserGets(): void
     {
-        $response = $this->http->post('/korbo26/profil/tie', [
+        $response = $this->http->post('/korbo26/profil/propojit', [
             'headers' => ['Cookie' => 'eventapp=' . str_repeat('a', 32)],
-            'form_params' => ['tieCode' => 'WRONG1'],
         ]);
         $issued = $this->cookieOf($response);
         self::assertNotSame(str_repeat('a', 32), $issued, 'strict mode never adopts an ID it did not issue');
-        self::assertStringContainsString('Neplatný TIE kód.', (string) $this->get('/korbo26/profil', $issued)->getBody());
+        self::assertStringContainsString('483-291', (string) $this->get('/korbo26/profil', $issued)->getBody());
     }
 
     public function testALoggedInPageReissuesTheSameCookieForThirtyDays(): void
@@ -167,7 +195,7 @@ final class SessionRotationTest extends TestCase
         $this->get('/korbo26/profil', $id);
         clearstatcache(true, $file);
         self::assertGreaterThan($backdated + 86400, filemtime($file), 'the session file slides with the cookie');
-        self::assertStringContainsString('pro <strong>KORBO1</strong>', (string) $this->get('/korbo26/profil', $id)->getBody());
+        self::assertStringContainsString(self::PAIRED, (string) $this->get('/korbo26/profil', $id)->getBody());
     }
 
     /** Review I3: the page states its own cache policy, whatever the cookie and the host's limiter */
@@ -175,7 +203,7 @@ final class SessionRotationTest extends TestCase
     {
         $policy = ['no-store, no-cache, must-revalidate'];
         self::assertSame($policy, $this->get('/korbo26/')->getHeader('Cache-Control'), 'cookieless page');
-        self::assertSame($policy, $this->get('/korbo26/novinky')->getHeader('Cache-Control'));
+        self::assertSame($policy, $this->get('/korbo26/informace')->getHeader('Cache-Control'));
 
         $id = $this->cookieOf($this->login($this->anonymousSession()));
         self::assertSame($policy, $this->get('/korbo26/profil', $id)->getHeader('Cache-Control'), 'logged-in page');
@@ -202,10 +230,10 @@ final class SessionRotationTest extends TestCase
         self::assertSame([], $this->get('/korbo26/profil', $this->anonymousSession())->getHeader('Set-Cookie'));
     }
 
-    /** A session that exists but is not logged in: a wrong code writes tieError, which starts one. */
+    /** A session that exists but is not logged in: a pairing start writes the pending pairing, which starts one. */
     private function anonymousSession(): string
     {
-        $response = $this->http->post('/korbo26/profil/tie', ['form_params' => ['tieCode' => 'WRONG1']]);
+        $response = $this->http->post('/korbo26/profil/propojit');
         self::assertSame(302, $response->getStatusCode());
 
         return $this->cookieOf($response);
@@ -216,13 +244,14 @@ final class SessionRotationTest extends TestCase
         return $this->http->get($path, $sessionId === null ? [] : ['headers' => ['Cookie' => 'eventapp=' . $sessionId]]);
     }
 
+    /** The poll that collects the local source's approval of the session's pending pairing. */
     private function login(string $sessionId): ResponseInterface
     {
-        $response = $this->http->post('/korbo26/profil/tie', [
+        $response = $this->http->get('/korbo26/profil/propojit/stav', [
             'headers' => ['Cookie' => 'eventapp=' . $sessionId],
-            'form_params' => ['tieCode' => 'KORBO1'],
         ]);
-        self::assertSame(302, $response->getStatusCode());
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(['status' => 'approved'], json_decode((string) $response->getBody(), true));
 
         return $response;
     }

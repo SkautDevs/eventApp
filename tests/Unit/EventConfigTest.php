@@ -22,8 +22,8 @@ final class EventConfigTest extends TestCase
 
         self::assertSame('obrok19', $config->slug);
         self::assertSame('Obrok 2019', $config->name);
-        self::assertContains('news', $config->features);
-        self::assertTrue($config->isEnabled('news'));
+        self::assertContains('info', $config->features);
+        self::assertTrue($config->isEnabled('info'));
         self::assertFalse($config->isEnabled('neexistuje'));
         self::assertSame('#2a9272', $config->colors['base']);
     }
@@ -61,19 +61,19 @@ final class EventConfigTest extends TestCase
         }
     }
 
-    public function testNewsWithoutPushFailsAtBoot(): void
+    public function testInfoWithoutPushFailsAtBoot(): void
     {
         $dir = sys_get_temp_dir() . '/eventconfig-' . uniqid();
         mkdir($dir . '/broken', 0o777, true);
         file_put_contents($dir . '/broken/config.php', '<?php return ' . var_export([
             'name' => 'Broken',
-            'features' => ['news'], // News lists the sent notifications, so it needs push
+            'features' => ['info'], // Informace lists the sent notifications, so it needs push
             'colors' => (require dirname(__DIR__) . '/fixtures/events/minimal/config.php')['colors'],
         ], true) . ';');
 
         try {
             $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('news without push');
+            $this->expectExceptionMessage('info without push');
             EventConfig::load($dir, 'broken');
         } finally {
             unlink($dir . '/broken/config.php');
@@ -263,6 +263,44 @@ final class EventConfigTest extends TestCase
     {
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('csp');
+        $this->loadWithConfigLines('    ' . $line);
+    }
+
+    public function testWebsiteIsOptionalAndOnlyObrok27SetsIt(): void
+    {
+        self::assertNull(EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal')->website);
+        foreach (glob($this->eventsDir . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            self::assertSame(
+                $slug === 'obrok27' ? 'https://obrok.skaut.cz/' : null,
+                EventConfig::load($this->eventsDir, $slug)->website,
+                $slug,
+            );
+        }
+    }
+
+    public function testAnAbsoluteWebsiteLoads(): void
+    {
+        self::assertSame('http://akce.example/o-akci', $this->loadWithConfigLines("    'website' => 'http://akce.example/o-akci',")->website);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function invalidWebsites(): array
+    {
+        return [
+            'relative' => ["'website' => '/o-akci',"],
+            'no scheme' => ["'website' => 'obrok.skaut.cz',"],
+            'another scheme' => ["'website' => 'ftp://obrok.skaut.cz/',"],
+            'script' => ["'website' => 'javascript:alert(1)',"],
+            'not a string' => ["'website' => ['https://obrok.skaut.cz/'],"],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('invalidWebsites')]
+    public function testAnInvalidWebsiteFailsAtBoot(string $line): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('website');
         $this->loadWithConfigLines('    ' . $line);
     }
 }

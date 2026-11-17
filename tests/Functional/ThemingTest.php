@@ -36,9 +36,9 @@ final class ThemingTest extends AppTestCase
     public function testTheButtonResetIsSaidOnce(): void
     {
         $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
-        $buttons = ['.appbar-mode', '.day-chip', '.pager-zoom-btn', '.tabs-tab', '.pl-open'];
+        $buttons = ['.day-chip', '.pager-zoom-btn', '.tabs-tab', '.pl-open'];
 
-        self::assertSame(1, preg_match('/(\.appbar-mode,[^{]*)\{([^}]*)\}/', $css, $reset));
+        self::assertSame(1, preg_match('/(\.day-chip,[^{]*)\{([^}]*)\}/', $css, $reset));
         $members = array_map('trim', explode(',', (string) preg_replace('/\s+/', ' ', $reset[1])));
         sort($members);
         $expected = $buttons;
@@ -86,10 +86,10 @@ final class ThemingTest extends AppTestCase
 
     public function testAppBarCarriesThePageTitle(): void
     {
-        $html = (string) $this->request($this->createApp(), 'GET', '/novinky')->getBody();
+        $html = (string) $this->request($this->createApp(), 'GET', '/informace')->getBody();
 
-        self::assertStringContainsString('<span class="appbar-title">Novinky</span>', $html);
-        self::assertStringContainsString('Novinky · Obrok 2019', $html);
+        self::assertStringContainsString('<span class="appbar-title">Informace</span>', $html);
+        self::assertStringContainsString('Informace · Obrok 2019', $html);
     }
 
     /** An event that declares a theme gets it next to the palette, as --theme-* properties. */
@@ -184,7 +184,7 @@ final class ThemingTest extends AppTestCase
     /** The whole point of the map being optional: no theme, no properties, still boots. */
     public function testEventWithoutAThemeEmitsNoneAndStillBoots(): void
     {
-        $response = $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/novinky');
+        $response = $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/informace');
         $html = (string) $response->getBody();
 
         self::assertSame(200, $response->getStatusCode());
@@ -312,23 +312,54 @@ final class ThemingTest extends AppTestCase
      * An event with no dark set must not show a control that does nothing. Obrok 19
      * is that event: it declares a hand-authored LIGHT set like every other event —
      * it stopped being the frozen control when its bars went white — and no dark
-     * one, so it gets the roles and none of the mode plumbing.
+     * one, so it gets the roles and none of the mode plumbing. The control lives on
+     * Profil; the app bar carries no toggle any more.
      */
-    public function testTheToggleOnlyExistsForAnEventWithADarkPalette(): void
+    public function testTheModeControlOnlyExistsForAnEventWithADarkPalette(): void
     {
-        $dark = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
-        $light = (string) $this->request($this->createApp(), 'GET', '/')->getBody();
+        $korbo = $this->createApp('korbo26');
+        $this->pair($korbo);
+        $obrok19 = $this->createApp();
+        $this->pair($obrok19);
 
-        self::assertStringContainsString('data-mode-toggle', $dark);
-        self::assertStringContainsString('aria-label="Tmavý režim"', $dark);
+        $darkProfile = (string) $this->request($korbo, 'GET', '/profil')->getBody();
+        $lightProfile = (string) $this->request($obrok19, 'GET', '/profil')->getBody();
+        $dark = (string) $this->request($korbo, 'GET', '/')->getBody();
+        $light = (string) $this->request($obrok19, 'GET', '/')->getBody();
+
+        self::assertStringContainsString('data-mode-control', $darkProfile);
         self::assertStringContainsString(':root[data-mode="dark"]', $dark);
+        self::assertStringNotContainsString('data-mode-control', $lightProfile);
+        // the look is the browser's, so a logged-out Profil offers it too — on a dark-capable event only
+        self::assertStringContainsString('data-mode-control', (string) $this->request($this->createApp('korbo26'), 'GET', '/profil')->getBody());
+        self::assertStringNotContainsString('data-mode-control', (string) $this->request($this->createApp(), 'GET', '/profil')->getBody());
 
         self::assertStringContainsString('--role-ground: #f7f7f5', $light);
-        self::assertStringNotContainsString('data-mode-toggle', $light);
         self::assertStringNotContainsString('obrokColorMode', $light);
         self::assertStringNotContainsString('prefers-color-scheme', $light);
         self::assertStringNotContainsString('[data-mode="dark"]', $light);
         self::assertStringContainsString('color-scheme: light;', $light);
+    }
+
+    /** The sun/moon toggle left the app bar for Profil's control: no page carries it. */
+    public function testNoPageCarriesTheOldToggle(): void
+    {
+        foreach (['korbo26', 'obrok27', 'obrok19'] as $slug) {
+            $app = $this->createApp($slug);
+            foreach (['/', '/profil', '/programy'] as $path) {
+                $html = (string) $this->request($app, 'GET', $path)->getBody();
+                self::assertStringNotContainsString('data-mode-toggle', $html, $slug . $path);
+                self::assertStringNotContainsString('appbar-mode', $html, $slug . $path);
+            }
+            $this->pair($app);
+            self::assertStringNotContainsString('data-mode-toggle', (string) $this->request($app, 'GET', '/profil')->getBody(), $slug . ' paired');
+        }
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        self::assertStringNotContainsString('.appbar-mode', $css);
+        self::assertStringNotContainsString('.appbar-who', $css);
+        self::assertStringNotContainsString('.mode-sun', $css);
+        self::assertStringNotContainsString('data-mode-toggle', (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js'));
+        self::assertStringNotContainsString('appbar-mode', (string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/style.css'));
     }
 
     /**
@@ -573,7 +604,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
     {
-        $allowed = ['.appbar-profile', '.appbar-mode', '.tab i', '.pager-zoom-btn', '.plan-zoom-btn', '.tl-tick', '.tl-now-label', '.tl-stage', '.tl-card'];
+        $allowed = ['.appbar-profile', '.tab i', '.pager-zoom-btn', '.plan-zoom-btn', '.tl-tick', '.tl-now-label', '.tl-stage', '.tl-card'];
         $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
 
         $offenders = [];
@@ -800,6 +831,76 @@ final class ThemingTest extends AppTestCase
         self::assertDoesNotMatchRegularExpression('/(?<![-\w])color:\s*var\(--now\)/', $css);
     }
 
+    /**
+     * A dimmed programme steps back but stays readable: Přehled's row is on-ground ink on
+     * the ground, and the timeline's card is its own ink on its own fill over the grid,
+     * both seen through the dimming's opacity. Composited the way the browser blends a
+     * group, each owes AA in every set; at 0.45 obrok19's light row was 2.3:1.
+     */
+    public function testADimmedProgrammeKeepsItsInkAtAA(): void
+    {
+        $css = $this->css();
+        $opacities = [];
+        foreach (['.pl-item.is-dimmed', '.tl-card.is-dimmed'] as $selector) {
+            self::assertSame(1, preg_match('/opacity:\s*([0-9.]+)/', self::declarationsFor($css, $selector), $m), $selector);
+            $opacities[$selector] = (float) $m[1];
+        }
+
+        $checked = 0;
+        foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
+            $slug = basename(dirname($path));
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+                $alpha = $opacities['.pl-item.is-dimmed'];
+                $checked++;
+                self::assertGreaterThanOrEqual(
+                    4.5,
+                    self::contrast(self::blend($set['on-ground'], $set['ground'], $alpha), $set['ground']),
+                    sprintf('%s/%s: a dimmed Přehled row at %s', $slug, $mode, $alpha),
+                );
+                if (isset($set['grid'], $set['grid-structure'], $set['on-grid-structure'])) {
+                    $alpha = $opacities['.tl-card.is-dimmed'];
+                    self::assertGreaterThanOrEqual(
+                        4.5,
+                        self::contrast(
+                            self::blend($set['on-grid-structure'], $set['grid'], $alpha),
+                            self::blend($set['grid-structure'], $set['grid'], $alpha),
+                        ),
+                        sprintf('%s/%s: a dimmed timeline card at %s', $slug, $mode, $alpha),
+                    );
+                }
+            }
+        }
+        self::assertSame(9, $checked, 'five events, nine role sets');
+    }
+
+    /**
+     * The "Přihlášen" tag is a small state fill on the ground, and obrok27's light state is
+     * 1.01:1 on its pale ground: the pill needs the ground's hairline to exist at all.
+     */
+    public function testTheRegisteredTagCarriesTheGroundsHairline(): void
+    {
+        $rules = self::declarationsFor($this->css(), '.pl-tag');
+        self::assertStringContainsString('background-color: var(--state)', $rules);
+        self::assertStringContainsString('border: var(--edge-width) solid var(--edge)', $rules);
+
+        $set = \App\EventConfig::load($this->eventsDir(), 'obrok27')->roles['light'];
+        self::assertLessThan(1.3, self::contrast($set['state'], $set['ground']), 'the case this exists for');
+        self::assertNotSame('0px', $set['edge-width']);
+        self::assertGreaterThanOrEqual(3.0, self::contrast($set['edge'], $set['ground']));
+    }
+
+    /** `$top` at `$alpha` over `$under`, per sRGB channel, as the browser composites opacity. */
+    private static function blend(string $top, string $under, float $alpha): string
+    {
+        $a = sscanf(ltrim($top, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+        $b = sscanf(ltrim($under, '#'), '%2x%2x%2x') ?? [0, 0, 0];
+
+        return sprintf('#%02x%02x%02x', ...array_map(
+            static fn (int $i): int => (int) round($alpha * (int) $a[$i] + (1 - $alpha) * (int) $b[$i]),
+            [0, 1, 2],
+        ));
+    }
+
     /** The shared stylesheet followed by the event's own, when it declares one. */
     private function cssOfEvent(string $slug): string
     {
@@ -904,14 +1005,14 @@ final class ThemingTest extends AppTestCase
         return 0.2126 * $channel((int) $rgb[0]) + 0.7152 * $channel((int) $rgb[1]) + 0.0722 * $channel((int) $rgb[2]);
     }
 
-    /** The bar is built from the event's features, not from a hardcoded list of five. */
+    /** The bar is built from the event's features, not from a hardcoded list of four. */
     public function testTabBarOnlyShowsEnabledFeatures(): void
     {
-        $html = (string) $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/novinky')->getBody();
+        $html = (string) $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/informace')->getBody();
 
-        self::assertStringContainsString('Novinky', $html);
-        self::assertStringNotContainsString('Odkazy', $html);
-        self::assertStringNotContainsString('Mapa', $html);
+        self::assertStringContainsString('<span>Informace</span>', $html);
+        self::assertStringNotContainsString('<span>Místa</span>', $html);
+        self::assertStringNotContainsString('<span>Program</span>', $html);
     }
 
     public function testNoInlineHandlersInTemplates(): void
@@ -929,36 +1030,60 @@ final class ThemingTest extends AppTestCase
         self::assertSame(1, preg_match_all('~<script\b(?![^>]*\bsrc=)[^>]*>~i', $html));
     }
 
-    /** APG toggle: a constant name, and aria-pressed carries the state. */
-    public function testTheToggleLabelIsConstant(): void
+    /**
+     * Profil's three-way control: one fieldset, three radios of one name, the stored choice
+     * or "system" checked by www/app.js, and "Podle systému" removes the stored key.
+     */
+    public function testTheModeControlIsThreeRadiosOfOneName(): void
     {
-        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
-        $app = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
-        $layout = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig');
+        $app = $this->createApp('obrok27');
+        $this->pair($app);
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
 
-        self::assertStringContainsString('data-mode-toggle aria-pressed="false" aria-label="Tmavý režim"', $html);
-        foreach (['app.js' => $app, '_layout.twig' => $layout] as $name => $source) {
-            self::assertStringNotContainsString('Přepnout', $source, $name);
+        self::assertMatchesRegularExpression('#<fieldset class="mode-control" data-mode-control>\s*<legend>Vzhled</legend>#u', $html);
+        foreach (['light' => 'Světlý', 'dark' => 'Tmavý', 'system' => 'Podle systému'] as $value => $label) {
+            self::assertMatchesRegularExpression('#<label><input type="radio" name="mode" value="' . $value . '"> ' . $label . '</label>#u', $html);
         }
-        self::assertStringNotContainsString("setAttribute('aria-label'", $app);
-        self::assertStringContainsString("setAttribute('aria-pressed'", $app);
+        self::assertSame(3, substr_count($html, 'name="mode"'));
+        // nothing is checked by the server: the choice lives in the reader's browser
+        self::assertStringNotContainsString('checked', substr($html, (int) strpos($html, 'data-mode-control'), 600));
+
+        self::assertStringContainsString("localStorage.getItem('obrokColorMode')", $js);
+        self::assertStringContainsString("localStorage.removeItem('obrokColorMode')", $js);
+        self::assertStringContainsString("localStorage.setItem('obrokColorMode'", $js);
+        self::assertStringContainsString("'screen:shown'", $js);
+        self::assertStringNotContainsString("setAttribute('aria-pressed'", $js);
+    }
+
+    /**
+     * The look is the browser's, not the participant's: a logged-out Profil carries the
+     * control too, under the install card as on the paired one.
+     */
+    public function testALoggedOutProfileHasTheModeControlToo(): void
+    {
+        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/profil')->getBody();
+
+        self::assertStringContainsString('Nejsi přihlášen', $html);
+        self::assertMatchesRegularExpression('#<fieldset class="mode-control" data-mode-control>\s*<legend>Vzhled</legend>#u', $html);
+        self::assertGreaterThan(strpos($html, 'data-install-card="profile"'), strpos($html, 'data-mode-control'));
     }
 
     /**
      * The loader's IIFE returns early on a page without a screen or without Map; the
-     * toggle must not share that fate, so it is its own IIFE and comes first.
+     * mode control must not share that fate, so it is its own IIFE and comes first.
      */
-    public function testTheToggleIsWiredOutsideTheLoader(): void
+    public function testTheModeControlIsWiredOutsideTheLoader(): void
     {
         $app = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
-        $toggle = strpos($app, "document.querySelector('[data-mode-toggle]')");
+        $control = strpos($app, "'[data-mode-control]");
         $loader = strpos($app, "var main = document.querySelector('main');");
 
-        self::assertIsInt($toggle);
+        self::assertIsInt($control);
         self::assertIsInt($loader);
-        self::assertLessThan($loader, $toggle);
-        // the toggle's IIFE is closed before the loader's opens (app.js already holds
+        self::assertLessThan($loader, $control);
+        // the control's IIFE is closed before the loader's opens (app.js already holds
         // nested `(function () {` openers, so counting those would prove nothing)
-        self::assertSame(1, substr_count(substr($app, $toggle, $loader - $toggle), '})();'), 'the toggle must close its own IIFE before the loader opens');
+        self::assertSame(1, substr_count(substr($app, $control, $loader - $control), '})();'), 'the control must close its own IIFE before the loader opens');
     }
 }

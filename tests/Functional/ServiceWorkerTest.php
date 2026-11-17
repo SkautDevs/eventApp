@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use PHPUnit\Framework\TestCase;
-
-final class ServiceWorkerTest extends TestCase
+final class ServiceWorkerTest extends AppTestCase
 {
     private function source(): string
     {
@@ -114,7 +112,8 @@ final class ServiceWorkerTest extends TestCase
         $sw = $this->source();
 
         self::assertStringContainsString('if (url.origin !== self.location.origin) {', $sw);
-        self::assertStringContainsString("url.pathname.startsWith(BASE + 'admin/') || url.pathname.startsWith(BASE + 'push/') || url.pathname === BASE + 'precache.json'", $sw);
+        // the pairing poll too: it must reach the server every 5 s and is not a write
+        self::assertStringContainsString("url.pathname.startsWith(BASE + 'admin/') || url.pathname.startsWith(BASE + 'push/') || url.pathname === BASE + 'precache.json' || url.pathname === BASE + 'profil/propojit/stav'", $sw);
         // an event file revalidates past a year of immutable HTTP caching
         self::assertStringContainsString("fetch(request, {cache: 'no-cache'})", $sw);
     }
@@ -136,7 +135,7 @@ final class ServiceWorkerTest extends TestCase
 
         // purged once the server has answered, before the answer reaches the page: a POST
         // that fails offline leaves the offline copy alone
-        self::assertStringContainsString('event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));', $sw);
+        self::assertStringContainsString(': fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineRedirect(request)));', $sw);
         self::assertStringNotContainsString('purgeHtml().catch(() => null).then(() => fetch(request))', $sw);
         // a subscribe or unsubscribe changes no rendered HTML, so it purges nothing
         self::assertStringContainsString("if (inScope && !url.pathname.startsWith(BASE + 'admin/') && !url.pathname.startsWith(BASE + 'push/'))", $sw);
@@ -170,8 +169,86 @@ final class ServiceWorkerTest extends TestCase
         $sw = $this->source();
 
         self::assertStringContainsString("type: 'screen-updated'", $sw);
-        self::assertStringContainsString('/ data-fetched-at="[^"]*"| data-stale="1"/g', $sw);
         self::assertStringContainsString("request.cache === 'no-cache' ? fragmentFromNetwork(event) : fragmentFromCache(event)", $sw);
+    }
+
+    /**
+     * sameScreen()'s pattern, run on what the templates really render: two fragments of one
+     * screen with the same data, fetched at different times and one of them stale (kissj
+     * down behind an expired entry), are the same screen once it has stripped them. The
+     * section puts each attribute on a line of its own, so a pattern that wants a space
+     * before the name strips nothing and every cached fragment looks changed.
+     */
+    public function testSameScreenStripsTheFreshnessAttributesTheTemplatesRender(): void
+    {
+        self::assertSame(1, preg_match('~const strip = html => html\.replace\(/(.+)/g, \'\'\);~', $this->source(), $found));
+        $pattern = '~' . $found[1] . '~';
+
+        $dir = sys_get_temp_dir() . '/sw-same-screen-' . bin2hex(random_bytes(4));
+        try {
+            $stale = $this->programmeFragment($dir . '/stale', '2026-10-01 09:15:00', 300);
+            // a TTL no entry outlives: served as it is, fresh
+            $fresh = $this->programmeFragment($dir . '/fresh', '2026-10-01 10:40:00', PHP_INT_MAX);
+        } finally {
+            foreach (glob($dir . '/*/*') ?: [] as $file) {
+                unlink($file);
+            }
+            foreach (glob($dir . '/*') ?: [] as $sub) {
+                @rmdir($sub);
+            }
+            @rmdir($dir);
+        }
+        self::assertMatchesRegularExpression('~\n\tdata-fetched-at="2026-10-01T09:15:00\+02:00" data-stale="1"~', $stale);
+        self::assertMatchesRegularExpression('~\n\tdata-fetched-at="2026-10-01T10:40:00\+02:00"\ttabindex~', $fresh);
+        self::assertNotSame($stale, $fresh);
+
+        $strip = static fn (string $html): string => (string) preg_replace($pattern, '', $html);
+        self::assertStringNotContainsString('data-fetched-at', $strip($stale));
+        self::assertStringNotContainsString('data-stale', $strip($stale));
+        self::assertSame($strip($fresh), $strip($stale));
+    }
+
+    /** obrok19's Program screen as a fragment, from a cache entry written at $written, with kissj down. */
+    private function programmeFragment(string $dir, string $written, int $ttl): string
+    {
+        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
+        $at = new \DateTimeImmutable($written, new \DateTimeZone('Europe/Prague'));
+        (new \App\Cache\FileCache($dir, static fn (): \DateTimeImmutable => $at))->set(\App\Program\CachingProgramProvider::LIST_KEY, [
+            'sections' => $stub->getSections(),
+            'programmes' => $stub->getPrograms(),
+            'registration' => ['start' => null, 'end' => null],
+        ]);
+        $down = new ThrowingProgramProvider(programsException: new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'v3/programme/list')));
+        $app = $this->createApp(overrides: [
+            \App\Program\ProgramProviderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Program\ProgramProviderInterface => new \App\Program\CachingProgramProvider(
+                inner: $down,
+                cache: new \App\Cache\FileCache($dir),
+                freshness: $c->get(\App\Program\Freshness::class),
+                ttl: $ttl,
+                report: static function (\Throwable $e): void {
+                },
+            ),
+        ]);
+
+        return (string) $this->request($app, 'GET', '/programy', null, ['X-Screen' => '1'])->getBody();
+    }
+
+    /**
+     * A page or fragment that carries a toast is said once and never kept for offline, and
+     * the worker's own fetches of a whole document say who is asking, so they take no toast
+     * the reader has not seen yet. The header names are the server's.
+     */
+    public function testAToastIsNeverStoredAndTheWorkersOwnFetchesTakeNone(): void
+    {
+        $sw = $this->source();
+
+        self::assertStringContainsString("return response.headers.get('" . \App\Kernel::TOAST_HEADER . "') === '1';", $sw);
+        self::assertStringContainsString('if (storable(response) && !toasted(response)) {', $sw);
+        self::assertStringContainsString('(toasted(response) ? Promise.resolve() : putHtml(generation, key, copy))', $sw);
+        self::assertStringContainsString("new Request(url, {headers: {'" . \App\Kernel::WORKER_FILL_HEADER . "': '1'}})", $sw);
+        self::assertStringContainsString("new Request(url, {headers: {'X-Screen': '1', '" . \App\Kernel::WORKER_FILL_HEADER . "': '1'}})", $sw);
+        // a page that was not stored leaves its older copy in, which reconcile() must weigh too
+        self::assertStringContainsString('(!stored || request.url !== key.url)', $sw);
     }
 
     public function testOnlyWholeSameOriginAnswersAreKeptAndAPurgedCacheRefills(): void
@@ -179,27 +256,49 @@ final class ServiceWorkerTest extends TestCase
         $sw = $this->source();
 
         self::assertStringContainsString("return response.ok && response.type === 'basic' && !response.redirected;", $sw);
-        self::assertStringContainsString('Promise.all([putHtml(generation, key, response.clone()), response.clone().text()])', $sw);
+        self::assertStringContainsString('Promise.all([toasted(response) ? null : putHtml(generation, key, response.clone()), response.clone().text()])', $sw);
         // a page for another identity in the cache means a login the worker never saw
-        self::assertStringContainsString('.then(([, html]) => reconcile(key, html))', $sw);
+        self::assertStringContainsString('.then(([, html]) => reconcile(key, html, !toasted(response)))', $sw);
         self::assertStringContainsString('.then(refill)', $sw);
         self::assertStringContainsString('identities.some(other => other !== null && other !== who) ? purgeHtml() : null', $sw);
         self::assertStringContainsString('function refill() {', $sw);
         // a write whose request started before a purge carries the old identity: dropped
         self::assertStringContainsString('purges += 1;', $sw);
         self::assertStringContainsString('cache && unpurged(generation) ? cache.put(key, response) : undefined', $sw);
-        self::assertStringContainsString('return unpurged(generation) ? cache.put(cacheKey(request), response) : null;', $sw);
+        self::assertStringContainsString('return unpurged(generation) && !toasted(response) ? cache.put(cacheKey(request), response) : null;', $sw);
         self::assertSame(4, substr_count($sw, 'const generation = purges;'), 'storeBoth, page, and both fragment strategies');
     }
 
-    public function testAWriteWithoutNetworkGetsTheOfflinePageAsA503(): void
+    /**
+     * Review Focus: a write that never reaches the server — its fetch throws, or the browser
+     * knows it is offline — goes back where the reader was, plus #offline, for the shell's
+     * toast. No referrer, or one from another origin, goes to the event's home: never a
+     * bare "#offline" on nothing. The purge still waits for a server answer.
+     */
+    public function testAWriteWithoutNetworkGoesBackWithOfflineInTheHash(): void
     {
         $sw = $this->source();
-        self::assertStringContainsString('event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));', $sw);
-        self::assertStringContainsString("new Response(OFFLINE_WRITE, {status: 503, headers: {'Content-Type': 'text/html; charset=utf-8'}})", $sw);
-        self::assertStringContainsString('Přihlášení potřebuje signál.', $sw);
-        // always the inline page: the cached /offline says "this page is not saved yet", which is not what happened
-        self::assertStringNotContainsString("match(SCOPE + 'offline').then(hit => (hit ? hit.text()", $sw);
+
+        self::assertStringContainsString("event.respondWith(self.navigator.onLine === false\n\t\t\t\t? offlineRedirect(request)\n\t\t\t\t: fetch(request)", $sw);
+        self::assertStringContainsString("return Response.redirect(target + '#offline', 303);", $sw);
+        self::assertStringContainsString('let target = SCOPE;', $sw);
+        self::assertStringContainsString('if (from.origin === self.location.origin) {', $sw);
+        self::assertStringContainsString("from.hash = '';", $sw);
+        self::assertStringContainsString('#offline', $sw);
+        // the inline "Jsi offline" page is gone
+        self::assertStringNotContainsString('OFFLINE_WRITE', $sw);
+        self::assertStringNotContainsString('offlineAnswer', $sw);
+        self::assertStringNotContainsString('Přihlášení potřebuje signál.', $sw);
+    }
+
+    /** A push without a title is a notification, not "news": the word readers see is notifikace. */
+    public function testAPushWithoutATitleIsANotification(): void
+    {
+        $sw = $this->source();
+
+        self::assertStringContainsString("let data = {title: 'Notifikace', body: ''};", $sw);
+        self::assertStringContainsString("showNotification(data.title || 'Notifikace', {", $sw);
+        self::assertStringNotContainsString('Novinka', $sw);
     }
 
     public function testOnlyACompleteCacheThatStillExistsIsAdopted(): void

@@ -14,7 +14,7 @@
     ],
     "shortcuts": [
         { "name": "Program", "url": "/miquik26/programy" },
-        { "name": "Novinky", "url": "/miquik26/novinky" }
+        { "name": "Notifikace", "url": "/miquik26/informace" }
     ],
     "theme_color": "#e6ebed",
     "background_color": "#e6ebed"

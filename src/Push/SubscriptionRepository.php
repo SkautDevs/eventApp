@@ -25,7 +25,7 @@ final class SubscriptionRepository
      * re-post a body. Only new keys — a different subscription behind the same URL —
      * start the count again.
      */
-    public function save(array $subscription, string $event, ?string $tieCode = null): void
+    public function save(array $subscription, string $event, ?int $participantId = null): void
     {
         if (!isset($subscription['endpoint'], $subscription['keys']['p256dh'], $subscription['keys']['auth'])) {
             throw new \InvalidArgumentException('Invalid push subscription shape');
@@ -46,8 +46,8 @@ final class SubscriptionRepository
         }
 
         $statement = $this->pdo->prepare(
-            'INSERT INTO subscriptions (event, endpoint, public_key, auth_token, created_at, tie_code)
-             VALUES (:event, :endpoint, :public_key, :auth_token, :created_at, :tie_code)
+            'INSERT INTO subscriptions (event, endpoint, public_key, auth_token, created_at, participant_id)
+             VALUES (:event, :endpoint, :public_key, :auth_token, :created_at, :participant_id)
              ON CONFLICT (event, endpoint) DO UPDATE SET
                  failures = CASE
                      WHEN subscriptions.public_key = excluded.public_key AND subscriptions.auth_token = excluded.auth_token
@@ -55,7 +55,7 @@ final class SubscriptionRepository
                  public_key = excluded.public_key,
                  auth_token = excluded.auth_token,
                  created_at = excluded.created_at,
-                 tie_code = excluded.tie_code'
+                 participant_id = excluded.participant_id'
         );
         $statement->execute([
             'endpoint' => $endpoint,
@@ -63,63 +63,64 @@ final class SubscriptionRepository
             'auth_token' => $authToken,
             'created_at' => date('c'),
             'event' => $event,
-            'tie_code' => $tieCode === null || $tieCode === '' ? null : strtoupper($tieCode),
+            'participant_id' => $participantId,
         ]);
     }
 
     /**
-     * @param list<string>|null $tieCodes null for every subscriber of the event; a list for
-     *                                    only those logged in with one of these codes
-     * @return list<array{endpoint: string, publicKey: string, authToken: string, tieCode: ?string}>
+     * @param list<int>|null $participantIds null for every subscriber of the event; a list for
+     *                                       only those saved by a session of one of these participants
+     * @return list<array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}>
      */
-    public function forEvent(string $event, ?array $tieCodes = null): array
+    public function forEvent(string $event, ?array $participantIds = null): array
     {
-        $sql = 'SELECT endpoint, public_key, auth_token, tie_code FROM subscriptions WHERE event = ?';
+        $sql = 'SELECT endpoint, public_key, auth_token, participant_id FROM subscriptions WHERE event = ?';
         $params = [$event];
-        if ($tieCodes !== null) {
-            if ($tieCodes === []) {
+        if ($participantIds !== null) {
+            if ($participantIds === []) {
                 return [];
             }
-            $codes = array_values(array_unique(array_map(static fn ($c): string => strtoupper((string) $c), $tieCodes)));
-            $sql .= ' AND tie_code IN (' . implode(',', array_fill(0, count($codes), '?')) . ')';
-            $params = [...$params, ...$codes];
+            $ids = array_values(array_unique(array_map('intval', $participantIds)));
+            $sql .= ' AND participant_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+            $params = [...$params, ...$ids];
         }
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
 
-        return array_map(
-            static fn (array $row): array => [
-                'endpoint' => $row['endpoint'],
-                'publicKey' => $row['public_key'],
-                'authToken' => $row['auth_token'],
-                'tieCode' => $row['tie_code'],
-            ],
-            $statement->fetchAll(\PDO::FETCH_ASSOC),
-        );
+        return array_map(self::row(...), $statement->fetchAll(\PDO::FETCH_ASSOC));
     }
 
-    /** @return array{endpoint: string, publicKey: string, authToken: string, tieCode: ?string}|null */
+    /** @return array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}|null */
     public function find(string $event, string $endpoint): ?array
     {
-        $statement = $this->pdo->prepare('SELECT endpoint, public_key, auth_token, tie_code FROM subscriptions WHERE event = ? AND endpoint = ?');
+        $statement = $this->pdo->prepare('SELECT endpoint, public_key, auth_token, participant_id FROM subscriptions WHERE event = ? AND endpoint = ?');
         $statement->execute([$event, $endpoint]);
         $row = $statement->fetch(\PDO::FETCH_ASSOC);
 
-        return $row === false ? null : [
+        return $row === false ? null : self::row($row);
+    }
+
+    /** @return list<int> the distinct participants this event's subscribers are logged in as */
+    public function subscribedParticipantIds(string $event): array
+    {
+        $statement = $this->pdo->prepare('SELECT DISTINCT participant_id FROM subscriptions WHERE event = :event AND participant_id IS NOT NULL');
+        $statement->execute(['event' => $event]);
+
+        return array_map('intval', $statement->fetchAll(\PDO::FETCH_COLUMN));
+    }
+
+    /**
+     * @param array{endpoint: string, public_key: string, auth_token: string, participant_id: int|string|null} $row
+     * @return array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}
+     */
+    private static function row(array $row): array
+    {
+        return [
             'endpoint' => $row['endpoint'],
             'publicKey' => $row['public_key'],
             'authToken' => $row['auth_token'],
-            'tieCode' => $row['tie_code'],
+            'participantId' => $row['participant_id'] === null ? null : (int) $row['participant_id'],
         ];
-    }
-
-    /** @return list<string> the distinct TIE codes this event's subscribers are logged in with */
-    public function subscribedTieCodes(string $event): array
-    {
-        $statement = $this->pdo->prepare('SELECT DISTINCT tie_code FROM subscriptions WHERE event = :event AND tie_code IS NOT NULL');
-        $statement->execute(['event' => $event]);
-
-        return array_map('strval', $statement->fetchAll(\PDO::FETCH_COLUMN));
     }
 
     /** Scoped to the event: the same browser may be subscribed to two events, and each keeps its row. */

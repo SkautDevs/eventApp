@@ -38,12 +38,18 @@ final class SessionLockTest extends TestCase
 
     private static bool $cacheRootPreexisting = false;
 
+    /** The server's STUB_STATE_PATH: no request of this test may write var/stub. */
+    private static string $stubState = '';
+
     public static function setUpBeforeClass(): void
     {
         $root = dirname(__DIR__, 2);
         self::$cacheRootPreexisting = is_dir($root . '/var/cache');
         self::$preexisting = is_dir($root . '/var/cache/korbo26');
         self::$sessionsPreexisting = is_dir($root . '/var/sessions');
+
+        self::$stubState = sys_get_temp_dir() . '/eventapp-lock-stub-' . bin2hex(random_bytes(6));
+        mkdir(self::$stubState, 0o700);
 
         $kissj = new WebServerManager($root . '/tests/fixtures', '127.0.0.1', self::KISSJ_PORT, $root . '/tests/fixtures/slow-kissj.php', '/ready', []);
         $kissj->start();
@@ -52,10 +58,10 @@ final class SessionLockTest extends TestCase
         $server = new WebServerManager($root . '/www', '127.0.0.1', self::PORT, $root . '/bin/router.php', '/', [
             'APP_DEBUG' => '0',
             'SENTRY_DSN' => '',
-            'PROGRAM_PROVIDER_KORBO26' => 'kissj',
-            'KISSJ_BASE_URL' => 'http://127.0.0.1:' . self::KISSJ_PORT . '/',
+            'PROGRAM_PROVIDER_KORBO26' => 'http://127.0.0.1:' . self::KISSJ_PORT,
             'KISSJ_API_KEY_KORBO26' => 'test-key',
             'PUSH_DB_PATH' => self::DATABASE,
+            'STUB_STATE_PATH' => self::$stubState,
             'PHP_CLI_SERVER_WORKERS' => '4',
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one
             'VAPID_PUBLIC_KEY' => (string) ($_ENV['VAPID_PUBLIC_KEY'] ?? ''),
@@ -72,6 +78,9 @@ final class SessionLockTest extends TestCase
         self::$server = null;
         self::$kissj?->quit();
         self::$kissj = null;
+        if (self::$stubState !== '' && is_dir(self::$stubState)) {
+            self::removeTree(self::$stubState);
+        }
 
         $root = dirname(__DIR__, 2);
         $file = $root . '/' . self::DATABASE;
@@ -111,8 +120,10 @@ final class SessionLockTest extends TestCase
     public function testASlowProviderCallDoesNotHoldTheSessionForAParallelRequest(): void
     {
         $http = new Client(['base_uri' => 'http://127.0.0.1:' . self::PORT, 'allow_redirects' => false, 'http_errors' => false]);
-        $failed = $http->post('/korbo26/profil/tie', ['form_params' => ['tieCode' => 'WRONG1']]);
-        $cookie = ['Cookie' => 'eventapp=' . $this->cookieOf($failed)];
+        // a pairing start is the first write a reader makes: kissj answers it at once
+        $started = $http->post('/korbo26/profil/propojit');
+        self::assertSame(302, $started->getStatusCode());
+        $cookie = ['Cookie' => 'eventapp=' . $this->cookieOf($started)];
         // warm-up: the first request of a worker pays for the autoloader and the Twig compile,
         // which is not what this test measures
         $http->get('/korbo26/profil', ['headers' => $cookie]);

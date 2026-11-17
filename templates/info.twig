@@ -1,0 +1,77 @@
+{% extends fragment ? "_screen.twig" : "_layout.twig" %}
+
+{% set pageTitle = 'Informace' %}
+{% set activeTab = 'info' %}
+
+{% block content %}
+	{# The one block that must work with no signal: Informace is in the worker's precache,
+	   and a tel: link needs no network to dial. #}
+	{% if emergency.contacts ?? false %}
+		<section class="emergency info-contact" aria-labelledby="info-contact-title">
+			<h2 id="info-contact-title">Krizový kontakt akce</h2>
+			<ul class="emergency-list">
+				{% for contact in emergency.contacts %}
+					<li class="emergency-contact">
+						<span class="emergency-label">{{ contact.label }}</span>
+						<span class="emergency-number">{{ contact.phone }}</span>
+						{% if contact.note ?? false %}<span class="emergency-note">{{ contact.note }}</span>{% endif %}
+						<a class="btn btn-primary emergency-call" href="{{ 'tel:' ~ contact.phone|replace({' ': ''}) }}">
+							Zavolat<span class="sr-only"> {{ contact.label }}</span>
+						</a>
+					</li>
+				{% endfor %}
+			</ul>
+			{% for line in emergency.info ?? [] %}
+				<p class="emergency-info">{{ line }}</p>
+			{% endfor %}
+		</section>
+	{% endif %}
+
+	<h2>Notifikace</h2>
+	{# data-key is the morph's handle on a day and on a message: a new one arrives at the
+	   top and must not shift every one after it. data-sent-at is the instant www/shell.js
+	   redraws the relative time from, so a copy read later says how long ago it is now. #}
+	{% for group in groups %}
+		<section class="news-day" data-key="{{ group.key }}">
+			<h3>{{ group.label }}</h3>
+			{% for item in group.items %}
+				<div class="news" data-key="message-{{ item.id }}">
+					<p><strong>{{ item.title }}</strong> <small class="news-when" data-sent-at="{{ item.at }}">{{ item.when }}</small></p>
+					{% if item.programme is not null %}<p class="news-programme">{{ item.programme }}</p>{% endif %}
+					<p class="news-body">{{ item.body }}</p>
+				</div>
+			{% endfor %}
+		</section>
+	{% else %}
+		<p class="empty">Zatím žádné notifikace.</p>
+	{% endfor %}
+
+	{% if 'handbook' in event.features or links %}
+	<h2>Rychlé odkazy</h2>
+	{# one card per link: a list, so a screen reader announces how many there are #}
+	<ul class="link-list">
+		{% if 'handbook' in event.features %}
+			<li>
+				<a class="link-card is-highlight" href="{{ url_for('handbook-download') }}">
+					<i class="link-card-icon fas fa-book" aria-hidden="true"></i>
+					<span class="link-card-text">Handbook (PDF)</span>
+				</a>
+			</li>
+		{% endif %}
+		{% for link in links %}
+			{% set external = link.href starts with 'http://' or link.href starts with 'https://' %}
+			<li>
+				{# a link out of the app opens in a new tab, so the app stays where it was #}
+				<a class="link-card{{ (link.highlight ?? false) ? ' is-highlight' }}" href="{{ link.href }}"{% if external %} target="_blank" rel="noopener"{% endif %}>
+					{% if link.icon ?? false %}<i class="link-card-icon {{ link.icon }}" aria-hidden="true"></i>{% endif %}
+					<span class="link-card-text">
+						{{ link.label }}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}
+						{% if link.note ?? false %}<span class="link-card-note">{{ link.note }}</span>{% endif %}
+					</span>
+					{% if external %}<i class="link-card-out fas fa-external-link-alt" aria-hidden="true"></i><span class="sr-only"> (otevře se v nové záložce)</span>{% endif %}
+				</a>
+			</li>
+		{% endfor %}
+	</ul>
+	{% endif %}
+{% endblock %}

@@ -4,20 +4,32 @@ declare(strict_types=1);
 
 namespace App\Program;
 
-use App\Auth\Identity;
-use App\Auth\UnknownParticipantException;
+use App\Telemetry\Tracer;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\TransferException;
 
 /**
- * Reads the Program screen's data from kissj's programme API, as agreed in
- * docs/kissj-contract.md. The contract is agreed but kissj does not serve it yet, so
- * everything that arrives is validated here rather than trusted.
+ * Talks to kissj's programme API, as docs/kissj-contract.md (2.0) describes it: the
+ * list, the device pairing, the participant behind a device session, the write
+ * endpoints and the revoke. Everything that arrives is validated here rather than trusted.
+ *
+ * Failures: a `401` with an empty body on a call that carries a device session is
+ * SessionExpiredException; a `400` with the contract's `{"error": code}` on register or
+ * unregister is RegistrationRefusedException; every other non-200, and a kissj that never
+ * answers, is a KissjTransferException that names the endpoint in words and chains nothing,
+ * so neither a token nor Guzzle's message (which names the URI and quotes the body)
+ * reaches logs or Sentry.
  */
 final class KissjProgramProvider implements ProgramProviderInterface
 {
-    /** @var array{sections: array<int, array>, programmes: list<array>}|null the list response, fetched once */
+    /** the contract's header for a device session token, sent beside the API key */
+    public const string SESSION_HEADER = 'X-Kissj-Device-Session';
+
+    /**
+     * @var array{sections: array<int, array>, programmes: list<array>, registration: RegistrationWindow}|null
+     *      the list response, fetched once
+     */
     private ?array $list = null;
 
     /**
@@ -40,73 +52,209 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return $this->list()['sections'];
     }
 
-    public function getProgramsForIdentity(Identity $identity): array
+    public function getRegistrationWindow(): RegistrationWindow
     {
-        $path = sprintf('v3/programme/participant/tie/%s', rawurlencode($identity->tieCode));
-
-        // the path carries the code, so the messages below name the endpoint instead
-        $where = 'the participant endpoint';
-
-        try {
-            $data = $this->getJson($path, 'kissj.participant', 'GET v3/programme/participant/tie', $where);
-        } catch (TransferException $e) {
-            $status = $e instanceof RequestException ? $e->getResponse()?->getStatusCode() : null;
-            // The contract's "unknown code" is a 404 with an empty body. Any other 404 — a
-            // maintenance page, a wrong base path, an event switched to kissj before the
-            // endpoints exist — is an outage: treating it as "unknown" would log readers out
-            // en masse and count their logins against the NAT's limit.
-            if ($status === 404 && trim((string) $e->getResponse()?->getBody()) === '') {
-                // the code stays out of the message and out of the chain: both reach logs and Sentry
-                throw new UnknownParticipantException('Unknown TIE code');
-            }
-            throw KissjTransferException::on($where, $status, $e);
-        }
-
-        return $this->programmes($data, $where);
+        return $this->list()['registration'];
     }
 
-    public function getTieCodesForProgramme(int $programmeId): array
+    public function getParticipant(string $sessionToken): Participant
     {
-        $path = sprintf('v3/programme/%d/participants', $programmeId);
-        $codes = $this->getJson($path, 'kissj.programme-participants', 'GET v3/programme/{id}/participants')['tieCodes'] ?? null;
-        if (!is_array($codes) || !array_is_list($codes)) {
-            throw new ProgramDataException(sprintf('kissj sent no list of tieCodes for %s', $path));
+        $where = 'the session endpoint';
+        $data = $this->request(
+            'GET',
+            'v3/programme/participant/session',
+            [self::SESSION_HEADER => $sessionToken],
+            null,
+            'kissj.session',
+            'GET v3/programme/participant/session',
+            $where,
+        );
+
+        $participant = $data['participant'] ?? null;
+        if (!is_array($participant) || ($participant !== [] && array_is_list($participant))) {
+            throw new ProgramDataException(sprintf('kissj sent no participant for %s', $where));
         }
-        foreach ($codes as $code) {
-            if (!is_string($code) || $code === '') {
-                throw new ProgramDataException(sprintf('kissj sent a TIE code that is not a string for %s', $path));
+        $id = $participant['id'] ?? null;
+        if (!is_int($id) || $id < 1) {
+            throw new ProgramDataException(sprintf('kissj sent a participant without a positive integer id for %s', $where));
+        }
+        $nickname = $participant['nickname'] ?? null;
+        if ($nickname !== null && !is_string($nickname)) {
+            throw new ProgramDataException(sprintf('kissj sent a nickname that is not a string for %s', $where));
+        }
+
+        // an empty nickname is no nickname: the generic heading, not a blank one
+        return new Participant($id, $nickname === '' ? null : $nickname, $this->programmes($data, $where));
+    }
+
+    public function getParticipantIdsForProgramme(int $programmeId): array
+    {
+        $where = 'the programme participants endpoint';
+        $ids = $this->request(
+            'GET',
+            sprintf('v3/programme/%d/participants', $programmeId),
+            [],
+            null,
+            'kissj.programme-participants',
+            'GET v3/programme/{id}/participants',
+            $where,
+        )['participantIds'] ?? null;
+        if (!is_array($ids) || !array_is_list($ids)) {
+            throw new ProgramDataException(sprintf('kissj sent no list of participantIds for %s', $where));
+        }
+        foreach ($ids as $id) {
+            if (!is_int($id)) {
+                throw new ProgramDataException(sprintf('kissj sent a participant id that is not an integer for %s', $where));
             }
         }
 
-        return array_values(array_unique(array_map('strtoupper', $codes)));
+        return array_values(array_unique($ids));
+    }
+
+    public function startPairing(string $deviceId): Pairing
+    {
+        $where = 'the pairing start endpoint';
+        $data = $this->request(
+            'POST',
+            'v3/programme/pairing/start',
+            [],
+            ['deviceId' => $deviceId],
+            'kissj.pairing-start',
+            'POST v3/programme/pairing/start',
+            $where,
+        );
+
+        $url = self::requiredString($data, 'verificationUrl', $where);
+        // the page renders it as a link: only an absolute web address may become one
+        if (preg_match('#^https?://[^/\s]#i', $url) !== 1) {
+            throw new ProgramDataException(sprintf('kissj sent a verificationUrl that is not an absolute http(s) URL for %s', $where));
+        }
+        $interval = $data['interval'] ?? null;
+        if (!is_int($interval) || $interval < 1) {
+            throw new ProgramDataException(sprintf('kissj sent no positive integer interval for %s', $where));
+        }
+
+        return new Pairing(
+            deviceCode: self::requiredString($data, 'deviceCode', $where),
+            userCode: self::requiredString($data, 'userCode', $where),
+            verificationUrl: $url,
+            expiresAt: self::instant($data['expiresAt'] ?? null, 'expiresAt', $where)
+                ?? throw new ProgramDataException(sprintf('kissj sent no expiresAt for %s', $where)),
+            interval: $interval,
+        );
+    }
+
+    public function pollPairing(string $deviceCode): PairingPoll
+    {
+        $where = 'the pairing poll endpoint';
+        $data = $this->request(
+            'POST',
+            'v3/programme/pairing/poll',
+            [],
+            ['deviceCode' => $deviceCode],
+            'kissj.pairing-poll',
+            'POST v3/programme/pairing/poll',
+            $where,
+        );
+
+        $status = is_string($data['status'] ?? null) ? PairingStatus::tryFrom($data['status']) : null;
+        if ($status === null) {
+            throw new ProgramDataException(sprintf('kissj sent no known pairing status for %s', $where));
+        }
+        if ($status !== PairingStatus::Approved) {
+            return new PairingPoll($status);
+        }
+
+        return new PairingPoll(
+            $status,
+            self::requiredString($data, 'sessionToken', $where),
+            self::instant($data['expiresAt'] ?? null, 'expiresAt', $where)
+                ?? throw new ProgramDataException(sprintf('kissj sent an approval without expiresAt for %s', $where)),
+        );
+    }
+
+    public function register(string $sessionToken, int $programmeId): void
+    {
+        $this->write('register', $sessionToken, $programmeId);
+    }
+
+    public function unregister(string $sessionToken, int $programmeId): void
+    {
+        $this->write('unregister', $sessionToken, $programmeId);
+    }
+
+    public function revokeSession(string $sessionToken): void
+    {
+        $where = 'the revoke endpoint';
+        $data = $this->request(
+            'POST',
+            'v3/programme/session/revoke',
+            [self::SESSION_HEADER => $sessionToken],
+            null,
+            'kissj.revoke',
+            'POST v3/programme/session/revoke',
+            $where,
+        );
+        self::requireOk($data, $where);
+    }
+
+    /** @param 'register'|'unregister' $verb */
+    private function write(string $verb, string $sessionToken, int $programmeId): void
+    {
+        $where = sprintf('the %s endpoint', $verb);
+        $data = $this->request(
+            'POST',
+            sprintf('v3/programme/%d/%s', $programmeId, $verb),
+            [self::SESSION_HEADER => $sessionToken],
+            null,
+            'kissj.' . $verb,
+            sprintf('POST v3/programme/{id}/%s', $verb),
+            $where,
+            refusable: true,
+        );
+        self::requireOk($data, $where);
     }
 
     /**
-     * `programmes` and `sections` arrive in one response and a request asks for both,
-     * so the list is fetched and validated once, as a whole, for the provider's lifetime
-     * — which is one request.
+     * `programmes`, `sections` and `registration` arrive in one response and a request
+     * asks for all of them, so the list is fetched and validated once, as a whole, for
+     * the provider's lifetime — which is one request.
      *
-     * @return array{sections: array<int, array>, programmes: list<array>}
+     * @return array{sections: array<int, array>, programmes: list<array>, registration: RegistrationWindow}
      */
     private function list(): array
     {
         if ($this->list === null) {
-            $path = 'v3/programme/list';
-            $data = $this->getJson($path, 'kissj.list', 'GET v3/programme/list');
+            $where = 'the list endpoint';
+            $data = $this->request('GET', 'v3/programme/list', [], null, 'kissj.list', 'GET v3/programme/list', $where);
             if (!array_key_exists('sections', $data)) {
-                throw new ProgramDataException(sprintf('kissj sent no sections for %s', $path));
+                throw new ProgramDataException(sprintf('kissj sent no sections for %s', $where));
             }
             $this->list = [
                 'sections' => Sections::fromKissj($data['sections']),
-                'programmes' => $this->programmes($data, $path),
+                'programmes' => $this->programmes($data, $where),
+                'registration' => self::registration($data['registration'] ?? null, $where),
             ];
         }
 
         return $this->list;
     }
 
+    /** @param mixed $raw the list's `registration`, trusted for nothing */
+    private static function registration(mixed $raw, string $where): RegistrationWindow
+    {
+        if (!is_array($raw) || !array_key_exists('start', $raw) || !array_key_exists('end', $raw)) {
+            throw new ProgramDataException(sprintf('kissj sent no registration window for %s', $where));
+        }
+
+        return new RegistrationWindow(
+            self::instant($raw['start'], 'registration start', $where),
+            self::instant($raw['end'], 'registration end', $where),
+        );
+    }
+
     /**
-     * @param string $where what the error message names: the path, or the endpoint when the path carries a TIE code
+     * @param string $where what the error message names: the endpoint, never a path or a token
      *
      * @return list<array>
      */
@@ -121,37 +269,109 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * Every 200 the contract allows is a JSON object. A body that is not JSON, or is a
-     * bare array, is a provider error rather than a 500 on /programy. Any status other
-     * than 200 — a 401 for a rejected key included — surfaces as Guzzle's own exception.
+     * One call to kissj, with the API key and the caller's headers. Every 200 the contract
+     * allows is a JSON object; a body that is not JSON, or is a bare array, is a provider
+     * error rather than a 500 on a screen.
      *
-     * @param string      $op          the span op, named by the caller
-     * @param string      $description the span description: the endpoint's shape, never a TIE code
-     * @param string|null $where       what an error message names instead of the path — set
-     *                                 whenever the path carries a TIE code
+     * The span covers the HTTP exchange only, so its status comes from kissj's answer (a
+     * 401 is `unauthenticated`, a 400 `invalid_argument`); the answer is turned into this
+     * class's exceptions outside it.
+     *
+     * @param array<string, string>     $headers     beside the API key, e.g. the device session
+     * @param array<string, mixed>|null $json        the JSON body; null sends none
+     * @param string                    $op          the span op
+     * @param string                    $description the span description: the endpoint's shape
+     * @param string                    $where       what an error message names: the endpoint, in words
+     * @param bool                      $refusable   whether a `400 {"error": code}` is the contract's refusal
      *
      * @return array<string, mixed>
      */
-    private function getJson(string $path, string $op, string $description, ?string $where = null): array
-    {
-        return \App\Telemetry\Tracer::span($op, $description, function () use ($path, $where): array {
-            $response = $this->http->request('GET', $path, [
-                'headers' => ['Authorization' => 'Bearer ' . $this->apiKey, 'Accept' => 'application/json'],
-            ]);
+    private function request(
+        string $method,
+        string $path,
+        array $headers,
+        ?array $json,
+        string $op,
+        string $description,
+        string $where,
+        bool $refusable = false,
+    ): array {
+        $options = [
+            'headers' => ['Authorization' => 'Bearer ' . $this->apiKey, 'Accept' => 'application/json'] + $headers,
+        ];
+        if ($json !== null) {
+            $options['json'] = $json;
+        }
 
-            $decoded = json_decode((string) $response->getBody(), true);
-            if (!is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
-                throw new ProgramDataException(sprintf('kissj sent something other than a JSON object for %s', $where ?? $path));
+        try {
+            $body = Tracer::span($op, $description, fn (): string => (string) $this->http->request($method, $path, $options)->getBody());
+        } catch (TransferException $e) {
+            $response = $e instanceof RequestException ? $e->getResponse() : null;
+            $status = $response?->getStatusCode();
+            $answer = $response !== null ? (string) $response->getBody() : '';
+            // the contract's "session gone" is an empty 401; a rejected API key is a 401 with
+            // kissj's plain text, and taking that for a session would log every reader out
+            if ($status === 401 && array_key_exists(self::SESSION_HEADER, $headers) && trim($answer) === '') {
+                throw new SessionExpiredException();
             }
+            if ($status === 400 && $refusable) {
+                $refusal = json_decode($answer, true);
+                if (is_array($refusal) && is_string($refusal['error'] ?? null) && $refusal['error'] !== '') {
+                    throw new RegistrationRefusedException($refusal['error']);
+                }
+            }
+            throw KissjTransferException::on($where, $status, $e);
+        }
 
-            return $decoded;
-        });
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded) || ($decoded !== [] && array_is_list($decoded))) {
+            throw new ProgramDataException(sprintf('kissj sent something other than a JSON object for %s', $where));
+        }
+
+        return $decoded;
+    }
+
+    /** A write and the revoke answer `{"ok": true}`; anything else is not the contract. */
+    private static function requireOk(array $data, string $where): void
+    {
+        if (($data['ok'] ?? null) !== true) {
+            throw new ProgramDataException(sprintf('kissj sent no {"ok": true} for %s', $where));
+        }
+    }
+
+    private static function requiredString(array $data, string $key, string $where): string
+    {
+        $value = $data[$key] ?? null;
+        if (!is_string($value) || $value === '') {
+            throw new ProgramDataException(sprintf('kissj sent no %s for %s', $key, $where));
+        }
+
+        return $value;
+    }
+
+    /**
+     * A contract datetime, in Europe/Prague; null stays null. The message names the field,
+     * never the value: the value could be anything kissj sent.
+     */
+    private static function instant(mixed $iso, string $field, string $where): ?\DateTimeImmutable
+    {
+        if ($iso === null) {
+            return null;
+        }
+        if (!is_string($iso)) {
+            throw new ProgramDataException(sprintf('kissj sent a %s that is not a datetime string for %s', $field, $where));
+        }
+        $prague = new \DateTimeZone('Europe/Prague');
+        try {
+            return (new \DateTimeImmutable($iso, $prague))->setTimezone($prague);
+        } catch (\Exception) {
+            throw new ProgramDataException(sprintf('kissj sent an unparseable %s for %s', $field, $where));
+        }
     }
 
     /**
      * Maps one kissj programme onto our internal program shape — see docs/kissj-contract.md.
-     * Fields the contract does not name (`isPreregistered`, `targetRoles`, whatever comes
-     * later) are ignored.
+     * Fields the contract does not map (`targetRoles`, whatever comes later) are ignored.
      *
      * @param mixed $kissj one element of whatever kissj sent, trusted for nothing
      */
@@ -170,6 +390,10 @@ final class KissjProgramProvider implements ProgramProviderInterface
         if (!isset($kissj['sectionId']) || !is_int($kissj['sectionId'])) {
             throw new ProgramDataException('kissj program record has no integer sectionId');
         }
+        $preregistered = $kissj['isPreregistered'] ?? false;
+        if (!is_bool($preregistered)) {
+            throw new ProgramDataException('kissj program record has an isPreregistered that is not a boolean');
+        }
 
         return [
             'id' => (int) $kissj['id'],
@@ -181,6 +405,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
             'location' => $this->optionalText($kissj['place'] ?? null),
             'perex' => $this->optionalText($kissj['description'] ?? null),
             'tools' => null,
+            'preregistered' => $preregistered,
         ];
     }
 

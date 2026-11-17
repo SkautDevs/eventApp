@@ -10,8 +10,9 @@
  * It must be called only once the screen is *visible* — the ruler's label-width
  * measurement and every scrollLeft calculation return 0 inside a hidden subtree.
  *
- * The whole screen is one page: every day's timeline page, both views and every
- * programme detail are in the DOM, and this only decides what is visible.
+ * The whole screen is one page: every day's timeline page, all three views (Přehled,
+ * Harmonogram, Moje) and every programme detail are in the DOM, and this only decides
+ * what is visible.
  */
 (function () {
 	'use strict';
@@ -139,12 +140,13 @@
 
 		function showView(view) {
 			// The timeline is exactly one screenful, so while it is up the document is
-			// too short to hold the list's scroll and the browser clamps it to 0.
-			// Remembering it here is what makes switching views and coming back land
-			// where the reader was, the same way leaving the screen does.
-			const wasList = currentView === 'list';
-			if (wasList && view !== 'list') {
-				listScroll = window.scrollY;
+			// too short to hold a list's scroll and the browser clamps it to 0; and the
+			// two lists are different documents' worth of height. Remembering each list's
+			// offset here is what makes switching views and coming back land where the
+			// reader was, the same way leaving the screen does.
+			const was = currentView;
+			if (isList(was) && view !== was) {
+				listState(was).scroll = window.scrollY;
 			}
 			currentView = view;
 			if (root.dataset.view !== view) {
@@ -163,14 +165,14 @@
 				// now it can bring the current chip round
 				markChip('timeline', currentPageKey);
 			}
-			if (view === 'list') {
+			if (isList(view)) {
 				// The saved offset is only written when the reader leaves the list, so
 				// it is older than where they are as soon as they scroll again. It is
 				// therefore restored on a genuine switch into the list and nowhere
-				// else: showView('list') also runs after a background morph, with the
+				// else: showView() also runs after a background morph, with the
 				// reader sitting in the list — and possibly on another screen
 				// entirely, whose scroll it would be the one to move.
-				enterList(!wasList);
+				enterList(view, view !== was);
 			}
 		}
 
@@ -194,10 +196,14 @@
 			trapCard = card;
 			// everything beside the dialog on its way up to <body>: the rest of the
 			// screen, the screens the loader is keeping alive next to it, and the
-			// shell's own skip link, app bar, live region and tab bar with them
+			// shell's own skip link, app bar, live region and tab bar with them — but
+			// never a toast
 			for (let node = dialog; node && node !== document.body && node.parentElement; node = node.parentElement) {
 				Array.prototype.forEach.call(node.parentElement.children, function (sibling) {
-					if (sibling !== node && !sibling.inert) {
+					// A toast stays live: it is what the redirect after a register or an
+					// unregister says, painted over the sheet that deep link reopens, and
+					// its ✕ has to work with the sheet open (www/shell.js).
+					if (sibling !== node && !sibling.inert && !sibling.hasAttribute('data-toast')) {
 						sibling.inert = true;
 						inerted.push(sibling);
 					}
@@ -219,13 +225,18 @@
 		 * ring keeps the reader inside the dialog, which is what aria-modal promises.
 		 */
 		function cycleTab(event) {
-			const items = Array.from(trapCard.querySelectorAll(FOCUSABLE)).filter(function (item) {
+			// A toast over the open sheet (what a register said, on the sheet its redirect
+			// reopened) is live and not inert, so its close button is part of the ring —
+			// first, as it is first on the screen. Without it a keyboard could never reach it.
+			const toasts = Array.from(document.querySelectorAll('[data-toast] [data-toast-close]'));
+			const items = toasts.concat(Array.from(trapCard.querySelectorAll(FOCUSABLE))).filter(function (item) {
 				// the sheet holds every programme's detail and shows one, so the links
-				// in all the others are inside the card but not on the screen
-				return item.getClientRects().length > 0;
+				// in all the others are inside the card but not on the screen; a toast on
+				// another screen is hidden with it, and one inside an inert part is out of reach
+				return item.getClientRects().length > 0 && !item.closest('[inert]');
 			});
 			const here = document.activeElement;
-			const inside = trapCard.contains(here);
+			const inside = trapCard.contains(here) || items.indexOf(here) >= 0;
 			if (items.length === 0) {
 				event.preventDefault();
 				trapCard.focus();
@@ -362,6 +373,8 @@
 			}
 			parts.sheet.classList.remove('is-open');
 			parts.sheet.setAttribute('aria-hidden', 'true');
+			// www/shell.js withdraws a question the sheet's unregister button was asking
+			parts.sheet.dispatchEvent(new CustomEvent('sheet:closed', {bubbles: true}));
 			// before the focus goes back: an inert element cannot take it
 			releaseFocus();
 			if (opener && document.contains(opener)) {
@@ -726,11 +739,12 @@
 			}
 		});
 
-		// --- Můj program: one continuous scroll --------------------------
-		// The personal list does not page. Every day of it is in the document, first
-		// to last, each under its own sticky heading, and the strip on top is an
+		// --- Přehled and Moje: one continuous scroll each -------------------
+		// The two lists do not page. Every day of each is in the document, first to
+		// last, each under its own sticky heading, and the strip on top is an
 		// orientation instrument rather than a pager: the current chip follows the
-		// scroll, and a tap on a chip scrolls to that day's heading.
+		// scroll, and a tap on a chip scrolls to that day's heading. The behaviour is
+		// built per kind — 'overview' and 'list', the kinds whose view holds days.
 		//
 		// Nothing here runs on a scroll event. An IntersectionObserver watches the
 		// day sections against a band that starts at the bottom edge of the strip, so
@@ -739,20 +753,31 @@
 		// The day at the top of the band is the day whose heading is stuck there, so
 		// the strip and the heading can never disagree.
 
+		const LIST_KINDS = ['overview', 'list'];
+		// per kind: the days crossing the band, the observer, the pending frame, the
+		// current day and the window offset the list was left at
+		const lists = {};
+		// a deep link opens the timeline; Moje is put on the same programme so that
+		// switching to it lands on the programme rather than at the top
+		let pendingListTarget = null;
+
+		function isList(view) {
+			return LIST_KINDS.indexOf(view) >= 0;
+		}
+
+		function listState(kind) {
+			if (!lists[kind]) {
+				lists[kind] = {visible: new Set(), spy: null, frame: 0, currentKey: null, scroll: 0};
+			}
+
+			return lists[kind];
+		}
+
 		// The days themselves are queried per call rather than held in a variable: a
 		// background morph can hand the screen a new set of them, and a stale
 		// reference to one would quietly stop the strip following the scroll.
-		const visibleDays = new Set();
-		let listSpy = null;
-		let spyFrame = 0;
-		let currentDayKey = null;
-		let listScroll = 0;
-		// a deep link opens the timeline; the list is put on the same programme so
-		// that switching to it lands on the programme rather than at the top
-		let pendingListTarget = null;
-
-		function listDays() {
-			return Array.from(root.querySelectorAll('.pl-day'));
+		function listDays(kind) {
+			return Array.from(root.querySelectorAll('.view-' + kind + ' .pl-day'));
 		}
 
 		/**
@@ -784,26 +809,10 @@
 			return window.scrollY + day.getBoundingClientRect().top - bandTop();
 		}
 
-		function onCross(entries) {
-			entries.forEach(function (entry) {
-				if (entry.isIntersecting) {
-					visibleDays.add(entry.target);
-				} else {
-					visibleDays.delete(entry.target);
-				}
-			});
-			if (spyFrame) {
-				return;
-			}
-			spyFrame = requestAnimationFrame(function () {
-				spyFrame = 0;
-				syncDay();
-			});
-		}
-
-		function watchList() {
-			const targets = listDays();
-			if (listSpy || targets.length === 0 || !window.IntersectionObserver) {
+		function watchList(kind) {
+			const state = listState(kind);
+			const targets = listDays(kind);
+			if (state.spy || targets.length === 0 || !window.IntersectionObserver) {
 				return;
 			}
 			// One pixel below the strip rather than exactly on it: a day scrolled to its
@@ -811,55 +820,82 @@
 			// line, and an observer asked about that line answers "both". A pixel of
 			// clearance makes the outgoing day unambiguously outgoing, which is what
 			// keeps the label from naming the day above the one whose heading is stuck.
-			listSpy = new IntersectionObserver(onCross, {rootMargin: '-' + (Math.round(bandTop()) + 1) + 'px 0px 0px 0px'});
+			state.spy = new IntersectionObserver(function (entries) {
+				entries.forEach(function (entry) {
+					if (entry.isIntersecting) {
+						state.visible.add(entry.target);
+					} else {
+						state.visible.delete(entry.target);
+					}
+				});
+				if (state.frame) {
+					return;
+				}
+				state.frame = requestAnimationFrame(function () {
+					state.frame = 0;
+					syncDay(kind);
+				});
+			}, {rootMargin: '-' + (Math.round(bandTop()) + 1) + 'px 0px 0px 0px'});
 			targets.forEach(function (day) {
-				listSpy.observe(day);
+				state.spy.observe(day);
+			});
+		}
+
+		function unwatchLists() {
+			LIST_KINDS.forEach(function (kind) {
+				const state = listState(kind);
+				if (state.spy) {
+					state.spy.disconnect();
+					state.spy = null;
+				}
+				state.visible.clear();
 			});
 		}
 
 		/** The day being read is the first one still crossing the band. */
-		function syncDay() {
-			const targets = listDays();
-			const current = targets.find(function (day) {
-				return visibleDays.has(day);
+		function syncDay(kind) {
+			const state = listState(kind);
+			const current = listDays(kind).find(function (day) {
+				return state.visible.has(day);
 			});
 			// none crossing means the reader is past the end of the last day, and the
 			// last day is still what they are reading
-			setCurrentDay(current || null);
+			setCurrentDay(kind, current || null);
 		}
 
-		function setCurrentDay(day) {
-			const targets = listDays();
+		function setCurrentDay(kind, day) {
+			const state = listState(kind);
+			const targets = listDays(kind);
 			if (day) {
-				currentDayKey = day.dataset.key;
+				state.currentKey = day.dataset.key;
 			}
 			let index = targets.findIndex(function (item) {
-				return item.dataset.key === currentDayKey;
+				return item.dataset.key === state.currentKey;
 			});
 			if (index < 0 && targets.length > 0) {
 				index = 0;
-				currentDayKey = targets[0].dataset.key;
+				state.currentKey = targets[0].dataset.key;
 			}
 
 			if (index >= 0) {
-				markChip('list', targets[index].dataset.key);
+				markChip(kind, targets[index].dataset.key);
 			}
 		}
 
-		function scrollToDay(key) {
-			const day = listDays().find(function (item) {
+		function scrollToDay(kind, key) {
+			const day = listDays(kind).find(function (item) {
 				return item.dataset.key === key;
 			});
 			if (!day) {
 				return;
 			}
 			scrollWindowTo(dayStart(day));
-			setCurrentDay(day);
+			setCurrentDay(kind, day);
 		}
 
-		/** Puts a single programme under the strip, clear of its day's stuck heading. */
-		function scrollToItem(id) {
-			const item = root.querySelector('.view-list .pl-item[data-key="' + id + '"]');
+		/** Puts a single programme of a list under the strip, clear of its day's stuck heading. */
+		function scrollToItem(kind, id) {
+			const item = root.querySelector('.view-' + kind + ' .pl-item[data-key="' + id + '"]');
 			if (!item) {
 				return false;
 			}
@@ -876,20 +912,22 @@
 			return true;
 		}
 
-		function enterList(restore) {
-			watchList();
-			if (pendingListTarget !== null) {
-				const found = scrollToItem(pendingListTarget);
+		function enterList(kind, restore) {
+			watchList(kind);
+			if (kind === 'list' && pendingListTarget !== null) {
+				const found = scrollToItem('list', pendingListTarget);
 				pendingListTarget = null;
 				if (found) {
 					return;
 				}
 			}
-			// the browser clamped the window while the timeline was up
-			if (restore && listScroll > 0 && window.scrollY === 0) {
-				window.scrollTo(0, listScroll);
+			// the browser clamped the window while the timeline was up, and the other
+			// list left it wherever that one was read
+			const saved = listState(kind).scroll;
+			if (restore && window.scrollY !== saved) {
+				window.scrollTo(0, saved);
 			}
-			syncDay();
+			syncDay(kind);
 		}
 
 		/**
@@ -900,16 +938,14 @@
 		 */
 		function afterMorph() {
 			root.style.setProperty('--hour-width', hourWidth + 'px');
-			if (listSpy) {
-				listSpy.disconnect();
-				listSpy = null;
-				visibleDays.clear();
-			}
+			unwatchLists();
 			showView(currentView);
 			if (currentPageKey) {
 				showPageByKey('timeline', currentPageKey);
 			}
-			setCurrentDay(null);
+			LIST_KINDS.forEach(function (kind) {
+				setCurrentDay(kind, null);
+			});
 			syncZoomButtons();
 			applyTickStep();
 			updateNow();
@@ -925,8 +961,8 @@
 			if (data.pgView !== undefined) {
 				showView(data.pgView);
 			} else if (data.pgPage !== undefined) {
-				if (data.pgKind === 'list') {
-					scrollToDay(data.pgPage);
+				if (isList(data.pgKind)) {
+					scrollToDay(data.pgKind, data.pgPage);
 				} else {
 					showPageByKey(data.pgKind, data.pgPage);
 				}
@@ -1004,7 +1040,7 @@
 			if (mine) {
 				pendingListTarget = mine[1];
 				if (currentView === 'list') {
-					enterList(false);
+					enterList('list', false);
 				} else {
 					showView('list');
 				}
@@ -1012,10 +1048,78 @@
 				return;
 			}
 			const matches = location.hash.match(/^#section-(\d+)-program-(\d+)$/);
-			if (matches) {
+			if (!matches) {
+				return;
+			}
+			// the redirect after a register or unregister: back on the view it was sent from
+			const view = takeReturn(matches[2]);
+			if (view === 'list') {
+				pendingListTarget = matches[2];
+				if (currentView === 'list') {
+					enterList('list', false);
+				} else {
+					showView('list');
+				}
+				openSheet(matches[2], false, null);
+			} else if (view === 'overview') {
+				showView('overview');
+				scrollToItem('overview', matches[2]);
+				openSheet(matches[2], false, null);
+			} else {
 				openSheet(matches[2], true, null);
 			}
 		}
+
+		// --- the view a write was sent from -------------------------------------
+		// A register or unregister is a form POST, and its redirect lands on the
+		// programme's plain deep link, which opens the timeline. The view the reader acted
+		// from is noted here on submit and taken once on landing, so the reader comes back
+		// to Přehled or Moje with the sheet open again. A deep link without the note, or
+		// with one for another programme or older than a minute, behaves as it always did.
+		const returnKey = 'pgReturn:' + (root.dataset.pgEvent || '');
+		const RETURN_MS = 60000;
+
+		function noteReturn(id) {
+			try {
+				sessionStorage.setItem(returnKey, JSON.stringify({id: String(id), view: currentView, at: Date.now()}));
+			} catch (e) {
+				// private browsing: the landing opens the timeline, as a plain deep link does
+			}
+		}
+
+		function takeReturn(id) {
+			let note = null;
+			try {
+				note = JSON.parse(sessionStorage.getItem(returnKey) || 'null');
+				sessionStorage.removeItem(returnKey);
+			} catch (e) {
+				note = null;
+			}
+			if (!note || note.id !== String(id) || !(Date.now() - note.at < RETURN_MS)) {
+				return null;
+			}
+
+			return isList(note.view) || note.view === 'timeline' ? note.view : null;
+		}
+
+		// A double tap must not send the write twice: the button goes disabled on submit.
+		// A page restored from the back-forward cache keeps its disabled button, so it is
+		// enabled again on pageshow, as the admin form's is.
+		root.addEventListener('submit', function (event) {
+			const form = event.target.closest ? event.target.closest('[data-pg-write]') : null;
+			if (!form) {
+				return;
+			}
+			noteReturn(form.dataset.pgWrite);
+			form.querySelectorAll('button').forEach(function (button) {
+				button.disabled = true;
+			});
+		});
+		window.addEventListener('pageshow', function () {
+			root.querySelectorAll('[data-pg-write] button[disabled]').forEach(function (button) {
+				button.disabled = false;
+			});
+		});
 
 		window.addEventListener('hashchange', function () {
 			if (document.contains(root) && !root.closest('[data-screen][hidden]')) {
@@ -1064,9 +1168,11 @@
 		// the scale outlives paging and view switching, but not the session
 		restoreZoom();
 		showPage('timeline', Math.max(activeIndex('timeline'), 0));
-		// the list's strip opens on the day at the top of the scroll; from here on the
+		// each list's strip opens on the day at the top of its scroll; from here on the
 		// observer marks whichever day the reader has scrolled to
-		setCurrentDay(listDays()[0] || null);
+		LIST_KINDS.forEach(function (kind) {
+			setCurrentDay(kind, listDays(kind)[0] || null);
+		});
 		showView(currentView);
 		updateNow();
 		// a deep link names its own page; only a plain landing goes to "now"

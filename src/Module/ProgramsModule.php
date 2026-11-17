@@ -5,23 +5,31 @@ declare(strict_types=1);
 namespace App\Module;
 
 use App\Auth\Authenticator;
-use App\Auth\UnknownParticipantException;
 use App\EventConfig;
+use App\Http\SameOrigin;
+use App\Kernel;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
+use App\Program\RegistrationRefusedException;
+use App\Program\RegistrationWindow;
+use App\Program\SessionExpiredException;
 use App\Push\MessageRepository;
+use App\Push\NewsItems;
 use App\Session;
+use App\Telemetry\Collector;
 use GuzzleHttp\Exception\TransferException;
+use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 use Slim\Views\Twig;
 
 /**
  * The single Program screen (/programy).
  *
- * The screen renders two views into one page and switches between them client side:
- * a Gantt-style timeline of everything, and a personal list of the programmes the
- * logged-in participant is registered for. All grouping happens here, in PHP —
- * the template only walks an already-shaped view model.
+ * The screen renders three views into one page and switches between them client side:
+ * Přehled, a list of everything by day; Harmonogram, a Gantt-style timeline of
+ * everything; and Moje, the same list of the programmes the logged-in participant is
+ * registered for. All grouping happens here, in PHP — the template only walks an
+ * already-shaped view model.
  */
 final class ProgramsModule implements ModuleInterface
 {
@@ -31,6 +39,54 @@ final class ProgramsModule implements ModuleInterface
      * needs the short forms, which do not exist anywhere else.
      */
     private const array SHORT_DAY_NAMES = [1 => 'po', 2 => 'út', 3 => 'st', 4 => 'čt', 5 => 'pá', 6 => 'so', 7 => 'ne'];
+
+    /**
+     * The toast title for each of kissj's refusal codes (docs/kissj-contract.md); a code
+     * not listed here is REFUSED.
+     */
+    private const array REFUSALS = [
+        'notPaid' => 'Přihlašování na programy je možné až po zaplacení.',
+        'closed' => 'Přihlašování není otevřené.',
+        'notFound' => 'Tenhle program už neexistuje.',
+        'notPossible' => 'Na tenhle program se nepřihlašuje, máš ho automaticky.',
+        'wrongRole' => 'Tenhle program není určený pro tvoji roli.',
+        'alreadyRegistered' => 'Tenhle program už máš.',
+        'notRegistered' => 'Tenhle program nemáš, není z čeho se odhlásit.',
+        'conflict' => 'Koliduje s programem, který už máš ve stejném bloku.',
+        'full' => 'Je plno.',
+    ];
+
+    /** The toast title for a refusal code REFUSALS does not know, per verb (true: register). */
+    private const array REFUSED = [true => 'Přihlášení se nepodařilo.', false => 'Odhlášení se nepodařilo.'];
+
+    /** The toast title when the provider could not be reached or answered nonsense, per verb. */
+    private const array WRITE_FAILED = [
+        true => 'Přihlášení se teď nedaří, zkus to prosím později.',
+        false => 'Odhlášení se teď nedaří, zkus to prosím později.',
+    ];
+
+    /** The 403 page's message for a cross-site form, per verb. */
+    private const array CROSS_SITE = [
+        true => 'Přihlášení na program se nepodařilo. Načti stránku a zkus to znovu.',
+        false => 'Odhlášení z programu se nepodařilo. Načti stránku a zkus to znovu.',
+    ];
+
+    /**
+     * The refusal that, right after the same write succeeded, is only that write tapped
+     * twice: the success toast still waiting in the session is the true answer.
+     */
+    private const array REPEATED = [true => 'alreadyRegistered', false => 'notRegistered'];
+
+    /** The sheet's line, the toast's second line and the 403 page's message for a reader who is not paired. */
+    private const string NOT_PAIRED = 'Pro přihlašování se přihlas kódem z KissJ';
+
+    /**
+     * The one way a time of day is printed in a time range — the sheet's Kdy, the toast,
+     * the list rows and the timeline card's name: no leading zero on the hour ("8:00"),
+     * as Czech writes it, and Domů's next-programme cards (HomeModel) the same way. The
+     * hour ruler keeps "08:00", a fixed-width instrument label.
+     */
+    public const string CLOCK = 'G:i';
 
     /** Stage row for programmes that carry no location. */
     private const string NO_LOCATION_LABEL = 'Bez lokace';
@@ -73,21 +129,25 @@ final class ProgramsModule implements ModuleInterface
             $auth = $this->get(Authenticator::class);
             $provider = $this->get(ProgramProviderInterface::class);
             // Both provider calls can fail in the same request — kissj being down is
-            // exactly when they do — and the first branch signs the participant out.
-            // One slot would let the second failure replace the explanation for that,
-            // so the notices accumulate and the template renders them as one line.
+            // exactly when they do — so the notices accumulate and the template renders
+            // them as one line.
             $notices = [];
             $mine = [];
             // only a list that was actually read can say "not registered" or "nothing yet"
             $mineRead = false;
+            // what a register or unregister said, on the document its redirect lands on
+            $toast = Kernel::takeToast($request, $this->get(Session::class));
 
-            if ($auth->isLogged()) {
+            $identity = $auth->identity();
+            if ($identity !== null) {
                 try {
-                    $mine = $provider->getProgramsForIdentity($auth->identity());
+                    $mine = $provider->getParticipant($identity->sessionToken)->programmes;
                     $mineRead = true;
-                } catch (UnknownParticipantException) {
-                    $auth->logout();
-                    $notices[] = 'Tvůj TIE kód už neplatí, odhlásili jsme tě.';
+                } catch (SessionExpiredException) {
+                    // kissj no longer knows the device session: logged out, as on Domů, and
+                    // this very page renders logged out, so it says why itself
+                    Kernel::sessionGone($auth, $this->get(Session::class));
+                    $toast = Kernel::goneToast();
                 } catch (TransferException | ProgramDataException) {
                     // never arrived, or arrived as something that is not programme data —
                     // the reader is told the same thing either way
@@ -97,7 +157,7 @@ final class ProgramsModule implements ModuleInterface
 
             $all = [];
             $sections = [];
-            // no list at all, not even a stale one: the template then shows no freshness line
+            // no list at all, not even a stale one: the template then says so instead of "no programme"
             $unavailable = false;
             try {
                 $all = $provider->getPrograms();
@@ -109,40 +169,212 @@ final class ProgramsModule implements ModuleInterface
 
             $model = ProgramsModule::buildViewModel($sections, $all, $mine, $mineRead);
 
+            // the window decides every sheet's footer; read only when there is a sheet, and
+            // a window that cannot be read leaves the footers empty rather than guessing
+            $window = null;
+            if ($model['details'] !== []) {
+                try {
+                    $window = $provider->getRegistrationWindow();
+                } catch (TransferException | ProgramDataException) {
+                    $window = null;
+                }
+            }
+
             // the organisers' messages about a programme are in its sheet, for everybody
             $messages = [];
+            $now = new \DateTimeImmutable();
             foreach ($this->get(MessageRepository::class)->visible($this->get(EventConfig::class)->slug) as $message) {
                 if ($message['programmeId'] !== null) {
+                    $sentAt = NewsItems::sentAt($message['sentAt']);
                     $messages[$message['programmeId']][] = [
-                        'when' => NewsModule::when($message['sentAt']),
+                        'when' => $sentAt === null ? $message['sentAt'] : NewsItems::relative($sentAt, $now),
+                        // the instant www/shell.js redraws `when` from on the device clock
+                        'at' => $sentAt?->format(\DATE_ATOM),
                         'title' => $message['title'],
                         'body' => $message['body'],
                     ];
                 }
             }
+            $paired = $auth->isLogged();
             foreach ($model['details'] as $i => $detail) {
                 $model['details'][$i]['messages'] = $messages[(int) $detail['id']] ?? [];
+                $model['details'][$i]['footer'] = $window === null && $paired
+                    ? null
+                    : ProgramsModule::footer($detail, $paired, $mineRead, $window ?? new RegistrationWindow(null, null), $now);
             }
 
-            // a failed login from Můj program lands back here and is explained in place
-            $session = $this->get(Session::class);
-            $tieError = $session->get('tieError');
-            $session->delete('tieError');
-
-            return $this->get(Twig::class)->render($response, 'programs.twig', $model + [
+            return Kernel::markToast($this->get(Twig::class)->render($response, 'programs.twig', $model + [
                 'notice' => $notices === [] ? null : implode(' ', $notices),
                 'programmesUnavailable' => $unavailable,
-                'isLogged' => $auth->isLogged(),
+                'isLogged' => $paired,
                 'mineRead' => $mineRead,
-                'identity' => $auth->identity()?->displayName,
-                'tieError' => $tieError,
-            ]);
+                'toast' => $toast,
+            ]), $toast);
         })->setName('programs');
+
+        // Registration from the sheet: a plain form POST, so the worker's purge-on-write and
+        // the loader's "every non-GET is a navigation" keep every screen consistent. The
+        // outcome waits in the session as a toast, and the redirect lands on the
+        // programme's deep link, which reopens its sheet under that toast.
+        $base = $app->getBasePath();
+        foreach (['prihlasit' => 'program-register', 'odhlasit' => 'program-unregister'] as $path => $name) {
+            $register = $path === 'prihlasit';
+            $app->post('/programy/{id:[0-9]+}/' . $path, function ($request, $response, array $args) use ($base, $register) {
+                return ProgramsModule::write($this, $request, $response, (int) $args['id'], $register, $base);
+            })->setName($name);
+        }
+    }
+
+    /**
+     * One register or unregister: the provider's answer becomes the session toast, and the
+     * reader goes back to the programme. Only a cross-site form or a reader who is not
+     * paired gets a page of its own (403).
+     */
+    private static function write(
+        \Psr\Container\ContainerInterface $c,
+        \Psr\Http\Message\ServerRequestInterface $request,
+        ResponseInterface $response,
+        int $id,
+        bool $register,
+        string $base,
+    ): ResponseInterface {
+        $twig = $c->get(Twig::class);
+        // a cross-site form must not register the reader for anything
+        if (!SameOrigin::allows($request)) {
+            return self::refused($twig, $response, self::CROSS_SITE[$register], $base . '/programy', 'Zpět na program');
+        }
+        $auth = $c->get(Authenticator::class);
+        $identity = $auth->identity();
+        if ($identity === null) {
+            return self::refused($twig, $response, self::NOT_PAIRED . '.', $base . '/profil', 'Přihlásit se');
+        }
+        $session = $c->get(Session::class);
+        $provider = $c->get(ProgramProviderInterface::class);
+
+        // the success toast of this very write, which a repeat of it must not talk over
+        $tag = ($register ? 'register:' : 'unregister:') . $id;
+        try {
+            if ($register) {
+                $provider->register($identity->sessionToken, $id);
+            } else {
+                $provider->unregister($identity->sessionToken, $id);
+            }
+            $programme = self::programme($provider, $id);
+            $name = $programme === null ? null : (string) $programme['name'];
+            if ($register) {
+                Kernel::putToast($session, $name === null ? 'Přihlášen' : 'Přihlášen: ' . $name, $programme === null ? null : self::toastLine($programme), $tag);
+            } else {
+                Kernel::putToast($session, $name === null ? 'Odhlášen' : 'Odhlášen: ' . $name, 'Místo jsme uvolnili', $tag);
+            }
+        } catch (RegistrationRefusedException $e) {
+            $title = self::REFUSALS[$e->refusal] ?? self::REFUSED[$register];
+            if ($e->refusal === self::REPEATED[$register]) {
+                // A double tap: the first request's success waits unsaid in the session, and
+                // the second one's "you already have it" would replace it with a refusal.
+                Kernel::putToastUnlessPending($session, $title, null, $tag);
+            } else {
+                Kernel::putToast($session, $title, null);
+            }
+        } catch (SessionExpiredException) {
+            // the page the redirect lands on renders logged out, and the toast says why
+            Kernel::sessionGone($auth, $session);
+            $gone = Kernel::goneToast();
+            Kernel::putToast($session, $gone['title'], $gone['line']);
+        } catch (TransferException | ProgramDataException $e) {
+            // LocalStateException included: the local source's state file could not be written
+            Collector::collect($e);
+            Kernel::putToast($session, self::WRITE_FAILED[$register], null);
+        }
+
+        $sectionId = (int) (self::programme($provider, $id)['section']['id'] ?? 0);
+
+        return $response
+            ->withHeader('Location', $base . '/programy#section-' . $sectionId . '-program-' . $id)
+            ->withStatus(302);
+    }
+
+    /** The programme with this id from the provider's list, or null when it is not there or the list cannot be read. */
+    private static function programme(ProgramProviderInterface $provider, int $id): ?array
+    {
+        try {
+            foreach ($provider->getPrograms() as $programme) {
+                if (is_array($programme) && ($programme['id'] ?? null) === $id) {
+                    return $programme;
+                }
+            }
+        } catch (TransferException | ProgramDataException) {
+            // the toast then names no programme, and the deep link no section
+        }
+
+        return null;
+    }
+
+    private static function refused(Twig $twig, ResponseInterface $response, string $message, string $href, string $label): ResponseInterface
+    {
+        return $twig->render($response->withStatus(403)->withHeader('Content-Type', 'text/html; charset=utf-8'), 'error.twig', [
+            'notFound' => false,
+            'details' => null,
+            'message' => $message,
+            'back' => ['href' => $href, 'label' => $label],
+        ]);
+    }
+
+    /**
+     * When and where, as the register toast's second line: "Pá 21. 5. · 9:00–12:30 ·
+     * Žlutý les". A programme running past midnight names its start day only; the place
+     * only when there is one.
+     */
+    public static function toastLine(array $program): string
+    {
+        $start = self::ts($program['start'] ?? null);
+        $end = self::ts($program['end'] ?? null);
+        $day = self::SHORT_DAY_NAMES[(int) date('N', $start)];
+        $line = mb_strtoupper(mb_substr($day, 0, 1)) . mb_substr($day, 1) . ' ' . date('j. n.', $start)
+            . ' · ' . date(self::CLOCK, $start) . '–' . date(self::CLOCK, $end);
+        $location = trim((string) ($program['location'] ?? ''));
+
+        return $location === '' ? $line : $line . ' · ' . $location;
+    }
+
+    /**
+     * What a sheet's footer offers, in the order the spec's bullets imply: not paired
+     * first; then a window that is not open, by why; then, paired and open, nothing for a
+     * preregistered programme, else register or unregister. Null when the participant's
+     * own list could not be read: "register" would be a guess.
+     *
+     * @param array{preregistered: bool, registered: bool} $detail
+     * @return array{state: string, line: ?string}|null
+     */
+    private static function footer(array $detail, bool $paired, bool $mineRead, RegistrationWindow $window, \DateTimeImmutable $now): ?array
+    {
+        if (!$paired) {
+            return ['state' => 'unpaired', 'line' => null];
+        }
+        $state = $window->state($now);
+        if ($state === 'before' && $window->start !== null) {
+            $start = $window->start->setTimezone(new \DateTimeZone(self::ZONE));
+
+            return ['state' => 'before', 'line' => 'Přihlašování začne ' . $start->format('j. n. Y \\v ' . self::CLOCK)];
+        }
+        if ($state === 'after') {
+            return ['state' => 'after', 'line' => 'Přihlašování skončilo'];
+        }
+        if ($state !== 'open') {
+            return ['state' => 'none', 'line' => 'Přihlašování zatím není otevřené'];
+        }
+        if ($detail['preregistered']) {
+            return ['state' => 'fixed', 'line' => null];
+        }
+        if (!$mineRead) {
+            return null;
+        }
+
+        return ['state' => $detail['registered'] ? 'unregister' : 'register', 'line' => null];
     }
 
     /**
      * The homepage's "next programme" card: the participant's own programmes in order,
-     * flattened from Můj program's days, and the index of the first one not yet over at
+     * flattened from Moje's days, and the index of the first one not yet over at
      * `$now` (null when everything is). Every card is rendered and the device clock picks
      * the one to show (`www/shell.js`), so a copy cached days ago is still right; the
      * server's own pick is what a reader without JS sees.
@@ -152,8 +384,9 @@ final class ProgramsModule implements ModuleInterface
      */
     public static function nextUp(array $mine, int $now): array
     {
+        $mine = self::withUniqueIds(self::withParsableDates($mine));
         $items = [];
-        foreach (self::buildDays(self::withUniqueIds(self::withParsableDates($mine))) as $day) {
+        foreach (self::buildDays($mine, array_fill_keys(array_column($mine, 'id'), true), true) as $day) {
             foreach ($day['items'] as $item) {
                 $items[] = $item + ['day' => $day['label']];
             }
@@ -211,8 +444,9 @@ final class ProgramsModule implements ModuleInterface
      * Shapes everything the template needs:
      *  - pages:  one per day that actually has programmes, every section together, each
      *            already carrying its hour ruler and its stage rows with positioned cards
-     *  - days:   one per day of the participant's own programme, for the list view
-     *  - details: modal payload per programme id, for both views and the hash deep link
+     *  - overview: one per day of every programme in a listed section, for Přehled
+     *  - days:   one per day of the participant's own programme, for Moje
+     *  - details: modal payload per programme id, for every view and the hash deep link
      *
      * @param array<int, array> $sections from getSections(), keyed by id in display order
      * @param list<array> $all programmes from getPrograms()
@@ -232,14 +466,16 @@ final class ProgramsModule implements ModuleInterface
             $registeredIds[$program['id']] = true;
         }
 
-        // group everything by day, dropping programmes in a section the provider did not
-        // list. A programme running over several days goes on the page of each of them.
+        // programmes in a section the provider did not list are not shown
+        $listed = array_values(array_filter(
+            $all,
+            static fn (array $program): bool => isset($sections[$program['section']['id'] ?? -1]),
+        ));
+
+        // group everything by day. A programme running over several days goes on the
+        // page of each of them.
         $grouped = [];
-        foreach ($all as $program) {
-            $sectionId = $program['section']['id'] ?? null;
-            if ($sectionId === null || !isset($sections[$sectionId])) {
-                continue;
-            }
+        foreach ($listed as $program) {
             foreach (self::segments($program) as $segment) {
                 $grouped[$segment['day']][] = $segment;
             }
@@ -258,7 +494,8 @@ final class ProgramsModule implements ModuleInterface
             $pages[] = $page;
         }
 
-        $days = self::buildDays($mine);
+        $overview = self::buildDays($listed, $registeredIds, $mineRead);
+        $days = self::buildDays($mine, $registeredIds, $mineRead);
 
         $details = [];
         foreach (array_merge($all, $mine) as $program) {
@@ -268,6 +505,9 @@ final class ProgramsModule implements ModuleInterface
         return [
             'pages' => $pages,
             'activePage' => self::activeKey($pages),
+            // Přehled and Moje are continuous scrolls, so each strip opens on the day at the top
+            'overview' => $overview,
+            'activeOverview' => $overview[0]['key'] ?? null,
             'days' => $days,
             // The personal list is one continuous scroll over the whole event, so the
             // day its strip opens on is the day at the top of that scroll — the first —
@@ -397,6 +637,7 @@ final class ProgramsModule implements ModuleInterface
         $start = $segment['start'];
         $end = self::barEnd($segment);
         $registered = isset($registeredIds[$program['id']]);
+        $preregistered = self::preregistered($program);
 
         return [
             'id' => $program['id'],
@@ -407,43 +648,67 @@ final class ProgramsModule implements ModuleInterface
             'offset' => self::hours($start - $axisStart),
             'span' => self::hours($end - $start),
             'registered' => $registered,
-            // with the personal list read, the programmes that are not yours step back so yours stand out
-            'dimmed' => $mineRead && !$registered,
+            // with the personal list read, the programmes that are not yours step back so
+            // yours stand out — never a preregistered one, which kissj leaves out of the
+            // personal list and which is, as far as eventApp can tell, everybody's
+            'dimmed' => $mineRead && !$registered && !$preregistered,
         ];
     }
 
+    /** kissj's isPreregistered: fixed for its roles, never in a participant's own list. */
+    private static function preregistered(array $program): bool
+    {
+        return ($program['preregistered'] ?? false) === true;
+    }
+
     /**
-     * The list view groups by day, like the timeline, but does not page: every day
-     * is rendered and the reader scrolls through all of them — a day the participant
-     * has nothing on simply does not exist here, because this is their programme and
-     * not the event's.
+     * Přehled and Moje group by day, like the timeline, but do not page: every day is
+     * rendered and the reader scrolls through all of them — a day with nothing on it
+     * simply does not exist in the list. One shape for both; the template decides what
+     * each view shows of it (only Přehled dims).
      *
-     * @param list<array> $mine
+     * @param list<array> $programs
+     * @param array<int, true> $registeredIds the participant's programme ids
+     * @param bool $mineRead whether the personal list was read: only then is anything dimmed
      */
-    private static function buildDays(array $mine): array
+    private static function buildDays(array $programs, array $registeredIds, bool $mineRead): array
     {
         $byDay = [];
-        foreach ($mine as $program) {
+        foreach ($programs as $program) {
             $byDay[self::dayOf($program)][] = $program;
         }
         ksort($byDay);
 
         $days = [];
-        foreach ($byDay as $day => $programs) {
-            usort($programs, static fn (array $a, array $b): int => self::ts($a['start']) <=> self::ts($b['start']));
+        foreach ($byDay as $day => $dayPrograms) {
+            usort($dayPrograms, static fn (array $a, array $b): int => self::ts($a['start']) <=> self::ts($b['start']));
             $days[] = [
                 'key' => 'day-' . date('Ymd', strtotime($day)),
                 'day' => $day,
                 'label' => self::dayLabel($day),
-                'items' => array_map(static fn (array $p): array => [
-                    'id' => $p['id'],
-                    'name' => $p['name'],
-                    'time' => self::timeRange($p),
-                    'start' => self::instant(self::ts($p['start'])),
-                    'end' => self::instant(self::ts($p['end'])),
-                    'location' => $p['location'] ?? null,
-                    'perex' => $p['perex'] ?? null,
-                ], $programs),
+                'items' => array_map(static function (array $p) use ($registeredIds, $mineRead): array {
+                    $start = self::ts($p['start']);
+                    $end = self::ts($p['end']);
+                    $registered = isset($registeredIds[$p['id']]);
+                    $location = trim((string) ($p['location'] ?? ''));
+
+                    return [
+                        'id' => $p['id'],
+                        'name' => $p['name'],
+                        'time' => date(self::CLOCK, $start),
+                        // a programme running into another day names the day it ends on,
+                        // as every other label of a multi-day run does
+                        'until' => 'do ' . (count(self::segments($p)) > 1 ? self::dayLabel(date('Y-m-d', $end)) . ' ' : '') . date(self::CLOCK, $end),
+                        'range' => date(self::CLOCK, $start) . '–' . date(self::CLOCK, $end),
+                        'start' => self::instant($start),
+                        'end' => self::instant($end),
+                        'location' => $location === '' ? null : $location,
+                        'perex' => $p['perex'] ?? null,
+                        'registered' => $registered,
+                        // a preregistered programme is never dimmed: see buildCard()
+                        'dimmed' => $mineRead && !$registered && !self::preregistered($p),
+                    ];
+                }, $dayPrograms),
             ];
         }
 
@@ -470,6 +735,7 @@ final class ProgramsModule implements ModuleInterface
             'section' => $section === null ? null : self::sectionTitle($section),
             'page' => $pageOfProgram[$program['id']] ?? null,
             'registered' => isset($registeredIds[$program['id']]),
+            'preregistered' => self::preregistered($program),
         ];
     }
 
@@ -504,7 +770,7 @@ final class ProgramsModule implements ModuleInterface
     }
 
     /**
-     * e.g. "08:00 – 12:00"; a programme that runs into another day names both days, the
+     * e.g. "8:00–12:00"; a programme that runs into another day names both days, the
      * way the sheet does. Ending at midnight is ending the evening it started on.
      */
     private static function timeRange(array $program): string
@@ -514,10 +780,13 @@ final class ProgramsModule implements ModuleInterface
             return self::whenLabel($program);
         }
 
-        return date('H:i', self::ts($program['start'])) . ' – ' . date('H:i', self::ts($program['end']));
+        return date(self::CLOCK, self::ts($program['start'])) . '–' . date(self::CLOCK, self::ts($program['end']));
     }
 
-    /** e.g. "čt 30. 5. 08:00 – 12:00", or with both days when the programme runs past midnight */
+    /**
+     * e.g. "čt 30. 5. 8:00–12:00", or with both days when the programme runs past midnight:
+     * "čt 30. 5. 22:00 – pá 31. 5. 1:30" — spaced there, because the dash joins two dates.
+     */
     private static function whenLabel(array $program): string
     {
         $start = self::ts($program['start']);
@@ -525,8 +794,9 @@ final class ProgramsModule implements ModuleInterface
         $startDay = self::dayLabel(date('Y-m-d', $start));
         $endDay = self::dayLabel(date('Y-m-d', $end));
 
-        return $startDay . ' ' . date('H:i', $start) . ' – '
-            . ($startDay === $endDay ? '' : $endDay . ' ') . date('H:i', $end);
+        return $startDay === $endDay
+            ? $startDay . ' ' . date(self::CLOCK, $start) . '–' . date(self::CLOCK, $end)
+            : $startDay . ' ' . date(self::CLOCK, $start) . ' – ' . $endDay . ' ' . date(self::CLOCK, $end);
     }
 
     private static function dayOf(array $program): string

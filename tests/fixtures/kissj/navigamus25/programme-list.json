@@ -1,5 +1,9 @@
 {
     "_note": "Every start/end below is invented, shaped by the stated durations.",
+    "registration": {
+        "start": null,
+        "end": null
+    },
     "sections": [
         {
             "id": 1,

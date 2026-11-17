@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\Group;
 
 #[Group('browser')]
@@ -24,7 +23,7 @@ final class TouchTargetTest extends BrowserTestCase
     private const string BAR = <<<'JS'
         const title = document.querySelector('.appbar-title').getBoundingClientRect();
         const overlaps = [];
-        document.querySelectorAll('.appbar-tools .appbar-mode, .appbar-tools .appbar-profile').forEach(el => {
+        document.querySelectorAll('.appbar-tools .appbar-profile').forEach(el => {
             if (!el.getClientRects().length) { return; }
             const r = el.getBoundingClientRect();
             if (title.right > r.left + 0.5 && title.left < r.right - 0.5) {
@@ -40,31 +39,40 @@ final class TouchTargetTest extends BrowserTestCase
             titleWidth: title.width,
             toolsLeft: tools.left,
             overlaps: overlaps,
-            mode: document.querySelector('.appbar-mode') !== null,
         };
         JS;
 
     public function testEveryControlIsAtLeast44By44(): void
     {
+        // logged out first, whatever ran before: the start button is what is measured
+        self::visit('/korbo26/');
+        self::$browser->manage()->deleteAllCookies();
         self::visit('/korbo26/profil');
         self::waitFor('return document.readyState === "complete";');
-        self::assertSame([], self::script(self::SMALL, [['.appbar-mode', '.appbar-profile', '.appbar-brand', '.tab', 'input[type=text]', '.btn']]));
+        self::assertSame([], self::script(self::SMALL, [['.appbar-profile', '.appbar-brand', '.tab', '.btn']]));
 
-        // logged in, so the personal list has a strip of its own to measure
-        self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
-        self::tap('form.stacked-form button[type="submit"]');
-        self::waitFor('return document.querySelector(".appbar-who") !== null;');
+        // logged out, a programme's sheet offers the way to log in: a full-width button, not a bare inline link
+        self::visit('/korbo26/programy');
+        self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
+        self::script('document.querySelector(".tl-card").click();');
+        self::waitFor('return document.querySelector(".sheet.is-open .sheet-body.is-open .sheet-footer a") !== null;');
+        self::assertTrue(self::script('return document.querySelector(".sheet-body.is-open .sheet-footer a").getClientRects().length > 0;'));
+        self::assertSame([], self::script(self::SMALL, [['.sheet-body.is-open .sheet-footer a']]));
+
+        // paired, so the personal list has a strip of its own to measure, and Profil its mode control
+        self::pair();
+        self::assertSame([], self::script(self::SMALL, [['.appbar-profile', '.btn', '.mode-control label']]));
 
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
-        self::assertSame([], self::script(self::SMALL, [['.appbar-mode', '.appbar-profile', '.appbar-brand', '.tab', '.day-chip', '.pager-zoom-btn']]));
+        self::assertSame([], self::script(self::SMALL, [['.appbar-profile', '.appbar-brand', '.tab', '.day-chip', '.pager-zoom-btn']]));
 
         self::script('document.querySelector(\'[data-pg-view="list"]\').click();');
         self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "list";');
         self::assertSame([], self::script(self::SMALL, [['.day-chip']]));
     }
 
-    /** Review Focus 2: the minimums must still fit the narrowest phone, logged in, with the toggle. */
+    /** Review Focus 2: the minimums must still fit the narrowest phone. */
     public function testTheNarrowestPhoneStillFitsTheBars(): void
     {
         self::overrideViewport(320, 700);
@@ -87,8 +95,8 @@ final class TouchTargetTest extends BrowserTestCase
     }
 
     /**
-     * The identity's name gives way before the screen's name, entirely: at an ordinary
-     * phone width a logged-in event's title must not lose even a sub-pixel to it.
+     * The profile link gives way before the screen's name, entirely: at an ordinary
+     * phone width a paired event's title must not lose even a sub-pixel to it.
      *
      * The widths are what they are because the hermetic lane now loads the real fonts
      * (self-hosted since Round E); it used to measure the fallback. navigamus25's
@@ -100,20 +108,14 @@ final class TouchTargetTest extends BrowserTestCase
      */
     public function testTheTitleKeepsItsFullWidthOnAnOrdinaryPhone(): void
     {
-        foreach (['navigamus25' => ['NAVIGAMUS1', [360]], 'obrok27' => ['OBROK1', [320, 360]]] as $slug => [$code, $widths]) {
-            self::visit('/' . $slug . '/profil');
-            self::waitFor('return document.readyState === "complete";');
-            if (self::script('return document.querySelector(".appbar-who") === null;')) {
-                self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys($code);
-                self::tap('form.stacked-form button[type="submit"]');
-                self::waitFor('return document.querySelector(".appbar-who") !== null;');
-            }
+        foreach (['navigamus25' => [360], 'obrok27' => [320, 360]] as $slug => $widths) {
+            self::pair($slug);
 
             foreach ($widths as $width) {
                 self::overrideViewport($width, 700);
                 try {
                     self::visit('/' . $slug . '/');
-                    self::waitFor('return document.readyState === "complete" && document.querySelector(".appbar-who") !== null;');
+                    self::waitFor('return document.readyState === "complete" && document.querySelector(\'meta[name="push-identity"]\').content !== "";');
                     // measured with the real face in place, not the fallback it swaps from
                     self::asyncScript('const done = arguments[arguments.length - 1]; document.fonts.ready.then(() => done(true));');
                     self::assertSame($width, self::script('return window.innerWidth;'), 'the viewport override did not take');
@@ -129,9 +131,8 @@ final class TouchTargetTest extends BrowserTestCase
     }
 
     /**
-     * 200% page zoom on a 390px phone is a 195px CSS viewport. korbo26 declares a dark
-     * set, so its bar carries both the mode toggle and the profile link, the widest the
-     * right-hand end gets.
+     * 200% page zoom on a 390px phone is a 195px CSS viewport. The right-hand end of the
+     * bar is the profile link alone; the mode control lives on Profil.
      */
     public function testTwoHundredPercentZoomKeepsTheBarApart(): void
     {
@@ -142,7 +143,6 @@ final class TouchTargetTest extends BrowserTestCase
             self::assertSame(195, self::script('return window.innerWidth;'), 'the viewport override did not take');
 
             $bar = self::script(self::BAR);
-            self::assertTrue($bar['mode'], 'korbo26 should carry the mode toggle');
             self::assertSame($bar['clientWidth'], $bar['scrollWidth'], 'the page scrolls sideways');
             self::assertSame([], $bar['overlaps'], 'the title overlaps the bar\'s controls');
             // the 4ch floor is 44px at 20px; anything under 40 is the ellipsis alone

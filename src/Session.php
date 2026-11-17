@@ -34,6 +34,9 @@ final class Session
 
     private const string NAME = 'eventapp';
 
+    /** id()'s stand-in under CLI; an event slug never contains an underscore, so it names no event. */
+    private const string CLI_ID = '__session_id';
+
     /** refreshCookie() slides the session file too, but only once it is this old. */
     private const int TOUCH_AFTER = 24 * 3600;
 
@@ -65,6 +68,32 @@ final class Session
         private readonly ?string $appRoot = null,
     ) {
         $this->http = $http ?? \PHP_SAPI !== 'cli';
+    }
+
+    /**
+     * This browser's session ID, starting a session (and sending its cookie) when there is
+     * none yet. The pairing's device id is its hash: one browser, one pending pairing.
+     * Under CLI no session is ever started, so a random ID kept beside the events' values in
+     * $_SESSION stands in for it — a fresh $_SESSION is a fresh browser there too.
+     */
+    public function id(): string
+    {
+        if (!$this->http) {
+            $_SESSION ??= [];
+            if (!is_string($_SESSION[self::CLI_ID] ?? null)) {
+                $_SESSION[self::CLI_ID] = bin2hex(random_bytes(16));
+            }
+
+            return $_SESSION[self::CLI_ID];
+        }
+        $this->view();
+        if ($this->stored === null) {
+            // a plain start: a new ID has to reach the browser
+            $this->open(true);
+            $this->close();
+        }
+
+        return (string) $this->stored;
     }
 
     public function get(string $key, mixed $default = null): mixed

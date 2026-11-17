@@ -14,7 +14,7 @@
     ],
     "shortcuts": [
         { "name": "Program", "url": "/obrok19/programy" },
-        { "name": "Novinky", "url": "/obrok19/novinky" }
+        { "name": "Notifikace", "url": "/obrok19/informace" }
     ],
     "theme_color": "#2a9272",
     "background_color": "#ffffff"

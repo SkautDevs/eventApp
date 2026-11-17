@@ -48,7 +48,8 @@
         "lector": null,
         "location": null,
         "perex": "Čeká nás stavba společných stanů, vyhrazení ploch, rozmístění cedulí, stavba registrace, sociálního zařízení, subjektových stanů a dalších.",
-        "tools": null
+        "tools": null,
+        "preregistered": true
     },
     {
         "id": 4,
@@ -609,7 +610,8 @@
         "lector": null,
         "location": "Jiné místo - specifikuj",
         "perex": "Ani letos na Korbu nebude chybět příležitost k tanci. Vítáni jsou všichni tanečníci od úplných začátečníků až po chronické vymetače plesů.\n\nBudeme tančit předevšímn klasiku a latinu. Pro ty, kdo by si potřebovali kroky osvěžit, nebo budou tančit úplně poprvé budu k dispozici. Můžeme také okoukat nějaké nové figiury od ostatních párů a vzájemně se obohatit.",
-        "tools": null
+        "tools": null,
+        "preregistered": true
     },
     {
         "id": 37,
@@ -864,7 +866,8 @@
         "lector": null,
         "location": null,
         "perex": "V posledních 3 letech prošla tahle akce významným vývojem a hodně se toho mění a měnit ještě bude.\nKorbo drží krok se zbytkem organizace a zároveň si u toho chce zachovat původní myšlenku - to není jednoduchý úkol.\n\nPřijď vyjádřit svůj názor, diskutovat a třeba i porozumět některým změnám.\nAť už si zelenáč, nebo na Korbo patříš od začátku, máš čím přispět.\n\nKorbo je komunitní projekt a měli by ho utvářet všichni, proto závěr téhle diskuze bude mít nemalý vliv na jeho budoucí ročníky.",
-        "tools": null
+        "tools": null,
+        "preregistered": true
     },
     {
         "id": 52,

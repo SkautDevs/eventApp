@@ -14,7 +14,7 @@
     ],
     "shortcuts": [
         { "name": "Program", "url": "/navigamus25/programy" },
-        { "name": "Novinky", "url": "/navigamus25/novinky" }
+        { "name": "Notifikace", "url": "/navigamus25/informace" }
     ],
     "theme_color": "#e6ebed",
     "background_color": "#e6ebed"

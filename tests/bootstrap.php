@@ -17,3 +17,14 @@ foreach ([
     $_ENV[$name] = $value;
     putenv($name . '=' . $value);
 }
+
+// PROGRAM_PROVIDER_<SLUG> is required for every event; every test reads the event's own
+// fixture files, so none reaches a real kissj whatever a local .env names.
+foreach ([dirname(__DIR__) . '/events', __DIR__ . '/fixtures/events'] as $eventsDir) {
+    foreach (glob($eventsDir . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
+        // the key as EventConfig::envKey() builds it
+        $name = 'PROGRAM_PROVIDER_' . strtoupper(str_replace('-', '_', basename($dir)));
+        $_ENV[$name] = 'local';
+        putenv($name . '=local');
+    }
+}

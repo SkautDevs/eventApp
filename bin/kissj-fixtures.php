@@ -1,21 +1,24 @@
 <?php
 
 // Regenerates events/<slug>/fixtures/ from the kissj responses in tests/fixtures/kissj/<slug>/,
-// so a dev event serves that realistic data through the stub provider.
+// so a dev event serves that realistic data through the stub provider (PROGRAM_PROVIDER_<SLUG>=local).
 //
 //   docker run --rm -v "$PWD":/app -w /app php:8.3-alpine php bin/kissj-fixtures.php <slug> [--clamp-all-day=HH:MM-HH:MM]
 //
-// The programmes go through the real KissjProgramProvider, fed the responses by a Guzzle
+// Everything goes through the real KissjProgramProvider, fed the responses by a Guzzle
 // MockHandler, so the stub serves exactly what the kissj provider would. sections.json is
-// kissj's own shape already and is copied as it is. registered.json gives the event's TIE
-// participant the programmes kissj lists for them. The TIE code is derived from the slug:
-// the slug with its trailing digits removed, upper-cased, plus 1 (korbo26 -> KORBO1).
+// kissj's own shape already and is copied as it is. programs.json carries `preregistered`
+// only where it is true (the stub reads a missing key as false). registration.json is the
+// list's registration window, written when either end is set and removed when
+// it has none (the stub reads a missing file as no window). registered.json gives the
+// fixture participant, read through the session endpoint from participant.json, the
+// programmes kissj lists for them, keyed by their participant id. participants.json
+// (nicknames) is hand-written and not touched.
 // --clamp-all-day moves calendar-export "all day" entries (00:00-23:59) to the given hours
 // in the served fixtures only; the kissj corpus under tests/ stays verbatim.
 
 declare(strict_types=1);
 
-use App\Auth\Identity;
 use App\Program\KissjProgramProvider;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -26,7 +29,6 @@ require __DIR__ . '/../vendor/autoload.php';
 
 $root = dirname(__DIR__);
 $slug = $argv[1] ?? throw new InvalidArgumentException('usage: bin/kissj-fixtures.php <slug> [--clamp-all-day=HH:MM-HH:MM]');
-$tieCode = strtoupper(preg_replace('/\d+$/', '', $slug)) . '1';
 $source = $root . '/tests/fixtures/kissj/' . $slug;
 $target = $root . '/events/' . $slug . '/fixtures';
 
@@ -40,14 +42,15 @@ $read = static function (string $file) use ($source): string {
 };
 
 $list = $read('programme-list.json');
-$tie = $read('participant-tie.json');
+$participantBody = $read('participant.json');
 
-// The queue is exactly the two calls below, in this order.
+// The queue is exactly the two calls below, in this order: the list (programmes, sections
+// and the window come from one response), then the session read.
 $provider = new KissjProgramProvider(
     http: new Client([
         'handler' => HandlerStack::create(new MockHandler([
             new Response(200, ['Content-Type' => 'application/json'], $list),
-            new Response(200, ['Content-Type' => 'application/json'], $tie),
+            new Response(200, ['Content-Type' => 'application/json'], $participantBody),
         ])),
         'base_uri' => 'https://kissj.example/',
     ]),
@@ -62,10 +65,18 @@ foreach (array_slice($argv, 2) as $arg) {
     }
     $programs = \Tools\Fixtures\AllDayClamp::apply($programs, $m[1], $m[2]);
 }
-$registered = array_column(
-    $provider->getProgramsForIdentity(new Identity(displayName: 'TIE ' . $tieCode, tieCode: $tieCode)),
-    'id',
-);
+$window = $provider->getRegistrationWindow();
+// the session endpoint is what the provider reads a participant through; the token is a dummy
+$participant = $provider->getParticipant('fixtures');
+$registered = array_column($participant->programmes, 'id');
+// the stub reads a missing key as false, so only the true ones are spelled out
+$programs = array_map(static function (array $program): array {
+    if ($program['preregistered'] !== true) {
+        unset($program['preregistered']);
+    }
+
+    return $program;
+}, $programs);
 $sections = json_decode($list, true, flags: JSON_THROW_ON_ERROR)['sections'];
 
 $write = static function (string $file, array $data) use ($target): void {
@@ -80,6 +91,19 @@ if (!is_dir($target) && !mkdir($target, 0777, true)) {
 }
 $write('programs.json', $programs);
 $write('sections.json', $sections);
-$write('registered.json', ['tie:' . $tieCode => $registered]);
+$write('registered.json', [(string) $participant->id => $registered]);
+if ($window->start !== null || $window->end !== null) {
+    $write('registration.json', ['start' => $window->start?->format(DATE_ATOM), 'end' => $window->end?->format(DATE_ATOM)]);
+} elseif (is_file($target . '/registration.json') && !unlink($target . '/registration.json')) {
+    throw new RuntimeException(sprintf('Cannot remove %s/registration.json', $target));
+}
 
-printf("%d programmes, %d sections, %d registered for TIE %s → %s\n", count($programs), count($sections), count($registered), $tieCode, $target);
+printf(
+    "%d programmes, %d sections, %d registered for participant %d, registration %s → %s\n",
+    count($programs),
+    count($sections),
+    count($registered),
+    $participant->id,
+    $window->start === null && $window->end === null ? 'not set' : 'set',
+    $target,
+);

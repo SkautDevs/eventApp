@@ -10,21 +10,41 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class SemanticsTest extends BrowserTestCase
 {
-    public function testTheToggleKeepsItsNameAndFlipsItsState(): void
+    /**
+     * Profil's mode control: three radios of one name, each named by its label; a choice
+     * sets the mode and stores it, and "Podle systému" removes the stored key.
+     */
+    public function testTheModeControlIsThreeNamedRadiosAndSystemForgetsTheChoice(): void
     {
-        self::visit('/korbo26/');
+        self::pair();
         self::script('try { localStorage.removeItem("obrokColorMode"); } catch (e) {}');
-        self::visit('/korbo26/');
+        self::visit('/korbo26/profil');
+        self::waitFor('return document.readyState === "complete" && document.querySelector("[data-mode-control]") !== null;');
+
+        self::assertSame(
+            [['mode', 'Světlý'], ['mode', 'Tmavý'], ['mode', 'Podle systému']],
+            self::script('return Array.from(document.querySelectorAll("[data-mode-control] input")).map(i => [i.name, i.labels[0].textContent.trim()]);'),
+        );
+        self::assertSame('Vzhled', self::script('return document.querySelector("[data-mode-control] legend").textContent.trim();'));
+        // nothing stored: the device's setting rules, and the control says so
+        self::assertSame('system', self::script('return document.querySelector("[data-mode-control] input:checked").value;'));
+
+        $state = 'let stored = null; try { stored = localStorage.getItem("obrokColorMode"); } catch (e) {} return [document.documentElement.getAttribute("data-mode"), stored, document.querySelector("[data-mode-control] input:checked").value];';
+        self::tap('[data-mode-control] label:nth-of-type(2)');
+        self::assertSame(['dark', 'dark', 'dark'], self::script($state));
+        self::tap('[data-mode-control] label:nth-of-type(1)');
+        self::assertSame(['light', 'light', 'light'], self::script($state));
+
+        self::tap('[data-mode-control] label:nth-of-type(3)');
+        $system = self::script('return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";');
+        self::assertSame([$system, null, 'system'], self::script($state));
+
+        // the stored choice is what a fresh page checks
+        self::tap('[data-mode-control] label:nth-of-type(2)');
+        self::visit('/korbo26/profil');
         self::waitFor('return document.readyState === "complete";');
-
-        $state = static fn (): array => self::script('const b = document.querySelector("[data-mode-toggle]"); return [b.getAttribute("aria-pressed"), b.getAttribute("aria-label"), document.documentElement.getAttribute("data-mode")];');
-        self::assertSame(['false', 'Tmavý režim', 'light'], $state());
-
-        self::tap('[data-mode-toggle]');
-        self::assertSame(['true', 'Tmavý režim', 'dark'], $state());
-
-        self::tap('[data-mode-toggle]');
-        self::assertSame(['false', 'Tmavý režim', 'light'], $state());
+        self::assertSame(['dark', 'dark', 'dark'], self::script($state));
+        self::tap('[data-mode-control] label:nth-of-type(3)');
     }
 
     /** Review Focus 1: the name follows the open programme, by tap and by deep link. */

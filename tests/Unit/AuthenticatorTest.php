@@ -23,11 +23,12 @@ final class AuthenticatorTest extends TestCase
         self::assertFalse($auth->isLogged());
         self::assertNull($auth->identity());
 
-        $auth->store(new Identity(displayName: 'TIE ABC123', tieCode: 'ABC123'));
+        $auth->store(new Identity(1, 'Jana Nováková', 'stub-1-0123456789abcdef'));
 
         self::assertTrue($auth->isLogged());
-        self::assertSame('TIE ABC123', $auth->identity()->displayName);
-        self::assertSame('ABC123', $auth->identity()->tieCode);
+        self::assertSame(1, $auth->identity()->participantId);
+        self::assertSame('Jana Nováková', $auth->identity()->displayName());
+        self::assertSame('stub-1-0123456789abcdef', $auth->identity()->sessionToken);
 
         $auth->logout();
         self::assertFalse($auth->isLogged());
@@ -36,10 +37,18 @@ final class AuthenticatorTest extends TestCase
     public function testAStoredSkautisIdentityFromBeforeTheRemovalCountsAsLoggedOut(): void
     {
         // a session written by the old code must not crash the app bar
-        $_SESSION = ['identity' => ['type' => 'skautis', 'displayName' => 'Jan Novák (jnovak)', 'skautisUserId' => 123, 'tieCode' => null]];
+        $_SESSION = ['identity' => ['type' => 'skautis', 'displayName' => 'Jan Novák (jnovak)', 'skautisUserId' => 123]];
         $auth = new Authenticator(new Session());
 
         self::assertNull($auth->identity());
         self::assertFalse($auth->isLogged());
+    }
+
+    public function testAnIdentityWithoutASessionTokenCountsAsLoggedOut(): void
+    {
+        // a code-only identity from before pairing carries no session token
+        $_SESSION = ['identity' => ['displayName' => 'Účastník', 'participantId' => 1]];
+
+        self::assertFalse((new Authenticator(new Session()))->isLogged());
     }
 }

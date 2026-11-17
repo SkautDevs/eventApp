@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use Facebook\WebDriver\WebDriverBy;
 use Facebook\WebDriver\WebDriverKeys;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -30,7 +29,7 @@ final class ProgramDialogTest extends BrowserTestCase
         self::waitFor('return document.querySelector(".sheet.is-open") !== null;');
     }
 
-    /** Drops the session cookie (there is no logout), so no test depends on what the one before it left behind. */
+    /** Drops the session cookie, so no test depends on what the one before it left behind. */
     private static function logOut(): void
     {
         self::visit('/korbo26/');
@@ -47,6 +46,34 @@ final class ProgramDialogTest extends BrowserTestCase
             JS);
     }
 
+    /**
+     * The sheet names when and where in two rows, and its section as a chip: Kde whenever
+     * the programme has a place — Volejbal (1) on Volejbalové hřiště — and no Kde row for
+     * one without — Speed dating (5).
+     */
+    public function testTheSheetShowsKdyAndKde(): void
+    {
+        $facts = <<<'JS'
+            return Array.from(document.querySelectorAll(".sheet-body.is-open .sheet-facts > *"))
+                .filter(function (el) { return el.getClientRects().length > 0; })
+                .map(function (el) { return el.tagName + ":" + el.textContent.trim(); });
+            JS;
+        self::openProgramScreen();
+
+        self::script('document.querySelector(\'[data-screen="/korbo26/programy"] .tl-card[data-key="1"]\').click();');
+        self::waitFor('return document.querySelector(\'.sheet.is-open .sheet-body.is-open[data-pg-detail="1"]\') !== null;');
+        self::assertSame(['DT:Kdy', 'DD:st 16. 9. 8:00–22:00', 'DT:Kde', 'DD:Volejbalové hřiště'], self::script($facts));
+        self::assertSame('Pohybová', self::script('const c = document.querySelector(".sheet-body.is-open .sheet-chip"); return c !== null && c.getClientRects().length > 0 ? c.textContent.trim() : null;'));
+        self::tap('.sheet.is-open .sheet-close');
+        self::waitFor('return document.querySelector(".sheet.is-open") === null;');
+
+        self::script('document.querySelector(\'[data-screen="/korbo26/programy"] .tl-card[data-key="5"]\').click();');
+        self::waitFor('return document.querySelector(\'.sheet.is-open .sheet-body.is-open[data-pg-detail="5"]\') !== null;');
+        self::assertSame(['DT:Kdy', 'DD:st 16. 9. 20:00–21:00'], self::script($facts));
+        self::tap('.sheet.is-open .sheet-close');
+        self::waitFor('return document.querySelector(".sheet.is-open") === null;');
+    }
+
     /** C-C1: Android Back with the sheet open used to leave every other screen inert. */
     public function testBackClosesTheSheetAndLeavesNothingInert(): void
     {
@@ -57,8 +84,8 @@ final class ProgramDialogTest extends BrowserTestCase
 
         self::assertSame(0, self::script('return document.querySelectorAll("[inert]").length;'));
         self::assertSame('/korbo26/programy', self::script('return location.pathname;'));
-        self::tap('.tabbar a[href="/korbo26/novinky"]');
-        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/novinky"]\'); return s && !s.hidden;');
+        self::tap('.tabbar a[href="/korbo26/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
     }
 
     public function testClosingTheSheetTakesItsHistoryEntryWithIt(): void
@@ -135,10 +162,7 @@ final class ProgramDialogTest extends BrowserTestCase
     /** A day chip in Můj program scrolls to its day, and the chip stays current once the scroll has settled. */
     public function testPickingADayInMyProgramLandsOnIt(): void
     {
-        self::visit('/korbo26/profil');
-        self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
-        self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
+        self::pair();
         self::visit('/korbo26/programy#muj-program');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-view="list"]\') !== null;');
         $current = 'const c = document.querySelector(\'.day-chip[data-pg-kind="list"][aria-current="true"]\'); return c ? c.textContent.trim() : null;';
@@ -163,11 +187,15 @@ final class ProgramDialogTest extends BrowserTestCase
         self::logOut();
         self::openProgramScreen();
         self::assertSame(0, self::script('return document.querySelectorAll(\'[data-screen="/korbo26/programy"] [data-pg-pager="list"]\').length;'));
-        // logged in behind the screen's back: the next revalidation renders the list's strip
-        self::asyncScript(<<<'JS'
+        // paired behind the screen's back (the start, then the poll the local source
+        // approves): the next revalidation renders the list's strip
+        self::assertTrue(self::asyncScript(<<<'JS'
             const done = arguments[arguments.length - 1];
-            fetch('/korbo26/profil/tie', {method: 'POST', body: new URLSearchParams({tieCode: 'KORBO1'}), credentials: 'same-origin', redirect: 'manual'}).then(() => done(true), () => done(false));
-            JS);
+            fetch('/korbo26/profil/propojit', {method: 'POST', credentials: 'same-origin', redirect: 'manual'})
+                .then(() => fetch('/korbo26/profil/propojit/stav', {credentials: 'same-origin', cache: 'no-store'}))
+                .then(response => response.json())
+                .then(body => done(body.status === 'approved'), () => done(false));
+            JS));
         self::script("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'screen-updated', path: '/korbo26/programy'}}));");
         self::waitFor('return document.querySelector(\'[data-screen="/korbo26/programy"] [data-pg-pager="list"]\') !== null;');
 

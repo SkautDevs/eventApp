@@ -6,87 +6,83 @@ namespace Tests\Browser;
 
 use PHPUnit\Framework\Attributes\Group;
 
-/** The line under the app bar says how old the data on the screen is. */
+/**
+ * Stale data online: when kissj failed and the server answered with an old copy, the
+ * section carries data-stale="1" and the network banner says so. A background
+ * revalidation is how a screen learns it (www/app.js syncFreshness()), so that is the
+ * path driven here: the page's fetch is wrapped to mark the next revalidation's fragment
+ * stale, as the server's stale-if-error answer does.
+ */
 #[Group('browser')]
 final class FreshnessTest extends BrowserTestCase
 {
-    private const string LINE = 'return document.querySelector(\'[data-screen="/korbo26/programy"] > [data-freshness]\');';
+    /** Marks every revalidation (cache: 'no-cache') answer stale while window.__stale is set. */
+    private const string STALE_REVALIDATIONS = <<<'JS'
+        window.__stale = true;
+        window.__checks = 0;
+        const original = window.fetch;
+        window.fetch = function (input, init) {
+            const promise = original.apply(this, arguments);
+            if (!init || init.cache !== 'no-cache') {
+                return promise;
+            }
+            return promise.then(response => response.text().then(html => {
+                window.__checks += 1;
+                const body = window.__stale ? html.replace(/(\sdata-fetched-at="[^"]*")/, '$1 data-stale="1"') : html;
+                return new Response(body, {status: response.status, headers: response.headers});
+            }));
+        };
+        JS;
 
-    private static function line(): string
+    private const string SCREEN = '[data-screen="/korbo26/programy"]';
+
+    private static function revalidate(): void
     {
-        self::waitFor('const line = (function () { ' . self::LINE . ' })(); return line !== null && !line.hidden;');
-
-        return (string) self::script('return (function () { ' . self::LINE . ' })().textContent;');
+        $before = self::script('return window.__checks;');
+        self::script("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'screen-updated', path: '/korbo26/programy'}}));");
+        self::waitFor('return window.__checks > arguments[0];', [$before]);
     }
 
-    public function testTheLineSaysWhenTheDataWasFetched(): void
+    private static function banner(): ?string
     {
-        self::visit('/korbo26/programy');
-
-        self::assertMatchesRegularExpression('/^aktualizováno \d\d:\d\d$/', self::line());
+        return self::script('const b = document.querySelector("[data-netstate]"); return b.hidden ? null : b.textContent;');
     }
 
-    public function testAStaleCopySaysSo(): void
+    public function testAStaleAnswerShowsTheBannerAndAFreshOneHidesIt(): void
+    {
+        self::visit('/korbo26/');
+        self::tap('.tabbar a[href="/korbo26/programy"]');
+        self::waitFor('const s = document.querySelector(arguments[0]); return s && !s.hidden && s.querySelector(".tl-card") !== null;', [self::SCREEN]);
+        self::assertNull(self::banner(), 'fresh: no banner');
+
+        self::script(self::STALE_REVALIDATIONS);
+        self::revalidate();
+        self::waitFor('return document.querySelector(arguments[0]).getAttribute("data-stale") === "1" && !document.querySelector("[data-netstate]").hidden;', [self::SCREEN]);
+        // fetched moments ago: "právě teď" under a minute, never "před 0 min"
+        self::assertMatchesRegularExpression('/^Nepodařilo se načíst aktuální data\. Zobrazuji stav z \d\d:\d\d \((právě teď|před \d+ min)\)\.$/u', (string) self::banner());
+
+        // the server answers fresh again: the attribute goes, and the banner with it
+        self::script('window.__stale = false;');
+        self::revalidate();
+        self::waitFor('return !document.querySelector(arguments[0]).hasAttribute("data-stale") && document.querySelector("[data-netstate]").hidden;', [self::SCREEN]);
+    }
+
+    /** The banner is the visible screen's: a stale screen left for a fresh one takes its banner along. */
+    public function testTheBannerFollowsTheVisibleScreen(): void
     {
         self::visit('/korbo26/programy');
-        self::line();
-
+        self::waitFor('return document.querySelector(\'[data-screen="/korbo26/informace"]\') !== null;');
         self::script(<<<'JS'
             const section = document.querySelector('[data-screen="/korbo26/programy"]');
             section.setAttribute('data-stale', '1');
             section.dispatchEvent(new CustomEvent('screen:freshness', {bubbles: true}));
             JS);
+        self::waitFor('return !document.querySelector("[data-netstate]").hidden;');
 
-        self::assertMatchesRegularExpression('/^naposledy načteno \d\d:\d\d$/', self::line());
-    }
+        self::assertStringStartsWith('Nepodařilo se načíst aktuální data.', (string) self::banner());
 
-    public function testOfflineSaysWhereTheCopyIsFrom(): void
-    {
-        self::visit('/korbo26/programy');
-        self::line();
-
-        self::script("Object.defineProperty(navigator, 'onLine', {get: () => false, configurable: true}); window.dispatchEvent(new Event('offline'));");
-
-        self::assertMatchesRegularExpression('/^offline · z \d\d:\d\d$/', self::line());
-    }
-
-    /** The home screen spaces its column evenly, so on a short phone the mark rose under the line. */
-    public function testTheHomeMarkStartsBelowTheLine(): void
-    {
-        self::overrideViewport(375, 667);
-        try {
-            foreach (['obrok27', 'obrok19'] as $slug) {
-                self::visit('/' . $slug . '/');
-                self::waitFor('const line = document.querySelector(\'[data-screen="/' . $slug . '/"] > [data-freshness]\'); return line !== null && !line.hidden;');
-
-                $gap = self::script(<<<'JS'
-                    const screen = document.querySelector('[data-screen="/' + arguments[0] + '/"]');
-                    const line = screen.querySelector(':scope > [data-freshness]').getBoundingClientRect();
-                    const mark = Array.from(screen.querySelectorAll('img.mainLogo')).map(img => img.getBoundingClientRect()).find(r => r.height > 0);
-                    return mark.top - line.bottom;
-                    JS, [$slug]);
-
-                self::assertGreaterThanOrEqual(0, $gap, $slug . ': the mark starts under the line');
-            }
-        } finally {
-            self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
-        }
-    }
-
-    /** The timeline scrolls inside itself; the line above it must not make the page scroll too. */
-    public function testTheProgramScreenGivesTheLineItsHeightBack(): void
-    {
-        self::visit('/obrok19/programy');
-        self::line19();
-
-        self::assertSame(
-            self::script('return window.innerHeight;'),
-            self::script('return document.documentElement.scrollHeight;'),
-        );
-    }
-
-    private static function line19(): void
-    {
-        self::waitFor('const line = document.querySelector(\'[data-screen="/obrok19/programy"] > [data-freshness]\'); return line !== null && !line.hidden && document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
+        self::tap('.tabbar a[href="/korbo26/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
+        self::assertNull(self::banner(), 'Informace is fresh');
     }
 }

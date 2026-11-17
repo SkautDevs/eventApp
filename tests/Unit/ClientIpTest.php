@@ -19,7 +19,7 @@ final class ClientIpTest extends TestCase
 
     private static function request(?string $forwardedFor = null, string $remote = '172.18.0.3'): ServerRequestInterface
     {
-        $request = (new ServerRequestFactory())->createServerRequest('POST', '/korbo26/profil/tie', ['REMOTE_ADDR' => $remote]);
+        $request = (new ServerRequestFactory())->createServerRequest('POST', '/korbo26/profil/propojit', ['REMOTE_ADDR' => $remote]);
 
         return $forwardedFor === null ? $request : $request->withHeader('X-Forwarded-For', $forwardedFor);
     }
@@ -77,7 +77,7 @@ final class ClientIpTest extends TestCase
 
     public function testNoRemoteAddressIsUnknown(): void
     {
-        $request = (new ServerRequestFactory())->createServerRequest('POST', '/korbo26/profil/tie');
+        $request = (new ServerRequestFactory())->createServerRequest('POST', '/korbo26/profil/propojit');
 
         self::assertSame('unknown', ClientIp::of($request));
     }

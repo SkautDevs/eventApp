@@ -48,10 +48,11 @@ final class BasePathTest extends AppTestCase
         self::assertSame(404, $this->rawRequest($this->createApp('obrok19'), 'GET', '/obrok27/programy')->getStatusCode());
     }
 
-    public function testTieLoginRedirectsInsideTheEvent(): void
+    public function testThePairingRoutesRedirectInsideTheEvent(): void
     {
-        $response = $this->request($this->createApp('obrok19'), 'POST', '/profil/tie', ['tieCode' => '']);
+        $app = $this->createApp('obrok19');
 
-        self::assertSame('/obrok19/profil', $response->getHeaderLine('Location'));
+        self::assertSame('/obrok19/profil', $this->request($app, 'POST', '/profil/propojit')->getHeaderLine('Location'));
+        self::assertSame('/obrok19/profil', $this->request($app, 'POST', '/profil/odpojit')->getHeaderLine('Location'));
     }
 }

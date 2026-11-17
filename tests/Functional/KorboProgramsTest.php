@@ -19,7 +19,11 @@ use Tests\KorboResponses;
  */
 final class KorboProgramsTest extends AppTestCase
 {
-    private const array TIE_IDS = [3, 5, 10, 26, 31, 36, 45, 50];
+    /** kissj's session read lists real registrations only: none of the preregistered 3, 36 and 51 */
+    private const array MINE_IDS = [5, 10, 26, 31, 45, 50];
+
+    /** isPreregistered in the Korbo list: everybody's as far as eventApp can tell, so never dimmed */
+    private const array PREREGISTERED_IDS = [3, 36, 51];
 
     /**
      * The queue is the exact sequence of kissj calls the requests make, so a call the
@@ -48,11 +52,11 @@ final class KorboProgramsTest extends AppTestCase
         return (string) $response->getBody();
     }
 
-    /** Logging in asks kissj once, and the screen asks again before it fetches the list. */
+    /** A paired reader (stored directly: the mock kissj answers no pairing); the screen asks for the participant before it fetches the list. */
     private function loggedInScreen(): string
     {
-        $app = $this->app(KorboResponses::TIE, KorboResponses::TIE, KorboResponses::LIST);
-        self::assertSame(302, $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'KORBO1'])->getStatusCode());
+        $app = $this->app(KorboResponses::PARTICIPANT, KorboResponses::LIST);
+        $this->loginAs($app, 1, 'Jana Nováková');
 
         $response = $this->request($app, 'GET', '/programy');
         self::assertSame(200, $response->getStatusCode());
@@ -147,7 +151,7 @@ final class KorboProgramsTest extends AppTestCase
             KorboResponses::decoded(KorboResponses::LIST)['programmes'],
         ));
         foreach ($titles as $title) {
-            self::assertSame($expected[$title], substr_count($html, '<p class="sheet-section">' . $title . '</p>'), $title);
+            self::assertSame($expected[$title], substr_count($html, '<span class="sheet-chip">' . $title . '</span>'), $title);
         }
     }
 
@@ -178,7 +182,7 @@ final class KorboProgramsTest extends AppTestCase
     {
         $html = $this->loggedInScreen();
 
-        // programme 50, Pevnost Boyard, is on the TIE participant's list
+        // programme 50, Pevnost Boyard, is on the fixture participant's list
         $text = "Zahrej si originální deskovku známé francouzské kultovní televizní gameshow. U této hry nebudeš jen sedět. Zažij netradiční úkoly za zvuků originální hudby. Zvítězí tvůj tým a dotkneš se legendárního pokladu?\n\nHra je pro 2-4 týmy a jeden tým může tvořit 2-6 hráčů.\n\nSraz u nástěnky.";
         self::assertStringContainsString('<p class="sheet-perex">' . $text . '</p>', $html);
         self::assertStringContainsString('<p class="pl-perex">' . $text . '</p>', $html);
@@ -195,32 +199,37 @@ final class KorboProgramsTest extends AppTestCase
         }
     }
 
-    public function testATieParticipantSeesTheirProgrammeMarked(): void
+    public function testAPairedParticipantSeesTheirProgrammeMarked(): void
     {
         $html = $this->loggedInScreen();
-        self::assertStringContainsString('<span class="appbar-who">KORBO1</span>', $html);
+        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
 
         self::assertCount(59, self::cards($html));
         foreach (self::cards($html) as $id => $classes) {
-            if (in_array($id, self::TIE_IDS, true)) {
+            if (in_array($id, self::MINE_IDS, true)) {
                 self::assertStringContainsString('is-registered', $classes, "programme {$id}");
                 self::assertStringNotContainsString('is-dimmed', $classes, "programme {$id}");
+            } elseif (in_array($id, self::PREREGISTERED_IDS, true)) {
+                self::assertStringNotContainsString('is-dimmed', $classes, "programme {$id}");
+                self::assertStringNotContainsString('is-registered', $classes, "programme {$id}");
             } else {
                 self::assertStringContainsString('is-dimmed', $classes, "programme {$id}");
                 self::assertStringNotContainsString('is-registered', $classes, "programme {$id}");
             }
         }
-        self::assertSame(count(self::TIE_IDS), substr_count($html, '<p class="sheet-mine">'));
+        self::assertSame(count(self::MINE_IDS), substr_count($html, '<p class="sheet-mine">'));
     }
 
     public function testMujProgramListsExactlyTheParticipantsProgrammes(): void
     {
         $html = $this->loggedInScreen();
+        $list = substr($html, (int) strpos($html, 'id="pg-view-list"'));
+        $list = substr($list, 0, (int) strpos($list, 'data-key="tabs"'));
 
-        preg_match_all('/<article class="pl-item" data-key="(\d+)"/', $html, $items);
-        self::assertSame(self::TIE_IDS, array_map('intval', $items[1]));
+        preg_match_all('/<article class="pl-item[^"]*" data-key="(\d+)"/', $list, $items);
+        self::assertSame(self::MINE_IDS, array_map('intval', $items[1]));
         // they span four days, first to last
-        preg_match_all('/<section class="pl-day" data-key="(day-\d{8})"/', $html, $days);
+        preg_match_all('/<section class="pl-day" data-key="(day-\d{8})"/', $list, $days);
         self::assertSame(['day-20260916', 'day-20260917', 'day-20260918', 'day-20260919'], $days[1]);
     }
 
@@ -235,7 +244,7 @@ final class KorboProgramsTest extends AppTestCase
         $page = self::page($html, 'page-20260916');
 
         self::assertStringContainsString('data-key="8" style="left: calc(var(--hour-width) * 23.75); width: calc(var(--hour-width) * 0.25)"', $page);
-        self::assertStringContainsString('aria-label="Večerka pro noční sovy, 23:45 – 00:00"', $page);
+        self::assertStringContainsString('aria-label="Večerka pro noční sovy, 23:45–0:00"', $page);
         self::assertStringNotContainsString('data-key="8"', self::page($html, 'page-20260917'));
         foreach ([8, 24, 40, 57] as $id) {
             self::assertSame(1, self::cardCounts($html)[$id], "programme {$id}");
@@ -259,7 +268,7 @@ final class KorboProgramsTest extends AppTestCase
     public function testAMultiDayProgrammeIsOnEveryDayItRuns(): void
     {
         $html = $this->screen();
-        $label = 'aria-label="Hennování a zaplétání copánků, st 16. 9. 00:00 – pá 18. 9. 23:59"';
+        $label = 'aria-label="Hennování a zaplétání copánků, st 16. 9. 0:00 – pá 18. 9. 23:59"';
 
         foreach ([
             'page-20260916' => 24,
@@ -276,7 +285,7 @@ final class KorboProgramsTest extends AppTestCase
 
         self::assertSame(1, substr_count($html, 'data-pg-detail="2"'));
         self::assertStringContainsString('data-key="2" data-pg-detail="2" data-page="page-20260916"', $html);
-        self::assertStringContainsString('<p class="sheet-when">st 16. 9. 00:00 – pá 18. 9. 23:59</p>', $html);
+        self::assertStringContainsString('<dl class="sheet-facts"><dt>Kdy</dt><dd>st 16. 9. 0:00 – pá 18. 9. 23:59</dd>', $html);
     }
 
     /**
@@ -320,13 +329,15 @@ final class KorboProgramsTest extends AppTestCase
     public function testAProgrammeSheetShowsItsMessagesToEveryone(): void
     {
         $messages = new \App\Push\MessageRepository(self::memoryDb());
-        $id = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/events/korbo26/fixtures/registered.json'), true)['tie:KORBO1'][0];
+        $id = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/events/korbo26/fixtures/registered.json'), true)['1'][0];
         $messages->add('korbo26', $id, 'Program', 'Přesun na 15:00', 'Kvůli dešti', 'Lung', 0, 0, 0);
 
         $html = (string) $this->request($this->createApp('korbo26', overrides: [\App\Push\MessageRepository::class => $messages]), 'GET', '/programy')->getBody();
 
         self::assertStringContainsString('Přesun na 15:00', $html);
         self::assertStringContainsString('Oznámení', $html);
+        // the relative time carries its instant, which www/shell.js redraws it from
+        self::assertMatchesRegularExpression('#<p class="sheet-message"><strong>Přesun na 15:00</strong> <small data-sent-at="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+0[12]:00">[^<]+</small></p>#u', $html);
     }
 
     /** A registered card says so to a screen reader; the fill alone is pixels. */

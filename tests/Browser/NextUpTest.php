@@ -4,26 +4,24 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
  * The homepage's next-programme card, against a clock pinned inside the korbo26 camp.
- * KORBO1 runs 31 (14:00–15:00) and 36 (17:00–19:00) on 18 Sep: at 14:30 the first runs.
+ * The fixture participant runs 31 (14:00–15:00) on 18 Sep and 45 (11:00) and 50 (16:00)
+ * on the 19th: at 14:30 the first runs. The preregistered 36 (17:00 on the 18th) is not
+ * among them: kissj lists real registrations only.
  */
 #[Group('browser')]
 final class NextUpTest extends BrowserTestCase
 {
     private static function logIn(): void
     {
-        // there is no logout: the test before this one may have left the session logged in
+        // a fresh session: the test before this one may have left this one paired or pending
         self::visit('/korbo26/');
         self::$browser->getWebDriver()->manage()->deleteAllCookies();
-        self::visit('/korbo26/profil');
-        self::$browser->findElement(WebDriverBy::cssSelector('input[name="tieCode"]'))->sendKeys('KORBO1');
-        self::tap('[data-screen="/korbo26/profil"] button[type="submit"]');
-        self::waitFor('const who = document.querySelector(".appbar-who"); return who !== null && who.textContent === "KORBO1";');
+        self::pair();
     }
 
     /** @return array<string, array{bool}> */
@@ -53,19 +51,55 @@ final class NextUpTest extends BrowserTestCase
 
     private const string SHOWN = 'var c = document.querySelector("[data-next-up]:not([hidden]) .next-card:not([hidden])"); return c ? c.dataset.key : null;';
 
-    public function testTheDeviceClockPicksTheCardAndItFollowsTheClock(): void
+    /** The shown cards, each as "<key>: <lead>", in order. */
+    private const string SHOWN_LEADS = 'return Array.from(document.querySelectorAll("[data-next-up]:not([hidden]) .next-card:not([hidden])")).map(function (c) { return c.dataset.key + ": " + c.querySelector("[data-next-lead]").textContent; });';
+
+    public function testTheDeviceClockPicksTheCardsAndTheyFollowTheClock(): void
     {
         self::logIn();
         self::pinClock('2026-09-18T14:30:00+02:00');
         self::visit('/korbo26/');
 
-        // the server, in October, hid the whole box; the clock in the camp shows the running one
+        // the server, in October, hid the whole box; the clock in the camp shows the running
+        // one and the next two
         self::waitFor('return (function () { ' . self::SHOWN . ' })() === "31";');
-        self::assertSame('Teď probíhá', self::script('return document.querySelector(".next-card:not([hidden]) [data-next-kicker]").textContent;'));
+        self::assertSame('Můj program', self::script('return document.querySelector("[data-next-up] h2").textContent;'));
+        self::assertSame(['31: Právě · do 15:00', '45: 11:00 · Nástěnka', '50: 16:00'], self::script(self::SHOWN_LEADS));
 
-        self::script('window.pgClock = function () { return Date.parse("2026-09-18T15:30:00+02:00"); }; document.dispatchEvent(new Event("pg:tick"));');
-        self::assertSame('36', self::script(self::SHOWN));
-        self::assertSame('Tvůj další program', self::script('return document.querySelector(".next-card:not([hidden]) [data-next-kicker]").textContent;'));
+        // within the hour: how long until it starts
+        self::script('window.pgClock = function () { return Date.parse("2026-09-19T10:30:00+02:00"); }; document.dispatchEvent(new Event("pg:tick"));');
+        self::assertSame(['45: Za 30 min · 11:00 · Nástěnka', '50: 16:00'], self::script(self::SHOWN_LEADS));
+
+        // past the last one, nothing is left to show
+        self::script('window.pgClock = function () { return Date.parse("2026-09-19T17:00:00+02:00"); }; document.dispatchEvent(new Event("pg:tick"));');
+        self::assertTrue(self::script('return document.querySelector("[data-next-up]").hidden;'));
+    }
+
+    /**
+     * The countdown before an event counts Prague calendar days from the device clock. No
+     * shipped event is reliably before its start, so the card is put on korbo26's screen
+     * the way homepage.twig writes it.
+     */
+    public function testTheCountdownCountsPragueDaysAndGoesAtTheStart(): void
+    {
+        self::visit('/korbo26/');
+        self::waitFor('return document.readyState === "complete";');
+        $drawn = self::script(<<<'JS'
+            const screen = document.querySelector('.screen:not([hidden])');
+            screen.insertAdjacentHTML('beforeend', '<a class="link-card countdown" data-countdown data-start="2027-05-19" href="#"><h3>Potkáme se už za <span data-countdown-days>0</span> <span data-countdown-unit>dní</span></h3><p>19.–23. 5. 2027</p></a>');
+            const card = screen.querySelector('[data-countdown]');
+            const read = () => card.querySelector('[data-countdown-days]').textContent + ' ' + card.querySelector('[data-countdown-unit]').textContent + (card.hidden ? ' hidden' : '');
+            const at = iso => { window.pgClock = () => Date.parse(iso); document.dispatchEvent(new Event('pg:tick')); return read(); };
+            return [
+                // 23:30 UTC on 7 Nov is already the 8th in Prague: 192 days to 19 May
+                at('2026-11-07T23:30:00+00:00'),
+                at('2027-05-17T12:00:00+02:00'),
+                at('2027-05-18T00:00:00+02:00'),
+                at('2027-05-19T00:00:00+02:00'),
+            ];
+            JS);
+
+        self::assertSame(['192 dní', '2 dny', '1 den', '1 den hidden'], $drawn);
     }
 
     #[DataProvider('motion')]

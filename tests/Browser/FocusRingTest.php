@@ -19,15 +19,35 @@ final class FocusRingTest extends BrowserTestCase
             self::script('if (document.activeElement) { document.activeElement.blur(); } window.scrollTo(0, 0);');
 
             $seen = [];
-            for ($i = 0; $i < 4; $i++) {
+            for ($i = 0; $i < 3; $i++) {
                 self::$browser->getKeyboard()->sendKeys(WebDriverKeys::TAB);
                 [$class, $style, $width] = self::script('const el = document.activeElement; const s = getComputedStyle(el); return [el.classList[0] || el.tagName, s.outlineStyle, s.outlineWidth];');
                 self::assertSame('solid', $style, $path . ': ' . $class);
                 self::assertSame('2px', $width, $path . ': ' . $class);
                 $seen[] = $class;
             }
-            self::assertSame(['skip-link', 'appbar-brand', 'appbar-mode', 'appbar-profile'], $seen, $path);
+            self::assertSame(['skip-link', 'appbar-brand', 'appbar-profile'], $seen, $path);
         }
+    }
+
+    /**
+     * Profil's mode control draws its radios through their labels, so the ring is the
+     * label's: the bar clips, so it sits inside the segment, in the ground pair.
+     */
+    public function testTheModeControlRingsTheFocusedSegment(): void
+    {
+        self::pair();
+        self::visit('/korbo26/profil');
+        self::waitFor('return document.readyState === "complete" && document.querySelector("[data-mode-control]") !== null;');
+        self::script('if (document.activeElement) { document.activeElement.blur(); } window.scrollTo(0, 0);');
+
+        for ($i = 0; $i < 20 && !self::script('return document.activeElement && document.activeElement.name === "mode";'); $i++) {
+            self::$browser->getKeyboard()->sendKeys(WebDriverKeys::TAB);
+        }
+        self::assertTrue(self::script('return document.activeElement.name === "mode";'), 'the control is not in the tab order');
+        [$style, $width] = self::script('const s = getComputedStyle(document.activeElement.closest("label")); return [s.outlineStyle, s.outlineWidth];');
+        self::assertSame('solid', $style);
+        self::assertSame('2px', $width);
     }
 
     /**
@@ -95,9 +115,9 @@ final class FocusRingTest extends BrowserTestCase
         self::visit('/korbo26/');
         self::waitFor('return document.readyState === "complete";');
         self::$browser->getKeyboard()->sendKeys(WebDriverKeys::TAB);
-        self::script('document.querySelector(\'.tabbar a[href$="/novinky"]\').focus();');
+        self::script('document.querySelector(\'.tabbar a[href$="/informace"]\').focus();');
         self::$browser->getKeyboard()->sendKeys(WebDriverKeys::ENTER);
-        self::waitFor('const el = document.activeElement; return el && el.matches("main > section.screen[data-screen]") && !el.hidden && el.dataset.tab === "news";');
+        self::waitFor('const el = document.activeElement; return el && el.matches("main > section.screen[data-screen]") && !el.hidden && el.dataset.tab === "info";');
 
         self::assertSame(
             [true, 'none', 'none'],

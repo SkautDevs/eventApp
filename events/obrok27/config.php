@@ -11,7 +11,9 @@ return [
     'shortName' => 'Obrok 27',
     'listed' => true,
     'dates' => ['start' => '2027-05-19', 'end' => '2027-05-23'],
-    'features' => ['map', 'programs', 'handbook', 'news', 'links', 'push'],
+    // what Profil's "web akce" opens for a reader who is not registered yet
+    'website' => 'https://obrok.skaut.cz/',
+    'features' => ['map', 'programs', 'handbook', 'info', 'push'],
 
     // The palette keys are only what a role falls back to; the screens read 'roles'.
     'colors' => [
@@ -188,10 +190,7 @@ return [
     ],
 
     'map' => [
-        // TODO organisers: replace with the Google My Maps URL for the 2027 site.
-        // This is the 2019 Konopiště map, standing in so the tab shows a working
-        // map instead of a placeholder — the pins are NOT the 2027 site.
-        'embedUrl' => 'https://www.google.com/maps/d/u/1/embed?mid=1-c6E-PUffBQyiivt-tSURDBIwABH9X-I',
+        'embedUrl' => 'https://www.google.com/maps/d/embed?mid=1KLPkQqPYxomrNmxTc0FfPZ44P5AxLRg',
         // TODO organisers: replace the stand-in plan (the CEJ 2022 site map) with the
         // handbook's own site plan for 2027 — under a new file name, since files under
         // www/events/ are cached as immutable.

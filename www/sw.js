@@ -97,6 +97,14 @@ function storable(response) {
 }
 
 /**
+ * A page or fragment that carries a toast (the server's X-Toast, App\Kernel::markToast()):
+ * said once, so never stored, or the offline copy would say it again every time.
+ */
+function toasted(response) {
+	return response.headers.get('X-Toast') === '1';
+}
+
+/**
  * The full document and the X-Screen fragment share a URL and differ only by a request
  * header, and the Cache API keys on the URL. So the worker never uses the request as the
  * key: the fragment's key carries a query of its own. The query exists in the cache only;
@@ -108,22 +116,28 @@ function cacheKey(request) {
 	return new Request(url.href);   // key only — the network request is the original
 }
 
-/** A screen's page and its fragment, fetched with the reader's cookie and stored under their keys. */
+/**
+ * A screen's page and its fragment, fetched with the reader's cookie and stored under their
+ * keys. X-Worker-Fill says it is the worker asking, not the reader looking, so the server
+ * leaves a pending toast for the reader's own next page (App\Kernel::takeToast()).
+ */
 function storeBoth(cache, url) {
 	const generation = purges;
-	const requests = [new Request(url), new Request(url, {headers: {'X-Screen': '1'}})];
+	const requests = [new Request(url, {headers: {'X-Worker-Fill': '1'}}), new Request(url, {headers: {'X-Screen': '1', 'X-Worker-Fill': '1'}})];
 	return Promise.all(requests.map(request => fetch(request).then(response => {
 		if (!storable(response)) {
 			throw new Error(request.url + ' answered ' + response.status);
 		}
-		// rendered for the identity before a purge: dropped, the next refill() fetches it again
-		return unpurged(generation) ? cache.put(cacheKey(request), response) : null;
+		// rendered for the identity before a purge: dropped, the next refill() fetches it again;
+		// one carrying a toast (a session found gone while it rendered) the same
+		return unpurged(generation) && !toasted(response) ? cache.put(cacheKey(request), response) : null;
 	})));
 }
 
 /** Two copies of one screen, compared without the attributes that change on every request. */
 function sameScreen(a, b) {
-	const strip = html => html.replace(/ data-fetched-at="[^"]*"| data-stale="1"/g, '');
+	// \s, not a space: the templates put each attribute of the section on a line of its own
+	const strip = html => html.replace(/\sdata-fetched-at="[^"]*"|\sdata-stale="1"/g, '');
 	return strip(a) === strip(b);
 }
 
@@ -311,15 +325,20 @@ self.addEventListener('fetch', event => {
 		// /offline included, until the next full navigation, because refill() runs only
 		// from page().
 		if (inScope && !url.pathname.startsWith(BASE + 'admin/') && !url.pathname.startsWith(BASE + 'push/')) {
-			// …and one that never reaches the server gets the offline page as a 503, not the
-			// browser's own error page — an installed iOS app has no Back button out of that
-			event.respondWith(fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineAnswer()));
+			// …and one that never reaches the server goes back where the reader was, where the
+			// shell says so in a toast — never the browser's own error page, which an installed
+			// iOS app has no Back button out of. Known to be offline, it is not even tried.
+			event.respondWith(self.navigator.onLine === false
+				? offlineRedirect(request)
+				: fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineRedirect(request)));
 		}
 		return;
 	}
 
 	if (inScope) {
-		if (url.pathname.startsWith(BASE + 'admin/') || url.pathname.startsWith(BASE + 'push/') || url.pathname === BASE + 'precache.json') {
+		// the pairing poll goes to the network untouched and is never stored: it has to reach
+		// the server every 5 s, and it is a GET, so it purges nothing either
+		if (url.pathname.startsWith(BASE + 'admin/') || url.pathname.startsWith(BASE + 'push/') || url.pathname === BASE + 'precache.json' || url.pathname === BASE + 'profil/propojit/stav') {
 			return;
 		}
 		if (request.mode === 'navigate') {
@@ -350,7 +369,7 @@ function purgeHtml() {
 			.then(response => (response && (response.headers.get('Content-Type') || '').startsWith('text/html') ? cache.delete(request) : null)))))))));
 }
 
-/** The TIE code a full page was rendered for (its push-identity meta), '' logged out. */
+/** The participant id a full page was rendered for (its push-identity meta), '' logged out. */
 function identityOf(html) {
 	const found = html.match(/<meta name="push-identity" content="([^"]*)">/);
 	return found ? found[1] : null;
@@ -364,14 +383,16 @@ function identityOf(html) {
  * for the identity in the cookie. Without this, a refresh that outlasts NETWORK_TIMEOUT
  * served the copy from before the login, and the reader looked logged out.
  */
-function reconcile(key, html) {
+function reconcile(key, html, stored) {
 	const who = identityOf(html);
 	if (who === null) {
 		return Promise.resolve();
 	}
 	return currentCache().then(cache => cache && cache.keys()
 		.then(requests => Promise.all(requests
-			.filter(request => request.url !== key.url && !new URL(request.url).searchParams.has('x-screen'))
+			// the copy this page just replaced is skipped; one it did not replace (a page with a
+			// toast is never stored) is as old as any other and counts
+			.filter(request => (!stored || request.url !== key.url) && !new URL(request.url).searchParams.has('x-screen'))
 			.map(request => cache.match(request).then(response => (response && (response.headers.get('Content-Type') || '').startsWith('text/html')
 				? response.text().then(identityOf)
 				: null)))))
@@ -394,21 +415,27 @@ function refill() {
 }
 
 /**
- * What a login or a logout that never reached the server answers with. Inline rather than
- * the cached /offline, which says "this page is not saved yet" — not what happened, and a
- * reader who tapped "Přihlásit" deserves to know the tap did nothing. Served by the worker,
- * so it stands on its own: no stylesheet, no script, and the inline style the CSP allows.
+ * Where a write that never reached the server sends the reader: back to the page it was
+ * sent from, plus #offline, which www/shell.js turns into the offline toast and then
+ * strips. The page comes from the cache like any other offline navigation. Only a
+ * same-origin referrer is a place to go back to (its own hash dropped); without one — or
+ * with one from elsewhere — it is the event's home, never a bare "#offline" on nothing.
+ * A 303, so the browser follows it with a GET.
  */
-const OFFLINE_WRITE = '<!doctype html><html lang="cs"><head><meta charset="utf-8">'
-	+ '<meta name="viewport" content="width=device-width, initial-scale=1"><title>Offline</title></head>'
-	+ '<body style="font-family: system-ui, sans-serif; line-height: 1.5; max-width: 28rem; margin: 0 auto; padding: 2rem 1rem;">'
-	+ '<h1 style="font-size: 1.5rem;">Jsi offline</h1>'
-	+ '<p>Přihlášení potřebuje signál. Nic se nezměnilo — zkus to znovu, až budeš online.</p>'
-	+ '<p><a href="' + BASE + '">Zpět na úvod</a></p></body></html>';
-
-/** A login or logout tapped with no signal: the page above, as a 503. */
-function offlineAnswer() {
-	return new Response(OFFLINE_WRITE, {status: 503, headers: {'Content-Type': 'text/html; charset=utf-8'}});
+function offlineRedirect(request) {
+	let target = SCOPE;
+	if (request.referrer) {
+		try {
+			const from = new URL(request.referrer);
+			if (from.origin === self.location.origin) {
+				from.hash = '';
+				target = from.href;
+			}
+		} catch (e) {
+			// "about:client" or worse: home it is
+		}
+	}
+	return Response.redirect(target + '#offline', 303);
 }
 
 /**
@@ -417,6 +444,9 @@ function offlineAnswer() {
  * later is a lie the reader notices. A slow network (3 s) or none at all gets the cached
  * copy, and a page never cached gets the offline page. A server error (5xx) gets the
  * cached copy too when there is one; a 4xx is an answer and passes through.
+ *
+ * A page that carries a toast is shown and not stored (toasted()); reconcile() and refill()
+ * still run, so the copy the offline cache gets is fetched again without it.
  */
 function page(event) {
 	const request = event.request;
@@ -431,8 +461,8 @@ function page(event) {
 	const network = fetch(request).then(response => ({
 		response,
 		stored: storable(response)
-			? Promise.all([putHtml(generation, key, response.clone()), response.clone().text()])
-				.then(([, html]) => reconcile(key, html))
+			? Promise.all([toasted(response) ? null : putHtml(generation, key, response.clone()), response.clone().text()])
+				.then(([, html]) => reconcile(key, html, !toasted(response)))
 				.then(refill)
 			: Promise.resolve(),
 	}));
@@ -487,7 +517,8 @@ function fragmentFromCache(event) {
 			}
 			const copy = response.clone();
 			const stored = Promise.all([before ? before.text() : null, copy.clone().text()])
-				.then(([old, fresh]) => putHtml(generation, key, copy).then(() => {
+				// a fragment with a toast is shown, compared and never stored
+				.then(([old, fresh]) => (toasted(response) ? Promise.resolve() : putHtml(generation, key, copy)).then(() => {
 					if (old !== null && !sameScreen(old, fresh)) {
 						return tell(event.clientId, {type: 'screen-updated', path: new URL(request.url).pathname});
 					}
@@ -506,7 +537,7 @@ function fragmentFromNetwork(event) {
 	const key = cacheKey(request);
 	const generation = purges;
 	return fetch(request).then(response => {
-		if (storable(response)) {
+		if (storable(response) && !toasted(response)) {
 			event.waitUntil(putHtml(generation, key, response.clone()));
 		}
 		return response;
@@ -557,21 +588,21 @@ self.addEventListener('push', event => {
 	// json() throws synchronously on a payload that is not JSON — before waitUntil,
 	// so the push would be dropped rather than shown. Anything unparseable is still
 	// worth telling the reader about, as plain text under the default title.
-	let data = {title: 'Novinka', body: ''};
+	let data = {title: 'Notifikace', body: ''};
 	if (event.data) {
 		try {
 			const parsed = event.data.json();
-			data = parsed && typeof parsed === 'object' ? parsed : {title: 'Novinka', body: event.data.text()};
+			data = parsed && typeof parsed === 'object' ? parsed : {title: 'Notifikace', body: event.data.text()};
 		} catch (e) {
-			data = {title: 'Novinka', body: event.data.text()};
+			data = {title: 'Notifikace', body: event.data.text()};
 		}
 	}
-	event.waitUntil(self.registration.showNotification(data.title || 'Novinka', {
+	event.waitUntil(self.registration.showNotification(data.title || 'Notifikace', {
 		body: data.body || '',
 		icon: data.icon || undefined,
 		data: {url: typeof data.url === 'string' ? data.url : null},
 	})
-		// the open app refreshes Novinky — and the Program screen for a programme message —
+		// the open app refreshes Informace and the home screen — and the Program screen for a programme message —
 		// now, rather than whenever the reader next opens the tab
 		.then(() => self.clients.matchAll({type: 'window', includeUncontrolled: true}))
 		.then(list => list

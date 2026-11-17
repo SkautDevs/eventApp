@@ -1,45 +1,68 @@
 /**
- * The colour-mode toggle. The mode itself is already on the root: the inline script in
- * <head> set it before first paint. This handles only the tap, and keys the choice
- * globally rather than per event, because dark is a property of the reader's eyes, not
- * of which event they are looking at. The name is the constant "Tmavý režim"
- * (server-rendered) and aria-pressed is the state, as the APG toggle pattern has it.
+ * Profil's colour-mode control: three radios, Světlý / Tmavý / Podle systému. The mode
+ * itself is already on the root: the inline script in <head> set it before first paint
+ * from the same storage key. This only reflects the stored choice in the radios and
+ * handles a change. The key is global rather than per event, because dark is a property
+ * of the reader's eyes, not of which event they are looking at; "system" removes it, so
+ * the device's own setting rules again. Profil may arrive as a fragment long after this
+ * ran, so the change is delegated and the radios are re-checked whenever a screen shows.
  * Its own IIFE, ahead of the loader's, which returns early on pages it cannot drive.
  */
 (function () {
 	'use strict';
 
 	var root = document.documentElement;
-	var button = document.querySelector('[data-mode-toggle]');
-	if (!button) {
-		return;
-	}
 
-	function describe() {
-		button.setAttribute('aria-pressed', root.getAttribute('data-mode') === 'dark' ? 'true' : 'false');
-	}
-
-	// no data-mode means the head script had neither storage nor matchMedia; read
-	// what the media query is actually rendering so the first tap inverts it
-	if (root.getAttribute('data-mode') === null) {
-		root.setAttribute('data-mode', window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-	}
-	describe();
-
-	button.addEventListener('click', function () {
-		var next = root.getAttribute('data-mode') === 'dark' ? 'light' : 'dark';
-		root.setAttribute('data-mode', next);
+	function stored() {
 		try {
-			localStorage.setItem('obrokColorMode', next);
+			var mode = localStorage.getItem('obrokColorMode');
+			return mode === 'light' || mode === 'dark' ? mode : 'system';
+		} catch (e) {
+			return 'system';
+		}
+	}
+
+	function sync() {
+		var choice = stored();
+		var radios = document.querySelectorAll('[data-mode-control] input[name="mode"]');
+		for (var i = 0; i < radios.length; i++) {
+			radios[i].checked = radios[i].value === choice;
+		}
+	}
+
+	function apply(choice) {
+		var mode = choice;
+		if (mode !== 'light' && mode !== 'dark') {
+			mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+		}
+		root.setAttribute('data-mode', mode);
+		try {
+			if (choice === 'system') {
+				localStorage.removeItem('obrokColorMode');
+			} else {
+				localStorage.setItem('obrokColorMode', choice);
+			}
 		} catch (e) {
 			// private browsing: the choice lasts as long as the page does
 		}
 		var meta = document.querySelector('meta[name=theme-color]');
-		if (meta) {
-			meta.setAttribute('content', meta.getAttribute(next === 'dark' ? 'data-dark' : 'data-light'));
+		if (meta && meta.getAttribute('data-dark')) {
+			meta.setAttribute('content', meta.getAttribute(mode === 'dark' ? 'data-dark' : 'data-light'));
 		}
-		describe();
+	}
+
+	document.addEventListener('change', function (event) {
+		var input = event.target;
+		if (input && input.name === 'mode' && input.closest && input.closest('[data-mode-control]')) {
+			apply(input.value);
+		}
 	});
+	document.addEventListener('DOMContentLoaded', sync);
+	document.addEventListener('screen:shown', sync);
+	document.addEventListener('screen:morphed', sync);
+	if (document.readyState !== 'loading') {
+		sync();
+	}
 })();
 
 /**
@@ -49,17 +72,18 @@
  * screen is fetched once (with `X-Screen: 1`, which makes the server render it without
  * the shell) and from then on switching is show/hide. Nothing is ever removed, so
  * state is *live* rather than restored — the map's iframe keeps running, the timeline
- * keeps its zoom and its horizontal scroll, a half-typed TIE code stays typed. A stale
+ * keeps its zoom and its horizontal scroll, a scrolled list stays scrolled. A stale
  * screen whose HTML has changed is *morphed* into the new one rather than replaced, so
  * a background revalidation keeps all of that too.
  *
  * This is an enhancement layer, not a client router. Every link is a real <a href>;
  * with this file absent, or fetch/pushState missing, every tap is the plain navigation
  * it always was. Anything not on the tab bar (the handbook PDF, external links,
- * /admin/notify) and every non-GET (the TIE form, logout, push
+ * /admin/notify) and every non-GET (the pairing start, the logout, push
  * subscribe) is deliberately left to the browser: logging in changes both the app bar
  * and the registered marking on every programme, so a full load is the correctness
- * rule there, not laziness.
+ * rule there, not laziness. The one exception is the end of a pairing, which is a GET
+ * poll answered by JSON: www/profile.js then reloads the document itself.
  */
 (function () {
 	'use strict';
@@ -249,7 +273,7 @@
 
 	/**
 	 * The browser reads a font in only when something visible first uses it, and a warmed
-	 * screen is hidden — so Odkazy's brand icons would still blink in on its first show.
+	 * screen is hidden — so the quick links' brand icons would still blink in on its first show.
 	 * The icon fonts are loaded up front instead (the worker already holds the files; the
 	 * event's own text fonts are in use from the first page anyway).
 	 */
@@ -371,7 +395,7 @@
 				changed = true;
 			}
 		});
-		// the unchanged path dispatches nothing else, and the freshness line (shell.js)
+		// the unchanged path dispatches nothing else, and the network banner (shell.js)
 		// still has to learn the new time
 		if (changed) {
 			section.dispatchEvent(new CustomEvent('screen:freshness', {bubbles: true}));
@@ -787,7 +811,7 @@
 			} else if (data.type === 'news-updated') {
 				screens.forEach(function (candidate, path) {
 					var tab = candidate.section.dataset.tab;
-					if (tab === 'news' || (tab === 'programs' && typeof data.programme === 'number')) {
+					if (tab === 'info' || tab === 'homepage' || (tab === 'programs' && typeof data.programme === 'number')) {
 						refreshNow(candidate, path);
 					}
 				});

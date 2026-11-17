@@ -38,7 +38,7 @@ final class ScreenMorphTest extends AppTestCase
     public function testEveryRepeatedRowCarriesAKey(): void
     {
         $app = $this->createApp();
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $this->pair($app);
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
         // every card carries one, so a programme added to a day cannot shift the rest
@@ -48,7 +48,7 @@ final class ScreenMorphTest extends AppTestCase
         );
         self::assertMatchesRegularExpression('/<button type="button" class="tl-card[^"]*" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<div class="sheet-body" data-key="\d+"/', $html);
-        self::assertMatchesRegularExpression('/<article class="pl-item" data-key="\d+"/', $html);
+        self::assertMatchesRegularExpression('/<article class="pl-item[^"]*" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<section class="tl-page[^"]*"[^>]* data-key="page-\d{8}"/', $html);
         self::assertMatchesRegularExpression('/<section class="pl-day" data-key="day-\d+"/', $html);
     }
@@ -57,16 +57,50 @@ final class ScreenMorphTest extends AppTestCase
     public function testEveryChildOfTheProgramRootCarriesAKey(): void
     {
         $app = $this->createApp();
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $this->pair($app);
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
-        foreach (['pager-timeline', 'pager-list', 'tabs', 'sheet'] as $key) {
+        foreach (['pager-overview', 'pager-timeline', 'pager-list', 'tabs', 'sheet'] as $key) {
             self::assertStringContainsString('data-key="' . $key . '"', $html);
         }
+        // the three views are matched on their ids
+        foreach (['pg-view-overview', 'pg-view-timeline', 'pg-view-list'] as $id) {
+            self::assertSame(1, substr_count($html, 'id="' . $id . '"'), $id);
+        }
+        // the two list views reuse the day keys, each inside its own view
+        self::assertMatchesRegularExpression('/id="pg-view-overview".*<section class="pl-day" data-key="day-\d{8}"/s', $html);
         self::assertMatchesRegularExpression('/<div class="sheet" data-key="sheet"/', $html);
         // the loader's own handle on the dialog is looked up per use, never held
         $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/programs.js');
         self::assertStringNotContainsString("const sheet = root.querySelector('[data-pg-sheet]');", $js);
+    }
+
+    /**
+     * A sheet footer's one child is keyed by what it offers. The morph never removes an
+     * attribute the fresh markup lacks, so an unkeyed form matched by position across an
+     * unregister → register change kept the unregister's data-confirm on "Přihlásit se".
+     * Keyed, the two forms are different elements and the morph replaces one with the other.
+     */
+    public function testEverySheetFooterChildIsKeyedByItsState(): void
+    {
+        $app = $this->createApp('korbo26');
+        // logged out, the link is keyed too
+        self::assertStringContainsString(
+            '<div class="sheet-footer"><a class="btn" href="/korbo26/profil" data-key="unpaired">',
+            (string) $this->request($app, 'GET', '/programy')->getBody(),
+        );
+        $this->pair($app);
+        $html = (string) $this->request($app, 'GET', '/programy')->getBody();
+
+        preg_match_all('#<div class="sheet-footer">(<(\w+)[^>]*>)#', $html, $children, PREG_SET_ORDER);
+        self::assertNotEmpty($children);
+        foreach ($children as [, $open]) {
+            self::assertMatchesRegularExpression('/ data-key="(?:unpaired|before|after|none|register|unregister)"/', $open);
+        }
+        self::assertStringContainsString('action="/korbo26/programy/1/prihlasit" data-key="register"', $html);
+        self::assertStringContainsString('action="/korbo26/programy/5/odhlasit" data-key="unregister"', $html);
+        // data-confirm lives on the unregister form's button only
+        self::assertSame(0, preg_match('#data-key="register"[^>]*><button[^>]*data-confirm#', $html));
     }
 
     /**
@@ -168,7 +202,7 @@ final class ScreenMorphTest extends AppTestCase
         self::assertStringContainsString('navigator.serviceWorker.startMessages();', $js);
         self::assertStringContainsString("data.type === 'screen-updated'", $js);
         self::assertStringContainsString("data.type === 'news-updated'", $js);
-        self::assertStringContainsString("tab === 'news' || (tab === 'programs' && typeof data.programme === 'number')", $js);
+        self::assertStringContainsString("tab === 'info' || tab === 'homepage' || (tab === 'programs' && typeof data.programme === 'number')", $js);
         self::assertStringContainsString('staleOnArrival.add(data.path);', $js);
         self::assertStringContainsString('fetchedAt: staleOnArrival.delete(path) ? 0 : Date.now(),', $js);
     }

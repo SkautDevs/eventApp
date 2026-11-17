@@ -23,6 +23,54 @@ final class Kernel
     /** Every HTML page and fragment without a policy of its own (addScreenMiddleware()). */
     public const string PAGE_CACHE_CONTROL = 'no-store, no-cache, must-revalidate';
 
+    /**
+     * The line a logged-out Profil shows after a pairing ended without a login, or a start
+     * or a session went wrong, by the code in the session's pairingOutcome.
+     */
+    private const array PAIRING_OUTCOMES = [
+        'denied' => 'Přihlášení bylo v KissJ zamítnuto.',
+        'expired' => 'Kód vypršel, začni znovu.',
+        'gone' => 'Propojení s KissJ už neplatí, přihlas se znovu.',
+        'busy' => 'Teď se propojuje moc lidí najednou, zkus to za chvíli.',
+        'unavailable' => 'Propojení se teď nedaří, zkus to prosím později.',
+    ];
+
+    /**
+     * How long an outcome line stays on Profil. Reading it consumes nothing — the loader's
+     * warm-up and the worker's refill read Profil too, and would swallow it — so it ends
+     * with the next start, an approval, or this.
+     */
+    private const int PAIRING_OUTCOME_SECONDS = 600;
+
+    /** The session key of the one pending server toast (takeToast()). */
+    private const string TOAST_KEY = 'toast';
+
+    /**
+     * How long a pending toast waits for its page. It is said right after what caused it (a
+     * login, a logout); one still in the session a minute later would greet the reader with
+     * news about something long past.
+     */
+    private const int TOAST_SECONDS = 60;
+
+    /**
+     * The response header of a page or fragment that carries a toast (markToast()). The worker
+     * never stores such a response (www/sw.js), or its offline copy would say the toast again.
+     */
+    public const string TOAST_HEADER = 'X-Toast';
+
+    /**
+     * The request header of the worker's own fetches of a whole document, to fill or refill
+     * the offline copy (www/sw.js storeBoth()). Such a request is not the reader looking, so
+     * it takes no toast (takeToast()).
+     */
+    public const string WORKER_FILL_HEADER = 'X-Worker-Fill';
+
+    /** The toast on the first full Profil after a pairing was approved. */
+    private const array LOGIN_TOAST = ['title' => 'Jsi přihlášen', 'line' => null];
+
+    /** The toast on the first full Profil after a logout. */
+    private const array LOGOUT_TOAST = ['title' => 'Odhlášeno', 'line' => 'Obsah teď můžeš jen prohlížet'];
+
     private const array SECURITY_HEADERS = [
         'X-Content-Type-Options' => 'nosniff',
         'Referrer-Policy' => 'same-origin',
@@ -81,6 +129,22 @@ final class Kernel
     }
 
     /**
+     * STUB_STATE_PATH: where the `local` programme source keeps the registrations made in
+     * the app and the revoked sessions, var/stub unless set; relative paths are resolved
+     * against the project root like SESSION_PATH. The tests point it at temporary
+     * directories of their own.
+     */
+    public static function stubStatePath(string $root): string
+    {
+        $path = $_ENV['STUB_STATE_PATH'] ?? '';
+        if (!is_string($path) || $path === '') {
+            return $root . '/var/stub';
+        }
+
+        return str_starts_with($path, '/') ? $path : $root . '/' . $path;
+    }
+
+    /**
      * PROGRAM_CACHE_TTL: seconds a kissj answer is served without asking again. Whole
      * seconds only; anything else — empty, negative, "5m" — is the default, 300. 0 asks
      * every time and still keeps the last answer for an outage.
@@ -90,6 +154,40 @@ final class Kernel
         $value = $_ENV['PROGRAM_CACHE_TTL'] ?? '';
 
         return is_string($value) && ctype_digit($value) ? (int) $value : 300;
+    }
+
+    /**
+     * PROGRAM_PROVIDER_<SLUG>, required for every event: `local` (the event's fixture
+     * files; null here) or the http(s) root URL of a kissj instance, returned without a
+     * trailing slash. Anything else — a missing value included — stops the event from
+     * booting: no event shows demo data by default. A URL also needs KISSJ_API_KEY_<SLUG>,
+     * because kissj resolves the event from the key. The messages name the variables,
+     * never their values.
+     */
+    public static function programSource(EventConfig $event): ?string
+    {
+        $value = $event->env('PROGRAM_PROVIDER');
+        if ($value === 'local') {
+            return null;
+        }
+
+        $scheme = parse_url($value, PHP_URL_SCHEME);
+        $host = parse_url($value, PHP_URL_HOST);
+        if (!in_array(is_string($scheme) ? strtolower($scheme) : null, ['http', 'https'], true) || !is_string($host) || $host === '') {
+            throw new \RuntimeException(sprintf(
+                '%s must be "local" or the http(s) root URL of a kissj instance',
+                $event->envKey('PROGRAM_PROVIDER'),
+            ));
+        }
+        if ($event->env('KISSJ_API_KEY') === '') {
+            throw new \RuntimeException(sprintf(
+                '%s is a kissj URL and requires %s',
+                $event->envKey('PROGRAM_PROVIDER'),
+                $event->envKey('KISSJ_API_KEY'),
+            ));
+        }
+
+        return rtrim($value, '/');
     }
 
     /**
@@ -207,21 +305,17 @@ final class Kernel
         // subscription's created_at — is a local one. Left unset, PHP defaults to UTC and
         // the whole event runs one or two hours off.
         date_default_timezone_set(self::TIMEZONE);
+        // checked here, before the container exists: a misconfigured event does not boot,
+        // rather than failing on its first programme read
+        $programSource = self::programSource($event);
 
         $builder = new ContainerBuilder();
         $builder->addDefinitions([
             EventConfig::class => $event,
-            \App\Program\ProgramProviderInterface::class => function (ContainerInterface $c) use ($event, $root): \App\Program\ProgramProviderInterface {
-                if ($event->env('PROGRAM_PROVIDER', 'stub') === 'kissj') {
-                    $baseUrl = $_ENV['KISSJ_BASE_URL'] ?? '';
-                    if ($baseUrl === '') {
-                        throw new \RuntimeException('PROGRAM_PROVIDER=kissj requires KISSJ_BASE_URL');
-                    }
+            \App\Program\ProgramProviderInterface::class => function (ContainerInterface $c) use ($event, $root, $programSource): \App\Program\ProgramProviderInterface {
+                if ($programSource !== null) {
                     // kissj resolves the event from the key, so the key is what picks the event
                     $apiKey = $event->env('KISSJ_API_KEY');
-                    if ($apiKey === '') {
-                        throw new \RuntimeException(sprintf('PROGRAM_PROVIDER=kissj requires %s', $event->envKey('KISSJ_API_KEY')));
-                    }
 
                     // Only kissj is cached: the stub's fixture files already are a local copy.
                     // One timeout for every endpoint — a shorter one on the participant call
@@ -229,7 +323,7 @@ final class Kernel
                     // entry to fall back to, and with the cache a slow kissj is paid once per TTL.
                     return new Program\CachingProgramProvider(
                         inner: new \App\Program\KissjProgramProvider(
-                            http: new \GuzzleHttp\Client(['base_uri' => rtrim($baseUrl, '/') . '/', 'timeout' => 10]),
+                            http: new \GuzzleHttp\Client(['base_uri' => $programSource . '/', 'timeout' => 10]),
                             apiKey: $apiKey,
                         ),
                         cache: new Cache\FileCache($root . '/var/cache/' . $event->slug),
@@ -238,7 +332,7 @@ final class Kernel
                     );
                 }
 
-                return new \App\Program\StubProgramProvider($event->dir . '/fixtures');
+                return new \App\Program\StubProgramProvider($event->dir . '/fixtures', self::stubStatePath($root));
             },
             // how old this request's provider data is; the screen middleware resets it per request
             Program\Freshness::class => fn (): Program\Freshness => new Program\Freshness(),
@@ -249,7 +343,7 @@ final class Kernel
             // depends on the host's ini (the FTP host's handler and defaults are unknown)
             Session::class => fn (): Session => new Session($event->slug, self::sessionPath($root), appRoot: $root),
             Auth\Authenticator::class => \DI\autowire(),
-            Auth\LoginThrottle::class => \DI\autowire(),
+            Auth\PairingThrottle::class => \DI\autowire(),
             \App\Push\SubscribeThrottle::class => \DI\autowire(),
             // One connection per request, opened and migrated on first use only: PHP-DI
             // builds a definition on the first get(), so the homepage, the map, the links
@@ -318,15 +412,24 @@ final class Kernel
                 $env->addGlobal('screenPath', '/');
                 // CspMiddleware writes the request's nonce here; every inline <script> carries it
                 $env->addGlobal('cspNonce', '');
-                // the app bar shows who is logged in. It has to be a function, not a global:
-                // a handler may log the user out (expired TIE code) during the very request
-                // whose response then renders the bar.
+                // the app bar shows who is paired. It has to be a function, not a global: a
+                // handler may log the reader out (kissj no longer knows the session) during
+                // the very request whose response then renders the bar. The session token
+                // never reaches a template.
                 $env->addFunction(new \Twig\TwigFunction(
-                    'auth_tie_code',
-                    fn (): ?string => $c->get(Auth\Authenticator::class)->identity()?->tieCode,
+                    'auth_identity',
+                    function () use ($c): ?array {
+                        $identity = $c->get(Auth\Authenticator::class)->identity();
+
+                        return $identity === null ? null : [
+                            'participantId' => $identity->participantId,
+                            'displayName' => $identity->displayName(),
+                            'initials' => $identity->initials(),
+                        ];
+                    },
                 ));
                 // The age of the provider data on this screen. A function rather than a
-                // global for the same reason as auth_tie_code(): the handler fills it while
+                // global for the same reason as auth_identity(): the handler fills it while
                 // it runs, before the layout renders.
                 $env->addFunction(new \Twig\TwigFunction(
                     'data_freshness',
@@ -339,12 +442,7 @@ final class Kernel
                     fn (string $path): string => $c->get(Http\AssetVersion::class)->url($path),
                 ));
                 $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
-                    $day = (new \DateTime($datetimeArray['date']))->format('D');
-
-                    return [
-                        'Mon' => 'pondělí', 'Tue' => 'úterý', 'Wed' => 'středa', 'Thu' => 'čtvrtek',
-                        'Fri' => 'pátek', 'Sat' => 'sobota', 'Sun' => 'neděle',
-                    ][$day];
+                    return Home\HomeModel::WEEKDAYS[(int) (new \DateTime($datetimeArray['date']))->format('N')];
                 }));
 
                 return $twig;
@@ -494,90 +592,239 @@ final class Kernel
 
         $app->get('/', function ($request, $response) {
             $event = $this->get(EventConfig::class);
+            $now = new \DateTimeImmutable();
+            $phase = Home\HomeModel::phase($event, $now);
+            $programs = in_array('programs', $event->features, true);
+            $provider = $programs ? $this->get(Program\ProgramProviderInterface::class) : null;
+            $auth = $this->get(Auth\Authenticator::class);
+            $identity = $auth->identity();
 
-            // a logged-in participant's next programme, as a card that opens it in Můj
-            // program. Best effort: whatever the provider says, the homepage renders, and
-            // an expired code is Program's to explain.
-            $nextUp = null;
-            $identity = $this->get(Auth\Authenticator::class)->identity();
-            if ($identity !== null && in_array('programs', $event->features, true)) {
+            // Every provider read is best effort: whatever the provider says, the homepage
+            // renders. A session kissj no longer knows logs the reader out (Profil says
+            // why); an outage logs nobody out and only leaves its part of the screen out.
+            // Before the start the screen shows no programme of the day, so nothing
+            // personal is read.
+            $mine = [];
+            $toast = null;
+            if ($provider !== null && $identity !== null && $phase !== 'before') {
                 try {
-                    $nextUp = Module\ProgramsModule::nextUp($this->get(Program\ProgramProviderInterface::class)->getProgramsForIdentity($identity), time());
-                } catch (Auth\UnknownParticipantException | \GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
-                    $nextUp = null;
+                    $mine = $provider->getParticipant($identity->sessionToken)->programmes;
+                } catch (Program\SessionExpiredException) {
+                    Kernel::sessionGone($auth, $this->get(Session::class));
+                    $identity = null;
+                    // this very page renders logged out, so it says why itself
+                    $toast = Kernel::goneToast();
+                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                    $mine = [];
                 }
             }
+            $sections = [];
+            if ($provider !== null && $mine !== []) {
+                try {
+                    $sections = $provider->getSections();
+                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                    // the cards lose their third line, nothing else
+                }
+            }
+            $window = new Program\RegistrationWindow(null, null);
+            if ($provider !== null && $phase === 'before') {
+                try {
+                    $window = $provider->getRegistrationWindow();
+                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                    // no window card
+                }
+            }
+            // today's notifications, from the start: the ones this reader may see
+            $news = [];
+            if ($phase !== 'before' && in_array('info', $event->features, true)) {
+                $names = [];
+                foreach ($mine as $programme) {
+                    $names[(int) $programme['id']] = (string) ($programme['name'] ?? '');
+                }
+                $news = Push\NewsItems::items($this->get(Push\MessageRepository::class)->visible($event->slug), $names, $now);
+            }
 
-            return $this->get(Twig::class)->render($response, 'homepage.twig', [
+            return Kernel::markToast($this->get(Twig::class)->render($response, 'homepage.twig', [
                 'links' => $event->content('links'),
-                // optional: an event without content/emergency.php shows no box
-                'emergency' => $event->content('emergency'),
-                'nextUp' => $nextUp !== null && $nextUp['items'] !== [] ? $nextUp : null,
-            ]);
+                'home' => Home\HomeModel::build($event, $news, $mine, $sections, $identity !== null, $window, $now),
+                'toast' => $toast,
+            ]), $toast);
         })->setName('homepage');
 
         $app->get('/profil', function ($request, $response) {
             $auth = $this->get(Auth\Authenticator::class);
             $session = $this->get(Session::class);
-            $tieError = $session->get('tieError');
-            $session->delete('tieError');
+            $identity = $auth->identity();
+            $pairing = $identity === null ? Kernel::sessionPairing($session) : null;
+            // a login's or a logout's, once
+            $toast = Kernel::takeToast($request, $session);
 
-            return $this->get(Twig::class)->render($response, 'profile.twig', [
-                'isLogged' => $auth->isLogged(),
-                'identity' => $auth->identity()?->tieCode,
-                'tieError' => $tieError,
-            ]);
+            return Kernel::markToast($this->get(Twig::class)->render($response, 'profile.twig', [
+                'identity' => $identity === null ? null : [
+                    'displayName' => $identity->displayName(),
+                    'initials' => $identity->initials(),
+                ],
+                'pairing' => $pairing === null ? null : [
+                    'userCode' => $pairing->formattedUserCode(),
+                    'verificationUrl' => $pairing->verificationUrl,
+                ],
+                // the start's, the poll's or a session's outcome, on every read while it lasts
+                'outcome' => Kernel::pairingOutcomeLine($session),
+                'toast' => $toast,
+            ]), $toast);
         })->setName('profile');
 
-        $app->post('/profil/tie', function ($request, $response) use ($base) {
-            // a cross-site form must neither log the reader in as somebody else nor out
+        // Starts a pairing for this browser: kissj gives a code the reader enters in KissJ,
+        // and Profil polls until it is approved. The device id is the hash of the session ID,
+        // so a second start replaces this browser's pending pairing at kissj.
+        $app->post('/profil/propojit', function ($request, $response) use ($base) {
+            // a cross-site form must not start a pairing the attacker would then approve
             if (!Http\SameOrigin::allows($request)) {
                 return self::loginRefused($this->get(Twig::class), $response, $base);
             }
-            $body = (array) $request->getParsedBody();
-            $code = strtoupper(trim((string) ($body['tieCode'] ?? '')));
-            // Můj program carries its own form and wants the reader back on the list;
-            // anything else (or a forged value) goes to /profil as before
-            $target = ($body['return'] ?? null) === 'programy' ? '/programy#muj-program' : '/profil';
             $session = $this->get(Session::class);
+            // already paired: nothing to start, and no attempt to count
+            if ($this->get(Auth\Authenticator::class)->isLogged()) {
+                return $response->withHeader('Location', $base . '/profil')->withStatus(302);
+            }
 
-            // the outcome is a tag on the transaction; the code itself never leaves this closure
-            Telemetry\Tracer::span('auth.tie', 'POST /profil/tie', function () use ($request, $code, $session): void {
-                if ($code === '') {
-                    Telemetry\Tracer::tag('tie_outcome', 'empty');
-
-                    return;
-                }
+            Telemetry\Tracer::span('auth.pairing', 'POST /profil/propojit', function () use ($request, $session): void {
                 $slug = $this->get(EventConfig::class)->slug;
                 $ip = Http\ClientIp::throttleKey($request);
-                $throttle = $this->get(Auth\LoginThrottle::class);
+                $throttle = $this->get(Auth\PairingThrottle::class);
+                // every start is a pending pairing at kissj, which caps them per event
                 if ($throttle->tooMany($slug, $ip)) {
-                    // checked before the provider: against kissj every guess is an upstream request
-                    $session->set('tieError', 'Příliš mnoho pokusů, zkus to za chvíli.');
-                    Telemetry\Tracer::tag('tie_outcome', 'rate_limited');
+                    $session->transact(static function (array &$bag): void {
+                        unset($bag['pairing']);
+                        $bag['pairingOutcome'] = ['code' => 'busy', 'at' => time()];
+                    });
+                    Telemetry\Tracer::tag('pairing_outcome', 'rate_limited');
 
                     return;
                 }
-                $identity = new Auth\Identity(displayName: 'TIE ' . $code, tieCode: $code);
+                $throttle->record($slug, $ip);
                 try {
-                    $this->get(\App\Program\ProgramProviderInterface::class)->getProgramsForIdentity($identity);
-                    $this->get(Auth\Authenticator::class)->store($identity);
-                    $session->delete('tieError');
-                    Telemetry\Tracer::tag('tie_outcome', 'ok');
-                } catch (Auth\UnknownParticipantException) {
-                    // the only outcome that counts: the limit is against guessing
-                    $throttle->recordFailure($slug, $ip);
-                    $session->set('tieError', 'Neplatný TIE kód.');
-                    Telemetry\Tracer::tag('tie_outcome', 'unknown');
-                } catch (\GuzzleHttp\Exception\TransferException|\App\Program\ProgramDataException) {
-                    // never arrived, or arrived but wrong: one notice for both
-                    $session->set('tieError', 'Přihlášení se teď nedaří, zkus to prosím později.');
-                    Telemetry\Tracer::tag('tie_outcome', 'provider_failed');
+                    $pairing = $this->get(Program\ProgramProviderInterface::class)->startPairing(hash('sha256', $session->id()));
+                    $session->transact(static function (array &$bag) use ($pairing): void {
+                        unset($bag['pairingOutcome']);
+                        $bag['pairing'] = [
+                            'deviceCode' => $pairing->deviceCode,
+                            'userCode' => $pairing->userCode,
+                            'verificationUrl' => $pairing->verificationUrl,
+                            'expiresAt' => $pairing->expiresAt->format(\DATE_ATOM),
+                        ];
+                    });
+                    Telemetry\Tracer::tag('pairing_outcome', 'started');
+                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                    // never arrived, kissj's cap, or an answer that is not a pairing: one notice
+                    $session->transact(static function (array &$bag): void {
+                        unset($bag['pairing']);
+                        $bag['pairingOutcome'] = ['code' => 'unavailable', 'at' => time()];
+                    });
+                    Telemetry\Tracer::tag('pairing_outcome', 'provider_failed');
                 }
             });
 
-            return $response->withHeader('Location', $base . $target)->withStatus(302);
-        })->setName('tie-login');
+            return $response->withHeader('Location', $base . '/profil')->withStatus(302);
+        })->setName('pairing-start');
+
+        // What Profil's script asks every 5 s while the code is shown (www/profile.js). It is
+        // always a 200 with one of the contract's statuses: "pending" (and "slowDown") mean
+        // ask again, "approved" means the reader is now logged in, "denied" and "expired" end
+        // the pairing and leave the line to Profil. A failure is "pending" too: the page keeps
+        // asking and the pairing stays, so kissj's re-issued approval is collected later.
+        $app->get('/profil/propojit/stav', function ($request, $response) {
+            $session = $this->get(Session::class);
+            $status = Telemetry\Tracer::span('auth.pairing', 'GET /profil/propojit/stav', function () use ($session): string {
+                $pairing = Kernel::sessionPairing($session);
+                if ($pairing === null) {
+                    return Program\PairingStatus::Expired->value;
+                }
+                $provider = $this->get(Program\ProgramProviderInterface::class);
+                try {
+                    $poll = $provider->pollPairing($pairing->deviceCode);
+                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException $e) {
+                    Telemetry\Collector::collect($e);
+
+                    return Program\PairingStatus::Pending->value;
+                }
+
+                switch ($poll->status) {
+                    case Program\PairingStatus::Approved:
+                        try {
+                            if ($poll->sessionToken === null) {
+                                throw new Program\ProgramDataException('An approved pairing without a session token');
+                            }
+                            $participant = $provider->getParticipant($poll->sessionToken);
+                        } catch (\Throwable $e) {
+                            // nothing is stored and the pairing stays: the next poll collects
+                            // the approval kissj re-issues within a minute
+                            Telemetry\Collector::collect($e);
+
+                            return Program\PairingStatus::Pending->value;
+                        }
+                        // the pairing goes before the ID rotates, so the old ID holds neither it
+                        // nor the identity: a late poll under it cannot collect a re-issued
+                        // approval, which would end the token just stored. An old outcome
+                        // line goes with it: the reader is in now.
+                        $session->transact(static function (array &$bag): void {
+                            unset($bag['pairing'], $bag['pairingOutcome']);
+                        });
+                        $this->get(Auth\Authenticator::class)->store(new Auth\Identity($participant->id, $participant->nickname, $poll->sessionToken));
+                        // after the rotation: only the new ID carries it to the Profil the page reloads
+                        $session->set(Kernel::TOAST_KEY, Kernel::LOGIN_TOAST + ['at' => time()]);
+                        Telemetry\Tracer::tag('pairing_outcome', 'approved');
+
+                        return $poll->status->value;
+                    case Program\PairingStatus::Denied:
+                    case Program\PairingStatus::Expired:
+                        $outcome = $poll->status->value;
+                        $session->transact(static function (array &$bag) use ($outcome): void {
+                            unset($bag['pairing']);
+                            $bag['pairingOutcome'] = ['code' => $outcome, 'at' => time()];
+                        });
+                        Telemetry\Tracer::tag('pairing_outcome', $outcome);
+
+                        return $outcome;
+                    default:
+                        return $poll->status->value;
+                }
+            });
+            $response->getBody()->write((string) json_encode(['status' => $status]));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withHeader('Cache-Control', 'no-store');
+        })->setName('pairing-poll');
+
+        // The logout: kissj is asked to end the device session (best effort: a reader is
+        // logged out of the app whatever kissj says), then the identity is dropped.
+        $app->post('/profil/odpojit', function ($request, $response) use ($base) {
+            if (!Http\SameOrigin::allows($request)) {
+                return self::loginRefused($this->get(Twig::class), $response, $base, 'Odhlášení se nepodařilo. Načti stránku a zkus to znovu.');
+            }
+            $auth = $this->get(Auth\Authenticator::class);
+            $identity = $auth->identity();
+            if ($identity !== null) {
+                try {
+                    $this->get(Program\ProgramProviderInterface::class)->revokeSession($identity->sessionToken);
+                } catch (Program\SessionExpiredException) {
+                    // kissj no longer knew the session: ended already, which is what was asked
+                } catch (\Throwable $e) {
+                    Telemetry\Collector::collect($e);
+                }
+            }
+            $auth->logout();
+            $this->get(Session::class)->transact(static function (array &$bag) use ($identity): void {
+                unset($bag['pairing']);
+                // "Odhlášeno" only says something to a reader who was logged in
+                if ($identity !== null) {
+                    $bag[Kernel::TOAST_KEY] = Kernel::LOGOUT_TOAST + ['at' => time()];
+                }
+            });
+
+            return $response->withHeader('Location', $base . '/profil')->withStatus(302);
+        })->setName('pairing-revoke');
 
         // The worker's last fallback for a page that is neither cached nor reachable. It is
         // in the precache list, so every installed worker holds it.
@@ -606,18 +853,172 @@ final class Kernel
     }
 
     /**
-     * The cross-site refusal of the TIE login, as a page of the app: a reader
+     * The cross-site refusal of a pairing start or a logout, as a page of the app: a reader
      * who hits it (a form left open across a deploy, a privacy extension stripping the
      * headers) is told what to do and given the way back, with the 403 kept.
      */
-    private static function loginRefused(Twig $twig, \Psr\Http\Message\ResponseInterface $response, string $base): \Psr\Http\Message\ResponseInterface
-    {
+    private static function loginRefused(
+        Twig $twig,
+        \Psr\Http\Message\ResponseInterface $response,
+        string $base,
+        string $message = 'Přihlášení se nepodařilo. Načti stránku a zkus to znovu.',
+    ): \Psr\Http\Message\ResponseInterface {
         return $twig->render($response->withStatus(403)->withHeader('Content-Type', 'text/html; charset=utf-8'), 'error.twig', [
             'notFound' => false,
             'details' => null,
-            'message' => 'Přihlášení se nepodařilo. Načti stránku a zkus to znovu.',
+            'message' => $message,
             'back' => ['href' => $base . '/profil', 'label' => 'Zpět na profil'],
         ]);
+    }
+
+    /**
+     * The pending pairing kept in the session by the start, or null when there is none (or
+     * it is not one: an older shape, a hand-edited file).
+     */
+    public static function sessionPairing(Session $session): ?Program\Pairing
+    {
+        $data = $session->get('pairing');
+        if (!is_array($data)) {
+            return null;
+        }
+        foreach (['deviceCode', 'userCode', 'verificationUrl', 'expiresAt'] as $key) {
+            if (!is_string($data[$key] ?? null) || $data[$key] === '') {
+                return null;
+            }
+        }
+        $expiresAt = \DateTimeImmutable::createFromFormat(\DATE_ATOM, $data['expiresAt']);
+        if ($expiresAt === false) {
+            return null;
+        }
+
+        return new Program\Pairing($data['deviceCode'], $data['userCode'], $data['verificationUrl'], $expiresAt, 5);
+    }
+
+    /**
+     * kissj no longer knows the reader's device session (its 401): the identity is dropped
+     * and Profil says why. Any screen whose personal read hits it calls this.
+     */
+    public static function sessionGone(Auth\Authenticator $auth, Session $session): void
+    {
+        $auth->logout();
+        $session->transact(static function (array &$bag): void {
+            $bag['pairingOutcome'] = ['code' => 'gone', 'at' => time()];
+            // a login toast not shown yet would now be a lie
+            unset($bag[self::TOAST_KEY]);
+        });
+    }
+
+    /**
+     * The toast of a page that found the reader's session gone while it rendered
+     * (sessionGone()): that page renders logged out, so it says why itself.
+     *
+     * @return array{title: string, line: string}
+     */
+    public static function goneToast(): array
+    {
+        return ['title' => self::LOGOUT_TOAST['title'], 'line' => self::PAIRING_OUTCOMES['gone']];
+    }
+
+    /**
+     * The pending server toast — stored as `['title' => string, 'line' => ?string, 'at' =>
+     * int]`, plus the `tag` of the write it reports (putToastUnlessPending()) — taken out of
+     * the session, or null. Only a full document the reader asked for
+     * takes it. A fragment (X-Screen) leaves it, because the loader's warm-up reads every
+     * screen as a fragment; so does the worker's own fetch of a whole document
+     * (WORKER_FILL_HEADER), because its fill and refill read every screen as a page and as a
+     * fragment and would swallow it before the reader sees anything. One older than
+     * TOAST_SECONDS is dropped unsaid. A request without one never opens the session, so a
+     * logged-out reader gets no session from it.
+     *
+     * @return array{title: string, line: ?string}|null
+     */
+    public static function takeToast(\Psr\Http\Message\ServerRequestInterface $request, Session $session, ?int $now = null): ?array
+    {
+        if ($request->getHeaderLine('X-Screen') === '1'
+            || $request->getHeaderLine(self::WORKER_FILL_HEADER) === '1'
+            || !$session->has(self::TOAST_KEY)
+        ) {
+            return null;
+        }
+        $toast = $session->transact(static function (array &$bag): mixed {
+            $toast = $bag[self::TOAST_KEY] ?? null;
+            unset($bag[self::TOAST_KEY]);
+
+            return $toast;
+        });
+        if (!is_array($toast) || !is_string($toast['title'] ?? null) || $toast['title'] === '' || !is_int($toast['at'] ?? null)) {
+            return null;
+        }
+        if (($now ?? time()) - $toast['at'] > self::TOAST_SECONDS) {
+            return null;
+        }
+        $line = $toast['line'] ?? null;
+
+        return ['title' => $toast['title'], 'line' => is_string($line) && $line !== '' ? $line : null];
+    }
+
+    /**
+     * Leaves a toast in the session for the next full document the reader asks for
+     * (takeToast()): what a write said, shown on the page its redirect lands on.
+     */
+    public static function putToast(Session $session, string $title, ?string $line, ?string $tag = null): void
+    {
+        $session->set(self::TOAST_KEY, self::toastEntry($title, $line, $tag));
+    }
+
+    /**
+     * putToast(), unless the toast still waiting in the session carries `$tag` and is not
+     * yet too old to be shown: that one stays. A write's success tags its toast, and the
+     * same write sent twice (a double tap) is refused the second time; the refusal must not
+     * talk over the success the reader has not seen yet. Checked and written under one lock.
+     */
+    public static function putToastUnlessPending(Session $session, string $title, ?string $line, string $tag): void
+    {
+        $session->transact(static function (array &$bag) use ($title, $line, $tag): void {
+            $pending = $bag[self::TOAST_KEY] ?? null;
+            if (is_array($pending) && ($pending['tag'] ?? null) === $tag
+                && is_int($pending['at'] ?? null) && time() - $pending['at'] <= self::TOAST_SECONDS
+            ) {
+                return;
+            }
+            $bag[self::TOAST_KEY] = self::toastEntry($title, $line, null);
+        });
+    }
+
+    /** @return array{title: string, line: ?string, at: int, tag?: string} */
+    private static function toastEntry(string $title, ?string $line, ?string $tag): array
+    {
+        $entry = ['title' => $title, 'line' => $line, 'at' => time()];
+        if ($tag !== null) {
+            $entry['tag'] = $tag;
+        }
+
+        return $entry;
+    }
+
+    /**
+     * Marks a response that carries a toast (TOAST_HEADER), so the worker keeps it out of
+     * the offline copy; a response without one is returned as it is.
+     *
+     * @param array{title: string, line: ?string}|null $toast
+     */
+    public static function markToast(\Psr\Http\Message\ResponseInterface $response, ?array $toast): \Psr\Http\Message\ResponseInterface
+    {
+        return $toast === null ? $response : $response->withHeader(self::TOAST_HEADER, '1');
+    }
+
+    /** The outcome line Profil shows now, or null: none set, an unknown code, or older than ten minutes. */
+    public static function pairingOutcomeLine(Session $session, ?int $now = null): ?string
+    {
+        $outcome = $session->get('pairingOutcome');
+        if (!is_array($outcome) || !is_string($outcome['code'] ?? null) || !is_int($outcome['at'] ?? null)) {
+            return null;
+        }
+        if (($now ?? time()) - $outcome['at'] >= self::PAIRING_OUTCOME_SECONDS) {
+            return null;
+        }
+
+        return self::PAIRING_OUTCOMES[$outcome['code']] ?? null;
     }
 
     private static function registerModules(App $app, ContainerInterface $container, EventConfig $event): void

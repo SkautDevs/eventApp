@@ -1,7 +1,7 @@
 <?php
 
 // Korbo 2026 — a DEV event, not a shipped one. It exists to click through the realistic
-// Korbo camp data (16–20 Sep 2026) on the real Program screen with PROGRAM_PROVIDER=stub.
+// Korbo camp data (16–20 Sep 2026) on the real Program screen with PROGRAM_PROVIDER_KORBO26=local.
 // Its fixtures are generated from tests/fixtures/kissj/korbo26/ by bin/kissj-fixtures.php korbo26 --clamp-all-day=08:00-22:00;
 // edit the generator's source data, not fixtures/, and regenerate.
 //
@@ -12,7 +12,7 @@
 return [
     'name' => 'Korbo 2026',
     'shortName' => 'Korbo',
-    'features' => ['programs', 'push', 'news'],
+    'features' => ['programs', 'push', 'info'],
     'listed' => true,
     'dates' => ['start' => '2026-09-16', 'end' => '2026-09-20'],
 

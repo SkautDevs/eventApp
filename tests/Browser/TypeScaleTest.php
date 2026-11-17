@@ -17,14 +17,14 @@ final class TypeScaleTest extends BrowserTestCase
 
     public function testTheViewportIsThePhoneAskedFor(): void
     {
-        self::visit('/obrok19/novinky');
+        self::visit('/obrok19/informace');
 
         self::assertSame(412, self::script('return window.innerWidth;'), 'the overflow checks below assume the phone width BrowserTestCase asks for');
     }
 
     public function testTheOverflowMeasurementCanFail(): void
     {
-        self::visit('/obrok19/novinky');
+        self::visit('/obrok19/informace');
         self::script(self::ROOT);
         $overflow = self::script('const probe = document.createElement("div"); probe.style.width = "2000px"; probe.style.height = "1px"; document.querySelector(".screen").appendChild(probe); const r = document.documentElement.scrollWidth > document.documentElement.clientWidth; probe.remove(); return r;');
 
@@ -33,7 +33,7 @@ final class TypeScaleTest extends BrowserTestCase
 
     public function testA24pxRootScalesTheCopyWithoutOverflow(): void
     {
-        foreach (['/obrok19/', '/obrok19/profil', '/obrok19/novinky', '/obrok19/odkazy'] as $path) {
+        foreach (['/obrok19/', '/obrok19/profil', '/obrok19/informace'] as $path) {
             self::visit($path);
             self::waitFor('return document.readyState === "complete";');
             self::script(self::ROOT);

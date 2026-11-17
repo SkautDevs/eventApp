@@ -1,5 +1,9 @@
 {
     "_note": "2026-11-14 is invented.",
+    "registration": {
+        "start": null,
+        "end": null
+    },
     "sections": [
         {
             "id": 1,

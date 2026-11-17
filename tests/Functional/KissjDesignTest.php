@@ -26,12 +26,14 @@ final class KissjDesignTest extends AppTestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('events')]
-    public function testTheModeToggleIsOffered(string $slug): void
+    public function testTheModeControlIsOffered(string $slug): void
     {
-        $html = (string) $this->request($this->createApp($slug), 'GET', '/')->getBody();
+        $app = $this->createApp($slug);
+        $this->pair($app);
+        $html = (string) $this->request($app, 'GET', '/profil')->getBody();
 
-        // the button only renders for an event that declares a dark set
-        self::assertStringContainsString('<button type="button" class="appbar-mode" data-mode-toggle', $html);
+        // the control only renders for an event that declares a dark set, on Profil paired or not
+        self::assertStringContainsString('<fieldset class="mode-control" data-mode-control>', $html);
     }
 
     public function testKissjLogosAreShipped(): void

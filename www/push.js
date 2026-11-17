@@ -10,14 +10,14 @@
 
 	const meta = name => (document.querySelector('meta[name="' + name + '"]') || {}).content || '';
 
-	// The server takes the TIE code from the session, so re-sending the same subscription is
-	// how it learns about a login or logout. The key remembers what it last heard, per event,
+	// The server takes the paired participant's id from the session, so re-sending the same
+	// subscription is how it learns about a login or logout (push-identity carries the id). The key remembers what it last heard, per event,
 	// so this is one POST per change rather than one per page.
 	const identityKey = () => 'pushIdentity:' + meta('event-base');
 
 	// Every line the opt-in can show, in one place.
 	const TEXT = {
-		enable: 'Aktivuj si notifikace o akci!',
+		enable: 'Povolit notifikace',
 		welcome: 'Hotovo! Právě ti přišla uvítací notifikace.',
 		on: 'Notifikace máš zapnuté, jupí!',
 		off: 'Notifikace jsou vypnuté.',
@@ -67,7 +67,7 @@
 		const response = await fetch(meta('event-base') + 'push/subscribe', {
 			method: 'POST',
 			headers: {'Content-Type': 'application/json'},
-			// the session cookie is what ties the subscription to the TIE code
+			// the session cookie is what binds the subscription to the paired participant
 			credentials: 'same-origin',
 			body: JSON.stringify(subscription.toJSON()),
 		});

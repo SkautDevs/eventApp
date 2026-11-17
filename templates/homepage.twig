@@ -1,8 +1,13 @@
 {% extends fragment ? "_screen.twig" : "_layout.twig" %}
 
 {% set activeTab = 'homepage' %}
+{% set eventName = event.shortName ?? event.name %}
 
 {% block content %}
+	{# kissj no longer knew the reader's session while this page was rendered: logged out here, and told so #}
+	{% if toast ?? null %}
+		{% include '_toast.twig' with toast only %}
+	{% endif %}
 	{% if (event.assets.mainLogoDark ?? false) and (event.assets.mainLogo ?? false) %}
 		{# the identity's own artwork, one drawing per mode: a mark drawn for a pale
 		   ground is close to invisible on a near-black one, so dark mode gets its own #}
@@ -12,57 +17,75 @@
 		<img class="logo mainLogo" src="{{ event.assets.mainLogo }}" alt="{{ event.name }}">
 	{% endif %}
 
-	{# The one block that must work with no signal: the home screen is in the worker's
-	   precache, and a tel: link needs no network to dial. #}
-	{% if emergency.contacts ?? false %}
-		<section class="emergency" aria-label="V nouzi">
-			<ul class="emergency-list">
-				{% for contact in emergency.contacts %}
-					<li>
-						<a class="emergency-call" href="{{ 'tel:' ~ contact.phone|replace({' ': ''}) }}">
-							<span class="emergency-label">{{ contact.label }}</span>
-							<span class="emergency-number">{{ contact.phone }}</span>
-							{% if contact.note ?? false %}<span class="emergency-note">{{ contact.note }}</span>{% endif %}
-						</a>
-					</li>
+	{# logged out, in every phase: the way in #}
+	{% if not home.paired %}
+		<section class="link-card is-highlight pair-card" data-key="pair"><h2>Už jsi registrovaný na {{ eventName }}?</h2><p>Přihlas se údaji ze své registrace, ať nepřijdeš o novinky, výběr programů a upozornění v průběhu akce!</p><a class="btn btn-primary" href="{{ url_for('profile') }}">Přihlásit se</a></section>
+	{% endif %}
+
+	{% if home.phase == 'before' %}
+		{% include '_install.twig' with {installCard: 'home'} %}
+
+		<h2 class="home-kicker">Co tě čeká</h2>
+		{% if home.window and home.window.state == 'before' %}
+			<article class="link-card"><h3>Přihlašování na programy</h3><p>{{ home.window.label }}</p></article>
+		{% elseif home.window and home.window.state == 'open' %}
+			{% if home.paired %}
+				<article class="link-card"><h3>Výběr programů</h3><p>{{ home.window.label }}</p><a class="btn btn-primary" href="{{ url_for('programs') }}">Vybrat programy</a></article>
+			{% else %}
+				<article class="link-card"><h3>Výběr programů</h3><p>{{ home.window.label }}</p><p>Výběr programů je otevřený. Programy si můžeš prohlédnout v sekci Program.</p></article>
+			{% endif %}
+		{% endif %}
+		{# www/shell.js redraws the days from the device clock, and hides the card once the
+		   start has come: a copy cached the day before still counts right #}
+		{% set days = home.countdown.days %}
+		{% set unit = days == 1 ? 'den' : (days >= 2 and days <= 4 ? 'dny' : 'dní') %}
+		{% set countdown %}<h3>Potkáme se už za <span data-countdown-days>{{ days }}</span> <span data-countdown-unit>{{ unit }}</span></h3><p>{{ home.countdown.range }}</p>{% endset %}
+		{% if 'programs' in event.features %}
+			<a class="link-card countdown" data-countdown data-start="{{ home.countdown.start }}" href="{{ url_for('programs') }}">{{ countdown }}</a>
+		{% else %}
+			<div class="link-card countdown" data-countdown data-start="{{ home.countdown.start }}">{{ countdown }}</div>
+		{% endif %}
+	{% else %}
+		{# www/shell.js redraws the day and each relative time from the device clock, so a
+		   copy cached yesterday names today. Which notifications count as today's stays the
+		   server's choice: a copy read the next day still lists the day it was fetched on,
+		   each saying "včera …", until the network brings a fresh one. #}
+		<h2 class="home-date" data-home-date>{{ home.todayLabel }}</h2>
+		{% if 'info' in event.features %}
+			{# today's notifications as full cards, the same markup as on Informace #}
+			{% for item in home.news %}
+				<div class="news" data-key="message-{{ item.id }}">
+					<p><strong>{{ item.title }}</strong> <small class="news-when" data-sent-at="{{ item.at }}">{{ item.when }}</small></p>
+					{% if item.programme is not null %}<p class="news-programme">{{ item.programme }}</p>{% endif %}
+					<p class="news-body">{{ item.body }}</p>
+				</div>
+			{% endfor %}
+			<p><a class="btn" href="{{ url_for('info') }}">Starší notifikace</a></p>
+		{% endif %}
+
+		{# The participant's programmes. Every one of theirs is here, hidden, and
+		   www/shell.js shows the running one and the next two by the device clock and
+		   writes each lead line, so a copy cached days ago (or read offline) still names
+		   the right ones. The server hides the box only when everything is over. #}
+		{% if home.nextUp %}
+			<section class="next-up" aria-label="Tvůj program" data-next-up{% if home.nextUp.index is null %} hidden{% endif %}>
+				<h2>Můj program</h2>
+				{% for item in home.nextUp.items %}
+					<a class="link-card is-highlight next-card" href="{{ url_for('programs') }}#muj-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-time="{{ item.time }}" data-until="{{ item.until }}"{% if item.location %} data-location="{{ item.location }}"{% endif %} data-deep-link hidden>
+						<div class="link-card-text">
+							<p class="next-name">{{ item.name }}</p>
+							<p class="next-lead" data-next-lead></p>
+							{% if item.section %}<p class="next-section">{{ item.section }}</p>{% endif %}
+						</div>
+					</a>
 				{% endfor %}
-			</ul>
-			{% for line in emergency.info ?? [] %}
-				<p class="emergency-info">{{ line }}</p>
-			{% endfor %}
-		</section>
+			</section>
+		{% endif %}
+
+		{% include '_install.twig' with {installCard: 'home'} %}
 	{% endif %}
 
-	{# The participant's next programme. Every one of theirs is here and www/shell.js shows
-	   the first not yet over by the device clock, so a cached copy stays right; the
-	   server's pick is what shows without JS. #}
-	{% if nextUp %}
-		<section class="next-up" aria-label="Tvůj program" data-next-up{% if nextUp.index is null %} hidden{% endif %}>
-			{% for item in nextUp.items %}
-				<a class="link-card is-highlight next-card" href="{{ url_for('programs') }}#muj-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-deep-link{% if loop.index0 != nextUp.index %} hidden{% endif %}>
-					<i class="link-card-icon far fa-calendar-check" aria-hidden="true"></i>
-					<span class="link-card-text">
-						<span class="link-card-note next-card-kicker" data-next-kicker>Tvůj další program</span>
-						{{ item.name }}
-						<span class="link-card-note">{{ item.day }} · {{ item.time }}{% if item.location %} · {{ item.location }}{% endif %}</span>
-					</span>
-				</a>
-			{% endfor %}
-		</section>
-	{% endif %}
-
-	{% include '_install.twig' %}
-
-	{% if 'push' in event.features %}
-		<p class="push-enable">
-			<button type="button" class="btn btn-primary" data-push-toggle>
-				Aktivuj si notifikace o akci!
-			</button>
-		</p>
-		<p class="push-status" role="status" hidden></p>
-	{% endif %}
-
-	{# only the urgent ones — the full list lives on the Odkazy screen #}
+	{# only the urgent ones — the full list is on Informace #}
 	{% for link in links|filter(link => link.highlight ?? false) %}
 		<p><a class="highlight" href="{{ link.href }}"{% if link.href starts with 'http://' or link.href starts with 'https://' %} target="_blank" rel="noopener"{% endif %}>{{ link.label }} {% if link.icon %}<i class="{{ link.icon }}"></i>{% endif %}{% if link.suffix ?? false %} {{ link.suffix }}{% endif %}</a></p>
 	{% endfor %}

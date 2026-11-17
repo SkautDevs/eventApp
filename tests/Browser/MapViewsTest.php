@@ -123,8 +123,8 @@ final class MapViewsTest extends BrowserTestCase
         self::waitFor('return ' . self::ROOT . '.dataset.view === "plan";');
 
         // to another tab through the loader, and back: the screen is shown, not re-rendered
-        self::tap('.tabbar a[href="/obrok19/novinky"]');
-        self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/novinky"]\'); return s && !s.hidden;');
+        self::tap('.tabbar a[href="/obrok19/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/informace"]\'); return s && !s.hidden;');
         self::assertTrue(self::script('return document.querySelector(\'[data-screen="/obrok19/mapa"]\').hidden;'));
         self::tap('.tabbar a[href="/obrok19/mapa"]');
         self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/mapa"]\'); return s && !s.hidden && ' . self::ROOT . '.dataset.view === "plan";');

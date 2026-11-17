@@ -31,8 +31,8 @@
             "url": "/obrok27/programy"
         },
         {
-            "name": "Novinky",
-            "url": "/obrok27/novinky"
+            "name": "Notifikace",
+            "url": "/obrok27/informace"
         }
     ],
     "theme_color": "#15133F",

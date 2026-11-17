@@ -1,5 +1,20 @@
-{# The install offer, on the homepage and /profil. www/shell.js unhides at most one of the
-   two, never in an installed app: the button once Chrome offers the install (its prompt
-   can only be shown from a tap), the hint on iOS, which has no install prompt at all. #}
-<p class="install" data-install hidden><button type="button" class="btn install-btn">Přidat na plochu</button></p>
-<p class="install" data-install-ios hidden><span class="notice">Aplikaci si přidáš na plochu v Safari: klepni na Sdílet a pak na Přidat na plochu.</span></p>
+{# The install card, on Domů (installCard 'home') and Profil ('profile'): the install offer
+   and the notifications button under one heading. www/shell.js unhides at most one of the
+   two install paragraphs, never in an installed app: the button once Chrome offers the
+   install (its prompt can only be shown from a tap), the hint on iOS, which has no install
+   prompt at all. In an installed app Domů hides the whole card; Profil keeps it for the
+   notifications button, which installing never hides. #}
+<section class="install-card" aria-label="Instalace" data-install-card="{{ installCard }}">
+	<h2>Ulož si {{ event.shortName ?? event.name }} na plochu</h2>
+	<p>Zapni si upozornění, ať ti neuteče výběr programů, novinky a varování v průběhu akce.</p>
+	<p class="install" data-install hidden><button type="button" class="btn install-btn">Uložit jako aplikaci</button></p>
+	<p class="install" data-install-ios hidden><span class="notice">Aplikaci si přidáš na plochu v Safari: klepni na Sdílet a pak na Přidat na plochu.</span></p>
+	{% if 'push' in event.features %}
+		<p class="push-enable">
+			<button type="button" class="btn btn-primary" data-push-toggle>
+				Povolit notifikace
+			</button>
+		</p>
+		<p class="push-status" role="status" hidden></p>
+	{% endif %}
+</section>

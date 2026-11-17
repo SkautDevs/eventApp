@@ -48,12 +48,12 @@ final class PushModule implements ModuleInterface
                     return self::json($response, 429, ['saved' => false, 'error' => 'too-many']);
                 }
                 try {
-                    // The code comes from the session only: the route is unauthenticated, so a code in the
-                    // body would let anyone receive another participant's programme messages.
+                    // The participant comes from the session only: the route is unauthenticated, so an
+                    // id in the body would let anyone receive another participant's programme messages.
                     $repository->save(
                         $body,
                         $event->slug,
-                        $this->get(\App\Auth\Authenticator::class)->identity()?->tieCode,
+                        $this->get(\App\Auth\Authenticator::class)->identity()?->participantId,
                     );
                 } catch (\InvalidArgumentException) {
                     return $response->withStatus(400);
@@ -76,9 +76,9 @@ final class PushModule implements ModuleInterface
                         event: $event->slug,
                         endpoint: $endpoint,
                         title: $event->name,
-                        body: 'Notifikace jsou zapnuté. Novinky z akce ti budou chodit sem.',
+                        body: 'Notifikace jsou zapnuté. Další notifikace z akce ti budou chodit sem.',
                         icon: $event->get('assets')['notificationIcon'] ?? null,
-                        url: $app->getBasePath() . '/novinky',
+                        url: $app->getBasePath() . '/informace',
                     );
                 } catch (\Throwable) {
                     // an exception proves nothing about the subscription
@@ -268,14 +268,14 @@ final class PushModule implements ModuleInterface
             $event = $this->get(\App\EventConfig::class);
             $base = $app->getBasePath();
             $programme = $programmesById[$values['target']] ?? null;
-            $tieCodes = null;
+            $participantIds = null;
             if ($programme !== null) {
                 try {
-                    $tieCodes = $this->get(\App\Program\ProgramProviderInterface::class)
-                        ->getTieCodesForProgramme((int) $programme['id']);
+                    $participantIds = $this->get(\App\Program\ProgramProviderInterface::class)
+                        ->getParticipantIdsForProgramme((int) $programme['id']);
                 } catch (\GuzzleHttp\Exception\TransferException|\App\Program\ProgramDataException) {
                     return $render($request, $response->withStatus(502), [
-                        'errors' => ['Nepodařilo se načíst přihlášené z kissj, nic nebylo odesláno.'],
+                        'errors' => ['Nepodařilo se načíst přihlášené z KissJ, nic nebylo odesláno.'],
                         'values' => $values,
                     ]);
                 }
@@ -307,7 +307,7 @@ final class PushModule implements ModuleInterface
             }
 
             // Logged before the send, so a send that dies half-way still leaves the message on
-            // News; the counts follow when it returns. An exception is not caught: it ends in the
+            // Informace; the counts follow when it returns. An exception is not caught: it ends in the
             // error page, and the log shows the message without counts.
             $messages = $this->get(\App\Push\MessageRepository::class);
             $messageId = $messages->begin(
@@ -325,16 +325,16 @@ final class PushModule implements ModuleInterface
                 body: $values['body'],
                 icon: $event->get('assets')['notificationIcon'] ?? null,
                 url: $programme === null
-                    ? $base . '/novinky'
+                    ? $base . '/informace'
                     : sprintf('%s/programy#section-%d-program-%d', $base, $programme['section']['id'] ?? 0, $programme['id']),
-                tieCodes: $tieCodes,
+                participantIds: $participantIds,
                 programme: $programme === null ? null : (int) $programme['id'],
             );
-            $unreached = $tieCodes === null
+            $unreached = $participantIds === null
                 ? null
-                : count(array_diff($tieCodes, $this->get(SubscriptionRepository::class)->subscribedTieCodes($event->slug)));
+                : count(array_diff($participantIds, $this->get(SubscriptionRepository::class)->subscribedParticipantIds($event->slug)));
             $messages->finish($event->slug, $messageId, $result['sent'], $result['removed'], $result['failed'], $unreached);
-            // a record on stdout even with Sentry off; no TIE code, no title, no body
+            // a record on stdout even with Sentry off; no participant id, no title, no body
             $this->get(\Psr\Log\LoggerInterface::class)->info('push.sent', [
                 'event' => $event->slug,
                 'sent' => $result['sent'],

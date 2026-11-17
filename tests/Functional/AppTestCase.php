@@ -19,9 +19,28 @@ abstract class AppTestCase extends TestCase
      */
     public const array BROWSER_KEYS = ['p256dh' => 'BLZ65Q8g4oatZNOAPJgP1ME620NAIr0qnOhCw3nt6Nf66VnM3y6br0zfeWRQ1j45DA59SYPkitWrWtx6vApz0DE', 'auth' => 'AVGT4ioSQu2082DMC3bQDA'];
 
+    /**
+     * The local programme source's STUB_STATE_PATH for this test: a fresh directory, so a
+     * registration or a revoked session never outlives the test, and no test writes var/stub.
+     */
+    protected string $stubState;
+
     protected function setUp(): void
     {
         $_SESSION = [];
+        $this->stubState = sys_get_temp_dir() . '/eventapp-stub-' . bin2hex(random_bytes(6));
+        if (!mkdir($this->stubState, 0o700)) {
+            throw new \RuntimeException('Could not create the stub state directory ' . $this->stubState);
+        }
+        $_ENV['STUB_STATE_PATH'] = $this->stubState;
+    }
+
+    protected function tearDown(): void
+    {
+        unset($_ENV['STUB_STATE_PATH']);
+        array_map('unlink', glob($this->stubState . '/*') ?: []);
+        @rmdir($this->stubState);
+        parent::tearDown();
     }
 
     protected function createApp(string $slug = 'obrok19', array $overrides = [], bool $fixtureEvent = false): App
@@ -67,6 +86,29 @@ abstract class AppTestCase extends TestCase
     protected function request(App $app, string $method, string $uri, ?array $body = null, array $headers = []): ResponseInterface
     {
         return $this->rawRequest($app, $method, $app->getBasePath() . $uri, $body, $headers);
+    }
+
+    /**
+     * Pairs the test's session the way a reader does, through the routes: the start, then
+     * one poll, which the local source approves at once.
+     */
+    protected function pair(App $app): void
+    {
+        self::assertSame(302, $this->request($app, 'POST', '/profil/propojit')->getStatusCode(), 'the pairing start redirects to Profil');
+        $poll = $this->request($app, 'GET', '/profil/propojit/stav');
+        self::assertSame(['status' => 'approved'], json_decode((string) $poll->getBody(), true), 'the first poll approves');
+    }
+
+    /**
+     * Stores an identity directly, without any pairing: for tests of programmes and provider
+     * failures, whose providers may not answer a pairing at all. The token has the local
+     * source's shape, so the stub accepts it for $participantId.
+     */
+    protected function loginAs(App $app, int $participantId = 1, ?string $nickname = null): void
+    {
+        $app->getContainer()->get(\App\Auth\Authenticator::class)->store(
+            new \App\Auth\Identity($participantId, $nickname, 'stub-' . $participantId . '-0000000000000000'),
+        );
     }
 
     /** @param array<string, string> $headers */

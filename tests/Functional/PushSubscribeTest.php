@@ -81,23 +81,23 @@ final class PushSubscribeTest extends AppTestCase
 
     private const array SUB = ['endpoint' => 'https://push.example/xyz', 'keys' => AppTestCase::BROWSER_KEYS];
 
-    public function testASubscriptionCarriesTheLoggedInTieCode(): void
+    public function testASubscriptionCarriesTheLoggedInParticipant(): void
     {
         $app = $this->createApp(overrides: $this->overrides());
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'abc123']);
+        $this->pair($app);
 
         $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
-        self::assertSame('ABC123', $this->repo()->forEvent('obrok19')[0]['tieCode']);
+        self::assertSame(1, $this->repo()->forEvent('obrok19')[0]['participantId']);
     }
 
-    public function testABodyCannotChooseItsTieCode(): void
+    public function testABodyCannotChooseItsParticipant(): void
     {
         $app = $this->createApp(overrides: $this->overrides());
 
-        $this->request($app, 'POST', '/push/subscribe', self::SUB + ['tieCode' => 'ABC123', 'tie_code' => 'ABC123']);
+        $this->request($app, 'POST', '/push/subscribe', self::SUB + ['participantId' => 1, 'participant_id' => 1]);
 
-        self::assertNull($this->repo()->forEvent('obrok19')[0]['tieCode']);
+        self::assertNull($this->repo()->forEvent('obrok19')[0]['participantId']);
     }
 
     public function testThePageTellsPushJsWhoIsLoggedIn(): void
@@ -105,8 +105,8 @@ final class PushSubscribeTest extends AppTestCase
         $app = $this->createApp();
         self::assertStringContainsString('<meta name="push-identity" content="">', (string) $this->request($app, 'GET', '/')->getBody());
 
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
-        self::assertStringContainsString('<meta name="push-identity" content="ABC123">', (string) $this->request($app, 'GET', '/')->getBody());
+        $this->pair($app);
+        self::assertStringContainsString('<meta name="push-identity" content="1">', (string) $this->request($app, 'GET', '/')->getBody());
     }
 
     public function testANewSubscriptionGetsAWelcomeAtOnce(): void
@@ -122,8 +122,10 @@ final class PushSubscribeTest extends AppTestCase
         $welcome = $this->sender->welcomes[0];
         self::assertSame('obrok19', $welcome['event']);
         self::assertSame(self::SUB['endpoint'], $welcome['endpoint']);
-        self::assertStringEndsWith('/novinky', (string) $welcome['url']);
+        self::assertStringEndsWith('/informace', (string) $welcome['url']);
         self::assertNotSame('', $welcome['title']);
+        // the screen is Informace and what arrives there are notifikace, not novinky
+        self::assertSame('Notifikace jsou zapnuté. Další notifikace z akce ti budou chodit sem.', $welcome['body']);
         self::assertSame([], $this->sender->calls, 'a welcome is not a message to the whole event');
     }
 
@@ -131,7 +133,7 @@ final class PushSubscribeTest extends AppTestCase
     {
         $app = $this->createApp(overrides: $this->overrides());
         $this->request($app, 'POST', '/push/subscribe', self::SUB);
-        $this->request($app, 'POST', '/profil/tie', ['tieCode' => 'ABC123']);
+        $this->pair($app);
 
         $response = $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
@@ -181,7 +183,7 @@ final class PushSubscribeTest extends AppTestCase
     public function testASenderThatThrowsIsAFailedWelcome(): void
     {
         $sender = new class implements \App\Push\PushSenderInterface {
-            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $tieCodes = null, ?int $programme = null): array
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $participantIds = null, ?int $programme = null): array
             {
                 return ['sent' => 0, 'removed' => 0];
             }

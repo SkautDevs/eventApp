@@ -10,7 +10,7 @@ use Slim\Psr7\Factory\ServerRequestFactory;
 
 final class SameOriginTest extends TestCase
 {
-    private static function post(array $headers, string $uri = 'https://obrok.example/obrok27/profil/tie'): \Psr\Http\Message\ServerRequestInterface
+    private static function post(array $headers, string $uri = 'https://obrok.example/obrok27/profil/propojit'): \Psr\Http\Message\ServerRequestInterface
     {
         $request = (new ServerRequestFactory())->createServerRequest('POST', $uri);
         foreach ($headers as $name => $value) {
@@ -40,7 +40,7 @@ final class SameOriginTest extends TestCase
     /** Review Focus 5 */
     public function testAnOriginWithAPortOnTheSameHostIsAllowed(): void
     {
-        self::assertTrue(SameOrigin::allows(self::post(['Origin' => 'http://localhost:8081'], 'http://localhost:8081/korbo26/profil/tie')));
+        self::assertTrue(SameOrigin::allows(self::post(['Origin' => 'http://localhost:8081'], 'http://localhost:8081/korbo26/profil/propojit')));
     }
 
     public function testNeitherHeaderIsNotABrowserFormAndPasses(): void

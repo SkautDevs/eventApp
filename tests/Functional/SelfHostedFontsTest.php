@@ -20,7 +20,7 @@ final class SelfHostedFontsTest extends AppTestCase
      */
     private const array HOSTS = ['fontawesome.com', 'cdn.skauting.cz', 'googleapis.com', 'gstatic.com'];
 
-    private const array PATHS = ['/', '/programy', '/mapa', '/novinky', '/odkazy', '/profil', '/offline', '/neexistuje'];
+    private const array PATHS = ['/', '/programy', '/mapa', '/informace', '/profil', '/offline', '/neexistuje'];
 
     public function testNoRenderedPageNamesAThirdPartyFontHost(): void
     {

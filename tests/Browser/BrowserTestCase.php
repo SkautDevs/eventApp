@@ -25,7 +25,7 @@ use Symfony\Component\Process\ExecutableFinder;
  *    container by (`test`, through `docker compose run --use-aliases`).
  *
  * Either way the app is served by a PHP built-in server this class starts itself, with
- * bin/router.php and an environment of its own (the stub provider for every event, a
+ * bin/router.php and an environment of its own (`PROGRAM_PROVIDER_<SLUG>=local` for every event, a
  * throwaway push database, a session store in a temporary directory of the class's own,
  * so a run leaves no var/sessions behind — the compose `test` service runs as root), so a test can stop it to take the network away — CDP's offline emulation
  * does not reach the service worker's own fetches, and Panther's stopWebServer() would
@@ -52,6 +52,9 @@ abstract class BrowserTestCase extends PantherTestCase
 
     /** The server's SESSION_PATH: a temporary directory per class, outlives a stopServer()/startServer() pair. */
     private static ?string $sessions = null;
+
+    /** The server's STUB_STATE_PATH, the local programme source's registrations: as $sessions. */
+    private static ?string $stubState = null;
 
     /** @var list<string> the CDP identifiers of the clocks pinClock() installed */
     private static array $clocks = [];
@@ -88,6 +91,7 @@ abstract class BrowserTestCase extends PantherTestCase
         self::stopServer();
         self::removeDatabase();
         self::removeSessions();
+        self::removeStubState();
         parent::tearDownAfterClass();
     }
 
@@ -119,6 +123,23 @@ abstract class BrowserTestCase extends PantherTestCase
     protected static function tap(string $selector): void
     {
         self::$browser->findElement(WebDriverBy::cssSelector($selector))->click();
+    }
+
+    /**
+     * Pairs the browser as a reader does: Profil, "Přihlásit kódem z KissJ", and the page's
+     * own poll, which the local source approves at once and which then reloads Profil
+     * paired. A browser already paired (the session outlives a test) is left as it is.
+     */
+    protected static function pair(string $slug = 'korbo26'): void
+    {
+        self::visit('/' . $slug . '/profil');
+        self::waitFor('return document.readyState === "complete";');
+        if (self::script('return document.querySelector(".profile-who") !== null;')) {
+            return;
+        }
+        // the start, or "Začít znovu" over a pairing an earlier test left pending
+        self::tap('[data-screen="/' . $slug . '/profil"] form[action="/' . $slug . '/profil/propojit"] button[type="submit"]');
+        self::waitFor('return document.readyState === "complete" && document.querySelector(".profile-who") !== null;', [], 20);
     }
 
     /**
@@ -289,17 +310,18 @@ abstract class BrowserTestCase extends PantherTestCase
     {
         $root = dirname(__DIR__, 2);
         $catalog = new \App\EventCatalog($root . '/events');
-        $stub = [];
+        $local = [];
         // every event, so a dev .env that points one at kissj never reaches a real API from a test
         foreach ($catalog->slugs() as $slug) {
-            $stub[$catalog->load($slug)->envKey('PROGRAM_PROVIDER')] = 'stub';
+            $local[$catalog->load($slug)->envKey('PROGRAM_PROVIDER')] = 'local';
         }
 
-        return $stub + [
+        return $local + [
             'APP_DEBUG' => '0',
             'SENTRY_DSN' => '',
             'PUSH_DB_PATH' => self::DATABASE,
             'SESSION_PATH' => self::sessionDirectory(),
+            'STUB_STATE_PATH' => self::stubStateDirectory(),
             // the worker's install fetches a dozen files at once; one PHP worker would queue them
             'PHP_CLI_SERVER_WORKERS' => '4',
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one
@@ -460,6 +482,42 @@ abstract class BrowserTestCase extends PantherTestCase
         return self::$sessions;
     }
 
+    /**
+     * Changes the browser's server-side session in its file, between two requests: $edit
+     * gets the event's bag (`$_SESSION[$slug]`) and returns the new one. For a state no
+     * route can be asked to set at will, such as a toast pending without a login. The store
+     * uses PHP's own `php` serializer: `name|<serialized value>` per top-level key.
+     *
+     * @param callable(array): array $edit
+     */
+    protected static function editSession(string $slug, callable $edit): void
+    {
+        $cookie = self::$browser->manage()->getCookieNamed('eventapp');
+        self::assertNotNull($cookie, 'the browser has no session to edit');
+        $file = self::sessionDirectory() . '/sess_' . $cookie->getValue();
+        self::assertFileExists($file);
+
+        $raw = (string) file_get_contents($file);
+        $data = [];
+        $offset = 0;
+        while ($offset < strlen($raw)) {
+            $bar = strpos($raw, '|', $offset);
+            self::assertIsInt($bar, 'an unreadable session file');
+            $name = substr($raw, $offset, $bar - $offset);
+            $value = @unserialize(substr($raw, $bar + 1), ['allowed_classes' => false]);
+            $data[$name] = $value;
+            // the value's own length, read back by serializing it again
+            $offset = $bar + 1 + strlen(serialize($value));
+        }
+        $data[$slug] = $edit(is_array($data[$slug] ?? null) ? $data[$slug] : []);
+
+        $out = '';
+        foreach ($data as $name => $value) {
+            $out .= $name . '|' . serialize($value);
+        }
+        file_put_contents($file, $out, LOCK_EX);
+    }
+
     private static function removeSessions(): void
     {
         if (self::$sessions === null) {
@@ -470,6 +528,55 @@ abstract class BrowserTestCase extends PantherTestCase
         }
         @rmdir(self::$sessions);
         self::$sessions = null;
+    }
+
+    private static function stubStateDirectory(): string
+    {
+        if (self::$stubState === null) {
+            $dir = sys_get_temp_dir() . '/eventapp-browser-stub-' . bin2hex(random_bytes(6));
+            if (!mkdir($dir, 0o700)) {
+                throw new \RuntimeException('Could not create the browser tests\' stub state directory ' . $dir);
+            }
+            self::$stubState = $dir;
+        }
+
+        return self::$stubState;
+    }
+
+    /**
+     * Puts the local source of `$slug` back to its fixtures — no registration made in the
+     * app, no session revoked — without a tap, so a test that failed half-way leaves the
+     * next one nothing to inherit.
+     */
+    protected static function resetStubState(string $slug = 'korbo26'): void
+    {
+        @unlink(self::stubStateDirectory() . '/' . $slug . '.json');
+    }
+
+    /**
+     * Sets participants' programmes in the local source of `$slug`, as a write from another
+     * device would: `['1' => [10, 26]]`.
+     *
+     * @param array<string, list<int>> $registrations
+     */
+    protected static function writeStubRegistrations(string $slug, array $registrations): void
+    {
+        file_put_contents(
+            self::stubStateDirectory() . '/' . $slug . '.json',
+            json_encode(['registrations' => (object) $registrations, 'revoked' => []], JSON_THROW_ON_ERROR),
+        );
+    }
+
+    private static function removeStubState(): void
+    {
+        if (self::$stubState === null) {
+            return;
+        }
+        foreach (glob(self::$stubState . '/*') ?: [] as $file) {
+            @unlink($file);
+        }
+        @rmdir(self::$stubState);
+        self::$stubState = null;
     }
 
     protected static function removeDatabase(): void

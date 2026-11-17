@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Auth\Identity;
 use App\Program\ProgramProviderInterface;
 
 final class ProgramsTest extends AppTestCase
@@ -126,7 +125,9 @@ final class ProgramsTest extends AppTestCase
     {
         $html = (string) $this->request($this->createApp('programs', fixtureEvent: true), 'GET', '/programy')->getBody();
 
-        self::assertSame(1, substr_count($html, 'data-pg-open="2"'));
+        // one card on the timeline, one row in Přehled, one sheet
+        self::assertSame(1, preg_match_all('/<button type="button" class="tl-card[^"]*" data-key="2"/', $html));
+        self::assertSame(1, preg_match_all('/<article class="pl-item[^"]*" data-key="2"/', $html));
         self::assertSame(1, substr_count($html, 'data-pg-detail="2"'));
         self::assertStringNotContainsString('Duplicitni id', $html);
     }
@@ -141,7 +142,7 @@ final class ProgramsTest extends AppTestCase
         ]]);
 
         self::assertStringContainsString('Hra v lese', $html);
-        self::assertStringContainsString('<p class="sheet-section">Velká hra – 1. blok</p>', $html);
+        self::assertStringContainsString('<span class="sheet-chip">Velká hra – 1. blok</span>', $html);
     }
 
     /** A programme in a section the provider did not list gets no place on the timeline. */
@@ -195,14 +196,44 @@ final class ProgramsTest extends AppTestCase
                 return $this->sections;
             }
 
-            public function getProgramsForIdentity(Identity $identity): array
+            public function getRegistrationWindow(): \App\Program\RegistrationWindow
+            {
+                return new \App\Program\RegistrationWindow(null, null);
+            }
+
+            public function getParticipant(string $sessionToken): \App\Program\Participant
+            {
+                return new \App\Program\Participant(1, null, []);
+            }
+
+            public function getParticipantIdsForProgramme(int $programmeId): array
             {
                 return [];
             }
 
-            public function getTieCodesForProgramme(int $programmeId): array
+            public function startPairing(string $deviceId): \App\Program\Pairing
             {
-                return [];
+                throw new \LogicException('not used by this test');
+            }
+
+            public function pollPairing(string $deviceCode): \App\Program\PairingPoll
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function register(string $sessionToken, int $programmeId): void
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function unregister(string $sessionToken, int $programmeId): void
+            {
+                throw new \LogicException('not used by this test');
+            }
+
+            public function revokeSession(string $sessionToken): void
+            {
+                throw new \LogicException('not used by this test');
             }
         };
 
@@ -213,16 +244,18 @@ final class ProgramsTest extends AppTestCase
         )->getBody();
     }
 
-    /** The two views are named for what they are to a reader: the whole schedule, and theirs. */
-    public function testTheViewTabsAreNamedHarmonogramAndMujProgram(): void
+    /** The three views are named for what they are to a reader: the whole list, the schedule, and theirs. */
+    public function testTheViewTabsAreNamedPrehledHarmonogramAndMoje(): void
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
+        self::assertStringContainsString('<span class="tabs-label">Přehled</span>', $html);
         self::assertStringContainsString('<span class="tabs-label">Harmonogram</span>', $html);
-        self::assertStringContainsString('<span class="tabs-label">Můj program</span>', $html);
+        self::assertStringContainsString('<span class="tabs-label">Moje</span>', $html);
         self::assertStringNotContainsString('>Timeline<', $html);
         self::assertStringNotContainsString('>Seznam<', $html);
         // the keys the script and the stylesheet read are not copy, and stay
+        self::assertStringContainsString('data-pg-view="overview"', $html);
         self::assertStringContainsString('data-pg-view="timeline"', $html);
         self::assertStringContainsString('data-pg-view="list"', $html);
     }
@@ -232,7 +265,7 @@ final class ProgramsTest extends AppTestCase
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
-        self::assertStringContainsString('Přihlas se TIE kódem a uvidíš tady svůj vlastní program.', $html);
+        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
         foreach (['Přihlaste', 'uvidíte', 'nemáte', 'Váš program', 'zkuste'] as $vy) {
             self::assertStringNotContainsString($vy, $html);
         }
@@ -255,7 +288,7 @@ final class ProgramsTest extends AppTestCase
     /** U-M4: a personal list that could not be read dims nothing and claims nothing. */
     public function testAFailedPersonalListDimsNothing(): void
     {
-        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures');
+        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
         $failing = new class ($stub) implements ProgramProviderInterface {
             public function __construct(private ProgramProviderInterface $inner)
             {
@@ -271,18 +304,48 @@ final class ProgramsTest extends AppTestCase
                 return $this->inner->getSections();
             }
 
-            public function getProgramsForIdentity(Identity $identity): array
+            public function getRegistrationWindow(): \App\Program\RegistrationWindow
+            {
+                return $this->inner->getRegistrationWindow();
+            }
+
+            public function getParticipant(string $sessionToken): \App\Program\Participant
             {
                 throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
             }
 
-            public function getTieCodesForProgramme(int $programmeId): array
+            public function getParticipantIdsForProgramme(int $programmeId): array
             {
                 return [];
             }
+
+            public function startPairing(string $deviceId): \App\Program\Pairing
+            {
+                return $this->inner->startPairing($deviceId);
+            }
+
+            public function pollPairing(string $deviceCode): \App\Program\PairingPoll
+            {
+                return $this->inner->pollPairing($deviceCode);
+            }
+
+            public function register(string $sessionToken, int $programmeId): void
+            {
+                $this->inner->register($sessionToken, $programmeId);
+            }
+
+            public function unregister(string $sessionToken, int $programmeId): void
+            {
+                $this->inner->unregister($sessionToken, $programmeId);
+            }
+
+            public function revokeSession(string $sessionToken): void
+            {
+                $this->inner->revokeSession($sessionToken);
+            }
         };
         $app = $this->createApp('obrok19', [ProgramProviderInterface::class => $failing]);
-        $_SESSION['obrok19']['identity'] = ['displayName' => 'TIE ABC123', 'tieCode' => 'ABC123'];
+        $this->loginAs($app);
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
         self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);

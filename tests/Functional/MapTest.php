@@ -4,29 +4,32 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-final class LinksMapTest extends AppTestCase
+/** Místa: the map screen, with Google's embed, the handbook's plan, or both. */
+final class MapTest extends AppTestCase
 {
-    public function testLinksPage(): void
+    /**
+     * The screen is Místa everywhere a reader meets its name: the tab, the app bar, the
+     * document title and the section's label. Only the inner pill keeps Mapa / Plán.
+     */
+    public function testTheTabIsMista(): void
     {
-        $response = $this->request($this->createApp(), 'GET', '/odkazy');
+        $html = (string) $this->request($this->createApp(), 'GET', '/mapa')->getBody();
 
-        self::assertSame(200, $response->getStatusCode());
-        self::assertStringContainsString('Krizový telefon', (string) $response->getBody());
+        self::assertStringContainsString('<span>Místa</span>', $html);
+        self::assertStringNotContainsString('<span>Mapa</span>', $html);
+        self::assertStringContainsString('<span class="appbar-title">Místa</span>', $html);
+        self::assertStringContainsString('<title>Místa · Obrok 2019</title>', $html);
+        self::assertStringContainsString('aria-label="Místa"', $html);
+        self::assertStringContainsString('data-title="Místa"', $html);
+        self::assertStringContainsString('<h1 class="sr-only">Místa</h1>', $html);
+        // the inner view switcher is about the kind of map, not the screen
+        self::assertStringContainsString('<span class="tabs-label">Mapa</span>', $html);
     }
 
-    public function testLinksAreCardsInAList(): void
+    public function testADisabledMapIs404(): void
     {
-        $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/odkazy')->getBody();
-
-        self::assertStringContainsString('<ul class="link-list">', $html);
-        // the handbook first, tonal
-        self::assertMatchesRegularExpression('#<ul class="link-list">\s*<li>\s*<a class="link-card is-highlight" href="[^"]*handbook#', $html);
-        // an external link carries the outward mark, hidden from the accessibility tree
-        // and opens in a new tab; the handbook, the app's own file, does not
-        self::assertStringContainsString('href="https://obrok.skaut.cz/" target="_blank" rel="noopener"', $html);
-        self::assertStringContainsString('<span class="sr-only"> (otevře se v nové záložce)</span>', $html);
-        self::assertDoesNotMatchRegularExpression('#href="[^"]*handbook[^"]*" target=#', $html);
-        self::assertStringContainsString('class="link-card-out fas fa-external-link-alt" aria-hidden="true"', $html);
+        self::assertSame(404, $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/mapa')->getStatusCode());
+        self::assertSame(200, $this->request($this->createApp(), 'GET', '/mapa')->getStatusCode());
     }
 
     /** obrok27 has the embed alone, so its screen is exactly what it was before the plan. */

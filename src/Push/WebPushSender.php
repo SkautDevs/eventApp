@@ -65,16 +65,16 @@ final class WebPushSender implements PushSenderInterface
         string $body,
         ?string $icon = null,
         ?string $url = null,
-        ?array $tieCodes = null,
+        ?array $participantIds = null,
         ?int $programme = null,
     ): array {
-        $rows = $this->repository()->forEvent($event, $tieCodes);
+        $rows = $this->repository()->forEvent($event, $participantIds);
 
         $result = Tracer::span(
             'push.send',
             'event ' . $event,
-            function () use ($event, $rows, $title, $body, $icon, $url, $tieCodes, $programme): array {
-                $target = $tieCodes === null ? 'event' : 'programme';
+            function () use ($event, $rows, $title, $body, $icon, $url, $participantIds, $programme): array {
+                $target = $participantIds === null ? 'event' : 'programme';
                 Tracer::spanTag('push.target', $target);
 
                 $result = $this->deliver($event, $rows, $title, $body, $icon, $url, $programme);
@@ -141,7 +141,7 @@ final class WebPushSender implements PushSenderInterface
     /**
      * What the service worker receives. `programme` is the id of the programme a message is
      * for, or null for everyone: the worker forwards it to the open app (`news-updated`),
-     * which then refreshes the Program screen as well as Novinky.
+     * which then refreshes the Program screen as well as Informace and the home screen.
      */
     public static function payload(string $title, string $body, ?string $icon, ?string $url, ?int $programme): string
     {
@@ -179,7 +179,7 @@ final class WebPushSender implements PushSenderInterface
 
     /**
      * @param string $event every row belongs to it, and a dead row is removed from it only
-     * @param list<array{endpoint: string, publicKey: string, authToken: string, tieCode: ?string}> $rows
+     * @param list<array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}> $rows
      *
      * @return array{sent: int, removed: int, failed: int} failed: neither delivered nor
      *         removed — a refusal other than 404/410 (a VAPID mismatch is a 403), or a throw

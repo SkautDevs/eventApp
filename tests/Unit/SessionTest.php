@@ -34,11 +34,11 @@ final class SessionTest extends TestCase
         $_SESSION = [];
         $a = new Session('korbo26');
         $b = new Session('obrok27');
-        $a->set('identity', ['type' => 'tie']);
+        $a->set('identity', ['participantId' => 1]);
 
         self::assertTrue($a->has('identity'));
         self::assertFalse($b->has('identity'));
-        self::assertSame(['korbo26' => ['identity' => ['type' => 'tie']]], $_SESSION);
+        self::assertSame(['korbo26' => ['identity' => ['participantId' => 1]]], $_SESSION);
     }
 
     public function testDeleteRemovesAStoredNull(): void
@@ -65,12 +65,34 @@ final class SessionTest extends TestCase
 
     public function testALegacyTopLevelIdentityIsIgnoredByANamespacedSession(): void
     {
-        $_SESSION = ['identity' => ['type' => 'tie']];
+        $_SESSION = ['identity' => ['participantId' => 1]];
         $session = new Session('korbo26');
 
         self::assertFalse($session->has('identity'));
         self::assertNull($session->get('identity'));
         $session->delete('identity');
-        self::assertSame(['identity' => ['type' => 'tie']], $_SESSION);
+        self::assertSame(['identity' => ['participantId' => 1]], $_SESSION);
+    }
+
+    public function testIdIsStableForOneSessionAndSharedByItsEvents(): void
+    {
+        $a = new Session('korbo26');
+        $id = $a->id();
+
+        self::assertNotSame('', $id);
+        self::assertSame($id, $a->id());
+        // one cookie per host: every event's device id comes from the same session
+        self::assertSame($id, (new Session('obrok27'))->id());
+        // and the events' own values do not see it
+        self::assertNull($a->get('id'));
+        self::assertFalse((new Session('obrok27'))->has('id'));
+    }
+
+    public function testANewSessionHasANewId(): void
+    {
+        $id = (new Session('korbo26'))->id();
+        $_SESSION = [];
+
+        self::assertNotSame($id, (new Session('korbo26'))->id());
     }
 }
