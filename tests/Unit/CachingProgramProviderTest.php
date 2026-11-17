@@ -16,8 +16,7 @@ use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Psr7\Request;
+use App\Program\ProgramUnavailableException;
 use PHPUnit\Framework\TestCase;
 
 final class CachingProgramProviderTest extends TestCase
@@ -116,9 +115,9 @@ final class CachingProgramProviderTest extends TestCase
         return $provider->getParticipant(self::TOKEN)->programmes;
     }
 
-    private static function down(): ConnectException
+    private static function down(): ProgramUnavailableException
     {
-        return new ConnectException('down', new Request('GET', 'v3/programme/list'));
+        return new \App\Program\ProgramUnavailableException('down');
     }
 
     public function testAFreshEntryMakesNoInnerCall(): void
@@ -195,7 +194,7 @@ final class CachingProgramProviderTest extends TestCase
         try {
             $this->provider($inner)->getPrograms();
             self::fail('the failure was swallowed');
-        } catch (ConnectException $e) {
+        } catch (ProgramUnavailableException $e) {
             self::assertSame($inner->failure, $e);
         }
         self::assertSame([], $this->reported, 'the module reports nothing either: it shows its notice');
@@ -568,7 +567,7 @@ final class CachingProgramProviderTest extends TestCase
         $thrown = null;
         try {
             self::mine($provider);
-        } catch (ConnectException $e) {
+        } catch (ProgramUnavailableException $e) {
             $thrown = $e;
         }
         self::assertSame($inner->identityFailure, $thrown);
@@ -641,7 +640,7 @@ final class CachingProgramProviderTest extends TestCase
         // and a wrong-shaped stale entry is no fallback either
         $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => 'x', 'programmes' => []], 400);
         $inner->failure = self::down();
-        $this->expectException(ConnectException::class);
+        $this->expectException(ProgramUnavailableException::class);
         $this->provider($inner)->getPrograms();
     }
 
@@ -859,7 +858,7 @@ final class CachingProgramProviderTest extends TestCase
         try {
             $provider->getPrograms();
             self::fail('there is nothing to show and the holder failed');
-        } catch (\GuzzleHttp\Exception\TransferException $e) {
+        } catch (\App\Program\ProgramUnavailableException $e) {
             self::assertStringNotContainsString('KORBO', $e->getMessage());
         }
         self::assertSame(0, $inner->listCalls);

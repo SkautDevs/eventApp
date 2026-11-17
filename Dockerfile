@@ -3,10 +3,10 @@ WORKDIR /app
 COPY composer.json composer.lock ./
 RUN composer install --no-dev --no-scripts --prefer-dist --optimize-autoloader --ignore-platform-req=ext-gmp
 
-FROM php:8.3-fpm-alpine
+FROM php:8.5-fpm-alpine
 RUN apk add --no-cache gmp \
  && apk add --no-cache --virtual .build gmp-dev $PHPIZE_DEPS \
- && docker-php-ext-install opcache gmp \
+ && docker-php-ext-install gmp \
  && apk del .build
 COPY docker/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY docker/php.ini /usr/local/etc/php/conf.d/zz-app.ini

@@ -6,7 +6,7 @@ namespace App\Program;
 
 use App\Telemetry\Tracer;
 use GuzzleHttp\ClientInterface;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ResponseException;
 use GuzzleHttp\Exception\TransferException;
 
 /**
@@ -306,7 +306,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
         try {
             $body = Tracer::span($op, $description, fn (): string => (string) $this->http->request($method, $path, $options)->getBody());
         } catch (TransferException $e) {
-            $response = $e instanceof RequestException ? $e->getResponse() : null;
+            $response = $e instanceof ResponseException ? $e->getResponse() : null;
             $status = $response?->getStatusCode();
             $answer = $response !== null ? (string) $response->getBody() : '';
             // the contract's "session gone" is an empty 401; a rejected API key is a 401 with

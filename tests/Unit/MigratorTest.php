@@ -191,9 +191,9 @@ final class MigratorTest extends TestCase
         self::assertSame(Migrator::VERSION, Migrator::version($pdo));
     }
 
-    /** Pdo\Sqlite's constant where it exists (PHP ≥ 8.4; PDO::SQLITE_* is deprecated in 8.5), else PDO's. */
+    /** Pdo\Sqlite's constant by name (PDO::SQLITE_* is deprecated in 8.5). */
     private static function sqlite(string $name): int
     {
-        return class_exists(\Pdo\Sqlite::class) ? constant(\Pdo\Sqlite::class . '::' . $name) : constant('PDO::SQLITE_' . $name);
+        return constant(\Pdo\Sqlite::class . '::' . $name);
     }
 }

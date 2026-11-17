@@ -25,7 +25,15 @@ final class KissjDesignTest extends AppTestCase
         self::assertSame('6px', $event->theme['radius']);
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('events')]
+    /** @return iterable<string, array{string}> */
+    public static function slugs(): iterable
+    {
+        foreach (self::events() as $slug => $row) {
+            yield $slug => [$row[0]];
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('slugs')]
     public function testTheModeControlIsOffered(string $slug): void
     {
         $app = $this->createApp($slug);

@@ -3,7 +3,7 @@
 // Regenerates events/<slug>/fixtures/ from the kissj responses in tests/fixtures/kissj/<slug>/,
 // so a dev event serves that realistic data through the stub provider (PROGRAM_PROVIDER_<SLUG>=local).
 //
-//   docker run --rm -v "$PWD":/app -w /app php:8.3-alpine php bin/kissj-fixtures.php <slug> [--clamp-all-day=HH:MM-HH:MM]
+//   docker run --rm -v "$PWD":/app -w /app php:8.5-alpine php bin/kissj-fixtures.php <slug> [--clamp-all-day=HH:MM-HH:MM]
 //
 // Everything goes through the real KissjProgramProvider, fed the responses by a Guzzle
 // MockHandler, so the stub serves exactly what the kissj provider would. sections.json is

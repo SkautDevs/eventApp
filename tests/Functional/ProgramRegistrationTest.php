@@ -10,7 +10,7 @@ use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
 use App\Program\StubProgramProvider;
-use GuzzleHttp\Exception\TransferException;
+use App\Program\ProgramUnavailableException;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 
@@ -210,7 +210,7 @@ final class ProgramRegistrationTest extends AppTestCase
     /** A window that cannot be read leaves every footer empty: "register" would be a guess. */
     public function testAnUnreadableWindowOffersNoButton(): void
     {
-        $app = $this->korbo(window: static fn () => throw new TransferException('kissj is down'));
+        $app = $this->korbo(window: static fn () => throw new ProgramUnavailableException('kissj is down'));
         $this->pair($app);
         $html = $this->html($app);
 
@@ -224,7 +224,7 @@ final class ProgramRegistrationTest extends AppTestCase
     /** Paired, but the participant's own list could not be read: whose is what is a guess, so no button. */
     public function testAnUnreadPersonalListOffersNoButton(): void
     {
-        $app = $this->korbo(participant: static fn () => throw new TransferException('kissj is down'));
+        $app = $this->korbo(participant: static fn () => throw new ProgramUnavailableException('kissj is down'));
         // a pairing reads the participant, so the identity is stored directly
         $this->loginAs($app);
         $html = $this->html($app);
@@ -357,7 +357,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     public function testAnOutageIsSaidAsOne(): void
     {
-        $app = $this->korbo(static fn () => throw new TransferException('kissj is down'));
+        $app = $this->korbo(static fn () => throw new ProgramUnavailableException('kissj is down'));
         $this->pair($app);
         $response = $this->post($app, self::FREE);
 
@@ -371,7 +371,7 @@ final class ProgramRegistrationTest extends AppTestCase
         foreach ([
             'unknown code' => [new RegistrationRefusedException('somethingNew'), 'Odhlášení se nepodařilo.'],
             'known code' => [new RegistrationRefusedException('closed'), 'Přihlašování není otevřené.'],
-            'outage' => [new TransferException('kissj is down'), 'Odhlášení se teď nedaří, zkus to prosím později.'],
+            'outage' => [new ProgramUnavailableException('kissj is down'), 'Odhlášení se teď nedaří, zkus to prosím později.'],
         ] as $case => [$failure, $title]) {
             $app = $this->korbo(static fn () => throw $failure);
             // the session outlives the app within a test, so the identity is stored directly

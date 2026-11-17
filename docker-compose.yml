@@ -1,6 +1,9 @@
 services:
     slim:
-        image: php:8.3-alpine
+        # php:8.5-alpine plus Composer, gmp and zip (docker/dev.Dockerfile)
+        build:
+            context: docker
+            dockerfile: dev.Dockerfile
         working_dir: /var/www
         # bin/router.php: without it the built-in server 404s /<slug>/precache.json
         command: php -S 0.0.0.0:8080 -t www bin/router.php
@@ -9,7 +12,7 @@ services:
         environment:
             PHP_CLI_SERVER_WORKERS: 4
         ports:
-            - 8080:8080
+            - 8081:8080
         volumes:
             - .:/var/www
 
@@ -28,7 +31,7 @@ services:
             retries: 30
 
     test:
-        image: php:8.3-alpine
+        image: php:8.5-alpine
         profiles: [browser]
         working_dir: /app
         volumes:

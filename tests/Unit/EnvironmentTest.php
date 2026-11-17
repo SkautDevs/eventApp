@@ -10,7 +10,7 @@ final class EnvironmentTest extends TestCase
 {
     public function testPhpVersionFloor(): void
     {
-        self::assertGreaterThanOrEqual(80300, PHP_VERSION_ID);
+        self::assertGreaterThanOrEqual(80500, PHP_VERSION_ID);
     }
 
     /** The deploy numbers docs/deployment.md promises. */

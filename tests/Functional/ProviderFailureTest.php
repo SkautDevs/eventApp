@@ -9,15 +9,13 @@ use App\Program\Pairing;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
 use App\Program\StubProgramProvider;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Psr7\Request;
 
 final class ProviderFailureTest extends AppTestCase
 {
     public function testProgramsPageDegradesGracefullyOnProviderOutage(): void
     {
         $provider = new ThrowingProgramProvider(
-            programsException: new ConnectException('down', new Request('GET', 'x')),
+            programsException: new \App\Program\ProgramUnavailableException('down'),
         );
         $app = $this->createApp(overrides: [ProgramProviderInterface::class => $provider]);
 
@@ -33,7 +31,7 @@ final class ProviderFailureTest extends AppTestCase
     public function testProgramsDegradeUnpersonalizedOnProviderOutage(): void
     {
         $provider = new ThrowingProgramProvider(
-            identityException: new ConnectException('down', new Request('GET', 'x')),
+            identityException: new \App\Program\ProgramUnavailableException('down'),
         );
         $app = $this->createApp(overrides: [
             ProgramProviderInterface::class => $provider,
@@ -51,7 +49,7 @@ final class ProviderFailureTest extends AppTestCase
     /** A pairing start kissj does not answer is explained on Profil, and nothing is pending. */
     public function testAPairingStartDegradesGracefullyOnProviderOutage(): void
     {
-        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $this->failingStart(new ConnectException('down', new Request('POST', 'x')))]);
+        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $this->failingStart(new \App\Program\ProgramUnavailableException('down'))]);
 
         $start = $this->request($app, 'POST', '/profil/propojit');
         self::assertSame(302, $start->getStatusCode());
@@ -107,7 +105,7 @@ final class ProviderFailureTest extends AppTestCase
     public function testTheLogoutExplanationSurvivesASecondFailureInTheSameRequest(): void
     {
         $provider = new ThrowingProgramProvider(
-            programsException: new ConnectException('down', new Request('GET', 'x')),
+            programsException: new \App\Program\ProgramUnavailableException('down'),
             identityException: new SessionExpiredException(),
         );
         $app = $this->createApp(overrides: [

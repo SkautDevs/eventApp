@@ -218,7 +218,7 @@ final class ServiceWorkerTest extends AppTestCase
             'programmes' => $stub->getPrograms(),
             'registration' => ['start' => null, 'end' => null],
         ]);
-        $down = new ThrowingProgramProvider(programsException: new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'v3/programme/list')));
+        $down = new ThrowingProgramProvider(programsException: new \App\Program\ProgramUnavailableException('down'));
         $app = $this->createApp(overrides: [
             \App\Program\ProgramProviderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Program\ProgramProviderInterface => new \App\Program\CachingProgramProvider(
                 inner: $down,

@@ -12,7 +12,7 @@ use App\Program\RegistrationRefusedException;
 use App\Program\SessionExpiredException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\TransferException;
+use App\Program\ProgramUnavailableException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -433,7 +433,7 @@ final class KissjProgramProviderTest extends TestCase
             try {
                 $this->answering($answer)->getParticipant(self::TOKEN);
                 self::fail($case . ' did not fail');
-            } catch (TransferException|ProgramDataException $e) {
+            } catch (ProgramUnavailableException|ProgramDataException $e) {
                 self::assertSame($expected[$case], $e->getMessage(), $case);
                 self::assertNull($e->getPrevious(), $case);
                 self::assertStringNotContainsString(self::TOKEN, $e->getMessage(), $case);
@@ -478,7 +478,7 @@ final class KissjProgramProviderTest extends TestCase
         }
     }
 
-    public function testAFailedParticipantsCallSurfacesAsATransferException(): void
+    public function testAFailedParticipantsCallSurfacesAsAnOutage(): void
     {
         foreach ([new Response(500), new Response(404)] as $answer) {
             try {

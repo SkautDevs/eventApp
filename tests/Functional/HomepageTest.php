@@ -260,7 +260,7 @@ final class HomepageTest extends AppTestCase
             public function getParticipant(string $sessionToken): \App\Program\Participant
             {
                 if ($this->down) {
-                    throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'v3/programme/participant/session'));
+                    throw new \App\Program\ProgramUnavailableException('down');
                 }
 
                 return parent::getParticipant($sessionToken);
@@ -269,7 +269,7 @@ final class HomepageTest extends AppTestCase
             public function getSections(): array
             {
                 if ($this->down) {
-                    throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'v3/programme/list'));
+                    throw new \App\Program\ProgramUnavailableException('down');
                 }
 
                 return parent::getSections();
@@ -278,7 +278,7 @@ final class HomepageTest extends AppTestCase
             public function getRegistrationWindow(): \App\Program\RegistrationWindow
             {
                 if ($this->down) {
-                    throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'v3/programme/list'));
+                    throw new \App\Program\ProgramUnavailableException('down');
                 }
 
                 return parent::getRegistrationWindow();
@@ -301,7 +301,7 @@ final class HomepageTest extends AppTestCase
         $provider = new class (new \App\Program\StubProgramProvider(dirname(__DIR__) . '/fixtures/events/window-before/fixtures', $this->stubState)) extends DelegatingProvider {
             public function getRegistrationWindow(): \App\Program\RegistrationWindow
             {
-                throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'v3/programme/list'));
+                throw new \App\Program\ProgramUnavailableException('down');
             }
         };
         $response = $this->request($this->fixture('window-before', [\App\Program\ProgramProviderInterface::class => $provider]), 'GET', '/');

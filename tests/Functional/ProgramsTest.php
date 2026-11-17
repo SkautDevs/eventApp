@@ -311,7 +311,7 @@ final class ProgramsTest extends AppTestCase
 
             public function getParticipant(string $sessionToken): \App\Program\Participant
             {
-                throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
+                throw new \App\Program\ProgramUnavailableException('down');
             }
 
             public function getParticipantIdsForProgramme(int $programmeId): array
@@ -356,7 +356,7 @@ final class ProgramsTest extends AppTestCase
     /** U-M5: with no programme list the outage notice speaks alone. */
     public function testAnOutageShowsNoEmptyLine(): void
     {
-        $down = new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
+        $down = new \App\Program\ProgramUnavailableException('down');
         $app = $this->createApp('obrok19', [ProgramProviderInterface::class => new ThrowingProgramProvider(programsException: $down)]);
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
         self::assertStringContainsString('Programy se nepodařilo načíst', $html);

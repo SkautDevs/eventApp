@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Telemetry;
 
 use App\Program\SessionExpiredException;
-use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ResponseException;
 use Sentry\SentrySdk;
 use Sentry\State\Scope;
 use Sentry\Tracing\SpanContext;
@@ -65,7 +65,7 @@ final class Tracer
      */
     public static function statusFor(\Throwable $e): SpanStatus
     {
-        if ($e instanceof RequestException && $e->getResponse() !== null) {
+        if ($e instanceof ResponseException) {
             return SpanStatus::createFromHttpStatusCode($e->getResponse()->getStatusCode());
         }
         if ($e instanceof SessionExpiredException) {

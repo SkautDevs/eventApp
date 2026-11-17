@@ -23,7 +23,7 @@ final class IsolatingWebPushTest extends TestCase
         $history = [];
         $stack = HandlerStack::create(new MockHandler([new Response(201), new Response(201)]));
         $stack->push(Middleware::history($history));
-        $webPush = new IsolatingWebPush(['VAPID' => ['subject' => 'mailto:t@example.invalid'] + VAPID::createVapidKeys()], [], 5, ['handler' => $stack], new NullLogger());
+        $webPush = new IsolatingWebPush(['VAPID' => ['subject' => 'mailto:t@example.invalid'] + VAPID::createVapidKeys()], new \GuzzleHttp\Client(['handler' => $stack, 'http_errors' => false]), new NullLogger());
         $good = ['publicKey' => AppTestCase::BROWSER_KEYS['p256dh'], 'authToken' => AppTestCase::BROWSER_KEYS['auth']];
         $webPush->queueNotification(Subscription::create(['endpoint' => 'https://push.example/a'] + $good), 'x');
         $webPush->queueNotification(Subscription::create(['endpoint' => 'https://push.example/bad', 'publicKey' => SubscriptionKeysTest::OFF_CURVE_PUBLIC, 'authToken' => $good['authToken']]), 'x');

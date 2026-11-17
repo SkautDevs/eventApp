@@ -332,7 +332,7 @@ final class StubProgramProviderTest extends TestCase
     }
 
     /**
-     * A state directory that cannot be made is an outage, not a crash: a TransferException,
+     * A state directory that cannot be made is an outage, not a crash: a ProgramUnavailableException,
      * which the Program screen's write turns into "zkus to prosím později".
      */
     public function testAnUnwritableStateDirectoryIsAnOutage(): void
@@ -346,7 +346,7 @@ final class StubProgramProviderTest extends TestCase
         try {
             $provider->register($token, 1);
             self::fail('the write cannot have landed');
-        } catch (\GuzzleHttp\Exception\TransferException $e) {
+        } catch (\App\Program\ProgramUnavailableException $e) {
             self::assertInstanceOf(\App\Program\LocalStateException::class, $e);
         }
     }

@@ -11,8 +11,6 @@ use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
 use App\Program\StubProgramProvider;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Psr7\Request;
 use Slim\App;
 
 /**
@@ -151,7 +149,7 @@ final class PairingTest extends AppTestCase
         $provider = new class ($this->counted()) extends DelegatingProvider {
             public function startPairing(string $deviceId): Pairing
             {
-                throw new ConnectException('down', new Request('POST', 'v3/programme/pairing/start'));
+                throw new \App\Program\ProgramUnavailableException('down');
             }
         };
         $app = $this->korbo($provider);
@@ -480,7 +478,7 @@ final class PairingTest extends AppTestCase
             public function getParticipant(string $sessionToken): Participant
             {
                 if ($this->failures-- > 0) {
-                    throw new ConnectException('down', new Request('GET', 'v3/programme/participant/session'));
+                    throw new \App\Program\ProgramUnavailableException('down');
                 }
 
                 return parent::getParticipant($sessionToken);
@@ -508,7 +506,7 @@ final class PairingTest extends AppTestCase
             public function pollPairing(string $deviceCode): PairingPoll
             {
                 if ($this->failures-- > 0) {
-                    throw new ConnectException('down', new Request('POST', 'v3/programme/pairing/poll'));
+                    throw new \App\Program\ProgramUnavailableException('down');
                 }
 
                 return parent::pollPairing($deviceCode);
@@ -581,7 +579,7 @@ final class PairingTest extends AppTestCase
      */
     public function testARevokeOfAnExpiredSessionIsNotReportedButAnOutageIs(): void
     {
-        foreach ([[new SessionExpiredException(), 0], [new ConnectException('down', new Request('POST', 'v3/programme/session/revoke')), 1]] as [$failure, $expected]) {
+        foreach ([[new SessionExpiredException(), 0], [new \App\Program\ProgramUnavailableException('down'), 1]] as [$failure, $expected]) {
             $_SESSION = [];
             $app = $this->korbo(new class ($this->counted(), $failure) extends DelegatingProvider {
                 public function __construct(ProgramProviderInterface $inner, private readonly \Throwable $failure)
@@ -613,7 +611,7 @@ final class PairingTest extends AppTestCase
     private function capturingSentry(\Closure $fn): array
     {
         $captured = [];
-        $client = $this->createMock(\Sentry\ClientInterface::class);
+        $client = self::createStub(\Sentry\ClientInterface::class);
         // tracing off, so the transaction middleware starts nothing
         $client->method('getOptions')->willReturn(new \Sentry\Options(['traces_sample_rate' => null]));
         $client->method('captureException')->willReturnCallback(static function (\Throwable $e) use (&$captured) {

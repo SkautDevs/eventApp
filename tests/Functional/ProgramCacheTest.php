@@ -9,8 +9,6 @@ use App\Program\CachingProgramProvider;
 use App\Program\Freshness;
 use App\Program\ProgramProviderInterface;
 use App\Program\StubProgramProvider;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Psr7\Request;
 use Psr\Container\ContainerInterface;
 use Slim\App;
 
@@ -52,7 +50,7 @@ final class ProgramCacheTest extends AppTestCase
                     'registration' => ['start' => null, 'end' => null],
                 ]);
         }
-        $down = new ThrowingProgramProvider(programsException: new ConnectException('down', new Request('GET', 'v3/programme/list')));
+        $down = new ThrowingProgramProvider(programsException: new \App\Program\ProgramUnavailableException('down'));
 
         return $this->createApp(overrides: [
             ProgramProviderInterface::class => fn (ContainerInterface $c): ProgramProviderInterface => new CachingProgramProvider(

@@ -173,7 +173,7 @@ final class InfoModuleTest extends AppTestCase
         $provider = $this->failingAfterPairing('korbo26');
         $app = $this->app('korbo26', [ProgramProviderInterface::class => $provider]);
         $this->pair($app);
-        $provider->failure = new \GuzzleHttp\Exception\TransferException('kissj is down');
+        $provider->failure = new \App\Program\ProgramUnavailableException('kissj is down');
 
         $response = $this->request($app, 'GET', '/informace');
         $html = (string) $response->getBody();

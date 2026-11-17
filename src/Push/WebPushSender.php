@@ -123,7 +123,7 @@ final class WebPushSender implements PushSenderInterface
 
     /**
      * The library, in its batch-isolating form, with this sender's timeout. Its constructor
-     * checks the platform: without GMP or BCMath — the bare php:8.3-alpine dev container —
+     * checks the platform: without GMP or BCMath — the bare php:8.5-alpine dev container —
      * it advises installing one. Given a logger it says so there instead of raising an
      * E_USER_NOTICE that a displaying dev server prints into the response and Sentry's
      * error listener would file; PlatformAdviceFilter then drops that one message, which
@@ -135,7 +135,9 @@ final class WebPushSender implements PushSenderInterface
      */
     public static function webPush(array $vapid, array $clientOptions = [], LoggerInterface $logger = new NullLogger()): IsolatingWebPush
     {
-        return new IsolatingWebPush(['VAPID' => $vapid], [], self::TIMEOUT_SECONDS, $clientOptions, new PlatformAdviceFilter($logger));
+        $http = new \GuzzleHttp\Client(['timeout' => self::TIMEOUT_SECONDS, 'http_errors' => false] + $clientOptions);
+
+        return new IsolatingWebPush(['VAPID' => $vapid], $http, new PlatformAdviceFilter($logger));
     }
 
     /**

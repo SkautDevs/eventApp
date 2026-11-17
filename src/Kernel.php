@@ -614,7 +614,7 @@ final class Kernel
                     $identity = null;
                     // this very page renders logged out, so it says why itself
                     $toast = Kernel::goneToast();
-                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                } catch (\App\Program\ProgramUnavailableException | Program\ProgramDataException) {
                     $mine = [];
                 }
             }
@@ -622,7 +622,7 @@ final class Kernel
             if ($provider !== null && $mine !== []) {
                 try {
                     $sections = $provider->getSections();
-                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                } catch (\App\Program\ProgramUnavailableException | Program\ProgramDataException) {
                     // the cards lose their third line, nothing else
                 }
             }
@@ -630,7 +630,7 @@ final class Kernel
             if ($provider !== null && $phase === 'before') {
                 try {
                     $window = $provider->getRegistrationWindow();
-                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                } catch (\App\Program\ProgramUnavailableException | Program\ProgramDataException) {
                     // no window card
                 }
             }
@@ -715,7 +715,7 @@ final class Kernel
                         ];
                     });
                     Telemetry\Tracer::tag('pairing_outcome', 'started');
-                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException) {
+                } catch (\App\Program\ProgramUnavailableException | Program\ProgramDataException) {
                     // never arrived, kissj's cap, or an answer that is not a pairing: one notice
                     $session->transact(static function (array &$bag): void {
                         unset($bag['pairing']);
@@ -743,7 +743,7 @@ final class Kernel
                 $provider = $this->get(Program\ProgramProviderInterface::class);
                 try {
                     $poll = $provider->pollPairing($pairing->deviceCode);
-                } catch (\GuzzleHttp\Exception\TransferException | Program\ProgramDataException $e) {
+                } catch (\App\Program\ProgramUnavailableException | Program\ProgramDataException $e) {
                     Telemetry\Collector::collect($e);
 
                     return Program\PairingStatus::Pending->value;

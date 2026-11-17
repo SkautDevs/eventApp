@@ -8,7 +8,6 @@ use App\Cache\CacheEntry;
 use App\Cache\FileCache;
 use App\Telemetry\Collector;
 use App\Telemetry\Tracer;
-use GuzzleHttp\Exception\TransferException;
 
 /**
  * kissj's answers, kept on disk: the `list` entry (sections, programmes and the
@@ -396,7 +395,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
             if ($waitedSince !== null && $this->failedSince($waitedSince)) {
                 $this->failure = [
                     'generation' => $generation,
-                    'error' => new TransferException('kissj failed for the request this one waited for'),
+                    'error' => new ProgramUnavailableException('kissj failed for the request this one waited for'),
                     'reported' => false,
                 ];
 
@@ -408,7 +407,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
             $mark = $this->writeMark($key);
             try {
                 $data = $fetch();
-            } catch (TransferException|ProgramDataException $e) {
+            } catch (ProgramUnavailableException|ProgramDataException $e) {
                 // SessionExpiredException is an answer and passes by without tripping this
                 $this->failure = ['generation' => $generation, 'error' => $e, 'reported' => false];
                 $this->markDown();

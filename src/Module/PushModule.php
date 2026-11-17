@@ -273,7 +273,7 @@ final class PushModule implements ModuleInterface
                 try {
                     $participantIds = $this->get(\App\Program\ProgramProviderInterface::class)
                         ->getParticipantIdsForProgramme((int) $programme['id']);
-                } catch (\GuzzleHttp\Exception\TransferException|\App\Program\ProgramDataException) {
+                } catch (\App\Program\ProgramUnavailableException|\App\Program\ProgramDataException) {
                     return $render($request, $response->withStatus(502), [
                         'errors' => ['Nepodařilo se načíst přihlášené z KissJ, nic nebylo odesláno.'],
                         'values' => $values,
@@ -399,7 +399,7 @@ final class PushModule implements ModuleInterface
     {
         try {
             return [$c->get(\App\Program\ProgramProviderInterface::class)->getPrograms(), false];
-        } catch (\GuzzleHttp\Exception\TransferException|\App\Program\ProgramDataException) {
+        } catch (\App\Program\ProgramUnavailableException|\App\Program\ProgramDataException) {
             return [[], true];
         }
     }

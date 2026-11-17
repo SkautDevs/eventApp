@@ -13,7 +13,7 @@ use App\Program\SessionExpiredException;
 use App\Push\MessageRepository;
 use App\Push\NewsItems;
 use App\Session;
-use GuzzleHttp\Exception\TransferException;
+use App\Program\ProgramUnavailableException;
 use Slim\App;
 use Slim\Views\Twig;
 
@@ -54,7 +54,7 @@ final class InfoModule implements ModuleInterface
                     // kissj no longer knows the device session: logged out, Profil says why
                     Kernel::sessionGone($auth, $this->get(Session::class));
                     $mine = [];
-                } catch (TransferException|ProgramDataException) {
+                } catch (ProgramUnavailableException|ProgramDataException) {
                     // an outage logs nobody out and is not explained here: without the
                     // registrations the list simply shows what everybody sees
                     $mine = [];

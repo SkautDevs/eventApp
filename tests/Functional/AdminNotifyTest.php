@@ -499,7 +499,7 @@ final class AdminNotifyTest extends AppTestCase
 
             public function getParticipantIdsForProgramme(int $programmeId): array
             {
-                throw new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x'));
+                throw new \App\Program\ProgramUnavailableException('down');
             }
 
             public function startPairing(string $deviceId): \App\Program\Pairing
@@ -544,7 +544,7 @@ final class AdminNotifyTest extends AppTestCase
     public function testAProgrammeOutageLeavesOnlyEveryone(): void
     {
         $provider = new ThrowingProgramProvider(
-            programsException: new \GuzzleHttp\Exception\ConnectException('down', new \GuzzleHttp\Psr7\Request('GET', 'x')),
+            programsException: new \App\Program\ProgramUnavailableException('down'),
         );
         $app = $this->korbo([\App\Program\ProgramProviderInterface::class => $provider]);
         $csrf = $this->logIn($app, 'korbo-token');
@@ -855,7 +855,7 @@ final class AdminNotifyTest extends AppTestCase
 
             public function getParticipantIdsForProgramme(int $programmeId): array
             {
-                throw new \GuzzleHttp\Exception\ConnectException('kissj down', new \GuzzleHttp\Psr7\Request('GET', 'https://kissj.example/'));
+                throw new \App\Program\ProgramUnavailableException('kissj down');
             }
 
             public function startPairing(string $deviceId): \App\Program\Pairing

@@ -68,8 +68,8 @@ so removed assets are also deleted from the server.
 
 ### Host requirements
 
-- PHP **8.5** (the version in `.github/php-version`: the uploaded `vendor/` was resolved
-  on it; the code itself runs on 8.3 and up) with `json`, `mbstring`, `pdo_sqlite`,
+- PHP **8.5** (the version in `.github/php-version` and the lowest the code supports,
+  `composer.json`'s `php: >=8.5`) with `json`, `mbstring`, `pdo_sqlite`,
   `openssl` and `curl` — `minishlink/web-push` requires `mbstring`, `openssl` and
   `curl`, and Sentry needs `curl` and `mbstring` too — and `gmp` or `bcmath`, which make
   push encryption fast (without either the library still works and advises installing
@@ -565,16 +565,16 @@ included) on the PHP version in `.github/php-version` (8.5) on `ubuntu-latest`:
 (`PANTHER_CHROME_DRIVER_BINARY`, found with `command -v chromedriver`, falling back to
 `$CHROMEWEBDRIVER/chromedriver`), and `PANTHER_NO_SKIP=1` makes a missing Chrome a
 failure instead of a skip. Its `audit` job runs `composer audit --locked`. Locally the
-fast lane runs on both the lowest supported PHP and the production one:
-`docker run --rm -v "$PWD":/app -w /app php:8.3-alpine vendor/bin/phpunit --exclude-group browser`
-and the same with `php:8.5-alpine`. The browser tests run against
+fast lane runs on that same PHP, the lowest supported and the production one:
+`docker run --rm -v "$PWD":/app -w /app php:8.5-alpine vendor/bin/phpunit --exclude-group browser`.
+The browser tests run against
 `selenium/standalone-chrome`:
 `docker compose --profile browser run --rm --use-aliases test vendor/bin/phpunit --group browser`
 (`docker compose --profile browser stop chrome` afterwards). The `test` service runs as
 root, as `slim` does, so a browser run leaves root-owned files under `var/`; if a later
 run as your own user cannot write there, remove them from a container:
-`docker run --rm -v "$PWD":/app -w /app php:8.3-alpine sh -c 'rm -rf var/twig/* var/sessions var/cache var/stub'`.
-There is no Node anywhere in the project. Composer under the `php:8.3-alpine` image
+`docker run --rm -v "$PWD":/app -w /app php:8.5-alpine sh -c 'rm -rf var/twig/* var/sessions var/cache var/stub'`.
+There is no Node anywhere in the project. Composer under the `php:8.5-alpine` image
 needs `--ignore-platform-req=ext-gmp --ignore-platform-req=ext-zip` (php-webdriver
 declares `ext-zip`, which Chrome never needs); the production installs are `--no-dev`
 and are unaffected.

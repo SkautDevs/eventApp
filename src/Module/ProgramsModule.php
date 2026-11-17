@@ -17,7 +17,7 @@ use App\Push\MessageRepository;
 use App\Push\NewsItems;
 use App\Session;
 use App\Telemetry\Collector;
-use GuzzleHttp\Exception\TransferException;
+use App\Program\ProgramUnavailableException;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 use Slim\Views\Twig;
@@ -148,7 +148,7 @@ final class ProgramsModule implements ModuleInterface
                     // this very page renders logged out, so it says why itself
                     Kernel::sessionGone($auth, $this->get(Session::class));
                     $toast = Kernel::goneToast();
-                } catch (TransferException | ProgramDataException) {
+                } catch (ProgramUnavailableException | ProgramDataException) {
                     // never arrived, or arrived as something that is not programme data —
                     // the reader is told the same thing either way
                     $notices[] = 'Osobní program se nepodařilo načíst.';
@@ -162,7 +162,7 @@ final class ProgramsModule implements ModuleInterface
             try {
                 $all = $provider->getPrograms();
                 $sections = $provider->getSections();
-            } catch (TransferException | ProgramDataException) {
+            } catch (ProgramUnavailableException | ProgramDataException) {
                 $notices[] = 'Programy se nepodařilo načíst, zkus to prosím později.';
                 $unavailable = true;
             }
@@ -175,7 +175,7 @@ final class ProgramsModule implements ModuleInterface
             if ($model['details'] !== []) {
                 try {
                     $window = $provider->getRegistrationWindow();
-                } catch (TransferException | ProgramDataException) {
+                } catch (ProgramUnavailableException | ProgramDataException) {
                     $window = null;
                 }
             }
@@ -280,7 +280,7 @@ final class ProgramsModule implements ModuleInterface
             Kernel::sessionGone($auth, $session);
             $gone = Kernel::goneToast();
             Kernel::putToast($session, $gone['title'], $gone['line']);
-        } catch (TransferException | ProgramDataException $e) {
+        } catch (ProgramUnavailableException | ProgramDataException $e) {
             // LocalStateException included: the local source's state file could not be written
             Collector::collect($e);
             Kernel::putToast($session, self::WRITE_FAILED[$register], null);
@@ -302,7 +302,7 @@ final class ProgramsModule implements ModuleInterface
                     return $programme;
                 }
             }
-        } catch (TransferException | ProgramDataException) {
+        } catch (ProgramUnavailableException | ProgramDataException) {
             // the toast then names no programme, and the deep link no section
         }
 

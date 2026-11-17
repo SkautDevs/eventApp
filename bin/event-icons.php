@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Generates an event's favicon and app-icon set from one drawing.
  *
- *   docker run --rm -v "$PWD":/app -w /app php:8.3-alpine sh -c \
+ *   docker run --rm -v "$PWD":/app -w /app php:8.5-alpine sh -c \
  *     'apk add --no-cache libpng-dev >/dev/null && docker-php-ext-install gd >/dev/null \
  *      && php bin/event-icons.php <slug> <source.png> <#background>'
  *
