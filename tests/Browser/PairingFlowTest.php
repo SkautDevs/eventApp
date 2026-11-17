@@ -50,7 +50,7 @@ final class PairingFlowTest extends BrowserTestCase
             self::assertStringContainsString('Nejsi přihlášen', (string) self::script('return document.querySelector(\'[data-screen="/korbo26/profil"]\').textContent;'));
             self::tap('[data-screen="/korbo26/profil"] form[action="/korbo26/profil/propojit"] button.btn-primary');
 
-            self::waitFor('const code = document.querySelector("[data-pairing-poll]"); return code !== null && code.textContent.trim() === "483-291";');
+            self::waitFor('const code = document.querySelector("[data-pairing-poll]"); return code !== null && code.textContent.trim() === "483 291";');
             self::assertSame('Čekám na potvrzení v KissJ…', self::script('return document.querySelector("[data-pairing-status]").textContent.trim();'));
             // drawn, not just present: www/push.js once hid it as one of its own status lines
             self::waitFor('return document.readyState === "complete";');

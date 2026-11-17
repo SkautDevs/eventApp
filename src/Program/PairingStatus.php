@@ -10,6 +10,5 @@ enum PairingStatus: string
     case Pending = 'pending';
     case SlowDown = 'slowDown';
     case Expired = 'expired';
-    case Denied = 'denied';
     case Approved = 'approved';
 }

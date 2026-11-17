@@ -41,6 +41,6 @@ final class EventCatalogTest extends TestCase
     {
         $catalog = new EventCatalog(dirname(__DIR__, 2) . '/events');
 
-        self::assertSame(['korbo26', 'miquik26', 'navigamus25', 'obrok19', 'obrok27'], $catalog->slugs());
+        self::assertSame(['korbo26', 'miquik26', 'navigamus27', 'obrok19', 'obrok27'], $catalog->slugs());
     }
 }

@@ -631,7 +631,8 @@
 		}
 		var tab = section.dataset.tab || '';
 		document.body.className = 'screen-' + (tab !== '' ? tab : 'other');
-		document.querySelectorAll('.tabbar .tab').forEach(function (link) {
+		// the app bar's profile link is lit like a tab while Profil is shown
+		document.querySelectorAll('.tabbar .tab, .appbar-profile').forEach(function (link) {
 			var active = pathOf(link.href) === currentPath;
 			link.classList.toggle('is-active', active);
 			// The fill is pixels and .is-active is a class name; aria-current is the

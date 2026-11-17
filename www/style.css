@@ -50,6 +50,25 @@
 	unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
+/* Seatren and Luciao Sans, navigamus27's faces (licensed for the event, as in kissj's
+   Navigamus 2027 skin). Each ships one regular weight, Czech included: Seatren is the
+   display face, always uppercase, and nothing asks it for a bold. */
+@font-face {
+	font-family: 'Seatren';
+	src: url('/fonts/seatren/seatren-v1.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: 'Luciao Sans';
+	src: url('/fonts/luciao-sans/luciao-sans-v1-regular.woff2') format('woff2');
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
 
 /* ---------------------------------------------------------------------------
    App shell.
@@ -437,6 +456,15 @@ body {
 
 :root[data-mode="dark"] .mode-dark-only {
 	display: block;
+}
+
+/* On Profil the link is lit like the active tab. The tab is filled with `state`, but
+   the app bar already is, so here the bar's pair swaps: its ink becomes the fill and
+   its fill the ink, at exactly the bar's own contrast. */
+.appbar-profile.is-active, .appbar-profile.is-active:visited {
+	background-color: var(--on-state);
+	color: var(--state);
+	border-radius: var(--theme-radius-pill, 999px);
 }
 
 /* the glyph, or the avatar, is the link */
@@ -1247,10 +1275,6 @@ div.login-box {
 	font-variant-numeric: tabular-nums;
 }
 
-.profile-web {
-	font-size: var(--fs-sm);
-}
-
 .profile-logout {
 	margin: 24px 0;
 }
@@ -1844,7 +1868,7 @@ div.news {
 	--reg-line: var(--role-registered-line, var(--hairline));
 	--reg-width: var(--role-registered-width, 1px);
 	/* the registered card's own ink: on an accent fill the grid's card ink can fall far
-	   below AA (navigamus25 light was 2.0:1), so a set that fills with its accent names it */
+	   below AA (navigamus27 light was 2.0:1), so a set that fills with its accent names it */
 	--reg-fg: var(--role-on-registered, var(--on-structure));
 	display: flex;
 	flex-direction: column;
@@ -2219,9 +2243,12 @@ div.news {
 	opacity: 0.75;
 }
 
+/* a name is whatever kissj sends: one unbroken run (obrok27's fixtures carry 366 stray
+   accents) must wrap rather than widen the list and push the docked bars off a phone */
 .pl-name {
 	margin: 0 0 2px;
 	font-size: var(--fs-lg);
+	overflow-wrap: anywhere;
 }
 
 .pl-meta {

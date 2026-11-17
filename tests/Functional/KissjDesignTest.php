@@ -11,7 +11,8 @@ final class KissjDesignTest extends AppTestCase
     public static function events(): iterable
     {
         yield 'korbo26' => ['korbo26', '#dd6700', '#dd6700'];
-        yield 'navigamus25' => ['navigamus25', '#204c68', '#57A0AD'];
+        // the 2027 identity: kissj's purple, inverted to white for the dark selected state
+        yield 'navigamus27' => ['navigamus27', '#1b0e44', '#ffffff'];
         yield 'miquik26' => ['miquik26', '#0D71B9', '#85A2D5'];
     }
 
@@ -46,9 +47,10 @@ final class KissjDesignTest extends AppTestCase
 
     public function testKissjLogosAreShipped(): void
     {
-        foreach (['korbo26', 'navigamus25'] as $slug) {
+        // navigamus27's home tab shows the house icon: its N27 mark is on the app bar instead
+        foreach (['korbo26' => ['menuLogo', 'mainLogo'], 'navigamus27' => ['appBarLogo', 'mainLogo', 'mainLogoDark']] as $slug => $keys) {
             $assets = \App\EventConfig::load($this->eventsDir(), $slug)->get('assets');
-            foreach (['menuLogo', 'mainLogo'] as $key) {
+            foreach ($keys as $key) {
                 self::assertFileExists(dirname(__DIR__, 2) . '/www/' . $assets[$key], $slug . ' ' . $key);
             }
         }

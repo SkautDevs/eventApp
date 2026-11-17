@@ -15,7 +15,7 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class ViewPillTest extends BrowserTestCase
 {
-    private const array EVENTS = ['korbo26', 'obrok27', 'navigamus25', 'miquik26', 'obrok19'];
+    private const array EVENTS = ['korbo26', 'obrok27', 'navigamus27', 'miquik26', 'obrok19'];
 
     private const array WIDTHS = [320, 360, 390];
 
@@ -84,5 +84,33 @@ final class ViewPillTest extends BrowserTestCase
         } finally {
             self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
         }
+    }
+
+    /**
+     * No view widens the page: a phone that can scroll sideways moves the fixed tab bar and
+     * the docked pill off the screen. obrok27's fixtures carry a name that is one unbroken
+     * run of 366 characters, which once made Přehled 2257px wide at 358px.
+     */
+    public function testNoViewScrollsThePageSideways(): void
+    {
+        $wide = [];
+        try {
+            self::overrideViewport(320, 700);
+            foreach (self::EVENTS as $slug) {
+                self::visit('/' . $slug . '/programy');
+                self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
+                foreach (self::VIEWS as $view) {
+                    self::script('document.querySelector(\'[data-pg-view="' . $view . '"]\').click();');
+                    self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "' . $view . '";');
+                    $width = self::script('return document.documentElement.scrollWidth;');
+                    if ($width > 320) {
+                        $wide[] = $slug . ' ' . $view . ': ' . $width . 'px';
+                    }
+                }
+            }
+        } finally {
+            self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
+        }
+        self::assertSame([], $wide);
     }
 }

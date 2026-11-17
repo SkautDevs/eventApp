@@ -1,6 +1,8 @@
 {% extends fragment ? "_screen.twig" : "_layout.twig" %}
 
 {% set pageTitle = 'Profil' %}
+{# not a tab: the app bar's profile link is what this lights up #}
+{% set profileActive = true %}
 {# an event is dark-capable only if it hand-authored a full dark role set #}
 {% set hasDark = event.roles.dark is defined and event.roles.dark is not empty %}
 
@@ -32,9 +34,6 @@
 			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form">
 				<button type="submit" class="btn btn-primary">Přihlásit kódem z KissJ</button>
 			</form>
-			{% if event.website ?? false %}
-				<p class="profile-web">Nejsi ještě registrovaný účastník? Navštiv <a href="{{ event.website }}" target="_blank" rel="noopener">web akce ↗</a> a zjisti víc!</p>
-			{% endif %}
 		{% endif %}
 	</div>
 	{% include '_install.twig' with {installCard: 'profile'} %}

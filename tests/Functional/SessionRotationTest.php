@@ -163,7 +163,7 @@ final class SessionRotationTest extends TestCase
         ]);
         $issued = $this->cookieOf($response);
         self::assertNotSame(str_repeat('a', 32), $issued, 'strict mode never adopts an ID it did not issue');
-        self::assertStringContainsString('483-291', (string) $this->get('/korbo26/profil', $issued)->getBody());
+        self::assertStringContainsString('483 291', (string) $this->get('/korbo26/profil', $issued)->getBody());
     }
 
     public function testALoggedInPageReissuesTheSameCookieForThirtyDays(): void

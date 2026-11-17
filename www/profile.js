@@ -4,7 +4,7 @@
  *
  * The poll. While the pairing code is on a visible screen ([data-pairing-poll]), the page
  * asks eventApp every 5 s whether KissJ has answered; eventApp asks kissj with the device
- * code kept in the server-side session. "approved", "denied" and "expired" end it: the
+ * code kept in the server-side session. "approved" and "expired" end it: the
  * page reloads Profil, which then shows the reader paired, or the line that says why not.
  * "pending" and "slowDown" mean ask again, and so does a request that failed — eventApp
  * answers its own failures as "pending" too. Leaving the screen (or the page) stops the
@@ -61,7 +61,7 @@
 			.then(function (body) {
 				asking = false;
 				var status = body && body.status;
-				if (status === 'approved' || status === 'denied' || status === 'expired') {
+				if (status === 'approved' || status === 'expired') {
 					// the server renders the outcome: a paired Profil, or the line that says why not
 					leaving = true;
 					stop();

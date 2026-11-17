@@ -28,7 +28,6 @@ final class Kernel
      * or a session went wrong, by the code in the session's pairingOutcome.
      */
     private const array PAIRING_OUTCOMES = [
-        'denied' => 'Přihlášení bylo v KissJ zamítnuto.',
         'expired' => 'Kód vypršel, začni znovu.',
         'gone' => 'Propojení s KissJ už neplatí, přihlas se znovu.',
         'busy' => 'Teď se propojuje moc lidí najednou, zkus to za chvíli.',
@@ -728,10 +727,10 @@ final class Kernel
             return $response->withHeader('Location', $base . '/profil')->withStatus(302);
         })->setName('pairing-start');
 
-        // What Profil's script asks every 5 s while the code is shown (www/profile.js). It is
-        // always a 200 with one of the contract's statuses: "pending" (and "slowDown") mean
-        // ask again, "approved" means the reader is now logged in, "denied" and "expired" end
-        // the pairing and leave the line to Profil. A failure is "pending" too: the page keeps
+        // What Profil's script asks every 5 s while the code is shown (www/profile.js).
+        // It is always a 200 with one of the contract's statuses: "pending" (and "slowDown")
+        // mean ask again, "approved" means the reader is now logged in, "expired" ends the
+        // pairing and leaves the line to Profil. A failure is "pending" too: the page keeps
         // asking and the pairing stays, so kissj's re-issued approval is collected later.
         $app->get('/profil/propojit/stav', function ($request, $response) {
             $session = $this->get(Session::class);
@@ -776,7 +775,6 @@ final class Kernel
                         Telemetry\Tracer::tag('pairing_outcome', 'approved');
 
                         return $poll->status->value;
-                    case Program\PairingStatus::Denied:
                     case Program\PairingStatus::Expired:
                         $outcome = $poll->status->value;
                         $session->transact(static function (array &$bag) use ($outcome): void {

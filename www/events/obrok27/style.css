@@ -85,6 +85,14 @@ textarea,
 	color: var(--role-on-bar, var(--on-state));
 }
 
+/* Profil lights its link with the bar's pair swapped, in the active tab's shape */
+.appbar-profile.is-active, .appbar-profile.is-active:visited {
+	background-color: var(--role-on-bar, var(--on-state));
+	color: var(--role-bar, var(--state));
+	border-radius: 0;
+	clip-path: var(--o27-chip-shape);
+}
+
 /* rings sit inside the control, on the bar's own fill */
 .appbar :focus-visible,
 .tabbar :focus-visible {

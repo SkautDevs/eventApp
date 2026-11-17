@@ -99,16 +99,15 @@ final class TouchTargetTest extends BrowserTestCase
      * phone width a paired event's title must not lose even a sub-pixel to it.
      *
      * The widths are what they are because the hermetic lane now loads the real fonts
-     * (self-hosted since Round E); it used to measure the fallback. navigamus25's
-     * "Navigamus 2025" in real skautbold is 176.5px, and at 320px the mark, its gap and
-     * the title want 213px of the brand's 198px cap, so it ellipsises there — as it
-     * always did in production, where skautbold came from the CDN. That is accepted
-     * (controller ruling E-1), so navigamus25 is held at 360px only. obrok27, in
+     * (self-hosted since Round E); it used to measure the fallback. navigamus27's
+     * "NAVIGAMUS 2027" in Seatren is about 171px, and at 320px it does not fit beside the
+     * wide N27 mark, so it ellipsises there — as the skautbold title before it always did.
+     * That is accepted (controller ruling E-1), so navigamus27 is held at 360px only. obrok27, in
      * Montserrat, is held at both 320px and 360px.
      */
     public function testTheTitleKeepsItsFullWidthOnAnOrdinaryPhone(): void
     {
-        foreach (['navigamus25' => [360], 'obrok27' => [320, 360]] as $slug => $widths) {
+        foreach (['navigamus27' => [360], 'obrok27' => [320, 360]] as $slug => $widths) {
             self::pair($slug);
 
             foreach ($widths as $width) {

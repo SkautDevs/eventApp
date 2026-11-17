@@ -57,7 +57,7 @@ final class PairingTest extends AppTestCase
         self::assertSame('/korbo26/profil', $response->getHeaderLine('Location'));
 
         $html = $this->html($app, '/profil');
-        self::assertStringContainsString('<p class="pairing-code" data-pairing-poll>483-291</p>', $html);
+        self::assertStringContainsString('<p class="pairing-code" data-pairing-poll>483 291</p>', $html);
         self::assertStringContainsString('<p>Zadej kód v KissJ, nebo</p>', $html);
         self::assertMatchesRegularExpression('#<a class="btn btn-primary" href="https://kissj\.example/pairing" target="_blank" rel="noopener">Otevřít KissJ ↗</a>#u', $html);
         // its own class: www/push.js hides every .push-status while it has no push status to show
@@ -98,16 +98,15 @@ final class PairingTest extends AppTestCase
         self::assertStringContainsString('<h2>Nejsi přihlášen</h2>', $html);
         self::assertStringContainsString('Obsah můžeš jen prohlížet. Pro výběr programů a další akce je třeba být registrovaným účastníkem této akce a přihlásit se:', $html);
         self::assertMatchesRegularExpression('#<form method="post" action="/korbo26/profil/propojit"[^>]*>\s*<button type="submit" class="btn btn-primary">Přihlásit kódem z KissJ</button>#u', $html);
-        // korbo26 has no website
-        self::assertStringNotContainsString('profile-web', $html);
         self::assertStringContainsString('<title>Profil · ', $html);
     }
 
-    public function testObrok27LinksItsWebsiteForThoseNotRegisteredYet(): void
+    public function testProfilLinksNoEventWebsite(): void
     {
         $html = $this->html($this->createApp('obrok27'), '/profil');
 
-        self::assertStringContainsString('<p class="profile-web">Nejsi ještě registrovaný účastník? Navštiv <a href="https://obrok.skaut.cz/" target="_blank" rel="noopener">web akce ↗</a> a zjisti víc!</p>', $html);
+        self::assertStringNotContainsString('Nejsi ještě registrovaný účastník', $html);
+        self::assertStringNotContainsString('https://obrok.skaut.cz/', $html);
     }
 
     public function testACrossSiteStartIs403AndStartsNothing(): void
@@ -304,7 +303,10 @@ final class PairingTest extends AppTestCase
 
         self::assertStringNotContainsString('appbar-avatar', $html);
         self::assertStringNotContainsString('class="avatar"', $html);
-        self::assertMatchesRegularExpression('#<a class="appbar-profile" href="/obrok27/profil">\s*<span class="sr-only">Profil</span>\s*<i class="fas fa-user-circle" aria-hidden="true"></i>#u', $html);
+        // on Profil the link is lit like the current tab
+        self::assertMatchesRegularExpression('#<a class="appbar-profile is-active" href="/obrok27/profil" aria-current="page">\s*<span class="sr-only">Profil</span>\s*<i class="fas fa-user-circle" aria-hidden="true"></i>#u', $html);
+        // and nowhere else
+        self::assertStringContainsString('<a class="appbar-profile" href="/obrok27/profil">', $this->html($app, '/programy'));
         self::assertMatchesRegularExpression('#<h2 class="profile-who"><i class="fas fa-user-circle" aria-hidden="true"></i> Účastník</h2>#u', $html);
         self::assertStringContainsString('<meta name="push-identity" content="1">', $html);
     }
@@ -331,48 +333,23 @@ final class PairingTest extends AppTestCase
         self::assertSame(count(self::MINE), substr_count($this->html($app, '/programy'), '<p class="sheet-mine">'));
     }
 
-    public function testADeniedPairingSaysSoUntilTheNextStartAndOffersTheStartAgain(): void
-    {
-        $app = $this->korbo(new class ($this->counted()) extends DelegatingProvider {
-            public function pollPairing(string $deviceCode): PairingPoll
-            {
-                return new PairingPoll(\App\Program\PairingStatus::Denied);
-            }
-        });
-        $this->request($app, 'POST', '/profil/propojit');
-
-        self::assertSame(['status' => 'denied'], $this->poll($app));
-        $html = $this->html($app, '/profil');
-        self::assertStringContainsString('Přihlášení bylo v KissJ zamítnuto.', $html);
-        self::assertStringContainsString('Přihlásit kódem z KissJ', $html);
-        self::assertStringNotContainsString('data-pairing-poll', $html);
-        // the pairing is gone with it, and asking again changes nothing
-        self::assertSame(['status' => 'expired'], $this->poll($app));
-        self::assertStringContainsString('zamítnuto', $this->html($app, '/profil'), 'the line is still there');
-        self::assertStringContainsString('zamítnuto', (string) $this->request($app, 'GET', '/profil', headers: ['X-Screen' => '1'])->getBody(), 'and in the fragment');
-
-        // a new start is a new attempt: the old outcome goes
-        $this->request($app, 'POST', '/profil/propojit');
-        self::assertStringNotContainsString('zamítnuto', $this->html($app, '/profil'));
-    }
-
     /** An outcome line is the explanation of a moment: ten minutes on it is gone. */
     public function testAnOutcomeLineIsGoneAfterTenMinutes(): void
     {
         $app = $this->korbo(new class ($this->counted()) extends DelegatingProvider {
             public function pollPairing(string $deviceCode): PairingPoll
             {
-                return new PairingPoll(\App\Program\PairingStatus::Denied);
+                return new PairingPoll(\App\Program\PairingStatus::Expired);
             }
         });
         $this->request($app, 'POST', '/profil/propojit');
         $this->poll($app);
-        self::assertStringContainsString('zamítnuto', $this->html($app, '/profil'));
+        self::assertStringContainsString('vypršel', $this->html($app, '/profil'));
 
         $_SESSION['korbo26']['pairingOutcome']['at'] -= 9 * 60;
-        self::assertStringContainsString('zamítnuto', $this->html($app, '/profil'), 'nine minutes on');
+        self::assertStringContainsString('vypršel', $this->html($app, '/profil'), 'nine minutes on');
         $_SESSION['korbo26']['pairingOutcome']['at'] -= 61;
-        self::assertStringNotContainsString('zamítnuto', $this->html($app, '/profil'), 'ten minutes and a second on');
+        self::assertStringNotContainsString('vypršel', $this->html($app, '/profil'), 'ten minutes and a second on');
     }
 
     /** An approval ends whatever went before it: a paired Profil carries no old outcome either. */
@@ -398,7 +375,7 @@ final class PairingTest extends AppTestCase
         self::assertMatchesRegularExpression('/^[0-9a-f]{32}$/', $deviceCode);
         foreach ([[], ['X-Screen' => '1']] as $headers) {
             $pending = (string) $this->request($app, 'GET', '/profil', headers: $headers)->getBody();
-            self::assertStringContainsString('483-291', $pending);
+            self::assertStringContainsString('483 291', $pending);
             self::assertStringNotContainsString($deviceCode, $pending);
         }
 
@@ -444,6 +421,19 @@ final class PairingTest extends AppTestCase
 
         self::assertSame(['status' => 'expired'], $this->poll($app));
         self::assertStringContainsString('Kód vypršel, začni znovu.', $this->html($app, '/profil'));
+        // the pairing is gone with it, and asking again changes nothing
+        self::assertSame(['status' => 'expired'], $this->poll($app));
+        self::assertStringContainsString('vypršel', $this->html($app, '/profil'), 'the line is still there');
+        self::assertStringContainsString(
+            'vypršel',
+            (string) $this->request($app, 'GET', '/profil', headers: ['X-Screen' => '1'])->getBody(),
+            'and in the fragment',
+        );
+
+        // a new start is a new attempt: the old outcome goes
+        $this->request($app, 'POST', '/profil/propojit');
+        self::assertStringNotContainsString('vypršel', $this->html($app, '/profil'));
+        self::assertArrayNotHasKey('pairingOutcome', $_SESSION['korbo26']);
     }
 
     public function testPendingAndSlowDownKeepThePairing(): void
@@ -519,7 +509,7 @@ final class PairingTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('{"status":"pending"}', (string) $response->getBody());
         $html = $this->html($app, '/profil');
-        self::assertStringContainsString('483-291', $html);
+        self::assertStringContainsString('483 291', $html);
         self::assertStringNotContainsString('<p class="notice">', $html);
         self::assertStringNotContainsString('nedaří', $html);
 
@@ -537,7 +527,7 @@ final class PairingTest extends AppTestCase
         $this->request($app, 'POST', '/profil/propojit');
 
         self::assertSame(['status' => 'pending'], $this->poll($app));
-        self::assertStringContainsString('483-291', $this->html($app, '/profil'));
+        self::assertStringContainsString('483 291', $this->html($app, '/profil'));
     }
 
     // --- the logout ---

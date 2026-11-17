@@ -126,7 +126,7 @@ final class StubProgramProviderTest extends TestCase
 
         self::assertSame(substr(hash('sha256', 'pairing:' . $deviceId), 0, 32), $pairing->deviceCode);
         self::assertSame('483291', $pairing->userCode);
-        self::assertSame('483-291', $pairing->formattedUserCode());
+        self::assertSame('483 291', $pairing->formattedUserCode());
         self::assertSame('https://kissj.example/pairing', $pairing->verificationUrl);
         self::assertSame(5, $pairing->interval);
         self::assertGreaterThanOrEqual($before->modify('+1 hour')->getTimestamp(), $pairing->expiresAt->getTimestamp());

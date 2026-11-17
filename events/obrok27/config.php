@@ -191,11 +191,10 @@ return [
 
     'map' => [
         'embedUrl' => 'https://www.google.com/maps/d/embed?mid=1KLPkQqPYxomrNmxTc0FfPZ44P5AxLRg',
-        // TODO organisers: replace the stand-in plan (the CEJ 2022 site map) with the
-        // handbook's own site plan for 2027 — under a new file name, since files under
-        // www/events/ are cached as immutable.
-        'image' => 'events/obrok27/plan-example.png',
-        'imageAlt' => 'Ukázkový plán areálu',
+        // Drawn from the My Maps layer above (participant-facing subset). A new version
+        // goes under a new file name, since files under www/events/ are cached as immutable.
+        'image' => 'events/obrok27/plan-josefov.png',
+        'imageAlt' => 'Plán areálu pevnosti Josefov',
     ],
 
     'handbook' => [

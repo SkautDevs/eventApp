@@ -294,7 +294,7 @@ kissj URL):
 | `obrok19` | `PROGRAM_PROVIDER_OBROK19`, `KISSJ_API_KEY_OBROK19`, `ADMIN_TOKEN_OBROK19` |
 | `obrok27` | `PROGRAM_PROVIDER_OBROK27`, `KISSJ_API_KEY_OBROK27`, `ADMIN_TOKEN_OBROK27` |
 | `korbo26` | `PROGRAM_PROVIDER_KORBO26`, `KISSJ_API_KEY_KORBO26`, `ADMIN_TOKEN_KORBO26` |
-| `navigamus25` | `PROGRAM_PROVIDER_NAVIGAMUS25`, `KISSJ_API_KEY_NAVIGAMUS25`, `ADMIN_TOKEN_NAVIGAMUS25` |
+| `navigamus27` | `PROGRAM_PROVIDER_NAVIGAMUS27`, `KISSJ_API_KEY_NAVIGAMUS27`, `ADMIN_TOKEN_NAVIGAMUS27` |
 | `miquik26` | `PROGRAM_PROVIDER_MIQUIK26`, `KISSJ_API_KEY_MIQUIK26`, `ADMIN_TOKEN_MIQUIK26` (unlisted; `local` serves the fixtures made from the lecture workbook, for as long as kissj staging does not have the event) |
 
 ## TLS
@@ -586,7 +586,7 @@ and are unaffected.
 2. Set `listed` (shown in the picker or not; a missing key means unlisted) and `dates`
    (`start`, `end` as `YYYY-MM-DD`; the picker splits upcoming from past on `end`, and
    Domů shows its before, during and after halves by them) in the config, and point
-   `website` (what a logged-out Profil's "web akce" opens) at the event's own site or
+   `website` (not shown anywhere at the moment) at the event's own site or
    remove the key.
 3. Copy `www/events/obrok27/` to `www/events/<slug>/` and replace the logos, favicons
    and manifest (its `id`, `start_url`, `scope` and `shortcuts` name the slug; a shortcut

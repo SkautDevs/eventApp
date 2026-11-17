@@ -70,9 +70,9 @@ final class InfoModuleTest extends AppTestCase
 
     public function testAnEventWithoutAnEmergencyFileShowsNoContact(): void
     {
-        $html = (string) $this->request($this->app('korbo26'), 'GET', '/informace')->getBody();
+        $html = (string) $this->request($this->app('miquik26'), 'GET', '/informace')->getBody();
 
-        self::assertSame(200, $this->request($this->app('korbo26'), 'GET', '/informace')->getStatusCode());
+        self::assertSame(200, $this->request($this->app('miquik26'), 'GET', '/informace')->getStatusCode());
         self::assertStringNotContainsString('class="emergency', $html);
         self::assertStringContainsString('<h2>Notifikace</h2>', $html);
     }

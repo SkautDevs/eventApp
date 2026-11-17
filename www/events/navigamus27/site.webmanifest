@@ -1,0 +1,40 @@
+{
+    "id": "/navigamus27/",
+    "name": "Navigamus 2027",
+    "short_name": "Navigamus",
+    "lang": "cs",
+    "start_url": "/navigamus27/",
+    "scope": "/navigamus27/",
+    "display": "standalone",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "/events/navigamus27/icon-aa636b22-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/events/navigamus27/icon-ab9721c5-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "/events/navigamus27/icon-95479f9c-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Program",
+            "url": "/navigamus27/programy"
+        },
+        {
+            "name": "Notifikace",
+            "url": "/navigamus27/informace"
+        }
+    ],
+    "theme_color": "#1b0e44",
+    "background_color": "#f0f0f0"
+}

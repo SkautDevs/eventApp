@@ -1,0 +1,256 @@
+/* Navigamus 2027 shapes and type (kissj public/eventSpecificCss/stylesNavigamus27.css, from the
+   visual identity manual). Colour comes only from roles.
+
+   The waves are masks, not pictures: each shape is an inline SVG data URI drawn in the SVG's
+   default fill, and a mask reads only its alpha, so no colour is named here. Inline because a
+   mask file that fails to load offline would hide the element it masks. Every wave tile is
+   120px wide. */
+
+:root {
+	/* the app bar's wave: 8px deep, cut out of the bar's own box, so its height stays what www/programs.js reads */
+	--n27-bar-wave: 8px;
+	--n27-bar-wave-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 0V4Q30 11 60 4Q90 -3 120 4V0Z'/%3E%3C/svg%3E");
+	/* the area above the same wave mirrored: painted in the page ground over the top edge of the tab bar
+	   and of the view switcher, it cuts the bar and the selected fill under it with one curve */
+	--n27-bar-wave-over: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 0V4Q30 -3 60 4Q90 11 120 4V0Z'/%3E%3C/svg%3E");
+	/* the tab bar's own outline: the area below the same wave mirrored */
+	--n27-bar-wave-top: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 8V4Q30 -3 60 4Q90 11 120 4V8Z'/%3E%3C/svg%3E");
+	/* the switcher's foot, which runs down behind the tab bar: its fill ends 3px above the tab bar's
+	   curve (the area above that curve, in a tile 3px taller), leaving the ground's line between them */
+	--n27-gap: 3px;
+	--n27-switcher-foot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 11' preserveAspectRatio='none'%3E%3Cpath d='M0 0V4Q30 -3 60 4Q90 11 120 4V0Z'/%3E%3C/svg%3E");
+	/* the switcher's height in the column: 48px segments under its top wave (its foot overlaps the tab bar) */
+	--tabs-height: calc(48px + var(--n27-bar-wave));
+	/* the cards' waves: 10px deep, the top and the bottom mirrored as in kissj's .card */
+	--n27-wave: 10px;
+	--n27-wave-top: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'%3E%3Cpath d='M0 10V5Q30 -3 60 5Q90 13 120 5V10Z'/%3E%3C/svg%3E");
+	--n27-wave-bottom: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 10' preserveAspectRatio='none'%3E%3Cpath d='M0 0V5Q30 13 60 5Q90 -3 120 5V0Z'/%3E%3C/svg%3E");
+	/* the straight part of a mask, between its waved edges */
+	--n27-solid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1' preserveAspectRatio='none'%3E%3Crect width='1' height='1'/%3E%3C/svg%3E");
+}
+
+/* --- type: Seatren for the display lines, Luciao Sans (the theme's body face) for the rest --- */
+
+/* the manual: Seatren always uppercase with 5% letter-spacing; one weight, so no faux bold */
+.appbar-title,
+h1,
+h2,
+.sheet-name {
+	font-family: var(--theme-font-display, 'Seatren', sans-serif);
+	font-weight: var(--theme-font-display-weight, 400);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+/* the avatar's initials are not a heading, even inside Profil's h2 */
+.profile-who .avatar {
+	font-family: var(--theme-font, 'Luciao Sans', sans-serif);
+	letter-spacing: 0;
+}
+
+/* the manual's 1.5 for running text; never the timeline grid, whose geometry is frozen */
+.link-card p,
+.install-card p,
+div.news p,
+.notice,
+.empty,
+.profile-web,
+.sheet-perex,
+.pl-perex {
+	line-height: 1.5;
+}
+
+/* --- app bar: kissj's purple band, its bottom edge a wave ---------------------------------- */
+
+/* the fill is a masked layer over the page ground, so the wave never shows content scrolling under the bar */
+.appbar {
+	background-color: var(--ground);
+	padding-bottom: var(--n27-bar-wave);
+	color: var(--role-on-bar, var(--on-state));
+	border-bottom: none;
+}
+
+.appbar::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background-color: var(--role-bar, var(--state));
+	-webkit-mask-image: var(--n27-solid), var(--n27-bar-wave-mask);
+	mask-image: var(--n27-solid), var(--n27-bar-wave-mask);
+	-webkit-mask-repeat: no-repeat, repeat-x;
+	mask-repeat: no-repeat, repeat-x;
+	-webkit-mask-position: left top, left bottom;
+	mask-position: left top, left bottom;
+	-webkit-mask-size: 100% calc(100% - var(--n27-bar-wave)), 120px var(--n27-bar-wave);
+	mask-size: 100% calc(100% - var(--n27-bar-wave)), 120px var(--n27-bar-wave);
+}
+
+/* the mark and the title sit straight on the band: no tonal pill, which would put the white N27 on lilac */
+.appbar-brand, .appbar-brand:visited {
+	padding-inline: 4px;
+	background-color: transparent;
+}
+
+.appbar-brand, .appbar-brand:visited,
+.appbar-profile, .appbar-profile:visited {
+	color: var(--role-on-bar, var(--on-state));
+}
+
+/* Profil lights its link with the band's pair swapped */
+.appbar-profile.is-active, .appbar-profile.is-active:visited {
+	background-color: var(--role-on-bar, var(--on-state));
+	color: var(--role-bar, var(--state));
+}
+
+/* rings sit inside the control, on the band's own fill */
+.appbar :focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: -4px;
+	box-shadow: none;
+}
+
+/* --- tab bar and view switcher: one wave between them -----------------------------------------
+   The wave replaces the hairline. The tab bar is masked to the area under its curve, so its fill
+   and the active tab are cut by it; above the curve a strip of the page ground shows, so content
+   never shows through the wave. The view switcher docks one wave lower, its foot running down
+   behind the tab bar to fill that area instead: its plain fill stops a few pixels short of the
+   curve, which leaves a line of the ground between the two bars, while the selected segment runs
+   on to the curve, so it merges with an active tab right under it. The switcher's own top edge is
+   the same wave, a strip of the ground laid over it. The tab bar keeps its height (the screens
+   read it); the labels move down under the curve. */
+
+.tabbar {
+	border-top: none;
+	-webkit-mask-image: var(--n27-bar-wave-top), var(--n27-solid);
+	mask-image: var(--n27-bar-wave-top), var(--n27-solid);
+	-webkit-mask-repeat: repeat-x, no-repeat;
+	mask-repeat: repeat-x, no-repeat;
+	-webkit-mask-position: left top, left var(--n27-bar-wave);
+	mask-position: left top, left var(--n27-bar-wave);
+	-webkit-mask-size: 120px var(--n27-bar-wave), 100% calc(100% - var(--n27-bar-wave));
+	mask-size: 120px var(--n27-bar-wave), 100% calc(100% - var(--n27-bar-wave));
+}
+
+/* the ground above the tab bar's curve, under the switcher's foot (15) and the tab bar (20) */
+body::after {
+	content: '';
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) - var(--n27-bar-wave));
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--app-width);
+	height: var(--n27-bar-wave);
+	z-index: 14;
+	background-color: var(--ground);
+	pointer-events: none;
+}
+
+.tab, .tab:visited {
+	padding-top: calc(6px + var(--n27-bar-wave));
+}
+
+.progress {
+	top: var(--n27-bar-wave);
+}
+
+/* docked one wave lower, over the tab bar's top; the negative margin keeps the column's height */
+.tabs-wrap {
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height) - var(--n27-bar-wave));
+	margin-bottom: calc(-1 * var(--n27-bar-wave));
+}
+
+.tabs {
+	height: calc(var(--tabs-height) + var(--n27-bar-wave));
+	border-top: none;
+	background-color: transparent;
+}
+
+/* the plain fill: solid, its foot cut 3px above the tab bar's curve */
+.tabs::before {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background-color: var(--structure);
+	pointer-events: none;
+	-webkit-mask-image: var(--n27-solid), var(--n27-switcher-foot);
+	mask-image: var(--n27-solid), var(--n27-switcher-foot);
+	-webkit-mask-repeat: no-repeat, repeat-x;
+	mask-repeat: no-repeat, repeat-x;
+	-webkit-mask-position: left top, left bottom;
+	mask-position: left top, left bottom;
+	-webkit-mask-size: 100% calc(100% - var(--n27-bar-wave) - var(--n27-gap)), 120px calc(var(--n27-bar-wave) + var(--n27-gap));
+	mask-size: 100% calc(100% - var(--n27-bar-wave) - var(--n27-gap)), 120px calc(var(--n27-bar-wave) + var(--n27-gap));
+}
+
+/* the top edge: the ground above the curve, over the fill and the selected segment */
+.tabs::after {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: var(--n27-bar-wave);
+	z-index: 2;
+	background-color: var(--ground);
+	pointer-events: none;
+	-webkit-mask-image: var(--n27-bar-wave-over);
+	mask-image: var(--n27-bar-wave-over);
+	-webkit-mask-repeat: repeat-x;
+	mask-repeat: repeat-x;
+	-webkit-mask-size: 120px var(--n27-bar-wave);
+	mask-size: 120px var(--n27-bar-wave);
+}
+
+/* the labels sit in the 48px between the two waves */
+.tabs-tab {
+	padding-block: calc(8px + var(--n27-bar-wave)) calc(8px + var(--n27-bar-wave));
+}
+
+/* --- wavy cards (Domů and Informace) ----------------------------------------------------------
+   The card is masked into the wave at its top and bottom, as kissj's .card is, and like kissj's
+   it has no border: its fill against the ground is what sets it apart. */
+
+.link-card, .link-card:visited,
+.install-card,
+div.news {
+	border: none;
+	border-radius: 0;
+	-webkit-mask-image: var(--n27-wave-top), var(--n27-solid), var(--n27-wave-bottom);
+	mask-image: var(--n27-wave-top), var(--n27-solid), var(--n27-wave-bottom);
+	-webkit-mask-repeat: repeat-x, no-repeat, repeat-x;
+	mask-repeat: repeat-x, no-repeat, repeat-x;
+	-webkit-mask-position: left top, left var(--n27-wave), left bottom;
+	mask-position: left top, left var(--n27-wave), left bottom;
+	-webkit-mask-size: 120px var(--n27-wave), 100% calc(100% - 2 * var(--n27-wave)), 120px var(--n27-wave);
+	mask-size: 120px var(--n27-wave), 100% calc(100% - 2 * var(--n27-wave)), 120px var(--n27-wave);
+}
+
+/* the wave takes up to 9px of each end, so the content moves in by that much */
+.link-card, .link-card:visited,
+.install-card {
+	padding-block: calc(var(--n27-wave) + 8px);
+}
+
+div.news {
+	padding-block: calc(var(--n27-wave) - 6px);
+}
+
+/* the mask would cut the outset ring away, so a focused card draws it inside, below the wave */
+.link-card:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: calc(-2px - var(--n27-wave));
+	box-shadow: none;
+}
+
+/* --- Domů's mark --------------------------------------------------------------------------- */
+
+/* the manual allows the full-colour logo only on white or purple: in light mode it sits on a white card */
+img.mainLogo.mode-light-only {
+	padding: 14px 18px;
+	background-color: var(--surface);
+	border: max(var(--edge-width), 1px) solid var(--edge);
+	border-radius: var(--radius);
+}

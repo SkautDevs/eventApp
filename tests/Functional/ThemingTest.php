@@ -441,7 +441,7 @@ final class ThemingTest extends AppTestCase
             }
         }
 
-        self::assertSame(9, $checked, 'five events, nine role sets: obrok19 one, obrok27, korbo26, navigamus25 and miquik26 two each');
+        self::assertSame(9, $checked, 'five events, nine role sets: obrok19 one, obrok27, korbo26, navigamus27 and miquik26 two each');
     }
 
     /** The sheet is a role now; the palette key that used to ground it is retired. */
@@ -523,7 +523,7 @@ final class ThemingTest extends AppTestCase
             }
         }
 
-        self::assertSame(9, $checked, 'five events, nine role sets: obrok19 one, obrok27, korbo26, navigamus25 and miquik26 two each');
+        self::assertSame(9, $checked, 'five events, nine role sets: obrok19 one, obrok27, korbo26, navigamus27 and miquik26 two each');
     }
 
     /**
@@ -592,7 +592,7 @@ final class ThemingTest extends AppTestCase
 
         self::assertGreaterThan(0, $checked, 'no event declares a role pair to measure');
         // obrok19 hand-authors a set of its own now, so it is measured like any other
-        self::assertSame(['korbo26', 'miquik26', 'navigamus25', 'obrok19', 'obrok27'], array_keys($events));
+        self::assertSame(['korbo26', 'miquik26', 'navigamus27', 'obrok19', 'obrok27'], array_keys($events));
     }
 
     /**

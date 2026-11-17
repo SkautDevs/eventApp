@@ -496,7 +496,7 @@ final class KissjProgramProviderTest extends TestCase
         $pairing = $this->answering(self::json([
             'deviceCode' => '0123456789abcdef0123456789abcdef',
             'userCode' => '483291',
-            'verificationUrl' => 'https://kissj.example/v2/event/obrok27/participant/pairing',
+            'verificationUrl' => 'https://kissj.example/v2/event/obrok27/participant/dashboard#devicePairing',
             'expiresAt' => '2027-05-20T09:00:00+02:00',
             'interval' => 5,
         ]))->startPairing($deviceId);
@@ -511,8 +511,11 @@ final class KissjProgramProviderTest extends TestCase
 
         self::assertSame('0123456789abcdef0123456789abcdef', $pairing->deviceCode);
         self::assertSame('483291', $pairing->userCode);
-        self::assertSame('483-291', $pairing->formattedUserCode());
-        self::assertSame('https://kissj.example/v2/event/obrok27/participant/pairing', $pairing->verificationUrl);
+        self::assertSame('483 291', $pairing->formattedUserCode());
+        self::assertSame(
+            'https://kissj.example/v2/event/obrok27/participant/dashboard#devicePairing',
+            $pairing->verificationUrl,
+        );
         self::assertSame('2027-05-20T09:00:00+02:00', $pairing->expiresAt->format(\DATE_ATOM));
         self::assertSame(5, $pairing->interval);
     }
@@ -561,7 +564,7 @@ final class KissjProgramProviderTest extends TestCase
 
     public function testPollingSendsTheDeviceCodeAndMapsEveryStatus(): void
     {
-        foreach (['pending' => PairingStatus::Pending, 'slowDown' => PairingStatus::SlowDown, 'expired' => PairingStatus::Expired, 'denied' => PairingStatus::Denied] as $wire => $status) {
+        foreach (['pending' => PairingStatus::Pending, 'slowDown' => PairingStatus::SlowDown, 'expired' => PairingStatus::Expired] as $wire => $status) {
             $poll = $this->answering(self::json(['status' => $wire]))->pollPairing('0123456789abcdef0123456789abcdef');
 
             self::assertSame($status, $poll->status, $wire);
@@ -594,6 +597,7 @@ final class KissjProgramProviderTest extends TestCase
         $bodies = [
             'no status' => [],
             'an unknown status' => ['status' => 'authorization_pending'],
+            'the removed denied status' => ['status' => 'denied'],
             'approved without a token' => ['status' => 'approved', 'expiresAt' => '2027-11-20T08:00:00+01:00'],
             'approved with an empty token' => ['status' => 'approved', 'sessionToken' => '', 'expiresAt' => '2027-11-20T08:00:00+01:00'],
             'approved without an expiry' => ['status' => 'approved', 'sessionToken' => self::TOKEN],

@@ -20,11 +20,11 @@ final readonly class Pairing
     ) {
     }
 
-    /** kissj sends the six digits bare; the reader sees them as `483-291`. */
+    /** kissj sends the six digits bare; the reader sees them as `483 291`. */
     public function formattedUserCode(): string
     {
         return strlen($this->userCode) === 6
-            ? substr($this->userCode, 0, 3) . '-' . substr($this->userCode, 3)
+            ? substr($this->userCode, 0, 3) . ' ' . substr($this->userCode, 3)
             : $this->userCode;
     }
 }

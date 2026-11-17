@@ -57,7 +57,7 @@ final class FontsTest extends TestCase
 
         // and the other way round: every font file the table names for the shell's own
         // families is loaded by some face, so nothing is precached that nothing reads
-        foreach (Fonts::files(['themix', 'skautbold', 'Montserrat']) as $path) {
+        foreach (Fonts::files(['themix', 'skautbold', 'Montserrat', 'Seatren', 'Luciao Sans']) as $path) {
             self::assertContains($path, $urls, $path . ' is in the table but no @font-face loads it');
         }
     }

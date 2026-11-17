@@ -29,6 +29,12 @@ final class Fonts
             '/fonts/montserrat/montserrat-v31-latin.woff2',
             '/fonts/montserrat/montserrat-v31-latin-ext.woff2',
         ],
+        'Seatren' => [
+            '/fonts/seatren/seatren-v1.woff2',
+        ],
+        'Luciao Sans' => [
+            '/fonts/luciao-sans/luciao-sans-v1-regular.woff2',
+        ],
         'Font Awesome' => [
             '/vendor/fontawesome-free-5.8.1/css/all.min.css',
             '/vendor/fontawesome-free-5.8.1/webfonts/fa-solid-900.woff2',

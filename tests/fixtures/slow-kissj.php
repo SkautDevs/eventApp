@@ -13,7 +13,7 @@ if ($path === '/v3/programme/pairing/start') {
     echo json_encode([
         'deviceCode' => str_repeat('a', 32),
         'userCode' => '483291',
-        'verificationUrl' => 'http://127.0.0.1/v2/event/korbo26/participant/pairing',
+        'verificationUrl' => 'http://127.0.0.1/v2/event/korbo26/participant/dashboard#devicePairing',
         'expiresAt' => (new DateTimeImmutable('+1 hour'))->format(DATE_ATOM),
         'interval' => 5,
     ]);
