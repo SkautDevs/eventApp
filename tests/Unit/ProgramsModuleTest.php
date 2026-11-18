@@ -4,13 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Module\ProgramsModule;
+use App\Module\Programs\DayListBuilder;
+use App\Module\Programs\RegistrationWriter;
+use App\Module\Programs\ScheduleBuilder;
+use App\Module\Programs\TimelineBuilder;
+use App\Module\Programs\Times;
 use PHPUnit\Framework\TestCase;
 
 /**
  * The Program screen's view model is built entirely in PHP: the module takes arrays
  * from the provider and hands Twig a finished shape. Everything below exercises those
- * pure helpers directly — through reflection, because they are private statics and the
+ * pure helpers directly, on the builder class that holds each (call()) — the
  * alternative is asserting on rendered HTML, which is how the packing, the grouping and
  * the date handling stayed uncovered.
  */
@@ -102,7 +106,7 @@ final class ProgramsModuleTest extends TestCase
     {
         $segments = self::call('segments', self::program(1, '2027-06-03 10:00:00', '2027-12-24 10:00:00'));
 
-        self::assertCount((new \ReflectionClassConstant(ProgramsModule::class, 'MAX_DRAWN_DAYS'))->getValue(), $segments);
+        self::assertCount((new \ReflectionClassConstant(TimelineBuilder::class, 'MAX_DRAWN_DAYS'))->getValue(), $segments);
     }
 
     /**
@@ -153,7 +157,7 @@ final class ProgramsModuleTest extends TestCase
         $program = self::program(1, '2027-06-03 08:00:00', '2027-06-03 22:00:00');
 
         self::assertSame('čt 3. 6. 8:00–22:00', self::call('whenLabel', $program));
-        self::assertStringContainsString(' · 8:00–22:00', ProgramsModule::toastLine($program));
+        self::assertStringContainsString(' · 8:00–22:00', RegistrationWriter::toastLine($program));
         self::assertSame('8:00–22:00', self::call('timeRange', $program));
     }
 
@@ -428,8 +432,19 @@ final class ProgramsModuleTest extends TestCase
         }
     }
 
+    /** The builder class that holds each helper the tests call. */
+    private const array OWNERS = [
+        'segments' => TimelineBuilder::class,
+        'packTracks' => TimelineBuilder::class,
+        'timeRange' => Times::class,
+        'whenLabel' => Times::class,
+        'buildViewModel' => ScheduleBuilder::class,
+        'activeKey' => ScheduleBuilder::class,
+        'buildDays' => DayListBuilder::class,
+    ];
+
     private static function call(string $method, mixed ...$arguments): mixed
     {
-        return (new \ReflectionMethod(ProgramsModule::class, $method))->invoke(null, ...$arguments);
+        return (new \ReflectionMethod(self::OWNERS[$method], $method))->invoke(null, ...$arguments);
     }
 }

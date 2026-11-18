@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\EventConfig;
-use App\Home\HomeModel;
+use App\Module\Home\HomeModel;
 use App\Program\RegistrationWindow;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -204,7 +204,7 @@ final class HomeModelTest extends TestCase
         ]];
         $item = self::build('2027-05-21 08:00:00', mine: $mine)['nextUp']['items'][0];
 
-        // no leading zero on the hour, as ProgramsModule::CLOCK prints it
+        // no leading zero on the hour, as Times::CLOCK prints it
         self::assertSame(['9:00', 'do 9:45'], [$item['time'], $item['until']]);
     }
 

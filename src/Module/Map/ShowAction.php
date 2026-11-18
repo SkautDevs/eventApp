@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Module\Map;
+
+use App\EventConfig;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Slim\Views\Twig;
+
+/**
+ * GET /mapa: the event config's `map` — the Google My Maps embed (`embedUrl`, none while it
+ * still carries the REPLACE-ME placeholder), the self-hosted site plan (`image`, a path
+ * under www/) and its alt text (`imageAlt`, default `Plán areálu`).
+ */
+final class ShowAction
+{
+    public function __construct(
+        private readonly EventConfig $event,
+        private readonly Twig $twig,
+    ) {}
+
+    /** @param array<string, string> $args */
+    public function __invoke(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
+    {
+        $map = $this->event->get('map') ?? [];
+        $map = is_array($map) ? $map : [];
+        $embedUrl = is_string($map['embedUrl'] ?? null) ? $map['embedUrl'] : null;
+
+        // A config still carrying the REPLACE-ME placeholder would embed a Google 404.
+        // Say so instead — the organisers have not published the map yet.
+        if ($embedUrl === null || $embedUrl === '' || str_contains($embedUrl, 'REPLACE-ME')) {
+            $embedUrl = null;
+        }
+        // the handbook's own drawing, self-hosted so it works offline; an <img>, so an
+        // SVG is shown and never run
+        $image = is_string($map['image'] ?? null) && $map['image'] !== '' ? '/' . ltrim($map['image'], '/') : null;
+        $imageAlt = is_string($map['imageAlt'] ?? null) && $map['imageAlt'] !== '' ? $map['imageAlt'] : 'Plán areálu';
+
+        return $this->twig->render($response, 'map.twig', [
+            'embedUrl' => $embedUrl,
+            'image' => $image,
+            'imageAlt' => $imageAlt,
+        ]);
+    }
+}

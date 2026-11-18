@@ -7,7 +7,7 @@ namespace App\View;
 use App\Auth;
 use App\Environment;
 use App\EventConfig;
-use App\Home;
+use App\Module\Home\HomeModel;
 use App\Http;
 use App\Program;
 use Psr\Container\ContainerInterface;
@@ -101,7 +101,7 @@ final readonly class TwigFactory
             fn(string $path): string => $c->get(Http\AssetVersion::class)->url($path),
         ));
         $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
-            return Home\HomeModel::WEEKDAYS[(int) (new \DateTime($datetimeArray['date']))->format('N')];
+            return HomeModel::WEEKDAYS[(int) (new \DateTime($datetimeArray['date']))->format('N')];
         }));
 
         return $twig;

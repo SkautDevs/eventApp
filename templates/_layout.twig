@@ -194,7 +194,11 @@
 	   waits for a screen it has never shown #}
 	<span class="progress" data-progress aria-hidden="true"></span>
 	{# aria-current is the only thing that tells a screen reader which of the four you
-	   are on: the fill and the chip are pixels, and .is-active is a class name. #}
+	   are on: the fill and the chip are pixels, and .is-active is a class name. Every tab
+	   is an item of the menu, Domů first; Domů draws its own mark and the event's short
+	   name. The ~ on the loop's tags keeps the bar's whitespace what it always was. #}
+	{%~ for item in menu %}
+	{%~ if item.key == 'homepage' %}
 	<a class="tab{{ activeTab == 'homepage' ? ' is-active' }}" href="{{ url_for('homepage') }}"{% if activeTab == 'homepage' %} aria-current="page"{% endif %}>
 		{# the active tab is filled with the event's own colour behind this mark, so an
 		   event whose drawing is that same colour names a second one to go on the fill;
@@ -214,12 +218,13 @@
 		{% endif %}
 		<span>{{ event.shortName|default(event.name) }}</span>
 	</a>
-	{% for item in menu %}
+	{% else %}
 		<a class="tab{{ activeTab == item.key ? ' is-active' }}" href="{{ url_for(item.route) }}"{% if activeTab == item.key %} aria-current="page"{% endif %}>
 			<i class="{{ item.icon }}" aria-hidden="true"></i>
 			<span>{{ item.label }}</span>
 		</a>
-	{% endfor %}
+	{% endif %}
+	{%~ endfor %}
 </nav>
 </body>
 </html>

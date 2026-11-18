@@ -22,7 +22,7 @@ final class SubscriptionRepository
      * The route behind this is unauthenticated, so the body is attacker-controlled:
      * anything that is not a string of plausible length, or an endpoint that is not an
      * https URL, is rejected here rather than stored and handed to the push library
-     * later. `PushModule` turns the exception into a 400.
+     * later. `Module\Push\SubscribeAction` turns the exception into a 400.
      *
      * A known (event, endpoint) is updated in place and keeps its failure count: a re-send
      * proves the browser is alive, not that its endpoint is deliverable, and anyone can

@@ -1,6 +1,6 @@
 # Bootstrap and config
 
-This document covers the shipped events, how a request becomes an event's app in `src/Kernel.php`, the event config and its content files, and how modules join the tab bar.
+This document covers the shipped events, how a request becomes an event's app in `src/Kernel.php`, the event config and its content files, and the modules: the registry, core and feature modules, their actions, and the tab bar.
 
 ## The events
 
@@ -22,8 +22,8 @@ Every read of the current time goes through the container's PSR-20 `ClockInterfa
 
 `Kernel::create()`:
 - Calls `Environment::programSource()` first (see the provider below), then builds a PHP-DI container (`ContainerBuilder`) from `Container\Definitions::forEvent()`, with the event, the program provider, `Session`, `Auth\Authenticator`, `Auth\PairingThrottle` and Twig as definitions.
-- Creates the Slim 4 `App`, adds body-parsing/routing middleware, Twig middleware, and error middleware (`APP_DEBUG` controls whether error details are shown), and then the session-cookie and screen middleware, *outside* the error middleware rather than inside it; the security headers, `Http\CspMiddleware` and `Telemetry\TransactionMiddleware` now wrap it in turn (the next bullet has the full order). Why outside: `Http\ScreenMiddleware`'s docblock.
-- Registers core routes directly — `GET /<slug>/` (Domů), `GET /profil`, the pairing routes `POST /profil/propojit`, `GET /profil/propojit/stav` and `POST /profil/odpojit` (below), the offline page `/offline` and the worker's `/precache.json` — then iterates `$event->features` and registers one module per enabled feature.
+- Creates the Slim 4 `App`, adds body-parsing/routing middleware, Twig middleware, and error middleware (`APP_DEBUG` controls whether error details are shown), and then the session-cookie and screen middleware, *outside* the error middleware rather than inside it; the security headers, `Http\CspMiddleware` and `Telemetry\TransactionMiddleware` now wrap it in turn ([http.md](http.md) has the full order). Why outside: `Http\ScreenMiddleware`'s docblock.
+- Registers the routes of every module the event has (`registerModules()`, below): the core ones — `GET /<slug>/` (Domů), `GET /profil`, the pairing routes `POST /profil/propojit`, `GET /profil/propojit/stav` and `POST /profil/odpojit` (below), the offline page `/offline` and the worker's `/precache.json` — and one module per enabled feature, then hands Twig the tab bar.
 
 The full middleware order, innermost to outermost, is in [http.md](http.md); the source `Environment::programSource()` checks is described in [program-provider.md](program-provider.md), and the pairing routes in [auth-and-session.md](auth-and-session.md).
 
@@ -33,8 +33,12 @@ The full middleware order, innermost to outermost, is in [http.md](http.md); the
 
 What `content/links.php` and `content/emergency.php` hold, and where they are shown, is in [info.md](info.md).
 
-## Modules and the tab bar
+## Modules, actions and the tab bar
 
 Modules implement `App\Module\ModuleInterface` (`key()`, `menuItem()`, `registerRoutes()`) and live in `src/Module/`. `ModuleRegistry::classFor($feature)` maps a feature-flag string (from the event's `features` array in its config) to a module class — this is how features are toggled per event: `info` (`InfoModule`), `map` (`MapModule`), `handbook` (`HandbookModule`, no tab of its own: the handbook is the first of Informace's quick links), `programs` (`ProgramsModule`) and `push` (`PushModule`). The tab bar is Domů (the event's `shortName` with its `menuLogo`, or the `fa-home` icon) followed by the enabled modules' items in their `order`: Program (10), Místa (20), Informace (30).
+
+Each module has a directory of its own, `src/Module/<Name>/`: the module class, an action class per route, and whatever only that screen uses (`HomeModel`, the Program screen's builders, the admin page's `AdminSession` and `AdminPage`). Three modules are **core**, part of every event whatever its `features` (`ModuleRegistry::CORE`): `Shell\ShellModule` (the offline page and the worker's precache list), `Home\HomeModule` (Domů) and `Profile\ProfileModule` (Profil and the pairing routes). `Admin\AdminModule`, the organisers' admin page, is no feature of its own: `ModuleRegistry::classesFor()` adds it to every event that enables `push`. `ModuleRegistry::ORDER` is the one order the modules are taken in, and so the order their routes are registered in; `modulesFor()` is an event's core and feature modules in that order. `Module\Modules` builds them from the container once per app, `Kernel::create()` registers their routes from it, and `Modules::menu()` — every module's `MenuItem`, sorted by `order` — is both the `menu` Twig global the tab bar is drawn from and the tab order of the worker's precache list.
+
+**Actions, and why they are lazy.** A module is built for every request, so its constructor takes only what costs nothing to build (`ModuleInterface`'s docblock). Every route is an action class (`ShowAction`, `RegisterAction`, …) that Slim takes from the container only when that route runs, so an action's constructor takes the services its route needs — the provider, a repository, a throttle — without any other page paying for them. The repositories and the throttles are lazy services besides (`Container\Definitions`), so even a running action opens the database only on its first call to one: Domů reads the message log only from the event's start, and the pairing start counts an attempt only after its checks. `KernelBootTest` and `ModuleBootTest` hold both: booting and building every module of every event open no database, and the screens that need none open none.
 
 The push module itself, with the admin page and the subscription store, is in [push.md](push.md).

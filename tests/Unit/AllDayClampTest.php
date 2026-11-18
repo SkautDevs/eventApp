@@ -26,7 +26,7 @@ final class AllDayClampTest extends TestCase
         $out = AllDayClamp::apply([self::p(2, '2026-09-16 00:00:00', '2026-09-18 23:59:00')], '08:00', '22:00');
 
         // one programme still, from the first day's morning to the last day's evening:
-        // ProgramsModule::segments() then draws it on every day it overlaps
+        // TimelineBuilder::segments() then draws it on every day it overlaps
         self::assertSame([self::p(2, '2026-09-16 08:00:00', '2026-09-18 22:00:00')], $out);
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http;
 
 use App\EventConfig;
+use App\Module\MenuItem;
 use Slim\Interfaces\RouteParserInterface;
 
 /**
@@ -20,14 +21,15 @@ final class Precache
     private const array EVENT_FILES = ['site.webmanifest', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png'];
 
     /**
-     * @param list<string> $menuRoutes route names of the tab bar, in its order
+     * @param list<MenuItem> $menu the tab bar, in its order, Domů first
      * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>}
      */
-    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, array $menuRoutes, string $docroot): array
+    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, array $menu, string $docroot): array
     {
-        $documents = [$routes->urlFor('homepage')];
-        foreach ($menuRoutes as $name) {
-            $documents[] = $routes->urlFor($name);
+        // every tab, Domů first, then Profil and the offline page
+        $documents = [];
+        foreach ($menu as $item) {
+            $documents[] = $routes->urlFor($item->route);
         }
         $documents[] = $routes->urlFor('profile');
         $documents[] = $routes->urlFor('offline');

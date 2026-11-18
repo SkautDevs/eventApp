@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.5). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime by the first path segment: every event lives under `/{slug}/`, and `/` is a picker of the listed ones. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices, toasts and flash messages, and the weekday names in `HomeModel`, `NotificationList`, `ProgramsModule` and `www/shell.js`. Every surface a reader sees addresses them as *ty*: templates, notices and toasts, push status lines, ARIA labels, `<title>`s. UI strings spell the registration system **KissJ**, and the organisers' messages are **notifikace**, never novinky (the Informace heading, Domů's `Starší notifikace`, the manifest shortcut). The admin page is for organisers and stays neutral and imperative, and per-event content is the organisers' own text. Commit messages and `docs/` are in English without AI-authorship trailers (the existing `docs/kissj-contract.md` predates this and is still Czech).
+Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.5). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime by the first path segment: every event lives under `/{slug}/`, and `/` is a picker of the listed ones. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices, toasts and flash messages, and the weekday names in `HomeModel`, `NotificationList`, `Programs\Times` and `www/shell.js`. Every surface a reader sees addresses them as *ty*: templates, notices and toasts, push status lines, ARIA labels, `<title>`s. UI strings spell the registration system **KissJ**, and the organisers' messages are **notifikace**, never novinky (the Informace heading, Domů's `Starší notifikace`, the manifest shortcut). The admin page is for organisers and stays neutral and imperative, and per-event content is the organisers' own text. Commit messages and `docs/` are in English without AI-authorship trailers (the existing `docs/kissj-contract.md` predates this and is still Czech).
 
 ## Commands
 
@@ -33,16 +33,16 @@ Before running, copy `.env.example` to `.env`, set `APP_DEBUG=1` for dev, keep a
 
 ## Modules
 
-One row per screen, as the code stands on 2026-11-18. Routes are relative to `/<slug>`; every screen also loads `www/shell.js`, `www/app.js` and `www/push.js` through `_layout.twig`.
+One row per screen, as the code stands on 2026-11-18. Each screen is a module under `src/Module/<Name>/`: the module class registers its routes (relative to `/<slug>`), and each route is an action class in the same directory. Every page loads `www/shell.js`, `www/app.js`, `www/push.js` and `www/profile.js` through `_layout.twig`, and `www/programs.js` and `www/map.js` when the event has that feature. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`), `Push\PushModule` (`POST /push/subscribe`) and `Handbook\HandbookModule` (the handbook PDF).
 
-| Screen | Routes | Served by | Script | Template |
+| Screen | Routes | Module | Script | Template |
 |---|---|---|---|---|
-| Domů | `GET /` | `Kernel::registerCoreRoutes()`, closure `homepage` | `www/shell.js` (next-up cards, countdown, date) | `homepage.twig`, `_install.twig`, `_toast.twig` |
-| Program | `GET /programy`, `POST /programy/{id}/prihlasit`, `POST /programy/{id}/odhlasit` | `Module\ProgramsModule` | `www/programs.js` | `programs.twig`, `_toast.twig` |
-| Místa | `GET /mapa` | `Module\MapModule` | `www/map.js` | `map.twig` |
-| Informace | `GET /informace` | `Module\InfoModule` | none of its own (`www/shell.js` redraws the times) | `info.twig` |
-| Profil | `GET /profil`, `POST /profil/propojit`, `GET /profil/propojit/stav`, `POST /profil/odpojit` | `Kernel::registerCoreRoutes()`, closures `profile`, `pairing-start`, `pairing-poll`, `pairing-revoke` | `www/profile.js` (poll), `www/app.js` (mode control), `www/push.js` (opt-in) | `profile.twig`, `_install.twig`, `_toast.twig` |
-| Admin page | `GET /admin/notify`, `POST /admin/notify`, `POST /admin/notify/{id}/hidden` | `Module\PushModule` | inline nonced `<script>` in the template | `admin-notify.twig`, `admin-expired.twig` |
+| Domů | `GET /` | `Home\HomeModule`, `src/Module/Home/` | `www/shell.js` (next-up cards, countdown, date) | `homepage.twig`, `_install.twig`, `_toast.twig` |
+| Program | `GET /programy`, `POST /programy/{id}/prihlasit`, `POST /programy/{id}/odhlasit` | `Programs\ProgramsModule`, `src/Module/Programs/` | `www/programs.js` | `programs.twig`, `_toast.twig` |
+| Místa | `GET /mapa` | `Map\MapModule`, `src/Module/Map/` | `www/map.js` | `map.twig` |
+| Informace | `GET /informace` | `Info\InfoModule`, `src/Module/Info/` | none (`www/shell.js` redraws the times) | `info.twig` |
+| Profil | `GET /profil`, `POST /profil/propojit`, `GET /profil/propojit/stav`, `POST /profil/odpojit` | `Profile\ProfileModule`, `src/Module/Profile/` | `www/profile.js` (poll), `www/app.js` (mode control), `www/push.js` (opt-in) | `profile.twig`, `_install.twig`, `_toast.twig` |
+| Admin page | `GET /admin/notify`, `POST /admin/notify`, `POST /admin/notify/{id}/hidden` | `Admin\AdminModule`, `src/Module/Admin/` (with `push`) | inline nonced `<script>` in the template | `admin-notify.twig`, `admin-expired.twig` |
 
 ## Conventions
 

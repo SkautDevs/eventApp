@@ -6,17 +6,17 @@ namespace App\Module;
 
 use Slim\App;
 
+/**
+ * A module of an event's app. Modules are built for every request, so a constructor takes
+ * only what costs nothing to build (the clock, the environment, the client address): a
+ * repository or the programme provider there would make every page open SQLite.
+ */
 interface ModuleInterface
 {
     public static function key(): string;
 
-    /**
-     * A tab in the bottom bar. `icon` is a FontAwesome class, `order` sorts the bar
-     * independently of the order features happen to be listed in the event config.
-     *
-     * @return array{label: string, route: string, icon: string, order: int}|null null = no tab
-     */
-    public function menuItem(): ?array;
+    /** A tab in the bottom bar, or null for a module without one. */
+    public function menuItem(): ?MenuItem;
 
     public function registerRoutes(App $app): void;
 }

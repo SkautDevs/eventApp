@@ -28,7 +28,7 @@ final class DefinitionsTest extends TestCase
         $definitions = Definitions::forEvent($event, $environment, self::ROOT);
 
         foreach ([
-            EventConfig::class, Environment::class, ClockInterface::class,
+            EventConfig::class, \App\Paths::class, Environment::class, ClockInterface::class,
             \App\Program\ProgramProviderInterface::class, \App\Program\Freshness::class,
             \App\Http\AssetVersion::class, \App\Session::class, \App\Auth\Authenticator::class,
             \App\Auth\PairingState::class, \App\Toast\Toasts::class, \App\Auth\PairingThrottle::class,
@@ -39,7 +39,7 @@ final class DefinitionsTest extends TestCase
         ] as $key) {
             self::assertArrayHasKey($key, $definitions, $key);
         }
-        self::assertCount(21, $definitions);
+        self::assertCount(22, $definitions);
         self::assertSame($event, $definitions[EventConfig::class]);
         self::assertSame($environment, $definitions[Environment::class]);
     }

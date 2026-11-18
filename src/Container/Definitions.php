@@ -11,6 +11,7 @@ use App\EventCatalog;
 use App\EventConfig;
 use App\Http;
 use App\Kernel;
+use App\Paths;
 use App\Program;
 use App\Session;
 use App\Storage;
@@ -36,6 +37,8 @@ final class Definitions
     {
         return [
             EventConfig::class => $event,
+            // the project root and the document root, for an action that needs a file path
+            Paths::class => new Paths($root, $root . '/www'),
             // every definition below reads the container's, so an override reaches them all
             Environment::class => $environment,
             // the one source of "now": every reader of the time gets it from here
@@ -77,9 +80,12 @@ final class Definitions
             // the clock's, both resolved by type
             Auth\PairingState::class => \DI\autowire(),
             Toast\Toasts::class => \DI\autowire(),
-            // the clock is an optional parameter, which autowiring would leave at its default
-            Auth\PairingThrottle::class => \DI\autowire()->constructorParameter('clock', \DI\get(ClockInterface::class)),
-            \App\Push\SubscribeThrottle::class => \DI\autowire()->constructorParameter('clock', \DI\get(ClockInterface::class)),
+            // the clock is an optional parameter, which autowiring would leave at its default.
+            // Lazy, like the two repositories below: an action takes them in its constructor,
+            // and the database opens on the first method call, not when the action is built
+            // (PHP-DI builds a native lazy proxy on PHP 8.4 and later).
+            Auth\PairingThrottle::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
+            \App\Push\SubscribeThrottle::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
             // One connection per request, opened and migrated on first use only: PHP-DI
             // builds a definition on the first get(), so the homepage, the map, the links
             // and the handbook never touch the file. A request that does pays one
@@ -91,8 +97,8 @@ final class Definitions
 
                 return $pdo;
             },
-            \App\Push\SubscriptionRepository::class => \DI\autowire()->constructorParameter('clock', \DI\get(ClockInterface::class)),
-            \App\Push\MessageRepository::class => \DI\autowire()->constructorParameter('clock', \DI\get(ClockInterface::class)),
+            \App\Push\SubscriptionRepository::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
+            \App\Push\MessageRepository::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
             // the built-in push services plus PUSH_ENDPOINT_HOSTS (a test's or a dev setup's)
             \App\Push\EndpointPolicy::class => fn(Environment $environment): \App\Push\EndpointPolicy => new \App\Push\EndpointPolicy([
                 ...\App\Push\EndpointPolicy::DEFAULT_HOSTS,

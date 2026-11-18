@@ -18,9 +18,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  * HSTS — that needs TLS to exist first, see docs/deployment.md.
  *
  * Each header is set only if the response has none, which is how the admin routes keep
- * `Referrer-Policy: no-referrer`. Outside the error middleware like the screen
- * middleware, because an error page is exactly the response that must not be sniffed or
- * framed, and it is the one the error middleware answers on its own.
+ * `Referrer-Policy: no-referrer`. It sits outside the error middleware, like the screen
+ * middleware, so the error responses get the headers too.
  */
 final readonly class SecurityHeadersMiddleware implements MiddlewareInterface
 {

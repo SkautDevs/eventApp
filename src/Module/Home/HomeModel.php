@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Home;
+namespace App\Module\Home;
 
 use App\EventConfig;
-use App\Module\ProgramsModule;
+use App\Module\Programs\NextUp;
+use App\Module\Programs\Times;
 use App\Program\RegistrationWindow;
 use App\Push\NotificationList;
 use App\Time\Zone;
@@ -143,9 +144,9 @@ final class HomeModel
     }
 
     /**
-     * ProgramsModule::nextUp() as the Program screen's list builds it, each item extended
+     * NextUp::nextUp() as the Program screen's list builds it, each item extended
      * with what its card says: the start and end as Prague wall-clock times (written
-     * as ProgramsModule::CLOCK, like the Program screen), the place and
+     * as Times::CLOCK, like the Program screen), the place and
      * the title of its section. Null when the participant has no programme to show.
      *
      * @param list<array> $mine
@@ -154,7 +155,7 @@ final class HomeModel
      */
     private static function nextUp(array $mine, array $sections, \DateTimeImmutable $now): ?array
     {
-        $nextUp = ProgramsModule::nextUp($mine, $now->getTimestamp());
+        $nextUp = NextUp::nextUp($mine, $now->getTimestamp());
         if ($nextUp['items'] === []) {
             return null;
         }
@@ -167,8 +168,8 @@ final class HomeModel
             $section = $sections[$programme['section']['id'] ?? -1] ?? null;
             $location = $programme['location'] ?? null;
             $nextUp['items'][$i] = [
-                'time' => self::prague(new \DateTimeImmutable($item['start']))->format(ProgramsModule::CLOCK),
-                'until' => 'do ' . self::prague(new \DateTimeImmutable($item['end']))->format(ProgramsModule::CLOCK),
+                'time' => self::prague(new \DateTimeImmutable($item['start']))->format(Times::CLOCK),
+                'until' => 'do ' . self::prague(new \DateTimeImmutable($item['end']))->format(Times::CLOCK),
                 'location' => is_string($location) && $location !== '' ? $location : null,
                 'section' => $section['title'] ?? null,
             ] + $item;

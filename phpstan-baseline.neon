@@ -193,36 +193,6 @@ parameters:
 			path: src/EventConfig.php
 
 		-
-			message: '#^Cannot access offset ''id'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Home/HomeModel.php
-
-		-
-			message: '#^Parameter \#1 \$at of static method App\\Home\\HomeModel\:\:prague\(\) expects DateTimeImmutable, DateTimeImmutable\|null given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Home/HomeModel.php
-
-		-
-			message: '#^Parameter \#1 \$datetime of class DateTimeImmutable constructor expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Home/HomeModel.php
-
-		-
-			message: '#^Parameter \#1 \$items of static method App\\Push\\NotificationList\:\:today\(\) expects list\<array\{sentAt\: DateTimeImmutable\}\>, list\<array\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Home/HomeModel.php
-
-		-
-			message: '#^Possibly invalid array key type mixed\.$#'
-			identifier: offsetAccess.invalidOffset
-			count: 3
-			path: src/Home/HomeModel.php
-
-		-
 			message: '#^Binary operation "\>\>" between mixed and 16 results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 1
@@ -277,265 +247,13 @@ parameters:
 			path: src/Http/Precache.php
 
 		-
-			message: '#^Anonymous function should return string but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
-			identifier: foreach.nonIterable
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Binary operation "\+" between mixed and array\{key\: mixed\} results in an error\.$#'
-			identifier: binaryOp.invalid
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access offset ''id'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access offset ''name'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$features on mixed\.$#'
-			identifier: property.nonObject
-			count: 2
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$id on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$nickname on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$programmes on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$sessionToken on mixed\.$#'
-			identifier: property.nonObject
-			count: 5
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$slug on mixed\.$#'
-			identifier: property.nonObject
-			count: 2
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$status on mixed\.$#'
-			identifier: property.nonObject
-			count: 4
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$value on App\\Program\\PairingStatus\:\:Approved\|true\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot access property \$value on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method addGlobal\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method content\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method displayName\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method drop\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
 			message: '#^Cannot call method fetchColumn\(\) on PDOStatement\|false\.$#'
 			identifier: method.nonObject
 			count: 1
 			path: src/Kernel.php
 
 		-
-			message: '#^Cannot call method get\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 31
-			path: src/Kernel.php
-
-		-
 			message: '#^Cannot call method getBody\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 3
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method getEnvironment\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method getParticipant\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method getRegistrationWindow\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method getSections\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method id\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method identity\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 3
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method initials\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method isLogged\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method listed\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method loggedIn\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method loggedOut\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method logout\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method menuItem\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method pollPairing\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method record\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method registerRoutes\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method render\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 4
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method revokeSession\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method sessionGone\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method startPairing\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method store\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method tooMany\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot call method visible\(\) on mixed\.$#'
 			identifier: method.nonObject
 			count: 1
 			path: src/Kernel.php
@@ -543,30 +261,18 @@ parameters:
 		-
 			message: '#^Cannot call method withHeader\(\) on mixed\.$#'
 			identifier: method.nonObject
-			count: 9
+			count: 2
 			path: src/Kernel.php
 
 		-
 			message: '#^Cannot call method withStatus\(\) on mixed\.$#'
 			identifier: method.nonObject
-			count: 4
+			count: 1
 			path: src/Kernel.php
 
 		-
 			message: '#^Cannot call method write\(\) on mixed\.$#'
 			identifier: method.nonObject
-			count: 3
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot cast mixed to int\.$#'
-			identifier: cast.int
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Cannot cast mixed to string\.$#'
-			identifier: cast.string
 			count: 1
 			path: src/Kernel.php
 
@@ -607,93 +313,15 @@ parameters:
 			path: src/Kernel.php
 
 		-
-			message: '#^Method App\\Kernel\:\:menu\(\) should return list\<array\{label\: string, route\: string, icon\: string, order\: int, key\: string\}\> but returns list\<non\-empty\-array\>\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Method App\\Kernel\:\:registerCoreRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Kernel.php
-
-		-
 			message: '#^Method App\\Kernel\:\:registerModules\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
 			identifier: missingType.generics
 			count: 1
 			path: src/Kernel.php
 
 		-
-			message: '#^Parameter \#1 \$container of static method App\\Kernel\:\:menu\(\) expects Psr\\Container\\ContainerInterface, mixed given\.$#'
+			message: '#^Parameter \#1 \$response of method Slim\\Views\\Twig\:\:render\(\) expects Psr\\Http\\Message\\ResponseInterface, mixed given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$event of static method App\\Home\\HomeModel\:\:build\(\) expects App\\EventConfig, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$event of static method App\\Home\\HomeModel\:\:phase\(\) expects App\\EventConfig, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$event of static method App\\Http\\Precache\:\:build\(\) expects App\\EventConfig, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$feature of static method App\\Module\\ModuleRegistry\:\:classFor\(\) expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$messages of static method App\\Push\\NotificationList\:\:items\(\) expects list\<array\>, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$pairing of method App\\Auth\\PairingState\:\:begin\(\) expects App\\Program\\Pairing, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$participantId of class App\\Auth\\Identity constructor expects int, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$request of method App\\Http\\ClientIp\:\:throttleKey\(\) expects Psr\\Http\\Message\\ServerRequestInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$request of method App\\Toast\\Toasts\:\:take\(\) expects Psr\\Http\\Message\\ServerRequestInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$request of static method App\\Http\\SameOrigin\:\:allows\(\) expects Psr\\Http\\Message\\ServerRequestInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#1 \$response of method App\\Toast\\Toasts\:\:mark\(\) expects Psr\\Http\\Message\\ResponseInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 2
 			path: src/Kernel.php
 
 		-
@@ -709,286 +337,244 @@ parameters:
 			path: src/Kernel.php
 
 		-
-			message: '#^Parameter \#1 \$twig of static method App\\Kernel\:\:loginRefused\(\) expects Slim\\Views\\Twig, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#2 \$data of function hash expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#2 \$event of static method App\\Kernel\:\:menu\(\) expects App\\EventConfig, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#2 \$haystack of function in_array expects array, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#2 \$nickname of class App\\Auth\\Identity constructor expects string\|null, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#2 \$response of static method App\\Kernel\:\:loginRefused\(\) expects Psr\\Http\\Message\\ResponseInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Kernel.php
-
-		-
 			message: '#^Parameter \#3 \$logger of class App\\QuietErrorHandler constructor expects Psr\\Log\\LoggerInterface\|null, mixed given\.$#'
 			identifier: argument.type
 			count: 1
 			path: src/Kernel.php
 
 		-
-			message: '#^Parameter \#3 \$mine of static method App\\Home\\HomeModel\:\:build\(\) expects list\<array\>, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#3 \$sessionToken of class App\\Auth\\Identity constructor expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#3 \$versions of static method App\\Http\\Precache\:\:build\(\) expects App\\Http\\AssetVersion, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#4 \$sections of static method App\\Home\\HomeModel\:\:build\(\) expects array\<int, array\{id\: int, title\: string, subTitle\: string\|null\}\>, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Parameter \#6 \$window of static method App\\Home\\HomeModel\:\:build\(\) expects App\\Program\\RegistrationWindow, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Kernel.php
-
-		-
-			message: '#^Undefined variable\: \$this$#'
-			identifier: variable.undefined
-			count: 32
-			path: src/Kernel.php
-
-		-
-			message: '#^Binary operation "\." between ''attachment;filename…'' and mixed results in an error\.$#'
+			message: '#^Binary operation "\." between '' – '' and mixed results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 1
-			path: src/Module/HandbookModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
 			message: '#^Binary operation "\." between non\-falsy\-string and mixed results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 1
-			path: src/Module/HandbookModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Call to an undefined method App\\Module\\HandbookModule\:\:get\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Cannot access offset ''downloadName'' on mixed\.$#'
+			message: '#^Cannot access offset ''date'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Cannot access offset ''file'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Cannot call method get\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Cannot call method withBody\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Cannot call method withHeader\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Cannot call method withStatus\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Method App\\Module\\HandbookModule\:\:registerRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Parameter \#1 \$stream of class Slim\\Psr7\\Stream constructor expects resource, resource\|false given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/HandbookModule.php
-
-		-
-			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
-			identifier: foreach.nonIterable
-			count: 1
-			path: src/Module/InfoModule.php
-
-		-
-			message: '#^Call to an undefined method App\\Module\\InfoModule\:\:get\(\)\.$#'
-			identifier: method.notFound
-			count: 5
-			path: src/Module/InfoModule.php
+			count: 3
+			path: src/Module/Admin/AdminPage.php
 
 		-
 			message: '#^Cannot access offset ''id'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
+
+		-
+			message: '#^Cannot access offset ''location'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Admin/AdminPage.php
 
 		-
 			message: '#^Cannot access offset ''name'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Cannot access property \$programmes on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Module/InfoModule.php
-
-		-
-			message: '#^Cannot access property \$sessionToken on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Module/InfoModule.php
-
-		-
-			message: '#^Cannot access property \$slug on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Module/InfoModule.php
-
-		-
-			message: '#^Cannot call method content\(\) on mixed\.$#'
-			identifier: method.nonObject
+			message: '#^Cannot access offset ''start'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
 			count: 2
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Cannot call method getParticipant\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/InfoModule.php
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
+			count: 2
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Cannot call method identity\(\) on mixed\.$#'
-			identifier: method.nonObject
+			message: '#^Method App\\Module\\Admin\\AdminPage\:\:programmeOptions\(\) has parameter \$programs with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Cannot call method render\(\) on mixed\.$#'
-			identifier: method.nonObject
+			message: '#^Method App\\Module\\Admin\\AdminPage\:\:programmeOptions\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Cannot call method sessionGone\(\) on mixed\.$#'
-			identifier: method.nonObject
+			message: '#^Method App\\Module\\Admin\\AdminPage\:\:programmeOptions\(\) should return list\<array\{start\: array, label\: string, options\: list\<array\{id\: int, label\: string\}\>\}\> but returns list\<array\{start\: mixed, label\: non\-falsy\-string, options\: non\-empty\-list\<array\{id\: int, label\: non\-falsy\-string\}\>\}\>\.$#'
+			identifier: return.type
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
 
 		-
-			message: '#^Cannot call method visible\(\) on mixed\.$#'
-			identifier: method.nonObject
+			message: '#^Parameter \#1 \$datetime of class DateTimeImmutable constructor expects string, mixed given\.$#'
+			identifier: argument.type
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/AdminPage.php
+
+		-
+			message: '#^Parameter \#2 \$callback of function usort expects callable\(mixed, mixed\)\: int, Closure\(array, array\)\: int\<\-1, 1\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Admin/AdminPage.php
 
 		-
 			message: '#^Cannot cast mixed to int\.$#'
 			identifier: cast.int
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Admin/HideAction.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 2
+			path: src/Module/Admin/HideAction.php
+
+		-
+			message: '#^Parameter \#3 \$queryParams of method Slim\\Interfaces\\RouteParserInterface\:\:urlFor\(\) expects array\<string, array\<string\>\|string\>, array\<string, int\<1, max\>\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Admin/HideAction.php
+
+		-
+			message: '#^Cannot access offset ''id'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Cannot access offset ''notificationIcon'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
+			count: 4
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 6
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Method App\\Module\\Admin\\SendAction\:\:validate\(\) has parameter \$programmesById with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Parameter \#3 \.\.\.\$values of function sprintf expects bool\|float\|int\|string\|null, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Parameter \#4 \.\.\.\$values of function sprintf expects bool\|float\|int\|string\|null, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Parameter \$icon of method App\\Push\\PushSenderInterface\:\:sendToEvent\(\) expects string\|null, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Admin/SendAction.php
+
+		-
+			message: '#^Binary operation "\." between ''attachment;filename…'' and mixed results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: src/Module/Handbook/DownloadAction.php
+
+		-
+			message: '#^Binary operation "\." between non\-falsy\-string and mixed results in an error\.$#'
+			identifier: binaryOp.invalid
+			count: 1
+			path: src/Module/Handbook/DownloadAction.php
+
+		-
+			message: '#^Cannot access offset ''downloadName'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Handbook/DownloadAction.php
+
+		-
+			message: '#^Cannot access offset ''file'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Handbook/DownloadAction.php
+
+		-
+			message: '#^Parameter \#1 \$stream of class Slim\\Psr7\\Stream constructor expects resource, resource\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Handbook/DownloadAction.php
+
+		-
+			message: '#^Cannot access offset ''id'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Home/HomeModel.php
+
+		-
+			message: '#^Parameter \#1 \$at of static method App\\Module\\Home\\HomeModel\:\:prague\(\) expects DateTimeImmutable, DateTimeImmutable\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Module/Home/HomeModel.php
+
+		-
+			message: '#^Parameter \#1 \$datetime of class DateTimeImmutable constructor expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Module/Home/HomeModel.php
+
+		-
+			message: '#^Parameter \#1 \$items of static method App\\Push\\NotificationList\:\:today\(\) expects list\<array\{sentAt\: DateTimeImmutable\}\>, list\<array\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Home/HomeModel.php
+
+		-
+			message: '#^Possibly invalid array key type mixed\.$#'
+			identifier: offsetAccess.invalidOffset
+			count: 3
+			path: src/Module/Home/HomeModel.php
+
+		-
+			message: '#^Parameter \#2 \$label of class App\\Module\\MenuItem constructor expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Home/HomeModule.php
+
+		-
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
+			count: 1
+			path: src/Module/Home/ShowAction.php
 
 		-
 			message: '#^Cannot cast mixed to string\.$#'
 			identifier: cast.string
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Home/ShowAction.php
 
 		-
-			message: '#^Method App\\Module\\InfoModule\:\:menuItem\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
 			count: 1
-			path: src/Module/InfoModule.php
+			path: src/Module/Info/ShowAction.php
 
 		-
-			message: '#^Method App\\Module\\InfoModule\:\:registerRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
-			identifier: missingType.generics
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
 			count: 1
-			path: src/Module/InfoModule.php
-
-		-
-			message: '#^Parameter \#1 \$messages of static method App\\Push\\NotificationList\:\:items\(\) expects list\<array\>, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/InfoModule.php
-
-		-
-			message: '#^Call to an undefined method App\\Module\\MapModule\:\:get\(\)\.$#'
-			identifier: method.notFound
-			count: 2
-			path: src/Module/MapModule.php
-
-		-
-			message: '#^Cannot call method get\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/MapModule.php
-
-		-
-			message: '#^Cannot call method render\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/MapModule.php
-
-		-
-			message: '#^Method App\\Module\\MapModule\:\:menuItem\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/Module/MapModule.php
-
-		-
-			message: '#^Method App\\Module\\MapModule\:\:registerRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Module/MapModule.php
+			path: src/Module/Info/ShowAction.php
 
 		-
 			message: '#^Method App\\Module\\ModuleInterface\:\:registerRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
@@ -997,928 +583,400 @@ parameters:
 			path: src/Module/ModuleInterface.php
 
 		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 1
+			path: src/Module/Programs/DayListBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\DayListBuilder\:\:buildDays\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/DayListBuilder.php
+
+		-
+			message: '#^Parameter \#2 \$timestamp of function date expects int\|null, int\|false given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Programs/DayListBuilder.php
+
+		-
+			message: '#^Possibly invalid array key type mixed\.$#'
+			identifier: offsetAccess.invalidOffset
+			count: 1
+			path: src/Module/Programs/DayListBuilder.php
+
+		-
 			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
 			identifier: foreach.nonIterable
-			count: 3
-			path: src/Module/ProgramsModule.php
+			count: 1
+			path: src/Module/Programs/NextUp.php
 
 		-
 			message: '#^Binary operation "\+" between mixed and array\{day\: mixed\} results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Binary operation "\." between mixed and '' – '' results in an error\.$#'
-			identifier: binaryOp.invalid
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Binary operation "\." between non\-falsy\-string and mixed results in an error\.$#'
-			identifier: binaryOp.invalid
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Call to an undefined method App\\Module\\ProgramsModule\:\:get\(\)\.$#'
-			identifier: method.notFound
-			count: 6
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''body'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''footer'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''id'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 4
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/NextUp.php
 
 		-
 			message: '#^Cannot access offset ''items'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''key'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 2
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/NextUp.php
 
 		-
 			message: '#^Cannot access offset ''label'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''messages'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''programmeId'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''sentAt'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 2
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset ''title'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access offset mixed on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access property \$programmes on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access property \$sessionToken on mixed\.$#'
-			identifier: property.nonObject
-			count: 3
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot access property \$slug on mixed\.$#'
-			identifier: property.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method getParticipant\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method getPrograms\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method getRegistrationWindow\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method getSections\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method identity\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method isLogged\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method register\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method render\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method sessionGone\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method unregister\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot call method visible\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot cast mixed to int\.$#'
-			identifier: cast.int
-			count: 3
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Cannot cast mixed to string\.$#'
-			identifier: cast.string
-			count: 4
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildCard\(\) has parameter \$segment with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildCard\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildDays\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildDetail\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildDetail\(\) has parameter \$sections with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildDetail\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildPage\(\) has parameter \$segments with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildPage\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildViewModel\(\) has parameter \$sections with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:buildViewModel\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:dayOf\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:menuItem\(\) never returns null so it can be removed from the return type\.$#'
-			identifier: return.unusedType
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:packTracks\(\) has parameter \$items with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:packTracks\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:preregistered\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:programme\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:registerRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:sectionTitle\(\) has parameter \$section with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:sectionTitle\(\) should return string but returns mixed\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:segments\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:segments\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:timeRange\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:toastLine\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Method App\\Module\\ProgramsModule\:\:whenLabel\(\) has parameter \$program with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#1 \$c of static method App\\Module\\ProgramsModule\:\:write\(\) expects Psr\\Container\\ContainerInterface, \$this\(App\\Module\\ProgramsModule\) given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/NextUp.php
 
 		-
 			message: '#^Parameter \#1 \$datetime of function strtotime expects string, mixed given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#1 \$detail of static method App\\Module\\ProgramsModule\:\:footer\(\) expects array\{preregistered\: bool, registered\: bool\}, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/NextUp.php
 
 		-
 			message: '#^Parameter \#1 \$keys of function array_fill_keys expects an array of values castable to string, list given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/NextUp.php
 
 		-
-			message: '#^Parameter \#1 \$pages of static method App\\Module\\ProgramsModule\:\:activeKey\(\) expects list\<array\{key\: string, day\: string\}\>, list\<array\> given\.$#'
+			message: '#^Parameter \#2 \$registeredIds of static method App\\Module\\Programs\\DayListBuilder\:\:buildDays\(\) expects array\<int, true\>, array\<true\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/NextUp.php
 
 		-
-			message: '#^Parameter \#1 \$provider of static method App\\Module\\ProgramsModule\:\:programme\(\) expects App\\Program\\ProgramProviderInterface, mixed given\.$#'
+			message: '#^Method App\\Module\\Programs\\ProgramsModule\:\:menuItem\(\) never returns null so it can be removed from the return type\.$#'
+			identifier: return.unusedType
+			count: 1
+			path: src/Module/Programs/ProgramsModule.php
+
+		-
+			message: '#^Call to function is_array\(\) with array will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Module/Programs/RegistrationWriter.php
+
+		-
+			message: '#^Cannot access offset ''id'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Programs/RegistrationWriter.php
+
+		-
+			message: '#^Cannot cast mixed to int\.$#'
+			identifier: cast.int
+			count: 1
+			path: src/Module/Programs/RegistrationWriter.php
+
+		-
+			message: '#^Cannot cast mixed to string\.$#'
+			identifier: cast.string
+			count: 2
+			path: src/Module/Programs/RegistrationWriter.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\RegistrationWriter\:\:programme\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/RegistrationWriter.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\RegistrationWriter\:\:toastLine\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/RegistrationWriter.php
+
+		-
+			message: '#^Cannot access offset ''id'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Programs/ScheduleBuilder.php
+
+		-
+			message: '#^Cannot access offset ''key'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 2
+			path: src/Module/Programs/ScheduleBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\ScheduleBuilder\:\:buildViewModel\(\) has parameter \$sections with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/ScheduleBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\ScheduleBuilder\:\:buildViewModel\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/ScheduleBuilder.php
+
+		-
+			message: '#^Parameter \#1 \$pages of static method App\\Module\\Programs\\ScheduleBuilder\:\:activeKey\(\) expects list\<array\{key\: string, day\: string\}\>, list\<array\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Programs/ScheduleBuilder.php
+
+		-
+			message: '#^Parameter \#2 \$registeredIds of static method App\\Module\\Programs\\DayListBuilder\:\:buildDays\(\) expects array\<int, true\>, array\<true\> given\.$#'
 			identifier: argument.type
 			count: 2
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/ScheduleBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$request of method App\\Toast\\Toasts\:\:take\(\) expects Psr\\Http\\Message\\ServerRequestInterface, mixed given\.$#'
+			message: '#^Parameter \#3 \$pageOfProgram of static method App\\Module\\Programs\\SheetBuilder\:\:buildDetail\(\) expects array\<int, string\>, array given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/ScheduleBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$response of method App\\Toast\\Toasts\:\:mark\(\) expects Psr\\Http\\Message\\ResponseInterface, mixed given\.$#'
+			message: '#^Parameter \#3 \$registeredIds of static method App\\Module\\Programs\\TimelineBuilder\:\:buildPage\(\) expects array\<int, true\>, array\<true\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/ScheduleBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$sections of static method App\\Module\\ProgramsModule\:\:buildViewModel\(\) expects array\<int, array\>, mixed given\.$#'
+			message: '#^Parameter \#4 \$registeredIds of static method App\\Module\\Programs\\SheetBuilder\:\:buildDetail\(\) expects array\<int, true\>, array\<true\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#1 \$stamp of static method App\\Push\\NotificationList\:\:sentAt\(\) expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#1 \$twig of static method App\\Module\\ProgramsModule\:\:refused\(\) expects Slim\\Views\\Twig, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#1 \.\.\.\$arg1 of function max expects non\-empty\-array, list\<int\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#1 \.\.\.\$arg1 of function min expects non\-empty\-array, list\<int\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#2 \$all of static method App\\Module\\ProgramsModule\:\:buildViewModel\(\) expects list\<array\>, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#2 \$paired of static method App\\Module\\ProgramsModule\:\:footer\(\) expects bool, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#2 \$registeredIds of static method App\\Module\\ProgramsModule\:\:buildDays\(\) expects array\<int, true\>, array\<true\> given\.$#'
-			identifier: argument.type
-			count: 3
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#2 \$request of static method App\\Module\\ProgramsModule\:\:write\(\) expects Psr\\Http\\Message\\ServerRequestInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#2 \$timestamp of function date expects int\|null, int\|false given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#3 \$mine of static method App\\Module\\ProgramsModule\:\:buildViewModel\(\) expects list\<array\>, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#3 \$pageOfProgram of static method App\\Module\\ProgramsModule\:\:buildDetail\(\) expects array\<int, string\>, array given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#3 \$registeredIds of static method App\\Module\\ProgramsModule\:\:buildPage\(\) expects array\<int, true\>, array\<true\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#3 \$response of static method App\\Module\\ProgramsModule\:\:write\(\) expects Psr\\Http\\Message\\ResponseInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#4 \$registeredIds of static method App\\Module\\ProgramsModule\:\:buildDetail\(\) expects array\<int, true\>, array\<true\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
-
-		-
-			message: '#^Parameter \#4 \$window of static method App\\Module\\ProgramsModule\:\:footer\(\) expects App\\Program\\RegistrationWindow, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/ProgramsModule.php
+			path: src/Module/Programs/ScheduleBuilder.php
 
 		-
 			message: '#^Possibly invalid array key type mixed\.$#'
 			identifier: offsetAccess.invalidOffset
-			count: 11
-			path: src/Module/ProgramsModule.php
+			count: 5
+			path: src/Module/Programs/ScheduleBuilder.php
 
 		-
-			message: '#^Binary operation "\." between '' – '' and mixed results in an error\.$#'
+			message: '#^Binary operation "\." between mixed and '' – '' results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Binary operation "\." between ''subscribe '' and mixed results in an error\.$#'
-			identifier: binaryOp.invalid
-			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/SheetBuilder.php
 
 		-
 			message: '#^Binary operation "\." between non\-falsy\-string and mixed results in an error\.$#'
 			identifier: binaryOp.invalid
 			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Call to an undefined method App\\Module\\PushModule\:\:get\(\)\.$#'
-			identifier: method.notFound
-			count: 18
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access offset ''date'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 3
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access offset ''failed'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 3
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/SheetBuilder.php
 
 		-
 			message: '#^Cannot access offset ''id'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access offset ''location'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/SheetBuilder.php
 
 		-
-			message: '#^Cannot access offset ''name'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
+			message: '#^Method App\\Module\\Programs\\SheetBuilder\:\:buildDetail\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/SheetBuilder.php
 
 		-
-			message: '#^Cannot access offset ''notificationIcon'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access offset ''page'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
+			message: '#^Method App\\Module\\Programs\\SheetBuilder\:\:buildDetail\(\) has parameter \$sections with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/SheetBuilder.php
 
 		-
-			message: '#^Cannot access offset ''removed'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
+			message: '#^Method App\\Module\\Programs\\SheetBuilder\:\:buildDetail\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/SheetBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\SheetBuilder\:\:preregistered\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/SheetBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\SheetBuilder\:\:sectionTitle\(\) has parameter \$section with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/SheetBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\SheetBuilder\:\:sectionTitle\(\) should return string but returns mixed\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Module/Programs/SheetBuilder.php
+
+		-
+			message: '#^Possibly invalid array key type mixed\.$#'
+			identifier: offsetAccess.invalidOffset
 			count: 3
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/SheetBuilder.php
 
 		-
-			message: '#^Cannot access offset ''result'' on mixed\.$#'
+			message: '#^Argument of an invalid type mixed supplied for foreach, only iterables are supported\.$#'
+			identifier: foreach.nonIterable
+			count: 1
+			path: src/Module/Programs/ShowAction.php
+
+		-
+			message: '#^Cannot access offset ''footer'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/ShowAction.php
 
 		-
-			message: '#^Cannot access offset ''sent'' on mixed\.$#'
-			identifier: offsetAccess.nonOffsetAccessible
-			count: 3
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access offset ''signature'' on mixed\.$#'
+			message: '#^Cannot access offset ''id'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/ShowAction.php
 
 		-
-			message: '#^Cannot access offset ''start'' on mixed\.$#'
+			message: '#^Cannot access offset ''messages'' on mixed\.$#'
 			identifier: offsetAccess.nonOffsetAccessible
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access property \$name on mixed\.$#'
-			identifier: property.nonObject
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/ShowAction.php
 
 		-
-			message: '#^Cannot access property \$participantId on mixed\.$#'
-			identifier: property.nonObject
+			message: '#^Cannot access offset mixed on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
 			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot access property \$slug on mixed\.$#'
-			identifier: property.nonObject
-			count: 16
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method allows\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method begin\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method count\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method delete\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method find\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method finish\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method get\(\) on Psr\\Container\\ContainerInterface\|null\.$#'
-			identifier: method.nonObject
-			count: 9
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method get\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 7
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method getMethod\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method getParsedBody\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 6
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method getParticipantIdsForProgramme\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method getPrograms\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method getQueryParams\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method handle\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method handleException\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method identity\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method info\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method page\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method record\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method regenerateId\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method render\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method save\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method sendToEvent\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method sendToSubscription\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method set\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 3
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method setHidden\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method subscribedParticipantIds\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method tooMany\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method transact\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method withHeader\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 5
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method withParsedBody\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Cannot call method withStatus\(\) on mixed\.$#'
-			identifier: method.nonObject
-			count: 13
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/ShowAction.php
 
 		-
 			message: '#^Cannot cast mixed to int\.$#'
 			identifier: cast.int
-			count: 8
-			path: src/Module/PushModule.php
+			count: 1
+			path: src/Module/Programs/ShowAction.php
+
+		-
+			message: '#^Parameter \#1 \$detail of static method App\\Module\\Programs\\SheetBuilder\:\:footer\(\) expects array\{preregistered\: bool, registered\: bool\}, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Programs/ShowAction.php
+
+		-
+			message: '#^Parameter \#1 \$stamp of static method App\\Push\\NotificationList\:\:sentAt\(\) expects string, mixed given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Programs/ShowAction.php
+
+		-
+			message: '#^Parameter \#3 \$data of method Slim\\Views\\Twig\:\:render\(\) expects array\<string, mixed\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Module/Programs/ShowAction.php
+
+		-
+			message: '#^Possibly invalid array key type mixed\.$#'
+			identifier: offsetAccess.invalidOffset
+			count: 1
+			path: src/Module/Programs/ShowAction.php
 
 		-
 			message: '#^Cannot cast mixed to string\.$#'
 			identifier: cast.string
-			count: 9
-			path: src/Module/PushModule.php
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Method App\\Module\\PushModule\:\:programmeOptions\(\) has parameter \$programs with no value type specified in iterable type array\.$#'
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:buildCard\(\) has parameter \$segment with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Method App\\Module\\PushModule\:\:programmeOptions\(\) return type has no value type specified in iterable type array\.$#'
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:buildCard\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Method App\\Module\\PushModule\:\:programmeOptions\(\) should return list\<array\{start\: array, label\: string, options\: list\<array\{id\: int, label\: string\}\>\}\> but returns list\<array\{start\: mixed, label\: non\-falsy\-string, options\: non\-empty\-list\<array\{id\: int, label\: non\-falsy\-string\}\>\}\>\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Method App\\Module\\PushModule\:\:programmes\(\) should return array\{list\<array\>, bool\} but returns array\{mixed, false\}\.$#'
-			identifier: return.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Method App\\Module\\PushModule\:\:registerRoutes\(\) has parameter \$app with generic class Slim\\App but does not specify its types\: TContainerInterface$#'
-			identifier: missingType.generics
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Method App\\Module\\PushModule\:\:validate\(\) has parameter \$programmesById with no value type specified in iterable type array\.$#'
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:buildPage\(\) has parameter \$segments with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$array of function array_diff expects array, mixed given\.$#'
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:buildPage\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:packTracks\(\) has parameter \$items with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:packTracks\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:segments\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\TimelineBuilder\:\:segments\(\) return type has no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
+
+		-
+			message: '#^Parameter \#1 \.\.\.\$arg1 of function max expects non\-empty\-array, list\<int\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$c of static method App\\Module\\PushModule\:\:programmes\(\) expects Psr\\Container\\ContainerInterface, \$this\(App\\Module\\PushModule\) given\.$#'
+			message: '#^Parameter \#1 \.\.\.\$arg1 of function min expects non\-empty\-array, list\<int\> given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$c of static method App\\Module\\PushModule\:\:programmes\(\) expects Psr\\Container\\ContainerInterface, Psr\\Container\\ContainerInterface\|null given\.$#'
+			message: '#^Parameter \#2 \$timestamp of function date expects int\|null, int\|false given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Programs/TimelineBuilder.php
 
 		-
-			message: '#^Parameter \#1 \$datetime of class DateTimeImmutable constructor expects string, mixed given\.$#'
+			message: '#^Possibly invalid array key type mixed\.$#'
+			identifier: offsetAccess.invalidOffset
+			count: 1
+			path: src/Module/Programs/TimelineBuilder.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\Times\:\:dayOf\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/Times.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\Times\:\:timeRange\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/Times.php
+
+		-
+			message: '#^Method App\\Module\\Programs\\Times\:\:whenLabel\(\) has parameter \$program with no value type specified in iterable type array\.$#'
+			identifier: missingType.iterableValue
+			count: 1
+			path: src/Module/Programs/Times.php
+
+		-
+			message: '#^Cannot access offset ''notificationIcon'' on mixed\.$#'
+			identifier: offsetAccess.nonOffsetAccessible
+			count: 1
+			path: src/Module/Push/SubscribeAction.php
+
+		-
+			message: '#^Parameter \$icon of method App\\Push\\PushSenderInterface\:\:sendToSubscription\(\) expects string\|null, mixed given\.$#'
 			identifier: argument.type
 			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#1 \$request of method App\\Http\\ClientIp\:\:throttleKey\(\) expects Psr\\Http\\Message\\ServerRequestInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#1 \$response of static method App\\Module\\PushModule\:\:json\(\) expects Psr\\Http\\Message\\ResponseInterface, mixed given\.$#'
-			identifier: argument.type
-			count: 5
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#1 \$slug of method App\\Environment\:\:forEvent\(\) expects string, mixed given\.$#'
-			identifier: argument.type
-			count: 2
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#2 \$array of function array_key_exists expects array, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#2 \$callback of function usort expects callable\(mixed, mixed\)\: int, Closure\(array, array\)\: int\<\-1, 1\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#2 \.\.\.\$arrays of function array_diff expects array, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#3 \$queryParams of method Slim\\Interfaces\\RouteParserInterface\:\:urlFor\(\) expects array\<string, array\<string\>\|string\>, array\<string, int\<1, max\>\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#3 \.\.\.\$values of function sprintf expects bool\|float\|int\|string\|null, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
-
-		-
-			message: '#^Parameter \#4 \.\.\.\$values of function sprintf expects bool\|float\|int\|string\|null, mixed given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Module/PushModule.php
+			path: src/Module/Push/SubscribeAction.php
 
 		-
 			message: '#^Cannot access offset ''data'' on mixed\.$#'

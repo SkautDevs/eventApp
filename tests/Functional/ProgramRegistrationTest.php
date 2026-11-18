@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use App\Module\ProgramsModule;
+use App\Module\Programs\RegistrationWriter;
+use App\Module\Programs\SheetBuilder;
 use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
@@ -330,7 +331,7 @@ final class ProgramRegistrationTest extends AppTestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('closedWindows')]
     public function testAClosedWindowIsSaidWithoutATrailingPeriod(RegistrationWindow $window, string $state, string $line): void
     {
-        $footer = static fn(array $detail): ?array => (new \ReflectionMethod(ProgramsModule::class, 'footer'))
+        $footer = static fn(array $detail): ?array => (new \ReflectionMethod(SheetBuilder::class, 'footer'))
             ->invoke(null, $detail, true, true, $window, new \DateTimeImmutable('2026-11-17T12:00:00+01:00'));
 
         self::assertSame(['state' => $state, 'line' => $line], $footer(['preregistered' => false, 'registered' => false]));
@@ -427,8 +428,8 @@ final class ProgramRegistrationTest extends AppTestCase
             'id' => 9, 'name' => 'X', 'section' => ['id' => 1], 'start' => ['date' => $start], 'end' => ['date' => $end], 'location' => $location,
         ];
 
-        self::assertSame('Pá 21. 5. · 9:00–12:30 · Žlutý les', ProgramsModule::toastLine($programme('2027-05-21 09:00:00', '2027-05-21 12:30:00', 'Žlutý les')));
-        self::assertSame('Čt 20. 5. · 22:00–1:30', ProgramsModule::toastLine($programme('2027-05-20 22:00:00', '2027-05-21 01:30:00', null)));
-        self::assertSame('Út 18. 5. · 10:00–11:00', ProgramsModule::toastLine($programme('2027-05-18 10:00:00', '2027-05-18 11:00:00', '')));
+        self::assertSame('Pá 21. 5. · 9:00–12:30 · Žlutý les', RegistrationWriter::toastLine($programme('2027-05-21 09:00:00', '2027-05-21 12:30:00', 'Žlutý les')));
+        self::assertSame('Čt 20. 5. · 22:00–1:30', RegistrationWriter::toastLine($programme('2027-05-20 22:00:00', '2027-05-21 01:30:00', null)));
+        self::assertSame('Út 18. 5. · 10:00–11:00', RegistrationWriter::toastLine($programme('2027-05-18 10:00:00', '2027-05-18 11:00:00', '')));
     }
 }
