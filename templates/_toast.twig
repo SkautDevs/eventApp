@@ -1,6 +1,6 @@
 {# The one toast: a title, an optional second line and a close button, under the app bar.
    The server renders it after a login or logout (Toasts::take()) and marks the
-   response (Toasts::mark()), so the worker never keeps it for offline; www/shell.js builds
+   response (Toasts::mark()), so the worker never keeps it for offline; www/js/shell/toast.js builds
    the same element for the toasts it shows itself (showToast()) and removes either kind
    after 6 s or on the close tap. #}
 <div class="toast" role="status" data-toast data-key="toast"><p><strong>{{ title }}</strong>{% if line ?? null %}<span>{{ line }}</span>{% endif %}</p><button type="button" class="toast-close" data-toast-close aria-label="Zavřít">✕</button></div>

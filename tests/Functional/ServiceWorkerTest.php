@@ -124,7 +124,7 @@ final class ServiceWorkerTest extends AppTestCase
         $sw = $this->source();
 
         self::assertStringContainsString(
-            "if ((url.searchParams.has('v') && new RegExp('^/(events/' + SLUG + '/)?[a-z]+\\\\.(css|js)$').test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {\n\t\tevent.respondWith(cacheFirst(event));",
+            "if ((url.searchParams.has('v') && new RegExp('^/((events/' + SLUG + '|css)/)?[a-z]+\\\\.(css|js)$').test(url.pathname)) || /^\\/js\\/[0-9a-f]{8}\\//.test(url.pathname) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {\n\t\tevent.respondWith(cacheFirst(event));",
             $sw,
         );
     }
@@ -137,7 +137,7 @@ final class ServiceWorkerTest extends AppTestCase
         // that fails offline leaves the offline copy alone
         self::assertStringContainsString(': fetch(request).then(response => purgeHtml().catch(() => null).then(() => response), () => offlineRedirect(request)));', $sw);
         self::assertStringNotContainsString('purgeHtml().catch(() => null).then(() => fetch(request))', $sw);
-        // a subscribe or unsubscribe changes no rendered HTML, so it purges nothing
+        // a subscribe changes no rendered HTML, so it purges nothing
         self::assertStringContainsString("if (inScope && !url.pathname.startsWith(BASE + 'admin/') && !url.pathname.startsWith(BASE + 'push/'))", $sw);
         self::assertStringContainsString(".startsWith('text/html')", $sw);
     }
@@ -319,7 +319,7 @@ final class ServiceWorkerTest extends AppTestCase
     public function testARevalidationAnsweredFromTheCacheSaysSo(): void
     {
         self::assertStringContainsString("headers.set('X-From-Cache', '1');", $this->source());
-        self::assertStringContainsString("response.headers.get('X-From-Cache') !== '1'", (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js'));
+        self::assertStringContainsString("response.headers.get('X-From-Cache') !== '1'", (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/loader/loader.js'));
     }
 
     /** Review M1: a failed fill spares a cache another fill completed, and activate forgets a name it could not adopt. */

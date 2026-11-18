@@ -187,7 +187,7 @@ final class ProgramListTest extends AppTestCase
         self::assertStringNotContainsString('.pl-day.is-active', $css);
         // The heading docks under the strip rather than scrolling away with its day —
         // against the same line the strip itself is docked against, the notch included.
-        // bandTop() in www/programs.js adds up the same three tokens, and the two have
+        // bandTop() in www/js/programs/daylist.js adds up the same three tokens, and the two have
         // to agree or the strip names one day while another one's heading is stuck.
         self::assertMatchesRegularExpression(
             '/\.pl-head \{[^}]*position: sticky;[^}]*top: calc\(var\(--appbar-height\) \+ var\(--appbar-inset\) \+ var\(--pager-height\)\);/',

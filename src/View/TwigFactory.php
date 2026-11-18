@@ -7,6 +7,7 @@ namespace App\View;
 use App\Auth;
 use App\Environment;
 use App\EventConfig;
+use App\Module;
 use App\Module\Home\HomeModel;
 use App\Http;
 use App\Program;
@@ -16,10 +17,11 @@ use Twig\TwigFilter;
 
 /**
  * An event's Twig environment, with the globals the layout reads (`event`, `base`,
- * `vapidPublicKey`, and `fragment`, `screenPath` and `cspNonce`, which the per-request
- * middlewares overwrite), the functions `auth_identity`, `data_freshness` and
- * `asset_version` and the `dateToCzechDayName` filter. The instance app's plain one is
- * InstanceTwigFactory's.
+ * `vapidPublicKey`, the script entries `scripts` and the files they import, `preloads`,
+ * and `fragment`, `screenPath` and `cspNonce`, which the per-request middlewares
+ * overwrite), the functions `auth_identity`, `data_freshness`,
+ * `asset_version` and `script_url` and the `dateToCzechDayName` filter. The instance
+ * app's plain one is InstanceTwigFactory's.
  */
 final readonly class TwigFactory
 {
@@ -107,6 +109,37 @@ final readonly class TwigFactory
                 return $assets->url($path);
             },
         ));
+        // `shell/index.js` → `/js/<first 8 hex of the www/js/ tree's sha256>/shell/index.js`: one version
+        // for every script, so a phone never mixes the scripts of two deploys
+        $env->addFunction(new \Twig\TwigFunction(
+            'script_url',
+            function (string $path) use ($c): string {
+                $scripts = $c->get(Http\ScriptVersion::class);
+                // the event container builds the class under its own name (Definitions::forEvent())
+                \assert($scripts instanceof Http\ScriptVersion);
+
+                return $scripts->url($path);
+            },
+        ));
+        // The layout's scripts: `scripts`, one module entry per module with a script in module
+        // order (Modules::scripts()), and `preloads`, every file those entries import, each
+        // once in the order first met, so the browser fetches the whole graph at once
+        // rather than one import level per round trip
+        $modules = $c->get(Module\Modules::class);
+        // the event container autowires the class under its own name
+        \assert($modules instanceof Module\Modules);
+        $graph = $c->get(Http\ScriptGraph::class);
+        // the event container builds the class under its own name (Definitions::forEvent())
+        \assert($graph instanceof Http\ScriptGraph);
+        $scripts = $modules->scripts();
+        $preloads = [];
+        foreach ($scripts as $entry) {
+            foreach ($graph->imports($entry) as $file) {
+                $preloads[$file] = true;
+            }
+        }
+        $env->addGlobal('scripts', $scripts);
+        $env->addGlobal('preloads', array_keys($preloads));
         $env->addFilter(new TwigFilter('dateToCzechDayName', function (\DateTimeInterface $datetime): string {
             return HomeModel::WEEKDAYS[(int) $datetime->format('N')];
         }));

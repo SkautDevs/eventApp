@@ -5,22 +5,38 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 /**
- * www/shell.js: the installed-app concerns. What a test can hold here is its contract;
- * the behaviour is proved in a browser (tests/Browser).
+ * The installed-app concerns: www/js/shell/ (the worker, the banner, the toast, the
+ * confirmations, the loading bar, the install), www/js/ui/reltime.js, Domů's draws
+ * (www/js/home/), and the map-offline note (www/js/map/offline.js). What a test
+ * can hold here is its contract; the behaviour is proved in a browser (tests/Browser), and
+ * the logic that can run on its own in tests/js.
  */
 final class ShellScriptTest extends AppTestCase
 {
-    private static function script(): string
+    /** A script under www/js, by its path there. */
+    private static function js(string $path): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/shell.js');
+        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/' . $path);
+    }
+
+    /** Domů's draws: every script under www/js/home, one after the other. */
+    private static function home(): string
+    {
+        return self::js('home/index.js') . self::js('home/nextup.js') . self::js('home/countdown.js');
+    }
+
+    /** events.js is the one file that spells an event name. */
+    private static function assertEventName(string $name): void
+    {
+        self::assertStringContainsString("= '" . $name . "';", self::js('events.js'), $name);
     }
 
     public function testTheShellRegistersTheWorkerOnEveryPage(): void
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/informace')->getBody();
 
-        self::assertMatchesRegularExpression('~<script src="shell\.js\?v=[0-9a-f]{8}" defer></script>~', $html);
-        self::assertStringContainsString("navigator.serviceWorker.register('sw.js', {scope: meta('event-base')})", self::script());
+        self::assertMatchesRegularExpression('~<script type="module" src="/js/[0-9a-f]{8}/shell/index\.js"></script>~', $html);
+        self::assertStringContainsString("navigator.serviceWorker.register('sw.js', {scope: meta('event-base')})", self::js('shell/worker.js'));
     }
 
     private static function stylesheet(): string
@@ -30,20 +46,21 @@ final class ShellScriptTest extends AppTestCase
 
     public function testAMapThatCannotLoadOfflineSaysSo(): void
     {
-        $shell = self::script();
-        self::assertStringContainsString("document.querySelectorAll('[data-map-offline]')", $shell);
-        self::assertStringContainsString("window.addEventListener('online', drawMap);", $shell);
+        $offline = self::js('map/offline.js');
+        self::assertStringContainsString("document.querySelectorAll('[data-map-offline]')", $offline);
+        self::assertStringContainsString("window.addEventListener('online', drawMap);", $offline);
         // one capture-phase listener marks a map loaded, whichever screen it arrives on
-        self::assertStringContainsString("document.addEventListener('load', function (event) {", $shell);
-        self::assertStringContainsString("iframe.matches('[data-map] iframe')", $shell);
-        self::assertStringContainsString('}, true);', $shell);
-        self::assertStringNotContainsString('mapWatched', $shell);
+        self::assertStringContainsString("document.addEventListener('load', markLoaded, true);", $offline);
+        self::assertStringContainsString("iframe.matches('[data-map] iframe')", $offline);
+        self::assertStringNotContainsString('mapWatched', $offline);
         // a loaded map offline needs no note
-        self::assertStringContainsString("note.hidden = !(map && map.hasAttribute('data-map') && map.hidden);", $shell);
-        // the note may carry the plan's button (www/map.js handles it), so shell.js only
-        // ever shows or hides it and never rewrites what it says
-        self::assertStringNotContainsString('note.textContent', $shell);
-        self::assertStringNotContainsString('note.innerHTML', $shell);
+        self::assertStringContainsString("note.hidden = !(map && map.hasAttribute('data-map') && map.hidden);", $offline);
+        // the note may carry the plan's button (www/js/map/views.js handles it), so
+        // map/offline.js only ever shows or hides it and never rewrites what it says
+        self::assertStringNotContainsString('note.textContent', $offline);
+        self::assertStringNotContainsString('note.innerHTML', $offline);
+        // the shell no longer holds it: the legacy script is gone
+        self::assertFileDoesNotExist(dirname(__DIR__, 2) . '/www/js/shell.js');
     }
 
     public function testTheHomepageAndTheProfileOfferAHiddenInstall(): void
@@ -61,42 +78,57 @@ final class ShellScriptTest extends AppTestCase
     /** On Domů the whole card goes in an installed app; on Profil only its install half. */
     public function testAnInstalledAppHidesTheHomeCardAndOnlyTheInstallHalfOnProfil(): void
     {
-        $js = self::script();
+        $js = self::js('shell/install.js');
 
+        // which card hides is InstallTest's, standalone() itself tests/js/install.test.js's
         self::assertStringContainsString("document.querySelectorAll('[data-install-card=\"home\"]')", $js);
-        self::assertStringContainsString('card.hidden = standalone();', $js);
-        self::assertStringContainsString('el.hidden = deferredPrompt === null || standalone();', $js);
+        self::assertStringContainsString("document.querySelectorAll('[data-install]')", $js);
     }
 
-    /** The home screen's next programmes and countdown, drawn from the device clock. */
+    /**
+     * The home screen's next programmes and countdown, drawn from the device clock. The
+     * leads, which cards show, the day count and its unit are tests/js/home.test.js's.
+     */
     public function testTheHomeScreenIsDrawnFromTheDeviceClock(): void
     {
-        $js = self::script();
+        $js = self::home();
 
         // the server writes data-until as "do HH:MM", so the running lead reads "Právě · do HH:MM"
-        foreach (["'Právě · ' + card.dataset.until", "'Za '", 'data-countdown', 'data-next-lead', "['den', 'dny', 'dní']"] as $needle) {
+        foreach (["'Právě · ' + card.until", "'Za '", 'data-countdown', 'data-next-lead', "['den', 'dny', 'dní']"] as $needle) {
             self::assertStringContainsString($needle, $js);
         }
         // up to three cards: the running one and the next two
-        self::assertStringContainsString('NEXT_SHOWN = 3', $js);
-        // the countdown counts Prague days, whatever zone the phone is in
-        self::assertStringContainsString("timeZone: 'Europe/Prague'", $js);
-        self::assertStringContainsString("document.addEventListener('DOMContentLoaded', drawHome);", $js);
-        self::assertStringContainsString("document.addEventListener('pg:tick', drawHome);", $js);
+        self::assertStringContainsString('export const NEXT_SHOWN = 3;', self::js('home/nextup.js'));
+        // the countdown counts Prague days, whatever zone the phone is in: on the clock's calendar
+        self::assertStringContainsString("import {pragueDay, pragueParts} from '../ui/clock.js';", self::js('home/countdown.js'));
+        self::assertStringContainsString("timeZone: 'Europe/Prague'", self::js('ui/clock.js'));
+        // drawn on the clock's redraws (DOMContentLoaded, pg:tick, …), next-up, countdown, date
+        $index = self::js('home/index.js');
+        $nextUp = strpos($index, 'onClockRedraw(drawNextUp);');
+        $countdown = strpos($index, 'onClockRedraw(drawCountdown);');
+        $date = strpos($index, 'onClockRedraw(drawHomeDate);');
+        self::assertNotFalse($nextUp);
+        self::assertGreaterThan($nextUp, $countdown);
+        self::assertGreaterThan($countdown, $date);
+        $clock = self::js('ui/clock.js');
+        self::assertStringContainsString("document.addEventListener('DOMContentLoaded', redraw);", $clock);
+        self::assertStringContainsString('onTick(redraw);', $clock);
+        self::assertEventName('pg:tick');
     }
 
     public function testTheIosHintIsDrawnOnlyOutsideAnInstalledApp(): void
     {
-        $js = self::script();
+        $js = self::js('shell/install.js');
 
-        self::assertStringContainsString("el.hidden = !ios() || standalone();", $js);
-        self::assertStringContainsString('return navigator.standalone === true', $js);
+        // ios() and standalone() are tests/js/install.test.js's, the hint itself InstallTest's
+        self::assertStringContainsString("document.querySelectorAll('[data-install-ios]')", $js);
+        self::assertStringContainsString('nav.standalone === true', $js);
     }
 
     /** The network banner's two sentences, and the offline toast's (spec: Network banner, Toasts). */
     public function testTheBannerAndToastWordingIsTheSpecs(): void
     {
-        $js = self::script();
+        $js = self::js('shell/netstate.js') . self::js('shell/toast.js');
 
         foreach ([
             'Jsi offline. Data byla naposledy aktualizována v ',
@@ -113,7 +145,8 @@ final class ShellScriptTest extends AppTestCase
         ] as $needle) {
             self::assertStringContainsString($needle, $js);
         }
-        self::assertStringContainsString('if (navigator.onLine === false) {', $js);
+        // navigator.onLine is read at each draw: the Chrome tests replace it after load
+        self::assertStringContainsString('navigator.onLine !== false', $js);
         self::assertStringContainsString("section.getAttribute('data-stale') === '1'", $js);
         // the per-screen line is gone for the banner
         self::assertStringNotContainsString('data-freshness', $js);
@@ -123,13 +156,22 @@ final class ShellScriptTest extends AppTestCase
     /** Carry-over: a deferred morph updates the attributes late, so the banner never remembers them. */
     public function testTheBannerIsReadFromTheVisibleScreenEveryTimeItIsDrawn(): void
     {
-        $js = self::script();
+        $js = self::js('shell/netstate.js');
 
         self::assertSame(1, substr_count($js, "section.getAttribute('data-fetched-at')"));
-        self::assertStringContainsString("['screen:shown', 'screen:morphed', 'screen:freshness'].forEach(function (name) {", $js);
+        foreach (['onScreenShown(drawNetstate);', 'onScreenMorphed(drawNetstate);', 'onScreenFreshness(drawNetstate);', 'onTick(drawNetstate);'] as $trigger) {
+            self::assertStringContainsString($trigger, $js);
+        }
+        foreach (['screen:shown', 'screen:morphed', 'screen:freshness', 'pg:tick'] as $name) {
+            self::assertEventName($name);
+        }
+        self::assertStringContainsString("document.addEventListener('DOMContentLoaded', drawNetstate);", $js);
         self::assertStringContainsString("window.addEventListener('online', drawNetstate);", $js);
         self::assertStringContainsString("window.addEventListener('offline', drawNetstate);", $js);
         self::assertStringContainsString('setInterval(drawNetstate, 60000);', $js);
+        self::assertStringContainsString("document.addEventListener('visibilitychange', () => {", $js);
+        // its own triggers only: the clock's redraw as well would draw it twice
+        self::assertStringNotContainsString('onClockRedraw', $js);
     }
 
     /**
@@ -139,7 +181,7 @@ final class ShellScriptTest extends AppTestCase
      */
     public function testTheBannerMakesRoomForItselfAndSpeaksWithoutItsAge(): void
     {
-        $js = self::script();
+        $js = self::js('shell/netstate.js');
         $css = self::stylesheet();
 
         self::assertStringContainsString("root.style.setProperty('--netstate-height', height + 'px');", $js);
@@ -163,27 +205,33 @@ final class ShellScriptTest extends AppTestCase
      */
     public function testRelativeTimesAndTheHomeDateAreRedrawnFromTheDeviceClock(): void
     {
-        $js = self::script();
+        $reltime = self::js('ui/reltime.js');
+        $home = self::home();
 
-        foreach (["document.querySelectorAll('[data-sent-at]')", "document.querySelectorAll('[data-home-date]')", "return 'právě teď';", "'před ' + Math.floor(seconds / 60) + ' min'", "'před ' + Math.floor(seconds / 3600) + ' h'", "'včera ' + time", "hourCycle: 'h23'"] as $needle) {
-            self::assertStringContainsString($needle, $js);
+        // the bands themselves are tests/js/reltime.test.js's, case for case with NotificationListTest
+        foreach (["document.querySelectorAll('[data-sent-at]')", "return 'právě teď';", "'před ' + Math.floor(seconds / 60) + ' min'", "'před ' + Math.floor(seconds / 3600) + ' h'", "'včera ' + time"] as $needle) {
+            self::assertStringContainsString($needle, $reltime);
         }
-        self::assertStringContainsString("drawHomeDate(now);
-		drawSentAt(now);", $js);
+        self::assertStringContainsString("document.querySelectorAll('[data-home-date]')", self::js('home/countdown.js'));
+        // the date label itself (the Prague day across a UTC midnight) is tests/js/home.test.js's
+        self::assertStringContainsString("hourCycle: 'h23'", self::js('ui/clock.js'));
+        // the relative times are drawn on the clock's redraws, and only there
+        self::assertStringContainsString('onClockRedraw(drawSentAt);', $reltime);
+        self::assertStringNotContainsString('drawSentAt', $home);
     }
 
     /** A toast is the shell's: one at a time, gone after 6 s or on its close button. */
     public function testTheToastIsShownOnceAndLeavesByItself(): void
     {
-        $js = self::script();
+        $js = self::js('shell/toast.js');
 
-        self::assertStringContainsString('function showToast(title, line) {', $js);
-        self::assertStringContainsString('var TOAST_MS = 6000;', $js);
+        self::assertStringContainsString('export function showToast(title, line) {', $js);
+        self::assertStringContainsString('const TOAST_MS = 6000;', $js);
         self::assertStringContainsString("closest('[data-toast-close]')", $js);
         // a toast leaving with the focus hands it to the visible screen, not to <body> — or,
         // with the programme sheet open, to the sheet's card, the one thing not inert
-        self::assertStringContainsString('var focused = toast.contains(document.activeElement);', $js);
-        self::assertStringContainsString("var dialog = section.querySelector('.sheet.is-open [role=\"dialog\"]');", $js);
+        self::assertStringContainsString('const focused = toast.contains(document.activeElement);', $js);
+        self::assertStringContainsString("const dialog = section.querySelector('.sheet.is-open [role=\"dialog\"]');", $js);
         self::assertStringContainsString('(dialog || section).focus({preventScroll: true});', $js);
         // #offline is the worker's redirect after a write that never reached the server
         self::assertStringContainsString("location.hash === '#offline'", $js);
@@ -195,35 +243,38 @@ final class ShellScriptTest extends AppTestCase
     /** The two-tap confirmation is the shell's, so Profil's logout and the sheet's unregister share it. */
     public function testTheTwoTapConfirmationIsTheShells(): void
     {
-        $js = self::script();
+        $js = self::js('shell/confirm.js');
 
         self::assertStringContainsString("event.target.closest('[data-confirm]')", $js);
         self::assertStringContainsString("button.textContent = button.getAttribute('data-confirm');", $js);
-        self::assertStringNotContainsString('data-confirm', (string) file_get_contents(dirname(__DIR__, 2) . '/www/profile.js'));
+        self::assertStringNotContainsString('data-confirm', self::js('profile/index.js') . self::js('profile/pairing.js') . self::js('profile/mode.js'));
         // a closed sheet withdraws the question its unregister button was asking
-        self::assertStringContainsString("document.addEventListener('sheet:closed'", $js);
-        self::assertStringContainsString("new CustomEvent('sheet:closed', {bubbles: true})", (string) file_get_contents(dirname(__DIR__, 2) . '/www/programs.js'));
+        self::assertStringContainsString('onSheetClosed(', $js);
+        self::assertEventName('sheet:closed');
+        self::assertStringContainsString('emitSheetClosed(parts.sheet);', self::js('programs/sheet.js'));
     }
 
     public function testTheInstallPromptWaitsForTheReader(): void
     {
-        $js = self::script();
+        $js = self::js('shell/install.js');
 
-        self::assertStringContainsString("window.addEventListener('beforeinstallprompt', function (event) {", $js);
+        self::assertStringContainsString("window.addEventListener('beforeinstallprompt', event => {", $js);
         self::assertStringContainsString('event.preventDefault();', $js);
         self::assertStringContainsString('offer.prompt();', $js);
-        self::assertStringContainsString("window.addEventListener('appinstalled', function () {", $js);
+        self::assertStringContainsString("window.addEventListener('appinstalled', () => {", $js);
         self::assertStringContainsString("'(display-mode: standalone)'", $js);
     }
 
     public function testTheLoadingBarFollowsTheLoaderEvents(): void
     {
-        $js = self::script();
+        $js = self::js('shell/progress.js');
 
-        self::assertStringContainsString("document.addEventListener('screen:loading', function () {", $js);
+        self::assertStringContainsString('onScreenLoading(() => {', $js);
         self::assertStringContainsString("root.setAttribute('data-loading', '');", $js);
-        self::assertStringContainsString("document.addEventListener('screen:loaded', function () {", $js);
+        self::assertStringContainsString('onScreenLoaded(() => {', $js);
         self::assertStringContainsString("root.removeAttribute('data-loading');", $js);
+        self::assertEventName('screen:loading');
+        self::assertEventName('screen:loaded');
     }
 
     public function testTheLoadingBarIsDrawnInTheTabBarsInk(): void

@@ -16,7 +16,7 @@ final class MapViewsTest extends BrowserTestCase
 {
     private const string ROOT = 'document.querySelector("[data-screen=\'/obrok19/mapa\'] [data-map-root]")';
 
-    /** A fresh landing on Mapa with nothing remembered, wired by www/map.js. */
+    /** A fresh landing on Mapa with nothing remembered, wired by www/js/map/. */
     private static function openMap(): void
     {
         self::visit('/obrok19/mapa');

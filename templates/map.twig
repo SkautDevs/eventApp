@@ -7,8 +7,8 @@
 		<div class="map" data-map>
 			<iframe src="{{ embedUrl }}" title="Mapa areálu" loading="lazy" allowfullscreen></iframe>
 		</div>
-		{# shown by www/shell.js while the phone is offline: Google's iframe is blank then.
-		   It must stay the map's next sibling — that is how shell.js finds it. #}
+		{# shown by www/js/map/offline.js while the phone is offline: Google's iframe is blank then.
+		   It must stay the map's next sibling — that is how offline.js finds it. #}
 		{# With the plan beside it the note carries a button, which may not take .empty's
 		   fade (a tonal .btn at 0.8 opacity falls under AA): the note then stays opaque
 		   and only its sentence is faded. #}
@@ -20,7 +20,7 @@
 {% endmacro %}
 
 {% macro plan(image, imageAlt) %}
-	{# the plan scrolls both ways inside its box; www/map.js zooms it by its width #}
+	{# the plan scrolls both ways inside its box; www/js/map/plan.js zooms it by its width #}
 	<div class="plan" data-plan>
 		<img class="plan-img" src="{{ image }}" alt="{{ imageAlt }}" data-plan-img>
 	</div>

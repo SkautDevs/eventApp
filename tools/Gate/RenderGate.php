@@ -182,12 +182,12 @@ final class RenderGate extends BrowserTestCase
      * Two moments of the browser's own, taken out of the page before any of its scripts
      * runs, on every document of the session:
      *
-     *  - headless Chrome offers the install when it likes, and www/shell.js shows the
+     *  - headless Chrome offers the install when it likes, and www/js/shell/install.js shows the
      *    install button when it does, before the dump on one run and after it on the
      *    next: the offer is stopped, so the button stays in its markup state (hidden;
      *    settle() still pins it, as bin/baseline.php does);
      *  - an iframe's load is recorded on the element (__gateLoaded, a property, not an
-     *    attribute), so settle() can wait for the map's iframe whether or not shell.js
+     *    attribute), so settle() can wait for the map's iframe whether or not map/offline.js
      *    was listening yet when it fired.
      */
     private static function instrument(): void
@@ -465,7 +465,7 @@ final class RenderGate extends BrowserTestCase
         $confirm = self::script('return ' . self::SHEET_WRITE . '.hasAttribute("data-confirm");') === true;
         self::script(self::SHEET_WRITE . '.click();');
         if ($confirm) {
-            // shell.js's two taps: the first asks, the second submits
+            // shell/confirm.js's two taps: the first asks, the second submits
             self::waitFor('return ' . self::SHEET_WRITE . '.hasAttribute("data-confirming");');
             self::script(self::SHEET_WRITE . '.click();');
         }

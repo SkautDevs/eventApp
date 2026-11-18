@@ -122,7 +122,7 @@ final class SubscribeAction
             }
 
             // The push service disowned the subscription: the row goes, the browser lets go of
-            // it too (push.js), and the reader's next tap is new again, welcome included.
+            // it too (www/js/push/), and the reader's next tap is new again, welcome included.
             if ($outcome === SendOutcome::Rejected) {
                 $repository->delete($event->slug, $endpoint);
 

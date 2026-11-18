@@ -7,6 +7,7 @@ namespace App\Module\Shell;
 use App\EventConfig;
 use App\Http\AssetVersion;
 use App\Http\Precache;
+use App\Http\ScriptVersion;
 use App\Module\Modules;
 use App\Paths;
 use Psr\Http\Message\ResponseInterface;
@@ -22,6 +23,7 @@ final class PrecacheAction
     public function __construct(
         private readonly EventConfig $event,
         private readonly AssetVersion $versions,
+        private readonly ScriptVersion $scripts,
         private readonly Modules $modules,
         private readonly Paths $paths,
     ) {}
@@ -33,6 +35,7 @@ final class PrecacheAction
             $this->event,
             RouteContext::fromRequest($request)->getRouteParser(),
             $this->versions,
+            $this->scripts,
             $this->modules->menu(),
             $this->paths->www,
         );

@@ -110,7 +110,7 @@ final class HomepageTest extends AppTestCase
         $messages->add('listed-past', null, 'Všem', 'Starší zpráva', 'předevčírem', 'Lung', 0, 0, null, new \DateTimeImmutable('-2 days'));
         $html = (string) $this->request($app, 'GET', '/')->getBody();
 
-        // the server's day, and the device clock's once www/shell.js redraws it
+        // the server's day, and the device clock's once www/js/home/countdown.js redraws it
         self::assertMatchesRegularExpression('#<h2 class="home-date" data-home-date>(Pondělí|Úterý|Středa|Čtvrtek|Pátek|Sobota|Neděle) \d{1,2}\. \d{1,2}\.</h2>#u', $html);
         // today's as full cards, the same markup as on Informace; the older one only there
         self::assertMatchesRegularExpression('#<div class="news" data-key="message-\d+">\s*<p><strong>Dnešní zpráva</strong> <small class="news-when" data-sent-at="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+0[12]:00">[^<]+</small></p>\s*<p class="news-body">dnes</p>#u', $html);

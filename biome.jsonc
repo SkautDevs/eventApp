@@ -50,25 +50,6 @@
 					}
 				}
 			}
-		},
-		{
-			// temporary: these files are replaced in milestones 6 to 8, and this override goes with them
-			"includes": ["www/app.js", "www/shell.js", "www/programs.js", "www/push.js", "www/map.js", "www/profile.js", "www/style.css"],
-			"linter": {
-				"rules": {
-					"correctness": {
-						"noInnerDeclarations": "off",
-						"noSelfAssign": "off",
-						"noUnusedFunctionParameters": "off",
-						"noUnusedVariables": "off"
-					},
-					"suspicious": {
-						"noGlobalIsFinite": "off",
-						"noGlobalIsNan": "off",
-						"noRedundantUseStrict": "off"
-					}
-				}
-			}
 		}
 	]
 }

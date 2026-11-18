@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * Stale data online: when kissj failed and the server answered with an old copy, the
  * section carries data-stale="1" and the network banner says so. A background
- * revalidation is how a screen learns it (www/app.js syncFreshness()), so that is the
+ * revalidation is how a screen learns it (www/js/loader/loader.js syncFreshness()), so that is the
  * path driven here: the page's fetch is wrapped to mark the next revalidation's fragment
  * stale, as the server's stale-if-error answer does.
  */

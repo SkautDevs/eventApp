@@ -189,7 +189,7 @@
 	   16px root nothing moves by more than a pixel and a reader's own text size reaches
 	   every line of copy. Two kinds of rule stay in px on purpose, and ThemingTest names
 	   them: the chrome glyphs of the fixed-height bars and of the instrument controls
-	   (the zoom pairs, one floating on the plan; www/programs.js reads the bar heights as
+	   (the zoom pairs, one floating on the plan; www/js/programs/ reads the bar heights as
 	   plain pixel numbers) and the timeline grid's own type, whose geometry is frozen. Můj program is the large-type path through the schedule. */
 	--fs-2xs: 0.6875rem; /* 11: tab bar labels */
 	--fs-xs: 0.8125rem; /* 13: credit, who, section line */
@@ -202,7 +202,7 @@
 	/* The notch, on a standalone install with viewport-fit=cover. Every other fixed
 	   element in the app already clears the bottom inset; this is the app bar's half
 	   of the same job. It stays a token of its own rather than being folded into
-	   --appbar-height, because that one is read as a plain number by www/programs.js
+	   --appbar-height, because that one is read as a plain number by www/js/programs/
 	   and a calc() there would parse as zero. */
 	--appbar-inset: env(safe-area-inset-top, 0px);
 	--tabbar-height: 58px;
@@ -210,7 +210,7 @@
 	   two views. It is chrome like the two bars, so screens that carry it subtract it
 	   from --screen-height; every other screen simply never references it. */
 	--tabs-height: 48px;
-	/* The network banner's height while it is up (www/shell.js writes it on the root), 0px
+	/* The network banner's height while it is up (www/js/shell/netstate.js writes it on the root), 0px
 	   while it is hidden. It docks on the tab bar, so it is bottom chrome like the bar: the
 	   space a screen gets, its bottom padding and the docked view switcher all make room
 	   for it, and it covers nothing. */
@@ -526,7 +526,7 @@ main > .screen[hidden] {
 	display: none;
 }
 
-/* www/app.js focuses the section after a swap so a screen reader lands on it; the
+/* the loader (www/js/loader/) focuses the section after a swap so a screen reader lands on it; the
    section is not a control, and after a keyboard tap it would otherwise match
    :focus-visible and ring the whole screen */
 .screen:focus-visible {
@@ -569,7 +569,7 @@ main > .screen[hidden] {
 /* --- the network banner and the toast ------------------------------------ */
 
 /* "Jsi offline. Data byla naposledy aktualizována v …" — once per document, docked right
-   above the tab bar and centred in the column the way the bar is (www/shell.js fills it
+   above the tab bar and centred in the column the way the bar is (www/js/shell/netstate.js fills it
    and unhides it). Chrome like the bars, so structure under its own ink, with the hairline
    every bar carries; under the tab bar (20). The docked view switcher (15) stands on it
    rather than under it: --netstate-height lifts the switcher and every screen's foot. */
@@ -594,7 +594,7 @@ main > .screen[hidden] {
    the column minus its 8px gutter. The same pair as the banner: the prototype draws it
    as a dark strip in both modes, which the colour rules exclude in light mode. Over an
    open sheet (50): a register's toast lands with that sheet open, and its close button
-   is in the sheet's Tab ring (www/programs.js). */
+   is in the sheet's Tab ring (www/js/programs/sheet.js). */
 .toast {
 	position: fixed;
 	top: calc(var(--appbar-height) + var(--appbar-inset) + 8px);
@@ -662,7 +662,7 @@ main > .screen[hidden] {
 }
 
 /* 2px along the tab bar's top edge while the loader waits for a screen it has never shown
-   (data-loading, set by www/shell.js). In the bar's own ink, because a 2px line has to
+   (data-loading, set by www/js/shell/progress.js). In the bar's own ink, because a 2px line has to
    read against the bar it sits on: a light `state` can be near its pale bar's own colour. Without motion it is a static full-width bar. */
 .progress {
 	position: absolute;
@@ -1353,7 +1353,7 @@ div.map iframe {
 	border: 0;
 }
 
-/* offline, a map that never loaded is hidden behind this note (www/shell.js) */
+/* offline, a map that never loaded is hidden behind this note (www/js/map/offline.js) */
 .map-offline {
 	margin-bottom: 12px;
 }
@@ -1404,7 +1404,7 @@ div.map iframe {
 	height: calc(var(--screen-height) - var(--tabs-height));
 	overflow: auto;
 	overscroll-behavior: contain;
-	/* pinch is ours (www/map.js); one finger still pans natively */
+	/* pinch is ours (www/js/map/plan.js); one finger still pans natively */
 	touch-action: pan-x pan-y;
 	background-color: var(--surface);
 }
@@ -1414,7 +1414,7 @@ div.map iframe {
 	height: var(--screen-height);
 }
 
-/* zoomed by its width (www/map.js), never by a transform, so the box's own
+/* zoomed by its width (www/js/map/plan.js), never by a transform, so the box's own
    scrolling pans it and the browser knows how large it is */
 .plan-img {
 	display: block;
@@ -1949,7 +1949,7 @@ div.news {
 }
 
 /* The current-time line. It lives on the page whose axis holds "now" (data-now, set
-   by www/programs.js from the reader's clock, with --now-offset in hours from the
+   by www/js/programs/nowline.js from the reader's clock, with --now-offset in hours from the
    axis start) and is placed in the same unit as everything else on the grid, so the
    zoom carries it along. The server writes neither, so a background morph leaves
    both alone. .tl-inner is the line's containing block. */
@@ -2144,7 +2144,7 @@ div.news {
 .pl-head {
 	position: sticky;
 	/* the notch included, exactly as the strip above it has it: the two dock against
-	   the same line, and bandTop() in www/programs.js reads the same three tokens —
+	   the same line, and bandTop() in www/js/programs/daylist.js reads the same three tokens —
 	   the day the strip names has to be the day whose heading is stuck here */
 	top: calc(var(--appbar-height) + var(--appbar-inset) + var(--pager-height));
 	z-index: 5;
@@ -2178,7 +2178,7 @@ div.news {
 	grid-row: 1 / span 4;
 }
 
-/* "now" in Můj program, from the reader's clock (www/programs.js): what is running
+/* "now" in Můj program, from the reader's clock (www/js/programs/nowline.js): what is running
    carries a "probíhá" chip, and the next thing to start has the current-time line
    above it with a "teď" chip. Both chips are small fills of --now under on-action ink
    — the same pair as the timeline's label, AA by construction (ThemingTest) — and
@@ -2572,7 +2572,7 @@ div.news {
 
 	/* Switching screens slides by tab order: moving right along the tab bar brings
 	   the new screen in from the right, moving left brings it in from the left. The
-	   View Transitions API does the work; www/app.js only sets data-nav on the root,
+	   View Transitions API does the work; the loader only sets data-nav on the root,
 	   and skips the API entirely when it is missing — the swap is then instant, which
 	   is a fallback rather than a JS animation.
 

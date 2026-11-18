@@ -115,7 +115,7 @@ final class InfoModuleTest extends AppTestCase
         );
         self::assertLessThan(strpos($html, 'Starší zpráva'), strpos($html, 'Novější zpráva'));
         self::assertMatchesRegularExpression('#<div class="news" data-key="message-\d+">#', $html);
-        // the server's relative time, and the instant www/shell.js redraws it from
+        // the server's relative time, and the instant www/js/ui/reltime.js redraws it from
         self::assertMatchesRegularExpression('#<small class="news-when" data-sent-at="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+0[12]:00">právě teď</small>#', $html);
         // the full body, its line breaks kept for the CSS
         self::assertStringContainsString("<p class=\"news-body\">řádek\nřádek</p>", $html);

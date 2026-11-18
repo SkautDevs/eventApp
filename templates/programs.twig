@@ -96,7 +96,7 @@
 										{# the label is its own element, so a dense scale can thin the text without touching the mark #}
 						<span class="tl-tick" style="left: calc(var(--hour-width) * {{ tick.offset }})"><span class="tl-tick-label">{{ tick.label }}</span></span>
 									{% endfor %}
-									{# where "now" is, on today's page only — placed and shown by www/programs.js #}
+									{# where "now" is, on today's page only — placed and shown by www/js/programs/nowline.js #}
 									<span class="tl-now-tick" aria-hidden="true"><span class="tl-now-label" data-pg-now-label></span></span>
 								</div>
 							</div>
@@ -193,10 +193,10 @@
 									{%- elseif detail.footer.state in ['before', 'after', 'none'] -%}
 										<p class="sheet-line" data-key="{{ detail.footer.state }}">{{ detail.footer.line }}</p>
 									{%- elseif detail.footer.state == 'register' -%}
-										{#- data-pg-write: www/programs.js disables the button on submit and notes the view it was sent from -#}
+										{#- data-pg-write: www/js/programs/deeplink.js disables the button on submit and notes the view it was sent from -#}
 										<form method="post" action="{{ url_for('program-register', {id: detail.id}) }}" data-key="register" data-pg-write="{{ detail.id }}"><button class="btn btn-primary">Přihlásit se</button></form>
 									{%- elseif detail.footer.state == 'unregister' -%}
-										{#- the first tap asks, the second submits (www/shell.js) -#}
+										{#- the first tap asks, the second submits (www/js/shell/confirm.js) -#}
 										<form method="post" action="{{ url_for('program-unregister', {id: detail.id}) }}" data-key="unregister" data-pg-write="{{ detail.id }}"><button class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z programu</button></form>
 									{%- endif -%}
 								{%- endif -%}

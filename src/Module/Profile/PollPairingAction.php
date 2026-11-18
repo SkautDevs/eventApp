@@ -19,7 +19,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * GET /profil/propojit/stav: what Profil's script asks every 5 s while the code is shown
- * (www/profile.js). It is always a 200 with one of the contract's statuses: "pending" (and
+ * (www/js/profile/pairing.js). It is always a 200 with one of the contract's statuses: "pending" (and
  * "slowDown") mean ask again, "approved" means the reader is now logged in, "expired" ends
  * the pairing and leaves the line to Profil. A failure is "pending" too: the page keeps
  * asking and the pairing stays, so kissj's re-issued approval is collected later.

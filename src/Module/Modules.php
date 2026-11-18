@@ -11,7 +11,8 @@ use Psr\Container\ContainerInterface;
  * The modules of this app's event, the core ones included, in ModuleRegistry::ORDER, built
  * once: each is taken from the container on the first call of all(), and the same instances
  * are handed out after. Kernel registers their routes from it, and the tab bar (Domů first)
- * and the service worker's precache list read their tabs through menu().
+ * and the service worker's precache list read their tabs through menu(), and the layout
+ * its script entries through scripts().
  */
 final class Modules
 {
@@ -52,5 +53,23 @@ final class Modules
         usort($menu, static fn(MenuItem $a, MenuItem $b): int => $a->order <=> $b->order);
 
         return $menu;
+    }
+
+    /**
+     * Every module's script entry, relative to www/js, in module order (ModuleRegistry::ORDER):
+     * the order the layout loads them in, so the loader starts before any screen's script.
+     *
+     * @return list<string>
+     */
+    public function scripts(): array
+    {
+        $scripts = [];
+        foreach ($this->all() as $module) {
+            if (($script = $module->script()) !== null) {
+                $scripts[] = $script;
+            }
+        }
+
+        return $scripts;
     }
 }

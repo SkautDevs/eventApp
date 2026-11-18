@@ -236,7 +236,7 @@ abstract class BrowserTestCase extends PantherTestCase
             // Chrome in the selenium container comes in over the compose network
             self::host() === '127.0.0.1' ? '127.0.0.1' : '0.0.0.0',
             self::PORT,
-            $root . '/bin/router.php',
+            $root . '/tests/Browser/router.php',
             '/',
             static::serverEnvironment(),
         );
@@ -392,7 +392,7 @@ abstract class BrowserTestCase extends PantherTestCase
     }
 
     /**
-     * Pins the page's clock for www/programs.js (window.pgClock) on every document loaded
+     * Pins the page's clock for www/js/ui/clock.js's now() (window.pgClock) on every document loaded
      * after this call, before any of its scripts runs. Removed again after the test.
      */
     protected static function pinClock(string $atom): void
@@ -405,7 +405,7 @@ abstract class BrowserTestCase extends PantherTestCase
     }
 
     /**
-     * Turns www/app.js's warm-up off (window.appWarm = false) on every document loaded
+     * Turns www/js/loader/warmup.js's warm-up off (window.appWarm = false) on every document loaded
      * after this call, for a test that needs a screen the loader has never fetched.
      * Removed again after the test, with the clocks.
      */

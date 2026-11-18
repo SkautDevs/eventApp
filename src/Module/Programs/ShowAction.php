@@ -103,7 +103,7 @@ final class ShowAction
                 $sentAt = NotificationList::sentAt($message->sentAt);
                 $messages[$message->programmeId][] = new SheetMessage(
                     when: $sentAt === null ? $message->sentAt : NotificationList::relative($sentAt, $now),
-                    // the instant www/shell.js redraws `when` from on the device clock
+                    // the instant www/js/ui/reltime.js redraws `when` from on the device clock
                     at: $sentAt?->format(\DATE_ATOM),
                     title: $message->title,
                     body: $message->body,

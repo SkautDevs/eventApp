@@ -7,7 +7,7 @@ namespace Tests\Browser;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * The one network banner above the tab bar (www/shell.js drawNetstate()): absent online,
+ * The one network banner above the tab bar (www/js/shell/netstate.js drawNetstate()): absent online,
  * and offline it says how old the visible screen's data is. The time is the visible
  * screen's own data-fetched-at, so switching screens changes it at once.
  *

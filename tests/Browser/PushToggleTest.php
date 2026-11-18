@@ -72,7 +72,7 @@ final class PushToggleTest extends BrowserTestCase
         return ['label' => $state['label'], 'primary' => $state['primary'], 'visible' => $state['visible'], 'disabled' => $state['disabled']];
     }
 
-    /** Re-runs push.js's start-up (re-sync, then detection) with the fakes in place. */
+    /** Re-runs www/js/push/'s start-up (re-sync, then detection) with the fakes in place. */
     private static function restart(): void
     {
         self::asyncScript(<<<'JS'
@@ -165,7 +165,7 @@ final class PushToggleTest extends BrowserTestCase
         self::assertSame(1, self::script('return window.__calls.unsubscribe;'));
     }
 
-    /** The morph writes the server's hidden back; push.js hides the button again. */
+    /** The morph writes the server's hidden back; www/js/push/ hides the button again. */
     public function testAMorphPutsTheButtonStateBack(): void
     {
         self::visit('/korbo26/');

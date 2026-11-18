@@ -24,7 +24,7 @@ final class Precache
      * @param list<MenuItem> $menu the tab bar, in its order, Domů first
      * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>}
      */
-    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, array $menu, string $docroot): array
+    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $menu, string $docroot): array
     {
         // every tab, Domů first, then Profil and the offline page
         $documents = [];
@@ -34,23 +34,17 @@ final class Precache
         $documents[] = $routes->urlFor('profile');
         $documents[] = $routes->urlFor('offline');
 
-        $scripts = ['style.css', 'app.js', 'shell.js', 'push.js', 'profile.js'];
-        // the layout loads programs.js only for an event with the Program screen
-        if ($event->isEnabled('programs')) {
-            $scripts[] = 'programs.js';
-        }
-        // and map.js only for an event with the Mapa screen
-        if ($event->isEnabled('map')) {
-            $scripts[] = 'map.js';
+        $assets = ['/' . $versions->url('style.css')];
+        // every script of the www/js/ tree, for every event, under the tree's one version:
+        // the few an event without the Program or the Mapa screen never loads cost a few
+        // kilobytes, and a list that follows the tree cannot miss a file a script imports
+        foreach ($scripts->files() as $file) {
+            $assets[] = $scripts->url($file);
         }
         $stylesheet = $event->assets->stylesheet;
         if ($stylesheet !== null && $stylesheet !== '') {
             // versioned so a changed sheet reaches installed apps
-            $scripts[] = $stylesheet;
-        }
-        $assets = [];
-        foreach ($scripts as $file) {
-            $assets[] = '/' . $versions->url($file);
+            $assets[] = '/' . $versions->url($stylesheet);
         }
 
         $files = [];

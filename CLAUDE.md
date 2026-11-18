@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.5). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime by the first path segment: every event lives under `/{slug}/`, and `/` is a picker of the listed ones. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices, toasts and flash messages, and the weekday names in `HomeModel`, `NotificationList`, `Programs\Times` and `www/shell.js`. Every surface a reader sees addresses them as *ty*: templates, notices and toasts, push status lines, ARIA labels, `<title>`s. UI strings spell the registration system **KissJ**, and the organisers' messages are **notifikace**, never novinky (the Informace heading, Domů's `Starší notifikace`, the manifest shortcut). The admin page is for organisers and stays neutral and imperative, and per-event content is the organisers' own text. Commit messages and `docs/` are in English without AI-authorship trailers (the existing `docs/kissj-contract.md` predates this and is still Czech).
+Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.5). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime by the first path segment: every event lives under `/{slug}/`, and `/` is a picker of the listed ones. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices, toasts and flash messages, and the weekday names in `HomeModel`, `NotificationList`, `Programs\Times` and `www/js/home/countdown.js`. Every surface a reader sees addresses them as *ty*: templates, notices and toasts, push status lines, ARIA labels, `<title>`s. UI strings spell the registration system **KissJ**, and the organisers' messages are **notifikace**, never novinky (the Informace heading, Domů's `Starší notifikace`, the manifest shortcut). The admin page is for organisers and stays neutral and imperative, and per-event content is the organisers' own text. Commit messages and `docs/` are in English without AI-authorship trailers (the existing `docs/kissj-contract.md` predates this and is still Czech).
 
 ## Commands
 
@@ -33,15 +33,15 @@ Before running, copy `.env.example` to `.env`, set `APP_DEBUG=1` for dev, keep a
 
 ## Modules
 
-One row per screen, as the code stands on 2026-11-18. Each screen is a module under `src/Module/<Name>/`: the module class registers its routes (relative to `/<slug>`), and each route is an action class in the same directory. Every page loads `www/shell.js`, `www/app.js`, `www/push.js` and `www/profile.js` through `_layout.twig`, and `www/programs.js` and `www/map.js` when the event has that feature. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`), `Push\PushModule` (`POST /push/subscribe`) and `Handbook\HandbookModule` (the handbook PDF).
+One row per screen, as the code stands on 2026-11-18. Each screen is a module under `src/Module/<Name>/`: the module class registers its routes (relative to `/<slug>`), and each route is an action class in the same directory. `_layout.twig` loads `www/js/<dir>/index.js` for each module with a script, the shell's on every page. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`), `Push\PushModule` (`POST /push/subscribe`) and `Handbook\HandbookModule` (the handbook PDF).
 
 | Screen | Routes | Module | Script | Template |
 |---|---|---|---|---|
-| Domů | `GET /` | `Home\HomeModule`, `src/Module/Home/` | `www/shell.js` (next-up cards, countdown, date) | `homepage.twig`, `_install.twig`, `_toast.twig` |
-| Program | `GET /programy`, `POST /programy/{id}/prihlasit`, `POST /programy/{id}/odhlasit` | `Programs\ProgramsModule`, `src/Module/Programs/` | `www/programs.js` | `programs.twig`, `_toast.twig` |
-| Místa | `GET /mapa` | `Map\MapModule`, `src/Module/Map/` | `www/map.js` | `map.twig` |
-| Informace | `GET /informace` | `Info\InfoModule`, `src/Module/Info/` | none (`www/shell.js` redraws the times) | `info.twig` |
-| Profil | `GET /profil`, `POST /profil/propojit`, `GET /profil/propojit/stav`, `POST /profil/odpojit` | `Profile\ProfileModule`, `src/Module/Profile/` | `www/profile.js` (poll), `www/app.js` (mode control), `www/push.js` (opt-in) | `profile.twig`, `_install.twig`, `_toast.twig` |
+| Domů | `GET /` | `Home\HomeModule`, `src/Module/Home/` | `www/js/home/` (next-up cards, countdown, date) | `homepage.twig`, `_install.twig`, `_toast.twig` |
+| Program | `GET /programy`, `POST /programy/{id}/prihlasit`, `POST /programy/{id}/odhlasit` | `Programs\ProgramsModule`, `src/Module/Programs/` | `www/js/programs/` | `programs.twig`, `_toast.twig` |
+| Místa | `GET /mapa` | `Map\MapModule`, `src/Module/Map/` | `www/js/map/` | `map.twig` |
+| Informace | `GET /informace` | `Info\InfoModule`, `src/Module/Info/` | none (`www/js/ui/reltime.js` redraws the times) | `info.twig` |
+| Profil | `GET /profil`, `POST /profil/propojit`, `GET /profil/propojit/stav`, `POST /profil/odpojit` | `Profile\ProfileModule`, `src/Module/Profile/` | `www/js/profile/` (poll, mode control), `www/js/push/` (opt-in) | `profile.twig`, `_install.twig`, `_toast.twig` |
 | Admin page | `GET /admin/notify`, `POST /admin/notify`, `POST /admin/notify/{id}/hidden` | `Admin\AdminModule`, `src/Module/Admin/` (with `push`) | inline nonced `<script>` in the template | `admin-notify.twig`, `admin-expired.twig` |
 
 ## Conventions
@@ -63,7 +63,7 @@ One row per screen, as the code stands on 2026-11-18. Each screen is a module un
 - `docs/architecture/telemetry.md`: Sentry, spans and tags, scrubbing, the loggers, `/health`.
 - `docs/architecture/program-provider.md`: the provider interface, the stub and kissj sources, sections, the kissj cache.
 - `docs/architecture/auth-and-session.md`: device pairing, logout, the session store and its cookie.
-- `docs/architecture/shell-and-loader.md`: the layout, the screen stack, the loader and its morph, toasts, `www/shell.js`, asset versions, the install card.
+- `docs/architecture/shell-and-loader.md`: the layout, the screen stack, the loader and its morph, toasts, the `www/js/` modules, asset versions, the install card.
 - `docs/architecture/service-worker.md`: the precache list, cache strategies, purge on write, offline answers.
 - `docs/architecture/theming.md`: palette, semantic roles, light and dark sets, theme and fonts, logos per surface.
 - `docs/architecture/home.md`: Domů in its three phases.
@@ -77,7 +77,7 @@ One row per screen, as the code stands on 2026-11-18. Each screen is a module un
 
 - No colour literal and no `--color-*` key in `www/style.css`: rules read semantic roles. See `docs/architecture/theming.md`.
 - A colour change touches both hand-written role sets, light and dark. See `docs/architecture/theming.md`.
-- Scripts and stylesheets are linked with their content hash via `asset_version()`; a changed font or icon file ships under a new name. See `docs/architecture/shell-and-loader.md`.
+- A stylesheet carries `?v=<hash>` (`asset_version()`), a script lives under `/js/<hash>/` (`script_url()`); a changed font or icon file ships under a new name. See `docs/architecture/shell-and-loader.md`.
 - Never give `<main>` a `view-transition-name` or anything else that makes it a stacking context. See `docs/architecture/shell-and-loader.md`.
 - Insert a screen, show it, and only then initialise it, since a hidden subtree measures as zero. See `docs/architecture/shell-and-loader.md`.
 - Keep a `data-key` or id on every child the morph must match, and list client-owned attributes in `data-morph-keep`. See `docs/architecture/shell-and-loader.md`.

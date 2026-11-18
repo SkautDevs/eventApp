@@ -26,6 +26,11 @@ final class AdminModule implements ModuleInterface
         return null;
     }
 
+    public function script(): ?string
+    {
+        return null;
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

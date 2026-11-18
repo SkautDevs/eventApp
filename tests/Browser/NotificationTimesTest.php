@@ -11,7 +11,7 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * The notifications as a copy read later sees them: every relative time and Domů's date
- * heading are redrawn by www/shell.js from the device clock (window.pgClock here), with the
+ * heading are redrawn by www/js/ui/reltime.js and www/js/home/ from the device clock (window.pgClock here), with the
  * server's bands (NotificationList::relative()) on the Prague calendar. And a notification card is
  * text, read from the left.
  */

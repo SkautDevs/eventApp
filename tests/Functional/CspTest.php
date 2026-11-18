@@ -194,12 +194,12 @@ final class CspTest extends AppTestCase
         self::assertSame(["'self'"], $policy['font-src']);
     }
 
-    public function testTheHomepageButtonIsBoundByPushJsNotInline(): void
+    public function testTheHomepageButtonIsBoundByThePushModuleNotInline(): void
     {
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
         self::assertStringContainsString('data-push-toggle', $html);
         self::assertStringNotContainsString('onclick', $html);
-        self::assertStringContainsString("querySelectorAll('[data-push-toggle]')", (string) file_get_contents(dirname(__DIR__, 2) . '/www/push.js'));
+        self::assertStringContainsString("querySelectorAll('[data-push-toggle]')", (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/push/index.js'));
     }
 }

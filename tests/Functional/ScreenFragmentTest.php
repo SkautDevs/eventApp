@@ -6,7 +6,7 @@ namespace Tests\Functional;
 
 /**
  * Fragment mode: `X-Screen: 1` renders a screen without the shell, so the loader in
- * www/app.js can swap it into a running document. The same route without the header
+ * www/js/loader/loader.js can swap it into a running document. The same route without the header
  * still renders the whole page — that is what keeps deep links, crawlers, a no-JS
  * reader and the back button against a cold cache working.
  */
@@ -108,7 +108,7 @@ final class ScreenFragmentTest extends AppTestCase
         self::assertStringStartsWith('<!DOCTYPE html>', trim($html));
         self::assertStringContainsString('class="appbar"', $html);
 
-        $loader = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        $loader = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/loader/loader.js');
         self::assertStringContainsString('if (!response.ok) {', $loader);
         self::assertStringContainsString('location.href = path;', $loader);
     }
@@ -124,8 +124,8 @@ final class ScreenFragmentTest extends AppTestCase
         $this->assertStringNotContainsString('<script', $fragment);
 
         $page = (string) $this->request($app, 'GET', '/programy')->getBody();
-        $this->assertStringContainsString('src="programs.js', $page);
-        $this->assertStringContainsString('src="app.js', $page);
+        $this->assertStringContainsString('/programs/index.js"', $page);
+        $this->assertStringContainsString('/shell/index.js"', $page);
     }
 
     public function testBothModesWorkForTheOtherEventToo(): void
@@ -182,7 +182,7 @@ final class ScreenFragmentTest extends AppTestCase
 
     /**
      * The per-screen freshness line is gone: the section still says when its data was
-     * fetched, and the one network banner (www/shell.js) reads that off the visible screen.
+     * fetched, and the one network banner (www/js/shell/netstate.js) reads that off the visible screen.
      * The banner is the shell's, so it is in the document once and in no fragment.
      */
     public function testEveryScreenCarriesItsFetchTimeAndTheDocumentOneBanner(): void
@@ -200,7 +200,7 @@ final class ScreenFragmentTest extends AppTestCase
                 self::assertSame($headers === [] ? 1 : 0, substr_count($html, 'data-netstate-live'), $mode);
             }
         }
-        // before the tab bar, hidden until shell.js has something to say. The banner's age
+        // before the tab bar, hidden until shell/netstate.js has something to say. The banner's age
         // ticks, so it is hidden from assistive tech, and its own live region speaks for it.
         self::assertMatchesRegularExpression(
             '~<p class="sr-only" role="status" data-netstate-live></p>\s*<p class="netstate" data-netstate aria-hidden="true" hidden></p>\s*<nav class="tabbar"~',

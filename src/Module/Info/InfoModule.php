@@ -24,6 +24,11 @@ final class InfoModule implements ModuleInterface
         return new MenuItem(self::key(), 'Informace', 'info', 'fas fa-info-circle', 30);
     }
 
+    public function script(): ?string
+    {
+        return null;
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

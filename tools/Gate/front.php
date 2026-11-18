@@ -9,16 +9,16 @@ declare(strict_types=1);
  * Kernel::boot(string $uri, ?string $eventsDir).
  *
  * Its file-serving decision must mirror bin/router.php's, the router of the dev server
- * and the browser tests: whatever that one serves as a file (today a file under www/;
- * once the scripts move, the virtual /js/<8 hex>/<path> URLs too) this one serves the
- * same way, or the gates dump a different app from the one the tests run.
+ * and the browser tests: whatever that one serves as a file (a file under www/, and the
+ * virtual /js/<8 hex>/<path> URLs through bin/script-path.php's eventapp_script_file())
+ * this one serves the same way, or the gates dump a different app from the one the tests
+ * run.
  *
  * The render gate holds back every script this router serves by GATE_SCRIPT_DELAY_MS
  * (RenderGate::SCRIPT_DELAY_MS), so the fonts the first layout asked for are in before
- * any script measures the page; that includes the future virtual /js/<8 hex>/<path>
- * URLs. The hold-back keys on "the response is a JavaScript file being served", not on
- * the branch that found it: a branch added for versioned script paths must call
- * $holdScript with the path it serves too.
+ * any script measures the page; that includes the virtual /js/<8 hex>/<path> URLs. The
+ * hold-back keys on "the response is a JavaScript file being served", not on the branch
+ * that found it: both branches below call $holdScript with the file they serve.
  */
 $root = dirname(__DIR__, 2);
 $path = (string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
@@ -30,6 +30,17 @@ $holdScript = static function (string $servedPath): void {
         usleep($delay * 1000);
     }
 };
+
+// a versioned script path is the file www/js/<path>, resolved exactly as bin/router.php does
+require_once $root . '/bin/script-path.php';
+$script = eventapp_script_file($path, $root . '/www');
+if ($script !== null) {
+    $holdScript($script);
+    header('Content-Type: text/javascript; charset=utf-8');
+    readfile($script);
+
+    return true;
+}
 
 if ($path !== '/' && !str_contains($path, '..') && is_file($root . '/www' . $path)) {
     $holdScript($path);

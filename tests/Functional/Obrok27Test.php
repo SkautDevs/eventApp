@@ -146,7 +146,7 @@ final class Obrok27Test extends AppTestCase
             self::assertStringNotContainsString('clip-path', self::rulesOf($css, $bar), $bar);
         }
 
-        // the step is cut out of each bar's own box, so the heights stay what www/programs.js and --screen-height assume
+        // the step is cut out of each bar's own box, so the heights stay what www/js/programs/ and --screen-height assume
         self::assertStringContainsString('padding-bottom: var(--o27-step);', self::rulesOf($css, '.appbar'));
         self::assertStringContainsString('padding-top: var(--o27-step);', self::rulesOf($css, '.tabbar'));
         self::assertStringContainsString('min-height: calc(var(--tabbar-height) - var(--o27-step));', self::rulesOf($css, '.tab'));

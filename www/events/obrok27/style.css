@@ -1,7 +1,7 @@
 /* Obrok 27 brand shapes and type (kissj public/eventSpecificCss/stylesObrok27.css). Colour comes only from roles. */
 
 :root {
-	/* the hradba step of both bars, cut out of the bar's own box so its height stays what www/programs.js reads */
+	/* the hradba step of both bars, cut out of the bar's own box so its height stays what www/js/programs/ reads */
 	--o27-step: 8px;
 	--o27-card-shape: polygon(5px 0, 100% 3px, calc(100% - 3px) calc(100% - 4px), 0 100%);
 	--o27-card-shape-b: polygon(0 4px, calc(100% - 6px) 0, 100% 100%, 4px calc(100% - 3px));

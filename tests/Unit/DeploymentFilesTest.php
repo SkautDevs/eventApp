@@ -33,6 +33,20 @@ final class DeploymentFilesTest extends TestCase
         self::assertSame(2, substr_count($compose, 'max-size: 20m'));
     }
 
+    public function testAllThreeServersStripTheScriptVersion(): void
+    {
+        $root = dirname(__DIR__, 2);
+        self::assertStringContainsString('rewrite "^/js/[0-9a-f]{8}/(.+)$" /js/$1 last;', (string) file_get_contents($root . '/docker/nginx.conf'));
+        self::assertStringContainsString("'#^/js/[0-9a-f]{8}/(.+)$#'", (string) file_get_contents($root . '/bin/script-path.php'));
+
+        $htaccess = (string) file_get_contents($root . '/www/.htaccess');
+        $rule = strpos($htaccess, 'RewriteRule ^js/[0-9a-f]{8}/(.+)$ js/$1 [L]');
+        self::assertNotFalse($rule);
+        // before the first condition, or the conditions attach to it and not to the front controller
+        self::assertGreaterThan(strpos($htaccess, 'RewriteEngine On'), $rule);
+        self::assertLessThan(strpos($htaccess, 'RewriteCond'), $rule);
+    }
+
     public function testTracingSamplesFivePercent(): void
     {
         self::assertStringContainsString("\nSENTRY_TRACES_SAMPLE_RATE=0.05\n", self::read('.env.example'));

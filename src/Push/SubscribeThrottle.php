@@ -12,7 +12,7 @@ use Psr\Clock\ClockInterface;
  * and every saved row is a POST at every send, so three hundred new subscriptions per ten
  * minutes per address (an IPv6 /64) leaves room for a camp's Wi-Fi or a carrier NAT, where
  * hundreds of phones share one IPv4 address at the opening, and still bounds junk rows;
- * the on-curve key check and the strikes at send time do the rest. A re-send of a known subscription — what push.js does after every
+ * the on-curve key check and the strikes at send time do the rest. A re-send of a known subscription — what www/js/push/ does after every
  * login and logout — never counts.
  */
 final class SubscribeThrottle

@@ -24,6 +24,11 @@ final class ProfileModule implements ModuleInterface
         return null;
     }
 
+    public function script(): string
+    {
+        return 'profile/index.js';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

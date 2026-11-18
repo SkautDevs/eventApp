@@ -52,7 +52,7 @@ final class PairingFlowTest extends BrowserTestCase
 
             self::waitFor('const code = document.querySelector("[data-pairing-poll]"); return code !== null && code.textContent.trim() === "483 291";');
             self::assertSame('Čekám na potvrzení v KissJ…', self::script('return document.querySelector("[data-pairing-status]").textContent.trim();'));
-            // drawn, not just present: www/push.js once hid it as one of its own status lines
+            // drawn, not just present: the push script once hid it as one of its own status lines
             self::waitFor('return document.readyState === "complete";');
             self::assertTrue(self::script('const line = document.querySelector("[data-pairing-status]"); return !line.hidden && line.getClientRects().length > 0;'), 'the waiting line is visible');
             self::assertSame(

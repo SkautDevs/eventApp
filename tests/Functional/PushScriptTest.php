@@ -4,18 +4,23 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
-use PHPUnit\Framework\TestCase;
-
 /**
- * The opt-in's behaviour is proved in a browser (Round C). What a test can hold here is
- * the script's contract: no alert(), the order of the unsubscribe, the answer keys it
- * reads, every line it can show, and the cache-buster that ships it.
+ * The opt-in's behaviour is proved in a browser (Round C), and urlB64ToUint8Array() and
+ * classifyFailure() in tests/js/push.test.js. What a test can hold here is the script's
+ * contract: no alert(), the order of the unsubscribe, the answer keys it reads, every line
+ * it can show, and the entry that ships it.
  */
-final class PushScriptTest extends TestCase
+final class PushScriptTest extends AppTestCase
 {
+    /** Every script under www/js/push, one after the other. */
     private static function script(): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/push.js');
+        $js = '';
+        foreach (glob(dirname(__DIR__, 2) . '/www/js/push/*.js') ?: [] as $file) {
+            $js .= (string) file_get_contents($file);
+        }
+
+        return $js;
     }
 
     /**
@@ -59,7 +64,7 @@ final class PushScriptTest extends TestCase
 
     public function testSubscribingWaitsForAnActiveWorker(): void
     {
-        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/push.js');
+        $js = self::script();
         self::assertStringContainsString("preparing: 'Připravuji…',", $js);
         self::assertStringContainsString('navigator.serviceWorker.ready,', $js);
         self::assertStringContainsString('const READY_TIMEOUT = 10000;', $js);
@@ -95,7 +100,9 @@ final class PushScriptTest extends TestCase
     {
         $js = self::code();
 
-        self::assertStringContainsString("error.rejected = response.status === 502 && result.error === 'subscription-rejected';", $js);
+        self::assertStringContainsString("rejected: status === 502 && body.error === 'subscription-rejected',", $js);
+        // a failed answer is classified by its status and its body
+        self::assertStringContainsString("throw Object.assign(new Error('push subscribe failed'), classifyFailure(response.status, result));", $js);
         self::assertStringContainsString('if (e.rejected === true) {', $js);
         // enablePush() drops half a subscription, syncIdentity() a rejected one
         self::assertSame(2, substr_count($js, 'await subscription.unsubscribe().catch(() => {});'));
@@ -106,8 +113,8 @@ final class PushScriptTest extends TestCase
     {
         $js = self::code();
 
-        self::assertStringContainsString('error.tooMany = response.status === 429;', $js);
-        self::assertStringContainsString("error.invalidKey = response.status === 400 && result.error === 'invalid-key';", $js);
+        self::assertStringContainsString('tooMany: status === 429,', $js);
+        self::assertStringContainsString("invalidKey: status === 400 && body.error === 'invalid-key',", $js);
         // the 429 branch returns before the half-subscription is dropped
         $tooMany = strpos($js, 'if (e.tooMany === true) {');
         self::assertNotFalse($tooMany);
@@ -117,14 +124,15 @@ final class PushScriptTest extends TestCase
 
     public function testTheSubscriptionIsDetectedAfterTheResync(): void
     {
-        self::assertStringContainsString('syncIdentity().catch(() => {}).then(() => detectSubscription()).catch(() => {});', self::code());
+        // one chain, however the formatter breaks its lines
+        self::assertMatchesRegularExpression('/syncIdentity\(\)\s*\.catch\(\(\) => \{\}\)\s*\.then\(\(\) => detectSubscription\(\)\)\s*\.catch\(\(\) => \{\}\);/', self::code());
     }
 
     public function testTheLayoutShipsTheNewScript(): void
     {
-        $layout = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig');
+        $html = (string) $this->request($this->createApp(), 'GET', '/')->getBody();
 
-        self::assertStringContainsString('<script src="{{ asset_version(\'push.js\') }}" defer></script>', $layout);
-        self::assertSame(1, substr_count($layout, "asset_version('push.js')"));
+        self::assertMatchesRegularExpression('~<script type="module" src="/js/[0-9a-f]{8}/push/index\.js"></script>~', $html);
+        self::assertSame(1, substr_count($html, '/push/index.js"></script>'));
     }
 }

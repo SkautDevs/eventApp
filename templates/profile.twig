@@ -16,11 +16,11 @@
 			{# paired: who, and what this browser can do; no code of any kind is shown #}
 			<h2 class="profile-who">{% if identity.initials %}<span class="avatar">{{ identity.initials }}</span>{% else %}<i class="fas fa-user-circle" aria-hidden="true"></i>{% endif %} {{ identity.displayName }}</h2>
 		{% elseif pairing %}
-			{# pending: www/profile.js polls while this paragraph is on a visible screen #}
+			{# pending: www/js/profile/pairing.js polls while this paragraph is on a visible screen #}
 			<p class="pairing-code" data-pairing-poll>{{ pairing.userCode }}</p>
 			<p>Zadej kód v KissJ, nebo</p>
 			<a class="btn btn-primary" href="{{ pairing.verificationUrl }}" target="_blank" rel="noopener">Otevřít KissJ ↗</a>
-			{# not .push-status: www/push.js hides every one of those while it has no push status #}
+			{# not .push-status: www/js/push/ hides every one of those while it has no push status #}
 			<p class="pairing-status" role="status" data-pairing-status>Čekám na potvrzení v KissJ…</p>
 			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form">
 				<button type="submit" class="btn">Začít znovu</button>
@@ -39,7 +39,7 @@
 	{% include '_install.twig' with {installCard: 'profile'} %}
 	{% if hasDark %}
 		{# Logged in or not: the look is the browser's, not the participant's. The choice
-		   lives in localStorage, so nothing is checked here: www/app.js checks the stored
+		   lives in localStorage, so nothing is checked here: www/js/profile/mode.js checks the stored
 		   one, or "system". #}
 		<fieldset class="mode-control" data-mode-control>
 			<legend>Vzhled</legend>
@@ -49,7 +49,7 @@
 		</fieldset>
 	{% endif %}
 	{% if identity %}
-		{# the first tap asks, the second submits (www/shell.js) #}
+		{# the first tap asks, the second submits (www/js/shell/confirm.js) #}
 		<form method="post" action="{{ url_for('pairing-revoke') }}" class="stacked-form profile-logout">
 			<button type="submit" class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z aplikace</button>
 		</form>

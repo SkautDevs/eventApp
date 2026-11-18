@@ -14,7 +14,7 @@ use Slim\Views\Twig;
  * Error pages as pages of the app: Slim still picks the status code and the content type,
  * this renders the HTML. The event app's template extends the layout, so a 404 wears the
  * event and keeps the tab bar; the instance app's is plain. A fragment request that errors
- * gets the whole document too — app.js treats any non-200 as "not a screen".
+ * gets the whole document too — the loader treats any non-200 as "not a screen".
  */
 final class TwigErrorRenderer implements ErrorRendererInterface
 {

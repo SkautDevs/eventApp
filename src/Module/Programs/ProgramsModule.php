@@ -31,6 +31,11 @@ final class ProgramsModule implements ModuleInterface
         return new MenuItem(self::key(), 'Program', 'programs', 'far fa-calendar-alt', 10);
     }
 
+    public function script(): string
+    {
+        return 'programs/index.js';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

@@ -56,7 +56,7 @@ final class MapTest extends AppTestCase
         self::assertStringContainsString('aria-label="Zobrazení mapy"', $html);
         self::assertStringContainsString('data-map-view="plan"', $html);
         self::assertStringContainsString('<button type="button" class="btn" data-map-view="plan">Zobrazit plán</button>', $html);
-        // the offline note stays the map's next sibling: www/shell.js finds it that way
+        // the offline note stays the map's next sibling: www/js/map/offline.js finds it that way
         self::assertMatchesRegularExpression('#</div>\s*<p class="empty map-offline map-offline-plan" data-map-offline hidden>#', $html);
         self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe [^>]*></iframe>\s*</div>\s*<p class="empty map-offline#', $html);
         // the button escapes .empty's fade: only the sentence is faded, the note is opaque

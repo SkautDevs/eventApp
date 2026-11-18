@@ -21,6 +21,11 @@ final class MapModule implements ModuleInterface
         return new MenuItem(self::key(), 'Místa', 'map', 'fas fa-map-marked-alt', 20);
     }
 
+    public function script(): string
+    {
+        return 'map/index.js';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

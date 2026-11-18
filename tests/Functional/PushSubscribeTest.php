@@ -100,7 +100,7 @@ final class PushSubscribeTest extends AppTestCase
         self::assertNull($this->repo()->forEvent('obrok19')[0]->participantId);
     }
 
-    public function testThePageTellsPushJsWhoIsLoggedIn(): void
+    public function testThePageTellsThePushModuleWhoIsLoggedIn(): void
     {
         $app = $this->createApp();
         self::assertStringContainsString('<meta name="push-identity" content="">', (string) $this->request($app, 'GET', '/')->getBody());

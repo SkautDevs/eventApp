@@ -12,7 +12,7 @@ use Psr\Http\Message\ServerRequestInterface;
 
 /**
  * The server's toasts, left by what caused them (a login, a logout, a register or
- * unregister); the shell's own offline toast is www/shell.js's.
+ * unregister); the shell's own offline toast is www/js/shell/toast.js's.
  *
  * The server's ones wait in the session under `toast` (`['title', 'line', 'at' => <the clock's timestamp>]`,
  * plus a `tag` for a write's success): put() leaves one, take() takes it on the next full

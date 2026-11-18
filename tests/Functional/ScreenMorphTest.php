@@ -7,32 +7,43 @@ namespace Tests\Functional;
 /**
  * A stale screen whose HTML changed is morphed into the new one, never replaced.
  *
- * The morph itself is behaviour and is proved in a browser; what a test can hold is
- * the contract it depends on — that the loader has no assignment to innerHTML left in
- * it, and that every repeated row the server renders carries the key the morph matches
- * on, so an insertion in the middle of a list moves nothing after it.
+ * The morph itself is behaviour, proved in tests/js/morph.test.js and in a browser; what
+ * a test can hold here is the contract it depends on — that no script assigns innerHTML
+ * but the loader's parser, and that every repeated row the server renders carries the
+ * key the morph matches on, so an insertion in the middle of a list moves nothing after it.
  */
 final class ScreenMorphTest extends AppTestCase
 {
     private function loader(): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/loader/loader.js');
+    }
+
+    private function morph(): string
+    {
+        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/loader/morph.js');
     }
 
     public function testTheLoaderNeverReplacesAScreensMarkup(): void
     {
-        $js = $this->loader();
-
         // A screen's innerHTML is read — it is how one is compared with the fresh
         // response — but never written: writing it is exactly what threw away the live
-        // state. The one assignment left is into the detached <template> the response
-        // is parsed in, which owns no state at all.
-        self::assertSame(1, substr_count($js, 'innerHTML ='));
-        self::assertStringContainsString('holder.innerHTML = html;', $js);
-        self::assertStringContainsString('function morphChildren(', $js);
-        // a matched iframe is neither written to nor moved: both reload it
-        self::assertStringContainsString("from.tagName === 'IFRAME'", $js);
-        self::assertStringContainsString('function ownsIframe(', $js);
+        // state. The one assignment left under www/js is into the detached <template>
+        // the response is parsed in, which owns no state at all. How the morph matches,
+        // and that it never writes or moves an iframe, is tests/js/morph.test.js's.
+        $root = dirname(__DIR__, 2) . '/www/js/';
+        $assignments = [];
+        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
+            \assert($file instanceof \SplFileInfo);
+            $count = substr_count((string) file_get_contents($file->getPathname()), 'innerHTML =');
+            if ($count > 0) {
+                $assignments[substr($file->getPathname(), strlen($root))] = $count;
+            }
+        }
+        self::assertSame(['loader/loader.js' => 1], $assignments);
+        $js = $this->loader();
+        $parse = substr($js, (int) strpos($js, 'function parse(html) {'), 200);
+        self::assertStringContainsString('holder.innerHTML = html;', $parse);
     }
 
     public function testEveryRepeatedRowCarriesAKey(): void
@@ -71,7 +82,12 @@ final class ScreenMorphTest extends AppTestCase
         self::assertMatchesRegularExpression('/id="pg-view-overview".*<section class="pl-day" data-key="day-\d{8}"/s', $html);
         self::assertMatchesRegularExpression('/<div class="sheet" data-key="sheet"/', $html);
         // the loader's own handle on the dialog is looked up per use, never held
-        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/programs.js');
+        self::assertFileDoesNotExist(dirname(__DIR__, 2) . '/www/js/programs.js');
+        $js = '';
+        foreach (glob(dirname(__DIR__, 2) . '/www/js/programs/*.js') ?: [] as $file) {
+            $js .= (string) file_get_contents($file);
+        }
+        self::assertStringContainsString("sheet: root.querySelector('[data-pg-sheet]'),", (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/programs/sheet.js'));
         self::assertStringNotContainsString("const sheet = root.querySelector('[data-pg-sheet]');", $js);
     }
 
@@ -119,11 +135,11 @@ final class ScreenMorphTest extends AppTestCase
         self::assertMatchesRegularExpression('/<button type="button" class="day-chip" data-key="page-\d{8}" data-pg-page="page-\d{8}" data-pg-kind="timeline" aria-current="(?:true|false)" data-morph-keep="aria-current">/', $html);
         self::assertStringNotContainsString('data-morph-keep="class" data-pg-page', $html);
         // the now-line's state is the reader's clock's: data-now and --now-offset are
-        // written by www/programs.js only, so a morph has nothing of its own to put back
+        // written by www/js/programs/nowline.js only, so a morph has nothing of its own to put back
         self::assertStringContainsString('data-axis-start=', $html);
         self::assertDoesNotMatchRegularExpression('/<section class="tl-page[^>]*\sdata-now[\s=>]/', $html);
         self::assertStringNotContainsString('--now-offset', $html);
-        self::assertStringContainsString("from.getAttribute('data-morph-keep')", $this->loader());
+        self::assertStringContainsString("from.getAttribute('data-morph-keep')", $this->morph());
     }
 
     /** The map's view is the reader's: a morph must not put the screen back on Google's. */
@@ -132,7 +148,7 @@ final class ScreenMorphTest extends AppTestCase
         $html = (string) $this->request($this->createApp('map-plan', fixtureEvent: true), 'GET', '/mapa', null, ['X-Screen' => '1'])->getBody();
 
         self::assertStringContainsString('data-view="google" data-morph-keep="data-view"', $html);
-        // written by www/map.js only
+        // written by www/js/map/index.js only
         self::assertStringNotContainsString('data-map-ready', $html);
     }
 
@@ -171,7 +187,7 @@ final class ScreenMorphTest extends AppTestCase
         self::assertSame(1, preg_match_all('/^\s*syncFreshness\(entry\.section, fresh\);/m', $code), 'the unchanged path');
         // and the unchanged path drops a held older morph, or it would re-apply over this fetch
         self::assertSame(1, preg_match_all('/^\s*entry\.pending = null;\s*\n\s*syncFreshness\(entry\.section, fresh\);/m', $code), 'the unchanged path clears pending');
-        self::assertStringContainsString("asset_version('app.js')", (string) file_get_contents(dirname(__DIR__, 2) . '/templates/_layout.twig'));
+        self::assertMatchesRegularExpression('~<script type="module" src="/js/[0-9a-f]{8}/shell/index\.js"></script>~', (string) $this->request($this->createApp(), 'GET', '/')->getBody());
     }
 
     /** The worker serves load() from its cache and sends revalidate() to the network (Task 7). */
@@ -188,9 +204,15 @@ final class ScreenMorphTest extends AppTestCase
     {
         $js = $this->loader();
 
-        self::assertSame(1, substr_count($js, "document.dispatchEvent(new CustomEvent('screen:loading'));"));
+        self::assertSame(1, substr_count($js, 'emitScreenLoading();'));
         // the fetch settled for this navigation, or a later tap was answered from the cache
-        self::assertSame(2, substr_count($js, "document.dispatchEvent(new CustomEvent('screen:loaded'));"));
+        self::assertSame(2, substr_count($js, 'emitScreenLoaded();'));
+        // both on document, where events.js dispatches them, under the names it holds
+        $events = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/events.js');
+        self::assertStringContainsString("SCREEN_LOADING = 'screen:loading';", $events);
+        self::assertStringContainsString("SCREEN_LOADED = 'screen:loaded';", $events);
+        self::assertStringContainsString('emitScreenLoading = () => document.dispatchEvent(new CustomEvent(SCREEN_LOADING));', $events);
+        self::assertStringContainsString('emitScreenLoaded = () => document.dispatchEvent(new CustomEvent(SCREEN_LOADED));', $events);
     }
 
     /** Review Focus 4: a change reported before the screen arrived is not forgotten. */
@@ -198,7 +220,7 @@ final class ScreenMorphTest extends AppTestCase
     {
         $js = $this->loader();
 
-        self::assertStringContainsString("navigator.serviceWorker.addEventListener('message', function (event) {", $js);
+        self::assertStringContainsString("navigator.serviceWorker.addEventListener('message', event => {", $js);
         self::assertStringContainsString('navigator.serviceWorker.startMessages();', $js);
         self::assertStringContainsString("data.type === 'screen-updated'", $js);
         self::assertStringContainsString("data.type === 'news-updated'", $js);
@@ -209,8 +231,8 @@ final class ScreenMorphTest extends AppTestCase
 
     public function testAFetchTheReaderWaitsForGivesUpAfterEightSeconds(): void
     {
-        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
-        self::assertStringContainsString('var LOAD_TIMEOUT = 8000;', $js);
+        $js = $this->loader();
+        self::assertStringContainsString('const LOAD_TIMEOUT = 8000;', $js);
         self::assertStringContainsString('controller.abort();', $js);
         self::assertStringContainsString("if (link.classList.contains('skip-link')) {", $js);
     }
@@ -220,9 +242,11 @@ final class ScreenMorphTest extends AppTestCase
         $js = $this->loader();
         $start = strpos($js, 'function syncFreshness(section, fresh) {');
         self::assertNotFalse($start);
-        $body = substr($js, $start, (int) strpos($js, "\n\t}\n", $start) - $start);
+        $body = substr($js, $start, (int) strpos($js, "\n}\n", $start) - $start);
 
-        self::assertStringContainsString("section.dispatchEvent(new CustomEvent('screen:freshness', {bubbles: true}));", $body);
+        // when it is announced, and when not, is tests/js/loader.test.js's
+        self::assertStringContainsString('emitScreenFreshness(section);', $body);
         self::assertStringContainsString('if (changed) {', $body);
+        self::assertStringContainsString("SCREEN_FRESHNESS = 'screen:freshness';", (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/events.js'));
     }
 }

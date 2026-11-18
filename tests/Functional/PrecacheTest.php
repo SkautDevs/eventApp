@@ -7,6 +7,7 @@ namespace Tests\Functional;
 use App\EventConfig;
 use App\Http\AssetVersion;
 use App\Http\Precache;
+use App\Http\ScriptVersion;
 
 /** What the service worker keeps, as the server says it. */
 final class PrecacheTest extends AppTestCase
@@ -36,9 +37,16 @@ final class PrecacheTest extends AppTestCase
     {
         $assets = $this->listFor('obrok27')['assets'];
 
-        foreach (['style.css', 'app.js', 'shell.js', 'push.js', 'profile.js', 'programs.js'] as $file) {
-            $hash = substr((string) hash_file('sha256', dirname(__DIR__, 2) . '/www/' . $file), 0, 8);
-            self::assertContains('/' . $file . '?v=' . $hash, $assets, $file);
+        $hash = substr((string) hash_file('sha256', dirname(__DIR__, 2) . '/www/style.css'), 0, 8);
+        self::assertContains('/style.css?v=' . $hash, $assets);
+        // every script of the tree, under the tree's one version, for every event
+        $scripts = new ScriptVersion(dirname(__DIR__, 2) . '/www');
+        foreach (glob(dirname(__DIR__, 2) . '/events/*/config.php') ?: [] as $config) {
+            $slug = basename(dirname($config));
+            $listed = $slug === 'obrok27' ? $assets : $this->listFor($slug)['assets'];
+            foreach ($scripts->files() as $file) {
+                self::assertContains($scripts->url($file), $listed, $slug . ': ' . $file);
+            }
         }
         self::assertContains('/events/obrok27/site.webmanifest', $assets);
         $manifest = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/site.webmanifest'), true);
@@ -63,7 +71,9 @@ final class PrecacheTest extends AppTestCase
             $assets = $this->listFor($slug)['assets'];
             self::assertSame(array_values(array_unique($assets)), $assets, $slug . ': listed twice');
             foreach ($assets as $url) {
-                self::assertFileExists($root . '/www' . parse_url($url, PHP_URL_PATH), $slug);
+                // a versioned script path is the file www/js/<path>
+                $path = (string) preg_replace('~^/js/[0-9a-f]{8}/~', '/js/', (string) parse_url($url, PHP_URL_PATH));
+                self::assertFileExists($root . '/www' . $path, $slug);
             }
 
             $event = EventConfig::load($root . '/events', $slug);
@@ -82,9 +92,9 @@ final class PrecacheTest extends AppTestCase
         // a fixture event ships no files at all: the scripts and the shell's fonts, and
         // nothing that would 404
         $minimal = $this->listFor('minimal', fixtureEvent: true)['assets'];
-        self::assertCount(5 + 7, $minimal);
+        self::assertCount(1 + count((new ScriptVersion($root . '/www'))->files()) + 7, $minimal);
         foreach ($minimal as $url) {
-            self::assertMatchesRegularExpression('~^/((style\.css|app\.js|shell\.js|push\.js|profile\.js)\?v=[0-9a-f]{8}|fonts/.+\.woff2|vendor/fontawesome-free-5\.8\.1/.+)$~', $url);
+            self::assertMatchesRegularExpression('~^/(style\.css\?v=[0-9a-f]{8}|js/[0-9a-f]{8}/.+|fonts/.+\.woff2|vendor/fontawesome-free-5\.8\.1/.+)$~', $url);
         }
     }
 
@@ -121,15 +131,12 @@ final class PrecacheTest extends AppTestCase
     /** The plan is the map that works offline, so it and the script that shows it are kept. */
     public function testTheMapsScriptAndPlanAreKept(): void
     {
-        $hash = substr((string) hash_file('sha256', dirname(__DIR__, 2) . '/www/map.js'), 0, 8);
-
         $plan = $this->listFor('map-plan', fixtureEvent: true)['assets'];
-        self::assertContains('/map.js?v=' . $hash, $plan);
+        self::assertContains((new ScriptVersion(dirname(__DIR__, 2) . '/www'))->url('map/index.js'), $plan);
         self::assertContains('/events/obrok19/Obrok19_minilogo.png', $plan);
 
-        // korbo26 has no Mapa tab: neither the script nor a plan
+        // korbo26 has no Mapa tab: no plan (the script is listed for every event, as the whole tree is)
         $korbo26 = $this->listFor('korbo26')['assets'];
-        self::assertSame([], preg_grep('~^/map\.js~', $korbo26));
         self::assertNotContains('/events/obrok19/Obrok19_minilogo.png', $korbo26);
     }
 

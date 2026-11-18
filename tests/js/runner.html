@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>JavaScript unit tests</title>
+		<!-- served by tests/Browser/router.php under /__tests__/, read by tests/Browser/JsUnitTest.php -->
+		<script>
+		window.__results = {done: false, passed: 0, failed: []};
+		// A module that fails to load or link (a syntax error, a missing export, a 404) never
+		// reaches finish(): record it as a named failure rather than leave the test to time out.
+		function recordLoadFailure(name, message) {
+			var results = window.__results;
+			window.__results = {done: true, passed: results.passed, failed: results.failed.concat([{name: name, message: message}])};
+		}
+		window.addEventListener('error', function (event) {
+			recordLoadFailure(event.filename || 'all.js', event.message || 'error');
+		});
+		var runner = document.createElement('script');
+		runner.type = 'module';
+		runner.src = 'all.js';
+		runner.onerror = function () {
+			recordLoadFailure('all.js', 'a module of the test run could not be loaded');
+		};
+		document.head.appendChild(runner);
+		</script>
+	</head>
+	<body></body>
+</html>

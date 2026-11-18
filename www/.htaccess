@@ -1,5 +1,12 @@
 # Front controller. Anything that is not a real file or directory goes to index.php.
 RewriteEngine On
+# A script is linked as /js/<8 hex>/<path> (script_url() in templates/_layout.twig, the
+# version of the whole www/js/ tree) and is the file js/<path>. This rule comes before
+# the two conditions: a condition belongs to the rule that follows it, so placed after
+# them this rule would take them from the front controller and every static file would
+# be sent to index.php. A path to no file is rewritten all the same and then reaches the front
+# controller, whose 404 it gets. Mirrors docker/nginx.conf and bin/script-path.php.
+RewriteRule ^js/[0-9a-f]{8}/(.+)$ js/$1 [L]
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [QSA,L,E=PHP_ROUTED:1]
@@ -36,9 +43,10 @@ Options -Indexes
 	</FilesMatch>
 </IfModule>
 
-# The stylesheet and the scripts are linked with a content hash (?v=<first 8 hex of
-# their sha256>, asset_version() in templates/_layout.twig), which is the precondition
-# for an immutable lifetime: a changed file gets a new URL by itself, with nothing to
+# The stylesheets are linked with a content hash (?v=<first 8 hex of their sha256>,
+# asset_version() in templates/_layout.twig) and the scripts with one in their path
+# (/js/<8 hex>/, script_url(), rewritten at the top), which is the precondition for an
+# immutable lifetime: a changed file gets a new URL by itself, with nothing to
 # bump. Anything served from here that is NOT versioned — an event logo replaced in
 # place, for instance — reaches a returning visitor only because the service worker
 # revalidates it past this cache (its fetch bypasses the HTTP cache), never through

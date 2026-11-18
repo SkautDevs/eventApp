@@ -70,7 +70,7 @@ final class ErrorPageTest extends AppTestCase
         self::assertStringContainsString('ErrorPageTest.php', $html);
     }
 
-    /** app.js treats any non-200 as "not a screen" and navigates, so the reader sees a page. */
+    /** The loader (www/js/loader/loader.js) treats any non-200 as "not a screen" and navigates, so the reader sees a page. */
     public function testAFragmentRequestThatFailsGetsTheWholeDocument(): void
     {
         $response = $this->request($this->createApp(), 'GET', '/tohle-tady-neni', null, ['X-Screen' => '1']);

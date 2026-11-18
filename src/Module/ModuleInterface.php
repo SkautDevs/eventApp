@@ -18,6 +18,12 @@ interface ModuleInterface
     /** A tab in the bottom bar, or null for a module without one. */
     public function menuItem(): ?MenuItem;
 
+    /**
+     * The module's script entry, relative to www/js (`<dir>/index.js`), or null for a module
+     * without one. The layout loads the entries in module order (Modules::scripts()).
+     */
+    public function script(): ?string;
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void;
 }

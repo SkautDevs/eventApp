@@ -60,7 +60,7 @@ final class PairingTest extends AppTestCase
         self::assertStringContainsString('<p class="pairing-code" data-pairing-poll>483 291</p>', $html);
         self::assertStringContainsString('<p>Zadej kód v KissJ, nebo</p>', $html);
         self::assertMatchesRegularExpression('#<a class="btn btn-primary" href="https://kissj\.example/pairing" target="_blank" rel="noopener">Otevřít KissJ ↗</a>#u', $html);
-        // its own class: www/push.js hides every .push-status while it has no push status to show
+        // its own class: www/js/push/ hides every .push-status while it has no push status to show
         self::assertStringContainsString('<p class="pairing-status" role="status" data-pairing-status>Čekám na potvrzení v KissJ…</p>', $html);
         self::assertStringNotContainsString('class="push-status" role="status" data-pairing-status', $html);
         self::assertStringContainsString('Začít znovu', $html);

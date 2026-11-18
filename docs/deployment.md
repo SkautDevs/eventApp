@@ -58,7 +58,8 @@ release is deleted by the mirror's `--delete`** on the next deploy: keep backups
 of `push.sqlite`) and throwaway scripts out of the FTP root, or inside `var/`.
 
 `www/.htaccess` is uploaded with the rest and is what the host reads: the front
-controller rule, `Options -Indexes`, the security headers, the year of `immutable` on
+controller rule, the rule that serves a versioned script `/js/<8 hex>/<path>` as the
+file `js/<path>`, `Options -Indexes`, the security headers, the year of `immutable` on
 versioned assets, `no-cache` on `sw.js` and compression. A change to it must be
 committed, because the next deploy replaces the file on the server.
 
@@ -130,7 +131,7 @@ it (Domů, Informace, Program, the push and admin routes) answers 500, so **the 
 (with its `-wal` and `-shm` files) together with `var/cache/` and `var/sessions/`.
 That drops every stored push subscription and the message log; a reader stays
 subscribed in the browser, but the server learns of the subscription again only when it
-is re-sent, which `push.js` does after the next login or logout in that browser. Readers
+is re-sent, which `www/js/push/` does after the next login or logout in that browser. Readers
 logged in by TIE code are logged out and pair again. From the first production deploy
 on, schema changes are appended as new steps; a shipped step is never edited.
 
@@ -140,8 +141,10 @@ setting, and a reader whose login does not stick clears the site's cookies.
 
 ### Updates
 
-There is nothing to bump: a changed stylesheet or script gets a new `?v=` content hash by
-itself, which is what makes `www/.htaccess`'s year of `immutable` safe. Twig re-checks
+There is nothing to bump: a changed stylesheet gets a new `?v=` content hash by itself,
+and a changed script a new `/js/<hash>/` prefix, which is what makes `www/.htaccess`'s
+year of `immutable` safe. The upload is not atomic, and that leaves a short window: see
+"Assets carry a content hash" below. Twig re-checks
 template mtimes on every render, so `var/twig/` needs no clearing. `var/cache/` is safe to
 delete at any time (see [kissj](#kissj-and-its-cache)).
 
@@ -344,8 +347,8 @@ What the server does with subscriptions and sends:
   **300 new subscriptions per address and event per 10 minutes** (429
   `{"error":"too-many"}`) — room for a camp's Wi-Fi or a carrier NAT, where hundreds of
   phones share one IPv4 address at the opening; a re-send of a known subscription, which
-  `push.js` does after every login and logout, never counts, and a new one counts even
-  when its welcome notification is then rejected. `push.js` tells the reader about a 429
+  `www/js/push/` does after every login and logout, never counts, and a new one counts even
+  when its welcome notification is then rejected. `www/js/push/` tells the reader about a 429
   ("Teď si notifikace zapíná moc lidí najednou, zkus to za chvíli.") and keeps the
   browser's subscription, which the next page sends again; a 400 has its own line too
   ("Prohlížeč poslal neplatné údaje, zkus notifikace zapnout znovu.").
@@ -409,7 +412,7 @@ The stack is two containers: `app` (php-fpm, built from `Dockerfile`) and `web`
 request to `www/index.php`.
 
 **Build and deploy from one checkout.** PHP renders the templates that are baked into
-the image, while nginx serves `style.css`, `app.js` and the logos from the host's
+the image, while nginx serves `style.css`, the scripts under `www/js/` and the logos from the host's
 `./www` bind mount. Pulling without `--build`, or building the image from a different
 checkout than the one next to `docker-compose.prod.yml`, pairs new assets with old
 templates or the reverse.
@@ -497,7 +500,8 @@ What the stack does, and why:
   configured, Sentry.
 - **nginx serves `.webmanifest` as `application/manifest+json`** (`types` block in
   `docker/nginx.conf`); its `mime.types` does not know the extension.
-- **nginx mirrors `www/.htaccess`**: versioned assets get a year of `immutable` cache,
+- **nginx mirrors `www/.htaccess`**: a server-level `rewrite` serves `/js/<8 hex>/<path>`
+  as the file `www/js/<path>`, versioned assets get a year of `immutable` cache,
   `sw.js` is `no-cache`, static files carry the same security headers PHP sets on
   everything it answers, directories are never listed, `*.php` other than the front
   controller is a 404, and text types are gzipped.
@@ -522,14 +526,32 @@ What the stack does, and why:
   `push.sent` stay on stdout. Push and cache counts are span data (`push.send`,
   `push.welcome`, `push.subscribe`, `program.cache`), not issues. A
   request that matched no route is the one transaction `unmatched`.
-- **Assets carry a content hash.** `templates/_layout.twig` links the stylesheet and
-  every script through `asset_version()`, which appends `?v=` and the first 8 hex
-  characters of the file's sha256 (`App\Http\AssetVersion`, memoised per PHP process by
-  path, mtime and size). A changed file gets a new URL on its own; there is nothing to
-  bump. Event logos and favicons are not versioned: one replaced in place reaches a
+- **Assets carry a content hash.** `templates/_layout.twig` links the two stylesheets
+  through `asset_version()`, which appends `?v=` and the first 8 hex characters of the
+  file's sha256 (`App\Http\AssetVersion`, memoised per PHP process by path, mtime and
+  size). The scripts live under `www/js/` and are linked through `script_url()` as
+  `/js/<hash>/<path>`, where the hash is the first 8 hex of a sha256 over every file of
+  the `www/js/` tree (`App\Http\ScriptVersion`). There is one hash for all of them, so a
+  change to any script changes the prefix of every script, and a module's relative
+  imports resolve under its own prefix, so a page loads all its modules from one deploy
+  (except during an upload, below).
+  An import map would have done the same, but it needs Safari 16.4, which would change
+  what old iPhones get. The prefix is no directory: three rules that must agree serve `/js/<8 hex>/<path>` as
+  `www/js/<path>` — the `RewriteRule` in `www/.htaccess`, the `rewrite` in
+  `docker/nginx.conf` and `eventapp_script_file()` in `bin/script-path.php` for the PHP
+  routers. A changed file gets a new URL on its own; there is nothing to bump.
+
+  Event logos and favicons are not versioned: one replaced in place reaches a
   returning visitor only because the service worker revalidates it past the year-long
   HTTP cache (its fetch bypasses that cache), never through the cache itself. Upload a
   replacement under a new name and change `assets` in the event's config.
+
+  What the rewrite cannot do: it answers **any** 8-hex prefix with the file on disk now,
+  because the server keeps no old copies. An FTP upload is not atomic, so while one runs a
+  page of the old deploy can receive a module of the new one, or the reverse. With
+  modules, one import of an export that is not there stops the whole graph of that
+  entry, not just one function. The window lasts as long as the upload, and it is the same
+  window a `?v=` stylesheet has today: its old query string also gets the new file.
 - **Fonts and icons are self-hosted and never change in place.** `www/fonts/` (themix,
   skautbold, Montserrat) and `www/vendor/fontawesome-free-5.8.1/` are committed, carry no
   hash, get the same year of `immutable` (by extension: woff2, css) and are served

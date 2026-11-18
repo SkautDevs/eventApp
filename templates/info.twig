@@ -29,7 +29,7 @@
 
 	<h2>Notifikace</h2>
 	{# data-key is the morph's handle on a day and on a message: a new one arrives at the
-	   top and must not shift every one after it. data-sent-at is the instant www/shell.js
+	   top and must not shift every one after it. data-sent-at is the instant www/js/ui/reltime.js
 	   redraws the relative time from, so a copy read later says how long ago it is now. #}
 	{% for group in groups %}
 		<section class="news-day" data-key="{{ group.key }}">

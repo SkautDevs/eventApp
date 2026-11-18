@@ -23,7 +23,7 @@ use App\Time\Zone;
  * event's dates: before the start a countdown and what is coming (the registration
  * window), from the start today's date, today's notifications and the participant's next
  * programmes. Every date here is read on the Prague calendar; the device clock redraws
- * the countdown and the next programmes in www/shell.js.
+ * the countdown and the next programmes in www/js/home/.
  */
 final class HomeModel
 {

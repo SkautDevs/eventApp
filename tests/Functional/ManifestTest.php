@@ -45,7 +45,7 @@ final class ManifestTest extends AppTestCase
 
     public function testTheServiceWorkerIsRegisteredWithTheEventScope(): void
     {
-        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/push.js');
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/push/index.js');
         self::assertStringContainsString("register('sw.js', {scope: meta('event-base')})", $js);
         self::assertStringContainsString("fetch(meta('event-base') + 'push/subscribe'", $js);
         self::assertStringContainsString('const scope = self.registration.scope', (string) file_get_contents(dirname(__DIR__, 2) . '/www/sw.js'));

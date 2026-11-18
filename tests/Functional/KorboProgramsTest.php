@@ -336,7 +336,7 @@ final class KorboProgramsTest extends AppTestCase
 
         self::assertStringContainsString('Přesun na 15:00', $html);
         self::assertStringContainsString('Oznámení', $html);
-        // the relative time carries its instant, which www/shell.js redraws it from
+        // the relative time carries its instant, which www/js/ui/reltime.js redraws it from
         self::assertMatchesRegularExpression('#<p class="sheet-message"><strong>Přesun na 15:00</strong> <small data-sent-at="\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\+0[12]:00">[^<]+</small></p>#u', $html);
     }
 

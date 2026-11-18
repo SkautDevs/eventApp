@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Http\ScriptGraph;
+
 final class ThemingTest extends AppTestCase
 {
     public function testPaletteIsInjectedFromEventConfig(): void
@@ -358,7 +360,7 @@ final class ThemingTest extends AppTestCase
         self::assertStringNotContainsString('.appbar-mode', $css);
         self::assertStringNotContainsString('.appbar-who', $css);
         self::assertStringNotContainsString('.mode-sun', $css);
-        self::assertStringNotContainsString('data-mode-toggle', (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js'));
+        self::assertStringNotContainsString('data-mode-toggle', (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/profile/mode.js'));
         self::assertStringNotContainsString('appbar-mode', (string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/style.css'));
     }
 
@@ -599,7 +601,7 @@ final class ThemingTest extends AppTestCase
      * Type is a seven-step rem scale, so a reader's own text size reaches it. Two kinds of
      * rule keep px, by name: chrome glyphs of the fixed-height bars and of the instrument
      * controls (the zoom pairs, one of which floats on the plan), whose boxes are measured
-     * in pixels — www/programs.js reads the bars' heights as plain pixel numbers — and the
+     * in pixels — www/js/programs/ reads the bars' heights as plain pixel numbers — and the
      * timeline grid, whose geometry is frozen. Anything else in px is a regression.
      */
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
@@ -1032,14 +1034,14 @@ final class ThemingTest extends AppTestCase
 
     /**
      * Profil's three-way control: one fieldset, three radios of one name, the stored choice
-     * or "system" checked by www/app.js, and "Podle systému" removes the stored key.
+     * or "system" checked by www/js/profile/mode.js, and "Podle systému" removes the stored key.
      */
     public function testTheModeControlIsThreeRadiosOfOneName(): void
     {
         $app = $this->createApp('obrok27');
         $this->pair($app);
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
-        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/profile/mode.js');
 
         self::assertMatchesRegularExpression('#<fieldset class="mode-control" data-mode-control>\s*<legend>Vzhled</legend>#u', $html);
         foreach (['light' => 'Světlý', 'dark' => 'Tmavý', 'system' => 'Podle systému'] as $value => $label) {
@@ -1052,7 +1054,8 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString("localStorage.getItem('obrokColorMode')", $js);
         self::assertStringContainsString("localStorage.removeItem('obrokColorMode')", $js);
         self::assertStringContainsString("localStorage.setItem('obrokColorMode'", $js);
-        self::assertStringContainsString("'screen:shown'", $js);
+        self::assertStringContainsString('onScreenShown(sync);', $js);
+        self::assertStringContainsString("SCREEN_SHOWN = 'screen:shown';", (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/events.js'));
         self::assertStringNotContainsString("setAttribute('aria-pressed'", $js);
     }
 
@@ -1070,20 +1073,15 @@ final class ThemingTest extends AppTestCase
     }
 
     /**
-     * The loader's IIFE returns early on a page without a screen or without Map; the
-     * mode control must not share that fate, so it is its own IIFE and comes first.
+     * The loader does nothing on a page without a screen or without Map; the mode control
+     * must not share that fate, so it is a module of Profil's entry that imports nothing
+     * from the loader.
      */
     public function testTheModeControlIsWiredOutsideTheLoader(): void
     {
-        $app = (string) file_get_contents(dirname(__DIR__, 2) . '/www/app.js');
-        $control = strpos($app, "'[data-mode-control]");
-        $loader = strpos($app, "var main = document.querySelector('main');");
+        $graph = new ScriptGraph(dirname(__DIR__, 2) . '/www');
 
-        self::assertIsInt($control);
-        self::assertIsInt($loader);
-        self::assertLessThan($loader, $control);
-        // the control's IIFE is closed before the loader's opens (app.js already holds
-        // nested `(function () {` openers, so counting those would prove nothing)
-        self::assertSame(1, substr_count(substr($app, $control, $loader - $control), '})();'), 'the control must close its own IIFE before the loader opens');
+        self::assertContains('profile/mode.js', $graph->imports('profile/index.js'));
+        self::assertSame([], array_values(array_filter($graph->imports('profile/mode.js'), static fn(string $file): bool => str_starts_with($file, 'loader/'))));
     }
 }

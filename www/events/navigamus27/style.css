@@ -7,7 +7,7 @@
    120px wide. */
 
 :root {
-	/* the app bar's wave: 8px deep, cut out of the bar's own box, so its height stays what www/programs.js reads */
+	/* the app bar's wave: 8px deep, cut out of the bar's own box, so its height stays what www/js/programs/ reads */
 	--n27-bar-wave: 8px;
 	--n27-bar-wave-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M0 0V4Q30 11 60 4Q90 -3 120 4V0Z'/%3E%3C/svg%3E");
 	/* the area above the same wave mirrored: painted in the page ground over the top edge of the tab bar

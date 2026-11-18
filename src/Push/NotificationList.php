@@ -26,7 +26,7 @@ final class NotificationList
      * @param list<Message> $messages MessageRepository::visible() rows, newest first
      * @param array<int, string> $mine programme id => name, of the reader's registrations
      * `when` is the server's relative time and `at` the same instant as DATE_ATOM, from which
-     * www/shell.js redraws `when` on the device clock: a copy read later or offline must not
+     * www/js/ui/reltime.js redraws `when` on the device clock: a copy read later or offline must not
      * keep saying "právě teď".
      *
      * @return list<Notification>
@@ -72,7 +72,7 @@ final class NotificationList
     /**
      * When a message was sent, as the reader reads it. Minutes win over the calendar: under
      * an hour it is always "před N min", even across midnight; then "před N h" the same
-     * Prague day, "včera H:i" the day before, and a date before that. www/shell.js
+     * Prague day, "včera H:i" the day before, and a date before that. www/js/ui/reltime.js
      * (relativeTime()) repeats these bands on the device clock; change both together.
      */
     public static function relative(\DateTimeImmutable $at, \DateTimeImmutable $now): string

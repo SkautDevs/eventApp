@@ -69,9 +69,14 @@ final class Definitions
             },
             // how old this request's provider data is; the screen middleware resets it per request
             Program\Freshness::class => fn(ClockInterface $clock): Program\Freshness => new Program\Freshness($clock),
-            // content hashes for the stylesheet and the scripts: asset_version() in the
-            // layout, and the service worker's precache list (Task 5)
+            // content hashes for the stylesheets: asset_version() in the layout, and the
+            // service worker's precache list
             Http\AssetVersion::class => fn(): Http\AssetVersion => new Http\AssetVersion($root . '/www'),
+            // the scripts' one version, the www/js/ tree's: script_url() in the layout, and
+            // the precache list
+            Http\ScriptVersion::class => fn(): Http\ScriptVersion => new Http\ScriptVersion($root . '/www'),
+            // the scripts' static import graph: the layout preloads every file an entry imports
+            Http\ScriptGraph::class => fn(Paths $paths): Http\ScriptGraph => new Http\ScriptGraph($paths->www),
             // var/sessions (or SESSION_PATH), created 0700 on first use: nothing about sessions
             // depends on the host's ini (the FTP host's handler and defaults are unknown)
             Session::class => fn(ClockInterface $clock, Environment $environment): Session => new Session($event->slug, $environment->sessionPath($root), appRoot: $root, clock: $clock),

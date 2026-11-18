@@ -1,8 +1,8 @@
 /**
  * The event's service worker: its push notifications, and the offline copy of the app.
  *
- * One worker per event, at scope /<slug>/ — registered on every page by www/shell.js,
- * and again by www/push.js when notifications are turned on (register() is idempotent).
+ * One worker per event, at scope /<slug>/ — registered on every page by www/js/shell/worker.js,
+ * and again by www/js/push/ when notifications are turned on (register() is idempotent).
  * What it keeps comes from the server: /<slug>/precache.json lists the screens and the
  * content-hashed asset URLs (App\Http\Precache), so this file never changes when an
  * asset does. Each list version gets a cache of its own, eventapp-<slug>-<version>, and
@@ -97,8 +97,9 @@ function storable(response) {
 }
 
 /**
- * A page or fragment that carries a toast (the server's X-Toast, App\Kernel::markToast()):
- * said once, so never stored, or the offline copy would say it again every time.
+ * A page or fragment that carries a toast (the server's X-Toast, App\Toast\Toasts::HEADER,
+ * set by Toasts::mark()): said once, so never stored, or the offline copy would say it
+ * again every time.
  */
 function toasted(response) {
 	return response.headers.get('X-Toast') === '1';
@@ -108,7 +109,7 @@ function toasted(response) {
  * The full document and the X-Screen fragment share a URL and differ only by a request
  * header, and the Cache API keys on the URL. So the worker never uses the request as the
  * key: the fragment's key carries a query of its own. The query exists in the cache only;
- * no page links to it, and app.js's "a URL with a query is not a screen" stays true.
+ * no page links to it, and the loader's "a URL with a query is not a screen" stays true.
  */
 function cacheKey(request) {
 	const url = new URL(request.url);
@@ -119,7 +120,7 @@ function cacheKey(request) {
 /**
  * A screen's page and its fragment, fetched with the reader's cookie and stored under their
  * keys. X-Worker-Fill says it is the worker asking, not the reader looking, so the server
- * leaves a pending toast for the reader's own next page (App\Kernel::takeToast()).
+ * leaves a pending toast for the reader's own next page (App\Toast\Toasts::take()).
  */
 function storeBoth(cache, url) {
 	const generation = purges;
@@ -320,8 +321,8 @@ self.addEventListener('fetch', event => {
 		// so every page and fragment goes once the server has answered and before that
 		// answer (and the redirect's GET) reaches the page. A POST that never gets an
 		// answer — a login tapped with no signal — changed nothing and purges nothing. A push
-		// subscribe or unsubscribe changes no rendered HTML (the toggle's state lives in the
-		// browser's PushManager), and purging there would leave the offline copy empty,
+		// subscribe changes no rendered HTML (the toggle's state lives in the browser's
+		// PushManager), and purging there would leave the offline copy empty,
 		// /offline included, until the next full navigation, because refill() runs only
 		// from page().
 		if (inScope && !url.pathname.startsWith(BASE + 'admin/') && !url.pathname.startsWith(BASE + 'push/')) {
@@ -349,8 +350,10 @@ self.addEventListener('fetch', event => {
 		return;
 	}
 
-	// the fonts and the icons never change in place: a changed file gets a new name
-	if ((url.searchParams.has('v') && new RegExp('^/(events/' + SLUG + '/)?[a-z]+\\.(css|js)$').test(url.pathname)) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {
+	// a /js/<8 hex>/ path is content-addressed: the segment is the whole script tree's
+	// version (App\Http\ScriptVersion); the fonts and the icons never change in place: a
+	// changed file gets a new name
+	if ((url.searchParams.has('v') && new RegExp('^/((events/' + SLUG + '|css)/)?[a-z]+\\.(css|js)$').test(url.pathname)) || /^\/js\/[0-9a-f]{8}\//.test(url.pathname) || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/vendor/')) {
 		event.respondWith(cacheFirst(event));
 	} else if (url.pathname.startsWith('/events/' + SLUG + '/')) {
 		event.respondWith(staleWhileRevalidate(event));
@@ -416,7 +419,7 @@ function refill() {
 
 /**
  * Where a write that never reached the server sends the reader: back to the page it was
- * sent from, plus #offline, which www/shell.js turns into the offline toast and then
+ * sent from, plus #offline, which www/js/shell/toast.js turns into the offline toast and then
  * strips. The page comes from the cache like any other offline navigation. Only a
  * same-origin referrer is a place to go back to (its own hash dropped); without one — or
  * with one from elsewhere — it is the event's home, never a bare "#offline" on nothing.
@@ -500,7 +503,7 @@ function page(event) {
 }
 
 /**
- * app.js's first fetch of a screen (load()): the cached copy at once, the network behind
+ * The loader's first fetch of a screen (load()): the cached copy at once, the network behind
  * it. A copy that turns out to differ from the server's is reported to the page
  * (screen-updated), which revalidates it — one navigation is one fetch here and one read
  * in the page, never two fetches.
@@ -531,7 +534,7 @@ function fragmentFromCache(event) {
 	});
 }
 
-/** app.js's background revalidation (cache: 'no-cache'): the network, the cache only when there is none. */
+/** The loader's background revalidation (cache: 'no-cache'): the network, the cache only when there is none. */
 function fragmentFromNetwork(event) {
 	const request = event.request;
 	const key = cacheKey(request);
@@ -544,7 +547,7 @@ function fragmentFromNetwork(event) {
 	}, () => match(key).then(hit => (hit ? fromCache(hit) : Response.error())));
 }
 
-/** A cached copy handed to a revalidation, marked so the loader does not take it for news (www/app.js). */
+/** A cached copy handed to a revalidation, marked so the loader does not take it for news (www/js/loader/loader.js). */
 function fromCache(response) {
 	const headers = new Headers(response.headers);
 	headers.set('X-From-Cache', '1');

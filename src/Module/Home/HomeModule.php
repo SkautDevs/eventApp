@@ -27,6 +27,11 @@ final class HomeModule implements ModuleInterface
         return new MenuItem('homepage', $this->event->shortName ?? $this->event->name, 'homepage', 'fas fa-home', 0);
     }
 
+    public function script(): string
+    {
+        return 'home/index.js';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

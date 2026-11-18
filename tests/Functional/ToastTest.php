@@ -7,7 +7,7 @@ namespace Tests\Functional;
 use Slim\Views\Twig;
 
 /**
- * templates/_toast.twig: the server's half of the one toast component. www/shell.js builds
+ * templates/_toast.twig: the server's half of the one toast component. www/js/shell/toast.js builds
  * the same markup for the toasts it shows itself (the offline one), so the two must agree.
  */
 final class ToastTest extends AppTestCase
@@ -40,10 +40,10 @@ final class ToastTest extends AppTestCase
         self::assertStringContainsString('<strong>&lt;b&gt;x&lt;/b&gt;</strong><span>&lt;i&gt;y&lt;/i&gt;</span>', $html);
     }
 
-    /** shell.js builds the same element: the class names, the data attributes and the label. */
+    /** www/js/shell/toast.js builds the same element: the class names, the data attributes and the label. */
     public function testTheShellBuildsTheSameMarkup(): void
     {
-        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/shell.js');
+        $js = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/shell/toast.js');
 
         foreach (["toast.className = 'toast';", "toast.setAttribute('role', 'status');", "toast.setAttribute('data-toast', '');", "toast.setAttribute('data-key', 'toast');", "close.className = 'toast-close';", "close.setAttribute('data-toast-close', '');", "close.setAttribute('aria-label', 'Zavřít');", "close.textContent = '✕';"] as $needle) {
             self::assertStringContainsString($needle, $js);
