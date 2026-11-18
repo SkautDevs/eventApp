@@ -7,9 +7,7 @@ namespace App;
 /** Every event under events/, for the front door and the picker. */
 final class EventCatalog
 {
-    public function __construct(private readonly string $eventsDir)
-    {
-    }
+    public function __construct(private readonly string $eventsDir) {}
 
     public function has(string $slug): bool
     {
@@ -21,7 +19,7 @@ final class EventCatalog
     public function slugs(): array
     {
         $slugs = array_values(array_filter(
-            array_map(static fn (string $file): string => basename(dirname($file)), glob($this->eventsDir . '/*/config.php') ?: []),
+            array_map(static fn(string $file): string => basename(dirname($file)), glob($this->eventsDir . '/*/config.php') ?: []),
             $this->has(...),
         ));
         sort($slugs);
@@ -55,8 +53,8 @@ final class EventCatalog
                 $past[] = $event;
             }
         }
-        usort($upcoming, static fn ($a, $b) => $a->dates['start'] <=> $b->dates['start']);
-        usort($past, static fn ($a, $b) => $b->dates['start'] <=> $a->dates['start']);
+        usort($upcoming, static fn($a, $b) => $a->dates['start'] <=> $b->dates['start']);
+        usort($past, static fn($a, $b) => $b->dates['start'] <=> $a->dates['start']);
 
         return ['upcoming' => $upcoming, 'past' => $past];
     }

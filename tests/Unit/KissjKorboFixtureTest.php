@@ -79,7 +79,7 @@ final class KissjKorboFixtureTest extends TestCase
     {
         $programmes = $this->programmesById();
 
-        $withoutPlace = array_keys(array_filter($programmes, static fn (array $p): bool => $p['location'] === null));
+        $withoutPlace = array_keys(array_filter($programmes, static fn(array $p): bool => $p['location'] === null));
         self::assertCount(21, $withoutPlace);
         self::assertContains(2, $withoutPlace); // Hennování a zaplétání copánků
         self::assertNotContains('', array_column($programmes, 'location'));
@@ -123,7 +123,7 @@ final class KissjKorboFixtureTest extends TestCase
     public function testOnlyTheContractsFieldsReachTheInternalShape(): void
     {
         $raw = KorboResponses::decoded(KorboResponses::LIST)['programmes'];
-        self::assertCount(3, array_filter($raw, static fn (array $p): bool => $p['isPreregistered'] === true));
+        self::assertCount(3, array_filter($raw, static fn(array $p): bool => $p['isPreregistered'] === true));
 
         $preregistered = [];
         foreach ($this->programmesById() as $id => $program) {

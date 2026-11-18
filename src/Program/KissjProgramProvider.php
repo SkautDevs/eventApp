@@ -39,8 +39,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
     public function __construct(
         private readonly ClientInterface $http,
         private readonly string $apiKey,
-    ) {
-    }
+    ) {}
 
     public function getPrograms(): array
     {
@@ -304,7 +303,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
         }
 
         try {
-            $body = Tracer::span($op, $description, fn (): string => (string) $this->http->request($method, $path, $options)->getBody());
+            $body = Tracer::span($op, $description, fn(): string => (string) $this->http->request($method, $path, $options)->getBody());
         } catch (TransferException $e) {
             $response = $e instanceof ResponseException ? $e->getResponse() : null;
             $status = $response?->getStatusCode();

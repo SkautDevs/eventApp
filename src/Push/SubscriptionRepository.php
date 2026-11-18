@@ -10,9 +10,7 @@ final class SubscriptionRepository
     private const int MAX_FIELD_LENGTH = 2048;
 
     /** The schema is the Migrator's: a row is keyed by (event, endpoint). */
-    public function __construct(private readonly \PDO $pdo)
-    {
-    }
+    public function __construct(private readonly \PDO $pdo) {}
 
     /**
      * The route behind this is unauthenticated, so the body is attacker-controlled:
@@ -55,7 +53,7 @@ final class SubscriptionRepository
                  public_key = excluded.public_key,
                  auth_token = excluded.auth_token,
                  created_at = excluded.created_at,
-                 participant_id = excluded.participant_id'
+                 participant_id = excluded.participant_id',
         );
         $statement->execute([
             'endpoint' => $endpoint,

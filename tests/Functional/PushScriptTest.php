@@ -26,7 +26,7 @@ final class PushScriptTest extends TestCase
     {
         $lines = preg_split('/\R/', self::script()) ?: [];
 
-        return implode("\n", array_filter($lines, static fn (string $line): bool => !str_starts_with(ltrim($line), '//')));
+        return implode("\n", array_filter($lines, static fn(string $line): bool => !str_starts_with(ltrim($line), '//')));
     }
 
     public function testThereIsNoAlertLeft(): void

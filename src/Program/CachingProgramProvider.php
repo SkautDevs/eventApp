@@ -109,7 +109,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
         ?\Closure $report = null,
         private readonly float $lockWait = 12.0,
     ) {
-        $this->now = $now ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable();
+        $this->now = $now ?? static fn(): \DateTimeImmutable => new \DateTimeImmutable();
         $this->report = $report ?? Collector::collect(...);
     }
 
@@ -152,7 +152,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
 
                     return ['id' => $participant->id, 'nickname' => $participant->nickname, 'programmes' => $participant->programmes];
                 },
-                static fn (mixed $data): bool => is_array($data)
+                static fn(mixed $data): bool => is_array($data)
                     && is_int($data['id'] ?? null)
                     && array_key_exists('nickname', $data) && ($data['nickname'] === null || is_string($data['nickname']))
                     && is_array($data['programmes'] ?? null) && array_is_list($data['programmes']),
@@ -176,7 +176,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
         return Tracer::span(
             'program.cache',
             'programme-participants',
-            fn (): array => $this->inner->getParticipantIdsForProgramme($programmeId),
+            fn(): array => $this->inner->getParticipantIdsForProgramme($programmeId),
             ['cache.result' => 'bypass'],
         );
     }
@@ -195,12 +195,12 @@ final class CachingProgramProvider implements ProgramProviderInterface
 
     public function register(string $sessionToken, int $programmeId): void
     {
-        $this->write($sessionToken, fn () => $this->inner->register($sessionToken, $programmeId));
+        $this->write($sessionToken, fn() => $this->inner->register($sessionToken, $programmeId));
     }
 
     public function unregister(string $sessionToken, int $programmeId): void
     {
-        $this->write($sessionToken, fn () => $this->inner->unregister($sessionToken, $programmeId));
+        $this->write($sessionToken, fn() => $this->inner->unregister($sessionToken, $programmeId));
     }
 
     /** The session ends whatever kissj answers, so its entry and memo go either way. */
@@ -318,7 +318,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
                     'registration' => ['start' => $window->start?->format(\DATE_ATOM), 'end' => $window->end?->format(\DATE_ATOM)],
                 ];
             },
-            static fn (mixed $data): bool => is_array($data)
+            static fn(mixed $data): bool => is_array($data)
                 && is_array($data['sections'] ?? null)
                 && is_array($data['programmes'] ?? null)
                 && is_array($data['registration'] ?? null)
@@ -338,10 +338,10 @@ final class CachingProgramProvider implements ProgramProviderInterface
             return $memo['data'];
         }
 
-        $outcome = Tracer::span('program.cache', $key, fn (): array => $this->resolve($key, $fetch, $usable), [
-            Tracer::FROM_RESULT => static fn (array $outcome): array => array_filter(
+        $outcome = Tracer::span('program.cache', $key, fn(): array => $this->resolve($key, $fetch, $usable), [
+            Tracer::FROM_RESULT => static fn(array $outcome): array => array_filter(
                 ['cache.result' => $outcome['result'], 'cache.age' => $outcome['age']],
-                static fn (mixed $value): bool => $value !== null,
+                static fn(mixed $value): bool => $value !== null,
             ),
         ]);
         $this->freshness->note($outcome['fetchedAt'], $outcome['stale']);

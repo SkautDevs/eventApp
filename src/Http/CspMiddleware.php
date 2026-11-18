@@ -39,9 +39,7 @@ final class CspMiddleware implements MiddlewareInterface
     ];
 
     /** @param array<string, list<string>> $extras directive => origins merged into BASE */
-    public function __construct(private readonly Twig $twig, private readonly array $extras = [])
-    {
-    }
+    public function __construct(private readonly Twig $twig, private readonly array $extras = []) {}
 
     /**
      * What an event adds: its map's origin when the map is on and published, and

@@ -164,7 +164,7 @@ final class ScreenMorphTest extends AppTestCase
         // or a docblock line does not count
         $code = implode("\n", array_filter(
             explode("\n", $js),
-            static fn (string $line): bool => preg_match('~^\s*(//|\*|/\*)~', $line) !== 1,
+            static fn(string $line): bool => preg_match('~^\s*(//|\*|/\*)~', $line) !== 1,
         ));
         self::assertSame(1, preg_match_all('/\bfunction syncFreshness\(/', $code));
         self::assertSame(1, preg_match_all('/^\s*syncFreshness\(entry\.section, fresh\.section\);/m', $code), 'the morph path');

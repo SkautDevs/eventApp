@@ -46,8 +46,10 @@ final class WebPushSender implements PushSenderInterface
     public function __construct(
         \Closure $repository,
         private readonly EndpointPolicy $endpoints,
-        #[\SensitiveParameter] private readonly string $vapidPublicKey,
-        #[\SensitiveParameter] private readonly string $vapidPrivateKey,
+        #[\SensitiveParameter]
+        private readonly string $vapidPublicKey,
+        #[\SensitiveParameter]
+        private readonly string $vapidPrivateKey,
         private readonly string $vapidSubject,
         private readonly array $clientOptions = [],
         private readonly LoggerInterface $logger = new NullLogger(),
@@ -94,7 +96,7 @@ final class WebPushSender implements PushSenderInterface
             },
             [
                 'push.recipients' => count($rows),
-                Tracer::FROM_RESULT => static fn (array $result): array => [
+                Tracer::FROM_RESULT => static fn(array $result): array => [
                     'push.sent' => $result['sent'],
                     'push.removed' => $result['removed'],
                     'push.failed' => $result['failed'],
@@ -294,13 +296,13 @@ final class WebPushSender implements PushSenderInterface
      */
     public static function strikable(array $delivered, array $undelivered): array
     {
-        $host = static fn (string $endpoint): string => strtolower((string) parse_url($endpoint, \PHP_URL_HOST));
-        $reachable = array_flip(array_filter(array_map($host, $delivered), static fn (string $h): bool => $h !== ''));
+        $host = static fn(string $endpoint): string => strtolower((string) parse_url($endpoint, \PHP_URL_HOST));
+        $reachable = array_flip(array_filter(array_map($host, $delivered), static fn(string $h): bool => $h !== ''));
         if ($reachable === []) {
             return [];
         }
 
-        return array_values(array_filter($undelivered, static fn (string $endpoint): bool => isset($reachable[$host($endpoint)])));
+        return array_values(array_filter($undelivered, static fn(string $endpoint): bool => isset($reachable[$host($endpoint)])));
     }
 
     /**
@@ -332,11 +334,12 @@ final class WebPushSender implements PushSenderInterface
      * @throws \RuntimeException naming the variable that is wrong
      */
     private static function assertVapid(
-        #[\SensitiveParameter] string $publicKey,
-        #[\SensitiveParameter] string $privateKey,
+        #[\SensitiveParameter]
+        string $publicKey,
+        #[\SensitiveParameter]
+        string $privateKey,
         string $subject,
-    ): void
-    {
+    ): void {
         if (!self::isP256PublicKey($publicKey)) {
             throw new \RuntimeException('VAPID_PUBLIC_KEY must be a base64url P-256 public key: 65 bytes starting 0x04 (bin/generate-vapid.php makes a pair)');
         }

@@ -13,8 +13,7 @@ final readonly class RegistrationWindow
     public function __construct(
         public ?\DateTimeImmutable $start,
         public ?\DateTimeImmutable $end,
-    ) {
-    }
+    ) {}
 
     /**
      * @return 'none'|'before'|'open'|'after' the start belongs to the window, the end does

@@ -202,7 +202,7 @@ final class ServiceWorkerTest extends AppTestCase
         self::assertMatchesRegularExpression('~\n\tdata-fetched-at="2026-10-01T10:40:00\+02:00"\ttabindex~', $fresh);
         self::assertNotSame($stale, $fresh);
 
-        $strip = static fn (string $html): string => (string) preg_replace($pattern, '', $html);
+        $strip = static fn(string $html): string => (string) preg_replace($pattern, '', $html);
         self::assertStringNotContainsString('data-fetched-at', $strip($stale));
         self::assertStringNotContainsString('data-stale', $strip($stale));
         self::assertSame($strip($fresh), $strip($stale));
@@ -213,20 +213,19 @@ final class ServiceWorkerTest extends AppTestCase
     {
         $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
         $at = new \DateTimeImmutable($written, new \DateTimeZone('Europe/Prague'));
-        (new \App\Cache\FileCache($dir, static fn (): \DateTimeImmutable => $at))->set(\App\Program\CachingProgramProvider::LIST_KEY, [
+        (new \App\Cache\FileCache($dir, static fn(): \DateTimeImmutable => $at))->set(\App\Program\CachingProgramProvider::LIST_KEY, [
             'sections' => $stub->getSections(),
             'programmes' => $stub->getPrograms(),
             'registration' => ['start' => null, 'end' => null],
         ]);
         $down = new ThrowingProgramProvider(programsException: new \App\Program\ProgramUnavailableException('down'));
         $app = $this->createApp(overrides: [
-            \App\Program\ProgramProviderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Program\ProgramProviderInterface => new \App\Program\CachingProgramProvider(
+            \App\Program\ProgramProviderInterface::class => fn(\Psr\Container\ContainerInterface $c): \App\Program\ProgramProviderInterface => new \App\Program\CachingProgramProvider(
                 inner: $down,
                 cache: new \App\Cache\FileCache($dir),
                 freshness: $c->get(\App\Program\Freshness::class),
                 ttl: $ttl,
-                report: static function (\Throwable $e): void {
-                },
+                report: static function (\Throwable $e): void {},
             ),
         ]);
 

@@ -30,7 +30,7 @@ final class TracerTest extends TestCase
             $runs++;
 
             return 'hotovo';
-        }, ['rows' => 3, Tracer::FROM_RESULT => static fn (string $r): array => ['length' => strlen($r)]]);
+        }, ['rows' => 3, Tracer::FROM_RESULT => static fn(string $r): array => ['length' => strlen($r)]]);
 
         self::assertSame('hotovo', $result);
         self::assertSame(1, $runs);
@@ -42,7 +42,7 @@ final class TracerTest extends TestCase
 
         $caught = null;
         try {
-            Tracer::span('kissj.list', 'GET v3/programme/list', static fn () => throw $thrown);
+            Tracer::span('kissj.list', 'GET v3/programme/list', static fn() => throw $thrown);
         } catch (\RuntimeException $e) {
             $caught = $e;
         }

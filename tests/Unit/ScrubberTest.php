@@ -148,7 +148,7 @@ final class ScrubberTest extends TestCase
      */
     public function testEveryStackFrameLosesItsVars(): void
     {
-        $frame = static fn (): \Sentry\Frame => new \Sentry\Frame('getParticipant', 'src/Program/KissjProgramProvider.php', 42, vars: ['sessionToken' => 'secret-token', 'deviceCode' => 'secret-code']);
+        $frame = static fn(): \Sentry\Frame => new \Sentry\Frame('getParticipant', 'src/Program/KissjProgramProvider.php', 42, vars: ['sessionToken' => 'secret-token', 'deviceCode' => 'secret-code']);
         $exceptionFrames = [$frame(), $frame()];
         $eventFrames = [$frame()];
         $event = Event::createEvent();

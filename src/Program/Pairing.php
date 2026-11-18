@@ -17,8 +17,7 @@ final readonly class Pairing
         public string $verificationUrl,
         public \DateTimeImmutable $expiresAt,
         public int $interval,
-    ) {
-    }
+    ) {}
 
     /** kissj sends the six digits bare; the reader sees them as `483 291`. */
     public function formattedUserCode(): string

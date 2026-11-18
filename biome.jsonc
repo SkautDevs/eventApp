@@ -1,0 +1,74 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.6.8/schema.json",
+	"files": {
+		"includes": ["www/*.js", "www/js/**", "www/style.css", "www/css/**", "www/events/*/style.css", "tests/js/**", "!www/vendor"]
+	},
+	"formatter": {
+		"enabled": false,
+		"indentStyle": "tab",
+		"lineWidth": 160
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "single",
+			"bracketSpacing": false,
+			"arrowParentheses": "asNeeded",
+			"semicolons": "always"
+		}
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"preset": "recommended",
+			"complexity": {
+				"useArrowFunction": "off",
+				"useOptionalChain": "off"
+			},
+			"style": {
+				"useTemplate": "off",
+				"noDescendingSpecificity": "off"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["www/js/**", "www/css/**", "tests/js/**"],
+			"formatter": {
+				"enabled": true
+			}
+		},
+		{
+			// permanent: the worker is linted for new mistakes and otherwise left as it is
+			"includes": ["www/sw.js"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUnusedVariables": "off"
+					},
+					"suspicious": {
+						"useIterableCallbackReturn": "off"
+					}
+				}
+			}
+		},
+		{
+			// temporary: these files are replaced in milestones 6 to 8, and this override goes with them
+			"includes": ["www/app.js", "www/shell.js", "www/programs.js", "www/push.js", "www/map.js", "www/profile.js", "www/style.css"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noInnerDeclarations": "off",
+						"noSelfAssign": "off",
+						"noUnusedFunctionParameters": "off",
+						"noUnusedVariables": "off"
+					},
+					"suspicious": {
+						"noGlobalIsFinite": "off",
+						"noGlobalIsNan": "off",
+						"noRedundantUseStrict": "off"
+					}
+				}
+			}
+		}
+	]
+}

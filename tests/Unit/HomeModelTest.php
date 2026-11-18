@@ -142,7 +142,7 @@ final class HomeModelTest extends TestCase
 
     public function testTheNewsAreTodaysOnly(): void
     {
-        $item = static fn (int $id, string $at): array => ['id' => $id, 'when' => '', 'sentAt' => self::prague($at), 'title' => 't', 'body' => 'b', 'programme' => null];
+        $item = static fn(int $id, string $at): array => ['id' => $id, 'when' => '', 'sentAt' => self::prague($at), 'title' => 't', 'body' => 'b', 'programme' => null];
         $news = [$item(3, '2027-05-21 09:00:00'), $item(2, '2027-05-21 00:05:00'), $item(1, '2027-05-20 23:50:00')];
 
         self::assertSame([3, 2], array_column(self::build('2027-05-21 10:00:00', news: $news)['news'], 'id'));
@@ -151,7 +151,7 @@ final class HomeModelTest extends TestCase
     /** @return list<array> the participant's programmes in the internal shape */
     private static function mine(): array
     {
-        $programme = static fn (int $id, string $start, string $end, ?string $location, ?int $section): array => [
+        $programme = static fn(int $id, string $start, string $end, ?string $location, ?int $section): array => [
             'id' => $id,
             'name' => 'Programme ' . $id,
             'section' => $section === null ? null : ['id' => $section],

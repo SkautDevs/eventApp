@@ -11,6 +11,5 @@ final readonly class PairingPoll
         public PairingStatus $status,
         public ?string $sessionToken = null,
         public ?\DateTimeImmutable $sessionExpiresAt = null,
-    ) {
-    }
+    ) {}
 }

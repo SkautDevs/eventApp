@@ -37,7 +37,7 @@ final class KernelTwigTest extends TestCase
         file_put_contents($script, '<?php require ' . var_export(dirname(__DIR__, 2) . '/vendor/autoload.php', true) . ';'
             . 'echo (new Twig\\Environment(new Twig\\Loader\\FilesystemLoader(' . var_export($dir . '/tpl', true) . '), ['
             . "'cache' => " . var_export($dir . '/cache', true) . ", 'auto_reload' => (bool) \$argv[1]]))->render('t.twig');");
-        $render = static fn (string $reload): string => (string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' ' . $reload);
+        $render = static fn(string $reload): string => (string) shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg($script) . ' ' . $reload);
 
         file_put_contents($file, 'one');
         self::assertSame('one', $render('1'));

@@ -21,9 +21,7 @@ final class TwigErrorRenderer implements ErrorRendererInterface
     /** What the reader gets when the error page itself cannot be rendered. */
     public const string FALLBACK = '<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Chyba</title></head><body><p>Něco se pokazilo. Zkus to za chvíli.</p></body></html>';
 
-    public function __construct(private readonly Twig $twig, private readonly string $template)
-    {
-    }
+    public function __construct(private readonly Twig $twig, private readonly string $template) {}
 
     public function __invoke(\Throwable $exception, bool $displayErrorDetails): string
     {

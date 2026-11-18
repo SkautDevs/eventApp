@@ -416,7 +416,7 @@ final class ProgramsModule implements ModuleInterface
     {
         return array_values(array_filter(
             $programs,
-            static fn (array $program): bool => self::parse($program['start'] ?? null) !== null
+            static fn(array $program): bool => self::parse($program['start'] ?? null) !== null
                 && self::parse($program['end'] ?? null) !== null,
         ));
     }
@@ -469,7 +469,7 @@ final class ProgramsModule implements ModuleInterface
         // programmes in a section the provider did not list are not shown
         $listed = array_values(array_filter(
             $all,
-            static fn (array $program): bool => isset($sections[$program['section']['id'] ?? -1]),
+            static fn(array $program): bool => isset($sections[$program['section']['id'] ?? -1]),
         ));
 
         // group everything by day. A programme running over several days goes on the
@@ -555,10 +555,10 @@ final class ProgramsModule implements ModuleInterface
         // The earliest start is computed once per location rather than inside the comparator,
         // which walked both groups in full on every one of the O(n log n) comparisons.
         $firstStart = array_map(
-            static fn (array $items): int => min(array_column($items, 'start')),
+            static fn(array $items): int => min(array_column($items, 'start')),
             $byLocation,
         );
-        uksort($byLocation, static fn ($a, $b): int => $firstStart[$a] <=> $firstStart[$b]);
+        uksort($byLocation, static fn($a, $b): int => $firstStart[$a] <=> $firstStart[$b]);
 
         $rows = [];
         foreach ($byLocation as $location => $items) {
@@ -568,7 +568,7 @@ final class ProgramsModule implements ModuleInterface
             ];
         }
         // the unlocated stage sorts by time like the rest, but it belongs at the bottom
-        usort($rows, static fn (array $a, array $b): int => ($a['location'] === self::NO_LOCATION_LABEL ? 1 : 0)
+        usort($rows, static fn(array $a, array $b): int => ($a['location'] === self::NO_LOCATION_LABEL ? 1 : 0)
             <=> ($b['location'] === self::NO_LOCATION_LABEL ? 1 : 0));
 
         return [
@@ -604,7 +604,7 @@ final class ProgramsModule implements ModuleInterface
      */
     private static function packTracks(array $items, int $axisStart, array $registeredIds, bool $mineRead): array
     {
-        usort($items, static fn (array $a, array $b): int => [$a['start'], -$a['end']] <=> [$b['start'], -$b['end']]);
+        usort($items, static fn(array $a, array $b): int => [$a['start'], -$a['end']] <=> [$b['start'], -$b['end']]);
 
         // packing works on the same end the bar is drawn to, clip and minimum width
         // included: freeing a track at the clipped end while buildCard() widens a shorter
@@ -681,7 +681,7 @@ final class ProgramsModule implements ModuleInterface
 
         $days = [];
         foreach ($byDay as $day => $dayPrograms) {
-            usort($dayPrograms, static fn (array $a, array $b): int => self::ts($a['start']) <=> self::ts($b['start']));
+            usort($dayPrograms, static fn(array $a, array $b): int => self::ts($a['start']) <=> self::ts($b['start']));
             $days[] = [
                 'key' => 'day-' . date('Ymd', strtotime($day)),
                 'day' => $day,

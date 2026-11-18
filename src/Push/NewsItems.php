@@ -139,7 +139,7 @@ final class NewsItems
 
         return array_values(array_filter(
             $items,
-            static fn (array $item): bool => $item['sentAt']->setTimezone($zone)->format('Y-m-d') === $today,
+            static fn(array $item): bool => $item['sentAt']->setTimezone($zone)->format('Y-m-d') === $today,
         ));
     }
 }

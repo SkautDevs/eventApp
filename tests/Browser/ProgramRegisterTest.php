@@ -170,7 +170,7 @@ final class ProgramRegisterTest extends BrowserTestCase
                 JS);
         }
         self::assertContains('toast:toast-close', $visited, implode(', ', $visited));
-        self::assertSame([], array_values(array_filter($visited, static fn (string $where): bool => str_starts_with($where, 'outside'))), implode(', ', $visited));
+        self::assertSame([], array_values(array_filter($visited, static fn(string $where): bool => str_starts_with($where, 'outside'))), implode(', ', $visited));
 
         // and Enter on it closes the toast, leaving the sheet open with the focus in it
         self::script('document.querySelector("[data-toast] [data-toast-close]").focus();');

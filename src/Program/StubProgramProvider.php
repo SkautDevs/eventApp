@@ -41,13 +41,12 @@ final class StubProgramProvider implements ProgramProviderInterface
     public function __construct(
         private readonly string $fixturesDir,
         private readonly string $stateDir,
-    ) {
-    }
+    ) {}
 
     public function getPrograms(): array
     {
         return $this->programs ??= array_map(
-            static fn (mixed $program): mixed => is_array($program)
+            static fn(mixed $program): mixed => is_array($program)
                 ? array_merge($program, ['preregistered' => ($program['preregistered'] ?? false) === true])
                 : $program,
             array_values($this->readJson('programs.json')),
@@ -81,7 +80,7 @@ final class StubProgramProvider implements ProgramProviderInterface
             is_string($nickname) ? $nickname : null,
             array_values(array_filter(
                 $this->getPrograms(),
-                static fn (mixed $program): bool => is_array($program) && in_array($program['id'] ?? null, $ids, true),
+                static fn(mixed $program): bool => is_array($program) && in_array($program['id'] ?? null, $ids, true),
             )),
         );
     }
@@ -169,7 +168,7 @@ final class StubProgramProvider implements ProgramProviderInterface
             throw new RegistrationRefusedException('notPossible');
         }
 
-        $registeredIn = fn (array $state): array => $this->registrations($state)[$participantId] ?? [];
+        $registeredIn = fn(array $state): array => $this->registrations($state)[$participantId] ?? [];
         // checked under the lock, so of a double tap the second one is refused; a refusal
         // throws out of the change, and mutate() then writes nothing
         $this->mutate(static function (array $state) use ($participantId, $programmeId, $register, $registeredIn): array {
@@ -232,7 +231,7 @@ final class StubProgramProvider implements ProgramProviderInterface
                 if (is_array($programmeIds)) {
                     $registrations[(int) $participantId] = array_values(array_filter(
                         $programmeIds,
-                        static fn (mixed $id): bool => is_int($id) && !isset($preregistered[$id]),
+                        static fn(mixed $id): bool => is_int($id) && !isset($preregistered[$id]),
                     ));
                 }
             }

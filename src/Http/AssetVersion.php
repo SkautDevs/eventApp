@@ -16,9 +16,7 @@ final class AssetVersion
     /** @var array<string, string> "<file>:<mtime>:<size>" => hash */
     private static array $memo = [];
 
-    public function __construct(private readonly string $docroot)
-    {
-    }
+    public function __construct(private readonly string $docroot) {}
 
     public function hash(string $path): string
     {

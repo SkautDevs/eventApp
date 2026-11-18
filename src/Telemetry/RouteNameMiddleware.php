@@ -23,9 +23,7 @@ use Slim\Routing\RouteContext;
  */
 final class RouteNameMiddleware implements MiddlewareInterface
 {
-    public function __construct(private readonly ?string $slug)
-    {
-    }
+    public function __construct(private readonly ?string $slug) {}
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {

@@ -58,8 +58,7 @@ final class EventConfig
         public readonly ?string $website,
         public readonly array $raw,
         public readonly string $dir,
-    ) {
-    }
+    ) {}
 
     public static function load(string $eventsDir, string $slug): self
     {

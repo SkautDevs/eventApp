@@ -10,9 +10,7 @@ final class Authenticator
 {
     private const string SESSION_KEY = 'identity';
 
-    public function __construct(private readonly Session $session)
-    {
-    }
+    public function __construct(private readonly Session $session) {}
 
     public function store(Identity $identity): void
     {

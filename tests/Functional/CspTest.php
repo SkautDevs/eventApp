@@ -40,7 +40,7 @@ final class CspTest extends AppTestCase
     {
         $nonces = array_values(array_filter(
             self::policy($response)['script-src'] ?? [],
-            static fn (string $token): bool => str_starts_with($token, "'nonce-"),
+            static fn(string $token): bool => str_starts_with($token, "'nonce-"),
         ));
         self::assertCount(1, $nonces, 'script-src must hold exactly one nonce');
         self::assertMatchesRegularExpression("/^'nonce-[0-9a-f]{32}'$/", $nonces[0]);

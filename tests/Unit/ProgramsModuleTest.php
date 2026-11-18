@@ -73,7 +73,7 @@ final class ProgramsModuleTest extends TestCase
         self::assertSame(['2027-06-03', '2027-06-04', '2027-06-05'], array_column($segments, 'day'));
         self::assertSame(
             [['2027-06-03 10:00', '2027-06-04 00:00'], ['2027-06-04 00:00', '2027-06-05 00:00'], ['2027-06-05 00:00', '2027-06-05 08:00']],
-            array_map(static fn (array $s): array => [date('Y-m-d H:i', $s['start']), date('Y-m-d H:i', $s['end'])], $segments),
+            array_map(static fn(array $s): array => [date('Y-m-d H:i', $s['start']), date('Y-m-d H:i', $s['end'])], $segments),
         );
     }
 
@@ -119,7 +119,7 @@ final class ProgramsModuleTest extends TestCase
         self::assertSame([1, 2], array_column($model['details'], 'id'));
         self::assertSame('page-20270603', $model['details'][0]['page']);
 
-        $cards = array_values(array_filter(self::cardsOf($model['pages']), static fn (array $c): bool => $c['id'] === 1));
+        $cards = array_values(array_filter(self::cardsOf($model['pages']), static fn(array $c): bool => $c['id'] === 1));
         self::assertCount(3, $cards);
         foreach ($cards as $card) {
             self::assertSame('čt 3. 6. 20:00 – so 5. 6. 2:00', $card['time']);
@@ -127,7 +127,7 @@ final class ProgramsModuleTest extends TestCase
             self::assertFalse($card['dimmed']);
         }
         // each piece is clipped to its own day, so no page's axis runs past midnight
-        self::assertSame(['20:00', '00:00', '00:00'], array_map(static fn (array $p): string => $p['ruler'][0]['label'], $model['pages']));
+        self::assertSame(['20:00', '00:00', '00:00'], array_map(static fn(array $p): string => $p['ruler'][0]['label'], $model['pages']));
         self::assertSame([4, 24, 2], array_column($model['pages'], 'hours'));
 
         // the list keeps it once, under the day it starts on, and names the day it ends on
@@ -219,10 +219,10 @@ final class ProgramsModuleTest extends TestCase
         $provider = new \App\Program\StubProgramProvider($fixtures, sys_get_temp_dir() . '/eventapp-unused-' . bin2hex(random_bytes(4)));
         $all = $provider->getPrograms();
         $mineIds = json_decode((string) file_get_contents($fixtures . '/registered.json'), true)['1'];
-        $mine = array_values(array_filter($all, static fn (array $p): bool => in_array($p['id'], $mineIds, true)));
+        $mine = array_values(array_filter($all, static fn(array $p): bool => in_array($p['id'], $mineIds, true)));
 
         $model = self::call('buildViewModel', $provider->getSections(), $all, $mine, true);
-        $preregistered = array_column(array_filter($all, static fn (array $p): bool => $p['preregistered']), 'id');
+        $preregistered = array_column(array_filter($all, static fn(array $p): bool => $p['preregistered']), 'id');
         self::assertSame([3, 36, 51], $preregistered);
         self::assertSame([], array_intersect($preregistered, $mineIds), 'kissj lists no preregistered programme as anybody\'s');
 
@@ -338,7 +338,7 @@ final class ProgramsModuleTest extends TestCase
 
         $models = [];
         foreach (['UTC', 'Europe/Prague', 'America/New_York'] as $zone) {
-            $models[$zone] = self::withTimezone($zone, static fn (): array => self::buildViewModel($programs, $programs));
+            $models[$zone] = self::withTimezone($zone, static fn(): array => self::buildViewModel($programs, $programs));
         }
 
         self::assertSame('9:00', $models['UTC']['days'][0]['items'][0]['time']);
@@ -356,7 +356,7 @@ final class ProgramsModuleTest extends TestCase
     /** @return list<list<array>> */
     private static function pack(array $programs): array
     {
-        $segments = array_map(static fn (array $p): array => self::call('segments', $p)[0], $programs);
+        $segments = array_map(static fn(array $p): array => self::call('segments', $p)[0], $programs);
 
         return self::call('packTracks', $segments, (int) strtotime('2027-06-03 00:00:00'), [], false);
     }
@@ -385,7 +385,7 @@ final class ProgramsModuleTest extends TestCase
     private static function assertNoOverlap(array $tracks): void
     {
         foreach ($tracks as $index => $cards) {
-            usort($cards, static fn (array $a, array $b): int => $a['offset'] <=> $b['offset']);
+            usort($cards, static fn(array $a, array $b): int => $a['offset'] <=> $b['offset']);
             for ($i = 1; $i < count($cards); $i++) {
                 self::assertGreaterThanOrEqual(
                     $cards[$i - 1]['offset'] + $cards[$i - 1]['span'],

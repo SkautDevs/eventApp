@@ -32,7 +32,7 @@ final class ClientIp
 
         $chain = array_values(array_filter(
             array_map('trim', explode(',', $request->getHeaderLine('X-Forwarded-For'))),
-            static fn (string $entry): bool => $entry !== '',
+            static fn(string $entry): bool => $entry !== '',
         ));
         $index = count($chain) - $hops;
         if ($index < 0) {

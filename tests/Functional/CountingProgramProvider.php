@@ -24,9 +24,7 @@ final class CountingProgramProvider implements ProgramProviderInterface
     /** @var list<array{string, int}> register and unregister calls, as [kind, programme id] */
     public array $writes = [];
 
-    public function __construct(private readonly ProgramProviderInterface $inner)
-    {
-    }
+    public function __construct(private readonly ProgramProviderInterface $inner) {}
 
     public function getPrograms(): array
     {

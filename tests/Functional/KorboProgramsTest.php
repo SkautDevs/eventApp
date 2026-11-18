@@ -147,7 +147,7 @@ final class KorboProgramsTest extends AppTestCase
 
         // every detail sheet names its section, as many times as the section has programmes
         $expected = array_count_values(array_map(
-            static fn (array $p): string => $titles[$p['sectionId']],
+            static fn(array $p): string => $titles[$p['sectionId']],
             KorboResponses::decoded(KorboResponses::LIST)['programmes'],
         ));
         foreach ($titles as $title) {
@@ -305,7 +305,7 @@ final class KorboProgramsTest extends AppTestCase
                 $ids[] = $element->getAttribute('id');
             }
             self::assertNotEmpty($ids);
-            self::assertSame([], array_keys(array_filter(array_count_values($ids), static fn (int $n): bool => $n > 1)), "duplicate id, {$state}");
+            self::assertSame([], array_keys(array_filter(array_count_values($ids), static fn(int $n): bool => $n > 1)), "duplicate id, {$state}");
 
             $keyed = 0;
             foreach ((new \DOMXPath($dom))->query('//*[*[@data-key]]') as $parent) {

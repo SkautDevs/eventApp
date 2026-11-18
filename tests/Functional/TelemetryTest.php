@@ -111,9 +111,7 @@ final class TelemetryTest extends TestCase
         $handler = new class ($response) implements RequestHandlerInterface {
             public int $calls = 0;
 
-            public function __construct(private readonly ResponseInterface $response)
-            {
-            }
+            public function __construct(private readonly ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {

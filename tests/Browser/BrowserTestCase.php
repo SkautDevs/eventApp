@@ -115,7 +115,7 @@ abstract class BrowserTestCase extends PantherTestCase
     protected static function waitFor(string $js, array $arguments = [], int $seconds = 10): void
     {
         self::$browser->wait($seconds, 100)->until(
-            static fn ($driver): bool => (bool) $driver->executeScript($js, $arguments),
+            static fn($driver): bool => (bool) $driver->executeScript($js, $arguments),
             'Timed out waiting for: ' . $js,
         );
     }
@@ -238,7 +238,7 @@ abstract class BrowserTestCase extends PantherTestCase
             self::PORT,
             $root . '/bin/router.php',
             '/',
-            self::serverEnvironment(),
+            static::serverEnvironment(),
         );
         $server->start();
         // kept only once it answers: a start that throws must leave no half-started server
@@ -306,7 +306,7 @@ abstract class BrowserTestCase extends PantherTestCase
      *
      * @return array<string, string>
      */
-    private static function serverEnvironment(): array
+    protected static function serverEnvironment(): array
     {
         $root = dirname(__DIR__, 2);
         $catalog = new \App\EventCatalog($root . '/events');
@@ -518,7 +518,7 @@ abstract class BrowserTestCase extends PantherTestCase
         file_put_contents($file, $out, LOCK_EX);
     }
 
-    private static function removeSessions(): void
+    protected static function removeSessions(): void
     {
         if (self::$sessions === null) {
             return;
@@ -567,7 +567,7 @@ abstract class BrowserTestCase extends PantherTestCase
         );
     }
 
-    private static function removeStubState(): void
+    protected static function removeStubState(): void
     {
         if (self::$stubState === null) {
             return;

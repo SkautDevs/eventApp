@@ -67,7 +67,7 @@ final class CachingProgramProviderTest extends TestCase
 
     private function clock(): \Closure
     {
-        return fn (): \DateTimeImmutable => $this->now;
+        return fn(): \DateTimeImmutable => $this->now;
     }
 
     private function cache(): FileCache
@@ -94,7 +94,7 @@ final class CachingProgramProviderTest extends TestCase
     private function seed(string $key, mixed $data, int $age): void
     {
         $then = $this->now->modify(sprintf('-%d seconds', $age));
-        (new FileCache($this->dir, static fn (): \DateTimeImmutable => $then))->set($key, $data);
+        (new FileCache($this->dir, static fn(): \DateTimeImmutable => $then))->set($key, $data);
     }
 
     /** A list entry as the decorator writes it. */
@@ -851,7 +851,7 @@ final class CachingProgramProviderTest extends TestCase
     /** Review T6-M2: the holder failed while this request waited, so this one does not pay a timeout too. */
     public function testAWaiterWhoseHolderFailedDoesNotAskKissjAgain(): void
     {
-        $cache = $this->contendedCache(fn () => $this->cache()->set(CachingProgramProvider::DOWN_KEY, null));
+        $cache = $this->contendedCache(fn() => $this->cache()->set(CachingProgramProvider::DOWN_KEY, null));
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $provider = $this->provider($inner, cache: $cache);
 
@@ -868,8 +868,7 @@ final class CachingProgramProviderTest extends TestCase
     public function testAWaiterAsksItselfWhenTheFailureWasBeforeItsWait(): void
     {
         $this->seed(CachingProgramProvider::DOWN_KEY, null, 30);
-        $cache = $this->contendedCache(static function (): void {
-        });
+        $cache = $this->contendedCache(static function (): void {});
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
 
         self::assertSame(self::PROGRAMMES, $this->provider($inner, cache: $cache)->getPrograms());
@@ -917,8 +916,7 @@ final class FakeProgramProvider implements ProgramProviderInterface
         private readonly array $sections = [],
         private readonly array $programmes = [],
         private readonly array $mine = [],
-    ) {
-    }
+    ) {}
 
     public function getPrograms(): array
     {

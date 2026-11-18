@@ -15,6 +15,4 @@ namespace App\Program;
  * The app's own type, not Guzzle's TransferException, because since Guzzle 8 that one
  * belongs to a request, and two of the three causes above have none.
  */
-class ProgramUnavailableException extends \RuntimeException
-{
-}
+class ProgramUnavailableException extends \RuntimeException {}

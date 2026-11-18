@@ -29,7 +29,7 @@ final class FileCacheTest extends TestCase
 
     private function cache(): FileCache
     {
-        return new FileCache($this->dir, fn (): \DateTimeImmutable => $this->now);
+        return new FileCache($this->dir, fn(): \DateTimeImmutable => $this->now);
     }
 
     public function testSetThenGetReturnsTheDataAndTheWriteTime(): void
@@ -119,9 +119,9 @@ final class FileCacheTest extends TestCase
         $cache = $this->cache();
         foreach (['', 'List', 'session_x', '../escape', 'a/b', 'list.json'] as $key) {
             foreach ([
-                'get' => static fn () => $cache->get($key),
-                'set' => static fn () => $cache->set($key, []),
-                'delete' => static fn () => $cache->delete($key),
+                'get' => static fn() => $cache->get($key),
+                'set' => static fn() => $cache->set($key, []),
+                'delete' => static fn() => $cache->delete($key),
             ] as $method => $call) {
                 try {
                     $call();

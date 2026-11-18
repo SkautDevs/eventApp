@@ -82,7 +82,7 @@ final class MigratorTest extends TestCase
         );
         $participantId = array_values(array_filter(
             $pdo->query('PRAGMA table_info(subscriptions)')->fetchAll(\PDO::FETCH_ASSOC),
-            static fn (array $column): bool => $column['name'] === 'participant_id',
+            static fn(array $column): bool => $column['name'] === 'participant_id',
         ))[0];
         self::assertSame('INTEGER', $participantId['type']);
         self::assertSame(0, (int) $participantId['notnull']);

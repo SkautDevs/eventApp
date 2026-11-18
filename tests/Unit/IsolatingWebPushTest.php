@@ -32,7 +32,7 @@ final class IsolatingWebPushTest extends TestCase
         $reports = iterator_to_array($webPush->flush(), false);
 
         self::assertCount(2, $reports);
-        self::assertSame(['https://push.example/a', 'https://push.example/c'], array_map(static fn ($r): string => $r->getEndpoint(), $reports));
+        self::assertSame(['https://push.example/a', 'https://push.example/c'], array_map(static fn($r): string => $r->getEndpoint(), $reports));
         self::assertCount(2, $history);
         self::assertSame(['https://push.example/bad'], array_column($webPush->takeUnprepared(), 'endpoint'));
         self::assertSame([], $webPush->takeUnprepared(), 'handed over once');

@@ -12,9 +12,7 @@ namespace App\Push;
 final class MessageRepository
 {
     /** The schema is the Migrator's. */
-    public function __construct(private readonly \PDO $pdo)
-    {
-    }
+    public function __construct(private readonly \PDO $pdo) {}
 
     public function add(
         string $event,
@@ -31,7 +29,7 @@ final class MessageRepository
     ): int {
         $statement = $this->pdo->prepare(
             'INSERT INTO messages (event, sent_at, programme_id, target_label, title, body, signature, sent, removed, failed, unreached)
-             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, :sent, :removed, :failed, :unreached)'
+             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, :sent, :removed, :failed, :unreached)',
         );
         $statement->execute([
             'event' => $event,
@@ -65,7 +63,7 @@ final class MessageRepository
     ): int {
         $statement = $this->pdo->prepare(
             'INSERT INTO messages (event, sent_at, programme_id, target_label, title, body, signature, sent, removed, failed, unreached)
-             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, NULL, NULL, NULL, NULL)'
+             VALUES (:event, :sent_at, :programme_id, :target_label, :title, :body, :signature, NULL, NULL, NULL, NULL)',
         );
         $statement->execute([
             'event' => $event,
@@ -84,7 +82,7 @@ final class MessageRepository
     public function finish(string $event, int $id, int $sent, int $removed, int $failed, ?int $unreached): void
     {
         $statement = $this->pdo->prepare(
-            'UPDATE messages SET sent = :sent, removed = :removed, failed = :failed, unreached = :unreached WHERE id = :id AND event = :event'
+            'UPDATE messages SET sent = :sent, removed = :removed, failed = :failed, unreached = :unreached WHERE id = :id AND event = :event',
         );
         $statement->execute(['sent' => $sent, 'removed' => $removed, 'failed' => $failed, 'unreached' => $unreached, 'id' => $id, 'event' => $event]);
     }
@@ -122,7 +120,7 @@ final class MessageRepository
     public function setHidden(string $event, int $id, bool $hidden, string $by, ?\DateTimeImmutable $at = null): bool
     {
         $statement = $this->pdo->prepare(
-            'UPDATE messages SET hidden = :hidden, toggled_at = :at, toggled_by = :by WHERE id = :id AND event = :event'
+            'UPDATE messages SET hidden = :hidden, toggled_at = :at, toggled_by = :by WHERE id = :id AND event = :event',
         );
         $statement->execute(['hidden' => $hidden ? 1 : 0, 'at' => self::stamp($at), 'by' => $by, 'id' => $id, 'event' => $event]);
 

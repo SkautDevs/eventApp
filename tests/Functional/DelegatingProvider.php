@@ -13,9 +13,7 @@ use App\Program\RegistrationWindow;
 /** Passes everything through: a test overrides the one call it is about. */
 abstract class DelegatingProvider implements ProgramProviderInterface
 {
-    public function __construct(private readonly ProgramProviderInterface $inner)
-    {
-    }
+    public function __construct(private readonly ProgramProviderInterface $inner) {}
 
     public function getPrograms(): array
     {

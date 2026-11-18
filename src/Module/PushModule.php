@@ -412,7 +412,7 @@ final class PushModule implements ModuleInterface
      */
     private static function programmeOptions(array $programs): array
     {
-        usort($programs, fn (array $a, array $b): int => [$a['start']['date'], $a['id']] <=> [$b['start']['date'], $b['id']]);
+        usort($programs, fn(array $a, array $b): int => [$a['start']['date'], $a['id']] <=> [$b['start']['date'], $b['id']]);
 
         $groups = [];
         foreach ($programs as $programme) {

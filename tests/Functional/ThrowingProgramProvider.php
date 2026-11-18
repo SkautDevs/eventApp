@@ -24,8 +24,7 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
         private readonly ?\Throwable $identityExceptionAfterFirstCall = null,
         private readonly ?\Throwable $identityException = null,
         private readonly ?\Throwable $participantIdsException = null,
-    ) {
-    }
+    ) {}
 
     public function getPrograms(): array
     {

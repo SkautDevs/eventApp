@@ -29,8 +29,8 @@ final class EndpointPolicy
     public function __construct(array $hosts)
     {
         $this->hosts = array_values(array_filter(
-            array_map(static fn (mixed $host): string => strtolower(trim((string) $host)), $hosts),
-            static fn (string $host): bool => $host !== '',
+            array_map(static fn(mixed $host): string => strtolower(trim((string) $host)), $hosts),
+            static fn(string $host): bool => $host !== '',
         ));
     }
 

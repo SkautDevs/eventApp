@@ -65,7 +65,7 @@ final class ManifestTest extends AppTestCase
     {
         $root = dirname(__DIR__, 2);
         foreach (self::manifests() as [$slug, $manifest]) {
-            $maskable = array_values(array_filter($manifest['icons'], static fn (array $icon): bool => ($icon['purpose'] ?? 'any') === 'maskable'));
+            $maskable = array_values(array_filter($manifest['icons'], static fn(array $icon): bool => ($icon['purpose'] ?? 'any') === 'maskable'));
             self::assertCount(1, $maskable, $slug);
             self::assertMatchesRegularExpression('#^/events/' . $slug . '/(maskable-512|icon-[0-9a-f]{8}-maskable-512)\.png$#', $maskable[0]['src'], $slug);
             self::assertSame(['512x512', 'image/png'], [$maskable[0]['sizes'], $maskable[0]['type']], $slug);

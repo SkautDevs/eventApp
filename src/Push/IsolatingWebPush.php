@@ -56,10 +56,10 @@ final class IsolatingWebPush extends WebPush
             $promises = [];
             foreach ($this->prepare($batch) as $request) {
                 $promises[] = $this->http->sendAsync($request)->then(
-                    fn (ResponseInterface $response): MessageSentReport => $this->createReport($request, $response),
+                    fn(ResponseInterface $response): MessageSentReport => $this->createReport($request, $response),
                     // a failed transfer is a report, as in the library's own flush(); anything
                     // else (a broken handler) is not about this row and propagates
-                    fn (\Throwable $reason): MessageSentReport => $reason instanceof ClientExceptionInterface
+                    fn(\Throwable $reason): MessageSentReport => $reason instanceof ClientExceptionInterface
                         ? $this->createRejectedReport($request, $reason)
                         : throw $reason,
                 );

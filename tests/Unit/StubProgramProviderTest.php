@@ -276,13 +276,13 @@ final class StubProgramProviderTest extends TestCase
         $provider = $this->korbo();
         $token = self::pair($provider);
 
-        self::assertSame('alreadyRegistered', self::refusal(fn () => $provider->register($token, 5)));
-        self::assertSame('notRegistered', self::refusal(fn () => $provider->unregister($token, 1)));
-        self::assertSame('notFound', self::refusal(fn () => $provider->register($token, 9999)));
-        self::assertSame('notFound', self::refusal(fn () => $provider->unregister($token, 9999)));
+        self::assertSame('alreadyRegistered', self::refusal(fn() => $provider->register($token, 5)));
+        self::assertSame('notRegistered', self::refusal(fn() => $provider->unregister($token, 1)));
+        self::assertSame('notFound', self::refusal(fn() => $provider->register($token, 9999)));
+        self::assertSame('notFound', self::refusal(fn() => $provider->unregister($token, 9999)));
         // preregistered: 51 is nobody's to take, 3 nobody's to leave
-        self::assertSame('notPossible', self::refusal(fn () => $provider->register($token, 51)));
-        self::assertSame('notPossible', self::refusal(fn () => $provider->unregister($token, 3)));
+        self::assertSame('notPossible', self::refusal(fn() => $provider->register($token, 51)));
+        self::assertSame('notPossible', self::refusal(fn() => $provider->unregister($token, 3)));
         // every check is made under the state file's lock, which may create it empty
         self::assertSame('', (string) @file_get_contents($this->stateDir . '/korbo26.json'), 'a refusal writes nothing');
     }
@@ -317,7 +317,7 @@ final class StubProgramProviderTest extends TestCase
         foreach (glob(dirname(__DIR__, 2) . '/events/*/fixtures/registered.json') ?: [] as $path) {
             $preregistered = array_column(array_filter(
                 json_decode((string) file_get_contents(dirname($path) . '/programs.json'), true),
-                static fn (array $programme): bool => ($programme['preregistered'] ?? false) === true,
+                static fn(array $programme): bool => ($programme['preregistered'] ?? false) === true,
             ), 'id');
             foreach (json_decode((string) file_get_contents($path), true) as $participant => $ids) {
                 $checked++;
@@ -356,8 +356,8 @@ final class StubProgramProviderTest extends TestCase
         // obrok19 has no registration.json
         $token = self::pair($this->provider);
 
-        self::assertSame('closed', self::refusal(fn () => $this->provider->register($token, 1)));
-        self::assertSame('closed', self::refusal(fn () => $this->provider->unregister($token, 5)));
+        self::assertSame('closed', self::refusal(fn() => $this->provider->register($token, 1)));
+        self::assertSame('closed', self::refusal(fn() => $this->provider->unregister($token, 5)));
     }
 
     public function testAWriteWithAnExpiredSessionIsNoRefusal(): void

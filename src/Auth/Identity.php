@@ -15,8 +15,7 @@ final readonly class Identity
         public int $participantId,
         public ?string $nickname,
         public string $sessionToken,
-    ) {
-    }
+    ) {}
 
     /** The nickname, or a generic heading when kissj has none. */
     public function displayName(): string

@@ -277,8 +277,8 @@ final class KissjProgramProviderTest extends TestCase
      */
     public function testAMalformedPayloadIsAProviderErrorAndNotACrash(): void
     {
-        $list = static fn (array $programmes): string => self::listBody($programmes);
-        $withSections = static fn (mixed $sections): string => (string) json_encode([
+        $list = static fn(array $programmes): string => self::listBody($programmes);
+        $withSections = static fn(mixed $sections): string => (string) json_encode([
             'registration' => self::REGISTRATION, 'sections' => $sections, 'programmes' => [],
         ]);
         $bodies = [
@@ -381,10 +381,10 @@ final class KissjProgramProviderTest extends TestCase
     public function testA401OnASessionCallIsAnExpiredSession(): void
     {
         $calls = [
-            'getParticipant' => static fn (KissjProgramProvider $p) => $p->getParticipant(self::TOKEN),
-            'register' => static fn (KissjProgramProvider $p) => $p->register(self::TOKEN, 5),
-            'unregister' => static fn (KissjProgramProvider $p) => $p->unregister(self::TOKEN, 5),
-            'revokeSession' => static fn (KissjProgramProvider $p) => $p->revokeSession(self::TOKEN),
+            'getParticipant' => static fn(KissjProgramProvider $p) => $p->getParticipant(self::TOKEN),
+            'register' => static fn(KissjProgramProvider $p) => $p->register(self::TOKEN, 5),
+            'unregister' => static fn(KissjProgramProvider $p) => $p->unregister(self::TOKEN, 5),
+            'revokeSession' => static fn(KissjProgramProvider $p) => $p->revokeSession(self::TOKEN),
         ];
 
         foreach ($calls as $label => $call) {

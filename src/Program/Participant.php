@@ -16,6 +16,5 @@ final readonly class Participant
         public int $id,
         public ?string $nickname,
         public array $programmes,
-    ) {
-    }
+    ) {}
 }

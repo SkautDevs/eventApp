@@ -179,7 +179,7 @@ final class SubscriptionRepositoryTest extends TestCase
         $pdo = Database::open(':memory:');
         (new Migrator())->migrate($pdo);
         $repo = new SubscriptionRepository($pdo);
-        $failures = static fn (): int => (int) $pdo->query("SELECT failures FROM subscriptions WHERE endpoint = 'https://push.example/a'")->fetchColumn();
+        $failures = static fn(): int => (int) $pdo->query("SELECT failures FROM subscriptions WHERE endpoint = 'https://push.example/a'")->fetchColumn();
         $sub = ['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'PK', 'auth' => 'AT']];
         $repo->save($sub, 'korbo26');
         for ($i = 0; $i < 3; $i++) {

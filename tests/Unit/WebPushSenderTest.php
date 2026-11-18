@@ -95,7 +95,7 @@ final class WebPushSenderTest extends TestCase
         $repository = $this->repository;
 
         return new WebPushSender(
-            repository: static fn (): SubscriptionRepository => $repository,
+            repository: static fn(): SubscriptionRepository => $repository,
             endpoints: new EndpointPolicy(['push.example', '*.push.example']),
             vapidPublicKey: self::$vapid['publicKey'],
             vapidPrivateKey: self::$vapid['privateKey'],
@@ -296,11 +296,11 @@ final class WebPushSenderTest extends TestCase
     {
         $this->subscribe('https://push.example/a');
         $this->subscribe('https://push.example/b');
-        $bFails = static fn (RequestInterface $r): Response => new Response(str_ends_with((string) $r->getUri(), '/b') ? 500 : 201);
+        $bFails = static fn(RequestInterface $r): Response => new Response(str_ends_with((string) $r->getUri(), '/b') ? 500 : 201);
         for ($i = 1; $i <= 4; $i++) {
             $this->sender($bFails)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
         }
-        $this->sender(static fn (): Response => new Response(201))->sendToEvent('korbo26', 'Korbo', 'Doručeno');
+        $this->sender(static fn(): Response => new Response(201))->sendToEvent('korbo26', 'Korbo', 'Doručeno');
         for ($i = 1; $i <= 4; $i++) {
             $this->sender($bFails)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
         }
@@ -317,7 +317,7 @@ final class WebPushSenderTest extends TestCase
     {
         $this->subscribe('https://push.example/a');
         $this->subscribe('https://apple.push.example/b');
-        $down = static fn (RequestInterface $r): \Throwable => new ConnectException('no route to host', $r);
+        $down = static fn(RequestInterface $r): \Throwable => new ConnectException('no route to host', $r);
         for ($i = 1; $i <= WebPushSender::MAX_FAILURES + 1; $i++) {
             $result = $this->sender($down)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
             self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], $result);
@@ -332,7 +332,7 @@ final class WebPushSenderTest extends TestCase
         $this->subscribe('https://push.example/a');
         $this->subscribe('https://apple.push.example/x');
         $this->subscribe('https://apple.push.example/y');
-        $appleDown = static fn (RequestInterface $r): Response => new Response($r->getUri()->getHost() === 'apple.push.example' ? 503 : 201);
+        $appleDown = static fn(RequestInterface $r): Response => new Response($r->getUri()->getHost() === 'apple.push.example' ? 503 : 201);
         for ($i = 1; $i <= WebPushSender::MAX_FAILURES + 1; $i++) {
             $result = $this->sender($appleDown)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
             self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], $result);
@@ -411,7 +411,7 @@ final class WebPushSenderTest extends TestCase
                 $thrown = null;
                 try {
                     new WebPushSender(
-                        repository: static fn (): SubscriptionRepository => throw new \LogicException('never resolved'),
+                        repository: static fn(): SubscriptionRepository => throw new \LogicException('never resolved'),
                         endpoints: new EndpointPolicy([]),
                         vapidPublicKey: $values['public'],
                         vapidPrivateKey: $values['private'],
@@ -440,7 +440,7 @@ final class WebPushSenderTest extends TestCase
         $repository = $this->repository;
 
         $sender = new WebPushSender(
-            repository: static fn (): SubscriptionRepository => $repository,
+            repository: static fn(): SubscriptionRepository => $repository,
             endpoints: new EndpointPolicy(['push.example']),
             vapidPublicKey: self::$vapid['publicKey'],
             vapidPrivateKey: self::$vapid['privateKey'],

@@ -473,9 +473,7 @@ final class AdminNotifyTest extends AppTestCase
     {
         $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState);
         $provider = new class ($stub) implements \App\Program\ProgramProviderInterface {
-            public function __construct(private readonly \App\Program\StubProgramProvider $stub)
-            {
-            }
+            public function __construct(private readonly \App\Program\StubProgramProvider $stub) {}
 
             public function getPrograms(): array
             {
@@ -829,9 +827,7 @@ final class AdminNotifyTest extends AppTestCase
     {
         $programme = $this->korboProgramme();
         $failing = new class ($programme) implements \App\Program\ProgramProviderInterface {
-            public function __construct(private readonly array $programme)
-            {
-            }
+            public function __construct(private readonly array $programme) {}
 
             public function getPrograms(): array
             {

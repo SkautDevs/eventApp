@@ -11,6 +11,4 @@ namespace App\Program;
  * expected to handle the two together — a 200 carrying nonsense degrades to the
  * same notice as a connection that failed.
  */
-final class ProgramDataException extends \RuntimeException
-{
-}
+final class ProgramDataException extends \RuntimeException {}

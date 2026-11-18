@@ -249,7 +249,7 @@ final class Kernel
 
                 return $twig;
             },
-            self::ERRORS_LOGGER => fn (): \Psr\Log\LoggerInterface => self::errorsLogger(),
+            self::ERRORS_LOGGER => fn(): \Psr\Log\LoggerInterface => self::errorsLogger(),
         ]);
         $builder->addDefinitions($containerOverrides);
         $container = $builder->build();
@@ -334,13 +334,13 @@ final class Kernel
                 return new \App\Program\StubProgramProvider($event->dir . '/fixtures', self::stubStatePath($root));
             },
             // how old this request's provider data is; the screen middleware resets it per request
-            Program\Freshness::class => fn (): Program\Freshness => new Program\Freshness(),
+            Program\Freshness::class => fn(): Program\Freshness => new Program\Freshness(),
             // content hashes for the stylesheet and the scripts: asset_version() in the
             // layout, and the service worker's precache list (Task 5)
-            Http\AssetVersion::class => fn (): Http\AssetVersion => new Http\AssetVersion($root . '/www'),
+            Http\AssetVersion::class => fn(): Http\AssetVersion => new Http\AssetVersion($root . '/www'),
             // var/sessions (or SESSION_PATH), created 0700 on first use: nothing about sessions
             // depends on the host's ini (the FTP host's handler and defaults are unknown)
-            Session::class => fn (): Session => new Session($event->slug, self::sessionPath($root), appRoot: $root),
+            Session::class => fn(): Session => new Session($event->slug, self::sessionPath($root), appRoot: $root),
             Auth\Authenticator::class => \DI\autowire(),
             Auth\PairingThrottle::class => \DI\autowire(),
             \App\Push\SubscribeThrottle::class => \DI\autowire(),
@@ -357,19 +357,19 @@ final class Kernel
             },
             \App\Push\SubscriptionRepository::class => \DI\autowire(),
             \App\Push\MessageRepository::class => \DI\autowire(),
-            \App\Push\EndpointPolicy::class => fn (): \App\Push\EndpointPolicy => \App\Push\EndpointPolicy::fromEnvironment(),
+            \App\Push\EndpointPolicy::class => fn(): \App\Push\EndpointPolicy => \App\Push\EndpointPolicy::fromEnvironment(),
             // Neither logger has a WebProcessor: request data reaches Sentry through the
             // SDK's own request integration, where the Scrubber sees it. Sentry gets an
             // issue only from warning up: the routine push.sent line is a log record, and
             // the counts it carries live on the push.send span; push.failed is a warning.
-            \Psr\Log\LoggerInterface::class => fn (): \Psr\Log\LoggerInterface => new \Monolog\Logger('eventapp', [
+            \Psr\Log\LoggerInterface::class => fn(): \Psr\Log\LoggerInterface => new \Monolog\Logger('eventapp', [
                 new \Monolog\Handler\StreamHandler('php://stdout', \Monolog\Level::Info),
                 new \Sentry\Monolog\LogToSentryIssueHandler(\Sentry\SentrySdk::getCurrentHub(), \Monolog\Level::Warning),
             ]),
-            self::ERRORS_LOGGER => fn (): \Psr\Log\LoggerInterface => self::errorsLogger(),
-            \App\Push\PushSenderInterface::class => fn (\Psr\Container\ContainerInterface $c): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
+            self::ERRORS_LOGGER => fn(): \Psr\Log\LoggerInterface => self::errorsLogger(),
+            \App\Push\PushSenderInterface::class => fn(\Psr\Container\ContainerInterface $c): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
                 // resolved on the first send: building the sender must not open the database
-                repository: static fn (): \App\Push\SubscriptionRepository => $c->get(\App\Push\SubscriptionRepository::class),
+                repository: static fn(): \App\Push\SubscriptionRepository => $c->get(\App\Push\SubscriptionRepository::class),
                 endpoints: $c->get(\App\Push\EndpointPolicy::class),
                 vapidPublicKey: $_ENV['VAPID_PUBLIC_KEY'] ?? '',
                 vapidPrivateKey: $_ENV['VAPID_PRIVATE_KEY'] ?? '',
@@ -432,13 +432,13 @@ final class Kernel
                 // it runs, before the layout renders.
                 $env->addFunction(new \Twig\TwigFunction(
                     'data_freshness',
-                    fn (): array => $c->get(Program\Freshness::class)->forView(),
+                    fn(): array => $c->get(Program\Freshness::class)->forView(),
                 ));
                 // `style.css` → `style.css?v=<first 8 hex of its sha256>`: the URL changes
                 // exactly when the bytes do, so nothing is bumped by hand
                 $env->addFunction(new \Twig\TwigFunction(
                     'asset_version',
-                    fn (string $path): string => $c->get(Http\AssetVersion::class)->url($path),
+                    fn(string $path): string => $c->get(Http\AssetVersion::class)->url($path),
                 ));
                 $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
                     return Home\HomeModel::WEEKDAYS[(int) (new \DateTime($datetimeArray['date']))->format('N')];
@@ -1041,7 +1041,7 @@ final class Kernel
                 $menu[] = $item + ['key' => $feature];
             }
         }
-        usort($menu, static fn (array $a, array $b): int => $a['order'] <=> $b['order']);
+        usort($menu, static fn(array $a, array $b): int => $a['order'] <=> $b['order']);
 
         return $menu;
     }

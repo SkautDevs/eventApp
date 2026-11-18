@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Program;
 
-
 /**
  * Where an event's programme comes from: kissj (docs/kissj-contract.md) or the event's
  * local fixture files. Every method may throw ProgramUnavailableException or ProgramDataException

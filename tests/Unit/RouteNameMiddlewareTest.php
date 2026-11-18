@@ -23,7 +23,7 @@ final class RouteNameMiddlewareTest extends TestCase
     {
         $app = AppFactory::create();
         $app->setBasePath('/korbo26');
-        $route = $app->post('/admin/notify/{id:[0-9]+}/hidden', static fn ($request, $response) => $response);
+        $route = $app->post('/admin/notify/{id:[0-9]+}/hidden', static fn($request, $response) => $response);
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', '/korbo26/admin/notify/42/hidden')
             ->withAttribute(RouteContext::ROUTE, $route);
@@ -44,9 +44,7 @@ final class RouteNameMiddlewareTest extends TestCase
     {
         $response = (new ResponseFactory())->createResponse(204);
         $handler = new class ($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response)
-            {
-            }
+            public function __construct(private readonly ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -74,9 +72,7 @@ final class RouteNameMiddlewareTest extends TestCase
     {
         $response = (new ResponseFactory())->createResponse(200);
         $handler = new class ($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response)
-            {
-            }
+            public function __construct(private readonly ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {

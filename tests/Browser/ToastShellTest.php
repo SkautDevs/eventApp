@@ -71,7 +71,7 @@ final class ToastShellTest extends BrowserTestCase
         $before = self::waitForAsync($paired, [$cache]);
         self::assertStringNotContainsString('data-toast', (string) $before);
 
-        self::editSession('korbo26', static fn (array $bag): array => ['toast' => ['title' => 'Zkušební toast', 'line' => null, 'at' => time()]] + $bag);
+        self::editSession('korbo26', static fn(array $bag): array => ['toast' => ['title' => 'Zkušební toast', 'line' => null, 'at' => time()]] + $bag);
         self::visit('/korbo26/profil');
         self::waitFor('const t = document.querySelector("[data-toast]"); return t !== null && t.textContent.includes("Zkušební toast");');
 

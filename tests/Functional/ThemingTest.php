@@ -668,7 +668,7 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('box-shadow: 0 0 0 4px var(--ground);', $ring[1][0]);
 
         preg_match_all('/([^{}]+)\{[^}]*outline:\s*none/', $css, $none);
-        $selectors = array_map(static fn (string $s): string => trim((string) preg_replace('/\s+/', ' ', $s)), $none[1]);
+        $selectors = array_map(static fn(string $s): string => trim((string) preg_replace('/\s+/', ' ', $s)), $none[1]);
         sort($selectors);
         $exempt = ['.screen:focus-visible', '.sheet-card:focus'];
         self::assertSame($exempt, $selectors);
@@ -896,7 +896,7 @@ final class ThemingTest extends AppTestCase
         $b = sscanf(ltrim($under, '#'), '%2x%2x%2x') ?? [0, 0, 0];
 
         return sprintf('#%02x%02x%02x', ...array_map(
-            static fn (int $i): int => (int) round($alpha * (int) $a[$i] + (1 - $alpha) * (int) $b[$i]),
+            static fn(int $i): int => (int) round($alpha * (int) $a[$i] + (1 - $alpha) * (int) $b[$i]),
             [0, 1, 2],
         ));
     }

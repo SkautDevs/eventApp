@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Program;
 
-
 /**
  * A kissj call that failed: a status the contract does not give a meaning, or no answer at
  * all. Guzzle's own message names the request URI and quotes the response body, and Sentry

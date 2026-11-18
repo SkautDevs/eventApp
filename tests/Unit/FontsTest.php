@@ -65,7 +65,7 @@ final class FontsTest extends TestCase
     public function testFontAwesomesStylesheetResolvesToTableFiles(): void
     {
         $files = Fonts::FILES['Font Awesome'];
-        $stylesheets = array_values(array_filter($files, static fn (string $path): bool => str_ends_with($path, '.css')));
+        $stylesheets = array_values(array_filter($files, static fn(string $path): bool => str_ends_with($path, '.css')));
         self::assertCount(1, $stylesheets);
         $css = (string) file_get_contents(self::WWW . $stylesheets[0]);
         // shipped byte for byte, licence header included

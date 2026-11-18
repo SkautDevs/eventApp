@@ -18,7 +18,7 @@ final class DevRouterTest extends TestCase
         $_SERVER['REQUEST_URI'] = '/app.js?v=12345678';
 
         try {
-            $result = (static fn (): mixed => require dirname(__DIR__, 2) . '/bin/router.php')();
+            $result = (static fn(): mixed => require dirname(__DIR__, 2) . '/bin/router.php')();
         } finally {
             $_SERVER['REQUEST_URI'] = $saved;
         }

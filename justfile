@@ -2,6 +2,21 @@
 default:
     @just --list
 
+# Check the PHP code style without changing a file.
+cs:
+    docker run --rm -u "$(id -u):$(id -g)" -v "{{justfile_directory()}}":/app -w /app php:8.5-alpine vendor/bin/php-cs-fixer fix --dry-run --diff
+
+# Analyse src with PHPStan against its baseline.
+stan:
+    docker run --rm -u "$(id -u):$(id -g)" -v "{{justfile_directory()}}":/app -w /app php:8.5-alpine vendor/bin/phpstan analyse --memory-limit=1G
+
+# Lint the scripts and stylesheets, and check formatting where it is enabled.
+biome:
+    docker run --rm -v "{{justfile_directory()}}":/code -w /code ghcr.io/biomejs/biome:2.6.8 ci
+
+# Run all three linters.
+lint: cs stan biome
+
 # Install production dependencies and assemble the FTP release.
 release:
     #!/usr/bin/env bash

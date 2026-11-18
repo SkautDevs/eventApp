@@ -210,7 +210,7 @@ final class ProgramRegistrationTest extends AppTestCase
     /** A window that cannot be read leaves every footer empty: "register" would be a guess. */
     public function testAnUnreadableWindowOffersNoButton(): void
     {
-        $app = $this->korbo(window: static fn () => throw new ProgramUnavailableException('kissj is down'));
+        $app = $this->korbo(window: static fn() => throw new ProgramUnavailableException('kissj is down'));
         $this->pair($app);
         $html = $this->html($app);
 
@@ -224,7 +224,7 @@ final class ProgramRegistrationTest extends AppTestCase
     /** Paired, but the participant's own list could not be read: whose is what is a guess, so no button. */
     public function testAnUnreadPersonalListOffersNoButton(): void
     {
-        $app = $this->korbo(participant: static fn () => throw new ProgramUnavailableException('kissj is down'));
+        $app = $this->korbo(participant: static fn() => throw new ProgramUnavailableException('kissj is down'));
         // a pairing reads the participant, so the identity is stored directly
         $this->loginAs($app);
         $html = $this->html($app);
@@ -330,7 +330,7 @@ final class ProgramRegistrationTest extends AppTestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('closedWindows')]
     public function testAClosedWindowIsSaidWithoutATrailingPeriod(RegistrationWindow $window, string $state, string $line): void
     {
-        $footer = static fn (array $detail): ?array => (new \ReflectionMethod(ProgramsModule::class, 'footer'))
+        $footer = static fn(array $detail): ?array => (new \ReflectionMethod(ProgramsModule::class, 'footer'))
             ->invoke(null, $detail, true, true, $window, new \DateTimeImmutable('2026-11-17T12:00:00+01:00'));
 
         self::assertSame(['state' => $state, 'line' => $line], $footer(['preregistered' => false, 'registered' => false]));
@@ -339,7 +339,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     public function testARefusalCodeIsItsCzechLine(): void
     {
-        $app = $this->korbo(static fn () => throw new RegistrationRefusedException('full'));
+        $app = $this->korbo(static fn() => throw new RegistrationRefusedException('full'));
         $this->pair($app);
         $this->post($app, self::FREE);
 
@@ -348,7 +348,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     public function testAnUnknownRefusalCodeIsTheGenericLine(): void
     {
-        $app = $this->korbo(static fn () => throw new RegistrationRefusedException('somethingNew'));
+        $app = $this->korbo(static fn() => throw new RegistrationRefusedException('somethingNew'));
         $this->pair($app);
         $this->post($app, self::FREE);
 
@@ -357,7 +357,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     public function testAnOutageIsSaidAsOne(): void
     {
-        $app = $this->korbo(static fn () => throw new ProgramUnavailableException('kissj is down'));
+        $app = $this->korbo(static fn() => throw new ProgramUnavailableException('kissj is down'));
         $this->pair($app);
         $response = $this->post($app, self::FREE);
 
@@ -373,7 +373,7 @@ final class ProgramRegistrationTest extends AppTestCase
             'known code' => [new RegistrationRefusedException('closed'), 'Přihlašování není otevřené.'],
             'outage' => [new ProgramUnavailableException('kissj is down'), 'Odhlášení se teď nedaří, zkus to prosím později.'],
         ] as $case => [$failure, $title]) {
-            $app = $this->korbo(static fn () => throw $failure);
+            $app = $this->korbo(static fn() => throw $failure);
             // the session outlives the app within a test, so the identity is stored directly
             $this->loginAs($app);
             $response = $this->post($app, self::MINE, 'odhlasit');
@@ -385,7 +385,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     public function testAnUnregisterOnAGoneSessionLogsTheReaderOut(): void
     {
-        $app = $this->korbo(static fn () => throw new SessionExpiredException());
+        $app = $this->korbo(static fn() => throw new SessionExpiredException());
         $this->pair($app);
         $this->post($app, self::MINE, 'odhlasit');
 
@@ -410,7 +410,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     public function testAGoneSessionLogsTheReaderOut(): void
     {
-        $app = $this->korbo(static fn () => throw new SessionExpiredException());
+        $app = $this->korbo(static fn() => throw new SessionExpiredException());
         $this->pair($app);
         $this->post($app, self::FREE);
 
@@ -423,7 +423,7 @@ final class ProgramRegistrationTest extends AppTestCase
     /** When and where, as the toast says it: a run past midnight names its start day only. */
     public function testTheToastLine(): void
     {
-        $programme = static fn (string $start, string $end, ?string $location): array => [
+        $programme = static fn(string $start, string $end, ?string $location): array => [
             'id' => 9, 'name' => 'X', 'section' => ['id' => 1], 'start' => ['date' => $start], 'end' => ['date' => $end], 'location' => $location,
         ];
 

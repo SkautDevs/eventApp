@@ -19,9 +19,7 @@ final class PairingThrottle
     /** rows older than this are pruned now and then, so the table stays small without a cron */
     private const string KEEP = 'PT1H';
 
-    public function __construct(private readonly \PDO $pdo)
-    {
-    }
+    public function __construct(private readonly \PDO $pdo) {}
 
     public function tooMany(string $event, string $ip, ?\DateTimeImmutable $now = null): bool
     {

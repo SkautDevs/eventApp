@@ -175,9 +175,7 @@ final class ProgramsTest extends AppTestCase
     private function programsWith(array $sections, string $name = 'Hra v lese'): string
     {
         $provider = new class ($sections, $name) implements ProgramProviderInterface {
-            public function __construct(private readonly array $sections, private readonly string $name)
-            {
-            }
+            public function __construct(private readonly array $sections, private readonly string $name) {}
 
             public function getPrograms(): array
             {
@@ -290,9 +288,7 @@ final class ProgramsTest extends AppTestCase
     {
         $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
         $failing = new class ($stub) implements ProgramProviderInterface {
-            public function __construct(private ProgramProviderInterface $inner)
-            {
-            }
+            public function __construct(private ProgramProviderInterface $inner) {}
 
             public function getPrograms(): array
             {

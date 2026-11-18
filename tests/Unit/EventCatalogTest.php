@@ -26,15 +26,15 @@ final class EventCatalogTest extends TestCase
     {
         $listed = $this->catalog()->listed(new \DateTimeImmutable('2026-09-30'));
 
-        self::assertSame(['listed-future'], array_map(fn ($e) => $e->slug, $listed['upcoming']));
-        self::assertSame(['listed-past'], array_map(fn ($e) => $e->slug, $listed['past']));
+        self::assertSame(['listed-future'], array_map(fn($e) => $e->slug, $listed['upcoming']));
+        self::assertSame(['listed-past'], array_map(fn($e) => $e->slug, $listed['past']));
     }
 
     public function testAnEventEndingTodayIsStillUpcoming(): void
     {
         $listed = $this->catalog()->listed(new \DateTimeImmutable('2025-06-08'));
 
-        self::assertContains('listed-past', array_map(fn ($e) => $e->slug, $listed['upcoming']));
+        self::assertContains('listed-past', array_map(fn($e) => $e->slug, $listed['upcoming']));
     }
 
     public function testSlugsListsEveryEventIncludingTheUnlisted(): void

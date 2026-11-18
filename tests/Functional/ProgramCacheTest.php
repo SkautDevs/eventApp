@@ -42,7 +42,7 @@ final class ProgramCacheTest extends AppTestCase
         if ($withEntry) {
             $stub = new StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
             $written = new \DateTimeImmutable('2026-10-01 09:15:00', new \DateTimeZone('Europe/Prague'));
-            (new FileCache($this->dir, static fn (): \DateTimeImmutable => $written))
+            (new FileCache($this->dir, static fn(): \DateTimeImmutable => $written))
                 ->set(CachingProgramProvider::LIST_KEY, [
                     'sections' => $stub->getSections(),
                     'programmes' => $stub->getPrograms(),
@@ -53,7 +53,7 @@ final class ProgramCacheTest extends AppTestCase
         $down = new ThrowingProgramProvider(programsException: new \App\Program\ProgramUnavailableException('down'));
 
         return $this->createApp(overrides: [
-            ProgramProviderInterface::class => fn (ContainerInterface $c): ProgramProviderInterface => new CachingProgramProvider(
+            ProgramProviderInterface::class => fn(ContainerInterface $c): ProgramProviderInterface => new CachingProgramProvider(
                 inner: $down,
                 cache: new FileCache($this->dir),
                 freshness: $c->get(Freshness::class),

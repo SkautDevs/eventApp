@@ -28,7 +28,7 @@ final class FileCache
      */
     public function __construct(private readonly string $dir, ?\Closure $now = null, ?\Closure $flock = null)
     {
-        $this->now = $now ?? static fn (): \DateTimeImmutable => new \DateTimeImmutable();
+        $this->now = $now ?? static fn(): \DateTimeImmutable => new \DateTimeImmutable();
         $this->flock = $flock ?? flock(...);
     }
 
@@ -105,8 +105,7 @@ final class FileCache
         }
         $handle = @fopen($path, 'c');
         if ($handle === false) {
-            return static function (): void {
-            };
+            return static function (): void {};
         }
         $wouldBlock = 0;
         if (!($this->flock)($handle, \LOCK_EX | \LOCK_NB, $wouldBlock)) {
@@ -118,8 +117,7 @@ final class FileCache
                 return null;
             }
 
-            return static function (): void {
-            };
+            return static function (): void {};
         }
 
         return static function () use ($handle): void {
@@ -147,8 +145,7 @@ final class FileCache
             usleep(50_000);
         } while (microtime(true) < $deadline);
 
-        return static function (): void {
-        };
+        return static function (): void {};
     }
 
     private function path(string $key): string

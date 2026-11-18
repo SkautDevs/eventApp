@@ -33,6 +33,25 @@ jobs:
         env:
           PANTHER_NO_SKIP: '1'
 
+  # PHP code style, PHPStan against its baseline, and Biome over the scripts and
+  # stylesheets. deploy.yml calls this workflow, so a lint failure blocks a deploy too.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version-file: .github/php-version
+          # php-webdriver, a dev dependency, requires ext-zip for composer install
+          extensions: zip
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-progress --prefer-dist --no-interaction
+      - run: vendor/bin/php-cs-fixer fix --dry-run --diff
+      - run: vendor/bin/phpstan analyse --memory-limit=1G
+      - run: docker run --rm -v "$PWD":/code -w /code ghcr.io/biomejs/biome:2.6.8 ci
+
   # Its own job so an advisory shows up as a distinct failed check rather than
   # being lost at the tail of a test run. No `|| true` and no continue-on-error:
   # composer audit exits non-zero on a known-vulnerable package and that must fail

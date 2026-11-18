@@ -10,8 +10,7 @@ final readonly class CacheEntry
     public function __construct(
         public mixed $data,
         public \DateTimeImmutable $fetchedAt,
-    ) {
-    }
+    ) {}
 
     /** Seconds since the fetch; negative when the clock has gone back since. */
     public function ageAt(\DateTimeImmutable $now): int

@@ -17,9 +17,7 @@ final class PlatformAdviceFilter extends AbstractLogger
 {
     public const string DROPPED = 'GMP or BCMath';
 
-    public function __construct(private readonly LoggerInterface $inner)
-    {
-    }
+    public function __construct(private readonly LoggerInterface $inner) {}
 
     public function log($level, string|\Stringable $message, array $context = []): void
     {
