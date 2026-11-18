@@ -286,7 +286,7 @@ final class ProgramsTest extends AppTestCase
     /** U-M4: a personal list that could not be read dims nothing and claims nothing. */
     public function testAFailedPersonalListDimsNothing(): void
     {
-        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
+        $stub = new \App\Program\LocalProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
         $failing = new class ($stub) implements ProgramProviderInterface {
             public function __construct(private ProgramProviderInterface $inner) {}
 

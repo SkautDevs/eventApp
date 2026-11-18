@@ -313,7 +313,7 @@ abstract class BrowserTestCase extends PantherTestCase
         $local = [];
         // every event, so a dev .env that points one at kissj never reaches a real API from a test
         foreach ($catalog->slugs() as $slug) {
-            $local[$catalog->load($slug)->envKey('PROGRAM_PROVIDER')] = 'local';
+            $local[\App\Environment::eventKey($slug, 'PROGRAM_PROVIDER')] = 'local';
         }
 
         return $local + [

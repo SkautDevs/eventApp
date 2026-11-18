@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App;
 
 use App\Telemetry\Collector;
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
 
 /**
  * The reader's session, kept by PHP's file handler but never held open.
@@ -66,6 +68,7 @@ final class Session
         ?bool $http = null,
         // names the temp-dir fallback store; without it there is none (storage())
         private readonly ?string $appRoot = null,
+        private readonly ClockInterface $clock = new SystemClock(),
     ) {
         $this->http = $http ?? \PHP_SAPI !== 'cli';
     }
@@ -185,9 +188,10 @@ final class Session
         if (!$this->http || $this->stored === null || headers_sent()) {
             return;
         }
-        setcookie(self::NAME, $this->stored, self::cookieOptions() + ['expires' => time() + self::LIFETIME]);
+        $now = $this->clock->now()->getTimestamp();
+        setcookie(self::NAME, $this->stored, self::cookieOptions() + ['expires' => $now + self::LIFETIME]);
         if (is_string($this->storage)) {
-            self::slide($this->storage . '/sess_' . $this->stored, time());
+            self::slide($this->storage . '/sess_' . $this->stored, $now);
         }
     }
 

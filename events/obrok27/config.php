@@ -11,8 +11,6 @@ return [
     'shortName' => 'Obrok 27',
     'listed' => true,
     'dates' => ['start' => '2027-05-19', 'end' => '2027-05-23'],
-    // what Profil's "web akce" opens for a reader who is not registered yet
-    'website' => 'https://obrok.skaut.cz/',
     'features' => ['map', 'programs', 'handbook', 'info', 'push'],
 
     // The palette keys are only what a role falls back to; the screens read 'roles'.

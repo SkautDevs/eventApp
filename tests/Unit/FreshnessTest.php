@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Program\Freshness;
 use PHPUnit\Framework\TestCase;
+use Tests\FixedClock;
 
 final class FreshnessTest extends TestCase
 {
@@ -16,7 +17,7 @@ final class FreshnessTest extends TestCase
 
     public function testWithoutReadsItCarriesTheRequestTimeInPrague(): void
     {
-        $freshness = new Freshness(new \DateTimeImmutable('2026-10-04 10:00:00', new \DateTimeZone('UTC')));
+        $freshness = new Freshness(new FixedClock(new \DateTimeImmutable('2026-10-04 10:00:00', new \DateTimeZone('UTC'))));
 
         self::assertSame(['fetchedAt' => '2026-10-04T12:00:00+02:00', 'stale' => false], $freshness->forView());
         self::assertNull($freshness->fetchedAt());
@@ -24,7 +25,7 @@ final class FreshnessTest extends TestCase
 
     public function testItKeepsTheOldestFetchAndAnyStaleness(): void
     {
-        $freshness = new Freshness(self::prague('2026-10-04 12:00:00'));
+        $freshness = new Freshness(new FixedClock(self::prague('2026-10-04 12:00:00')));
 
         $freshness->note(self::prague('2026-10-04 11:58:00'), false);
         $freshness->note(self::prague('2026-10-04 09:00:00'), true);
@@ -36,7 +37,7 @@ final class FreshnessTest extends TestCase
 
     public function testResetForgetsThePreviousRequest(): void
     {
-        $freshness = new Freshness(self::prague('2026-10-04 12:00:00'));
+        $freshness = new Freshness(new FixedClock(self::prague('2026-10-04 12:00:00')));
         $freshness->note(self::prague('2026-10-04 09:00:00'), true);
         $before = $freshness->generation();
 

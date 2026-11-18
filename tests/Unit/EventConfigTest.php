@@ -191,41 +191,6 @@ final class EventConfigTest extends TestCase
         EventConfig::load(dirname(__DIR__) . '/fixtures/events', "minimal\n");
     }
 
-    public function testEnvFallsBackToTheProcessEnvironment(): void
-    {
-        $event = EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal');
-        putenv('ADMIN_TOKEN_MINIMAL=from-process');
-        putenv('ADMIN_TOKEN=instance-wide');
-        try {
-            self::assertSame('from-process', $event->env('ADMIN_TOKEN'));
-            putenv('ADMIN_TOKEN_MINIMAL');
-            self::assertSame('', $event->env('ADMIN_TOKEN'));
-        } finally {
-            putenv('ADMIN_TOKEN_MINIMAL');
-            putenv('ADMIN_TOKEN');
-        }
-    }
-
-    public function testEnvKeyIsSuffixedWithTheUpperCasedSlug(): void
-    {
-        $event = EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal');
-        self::assertSame('ADMIN_TOKEN_MINIMAL', $event->envKey('ADMIN_TOKEN'));
-    }
-
-    public function testEnvReadsTheSuffixedVariableOnly(): void
-    {
-        $event = EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal');
-        $_ENV['ADMIN_TOKEN'] = 'instance-wide';
-        $_ENV['ADMIN_TOKEN_MINIMAL'] = 'per-event';
-        try {
-            self::assertSame('per-event', $event->env('ADMIN_TOKEN'));
-            unset($_ENV['ADMIN_TOKEN_MINIMAL']);
-            self::assertSame('fallback', $event->env('ADMIN_TOKEN', 'fallback'));
-        } finally {
-            unset($_ENV['ADMIN_TOKEN'], $_ENV['ADMIN_TOKEN_MINIMAL']);
-        }
-    }
-
     public function testCspIsOptionalAndAlwaysAnArray(): void
     {
         self::assertSame([], EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal')->csp);
@@ -263,44 +228,6 @@ final class EventConfigTest extends TestCase
     {
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('csp');
-        $this->loadWithConfigLines('    ' . $line);
-    }
-
-    public function testWebsiteIsOptionalAndOnlyObrok27SetsIt(): void
-    {
-        self::assertNull(EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'minimal')->website);
-        foreach (glob($this->eventsDir . '/*/config.php') ?: [] as $path) {
-            $slug = basename(dirname($path));
-            self::assertSame(
-                $slug === 'obrok27' ? 'https://obrok.skaut.cz/' : null,
-                EventConfig::load($this->eventsDir, $slug)->website,
-                $slug,
-            );
-        }
-    }
-
-    public function testAnAbsoluteWebsiteLoads(): void
-    {
-        self::assertSame('http://akce.example/o-akci', $this->loadWithConfigLines("    'website' => 'http://akce.example/o-akci',")->website);
-    }
-
-    /** @return array<string, array{string}> */
-    public static function invalidWebsites(): array
-    {
-        return [
-            'relative' => ["'website' => '/o-akci',"],
-            'no scheme' => ["'website' => 'obrok.skaut.cz',"],
-            'another scheme' => ["'website' => 'ftp://obrok.skaut.cz/',"],
-            'script' => ["'website' => 'javascript:alert(1)',"],
-            'not a string' => ["'website' => ['https://obrok.skaut.cz/'],"],
-        ];
-    }
-
-    #[\PHPUnit\Framework\Attributes\DataProvider('invalidWebsites')]
-    public function testAnInvalidWebsiteFailsAtBoot(string $line): void
-    {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('website');
         $this->loadWithConfigLines('    ' . $line);
     }
 }

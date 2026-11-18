@@ -7,17 +7,18 @@ namespace App\Module;
 use App\Auth\Authenticator;
 use App\EventConfig;
 use App\Http\SameOrigin;
-use App\Kernel;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
 use App\Push\MessageRepository;
-use App\Push\NewsItems;
-use App\Session;
+use App\Push\NotificationList;
+use App\Toast\Toasts;
 use App\Telemetry\Collector;
+use App\Time\Zone;
 use App\Program\ProgramUnavailableException;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 use Slim\Views\Twig;
@@ -34,7 +35,7 @@ use Slim\Views\Twig;
 final class ProgramsModule implements ModuleInterface
 {
     /**
-     * Czech weekday abbreviations for the pager label, indexed by date('N').
+     * Czech weekday abbreviations for the pager label, indexed by the ISO weekday number (format 'N').
      * Kernel carries the full names for its dateToCzechDayName filter; the pager
      * needs the short forms, which do not exist anywhere else.
      */
@@ -105,14 +106,6 @@ final class ProgramsModule implements ModuleInterface
     /** Shortest bar the grid will draw, in seconds — below this a card is unreadable. */
     private const int MIN_DRAWN_SPAN = 60;
 
-    /**
-     * Kernel::TIMEZONE: the zone the provider's naive datetimes are wall-clock times in.
-     * Everything else here reads and prints them in the process's default zone, which is
-     * consistent whatever that zone is; only an instant handed to the client has to name
-     * the event's own.
-     */
-    private const string ZONE = 'Europe/Prague';
-
     public static function key(): string
     {
         return 'programs';
@@ -123,11 +116,17 @@ final class ProgramsModule implements ModuleInterface
         return ['label' => 'Program', 'route' => 'programs', 'icon' => 'far fa-calendar-alt', 'order' => 10];
     }
 
+    /** The clock is the container's; a route reads it once per request. */
+    public function __construct(private readonly ClockInterface $clock) {}
+
     public function registerRoutes(App $app): void
     {
-        $app->get('/programy', function ($request, $response) {
+        // Slim binds a route closure to the container, so the closures take the clock along
+        $clock = $this->clock;
+        $app->get('/programy', function ($request, $response) use ($clock) {
             $auth = $this->get(Authenticator::class);
             $provider = $this->get(ProgramProviderInterface::class);
+            $now = $clock->now();
             // Both provider calls can fail in the same request — kissj being down is
             // exactly when they do — so the notices accumulate and the template renders
             // them as one line.
@@ -136,7 +135,9 @@ final class ProgramsModule implements ModuleInterface
             // only a list that was actually read can say "not registered" or "nothing yet"
             $mineRead = false;
             // what a register or unregister said, on the document its redirect lands on
-            $toast = Kernel::takeToast($request, $this->get(Session::class));
+            $toasts = $this->get(Toasts::class);
+            \assert($toasts instanceof Toasts);
+            $toast = $toasts->take($request);
 
             $identity = $auth->identity();
             if ($identity !== null) {
@@ -146,8 +147,8 @@ final class ProgramsModule implements ModuleInterface
                 } catch (SessionExpiredException) {
                     // kissj no longer knows the device session: logged out, as on Domů, and
                     // this very page renders logged out, so it says why itself
-                    Kernel::sessionGone($auth, $this->get(Session::class));
-                    $toast = Kernel::goneToast();
+                    $auth->sessionGone();
+                    $toast = $toasts->gone();
                 } catch (ProgramUnavailableException | ProgramDataException) {
                     // never arrived, or arrived as something that is not programme data —
                     // the reader is told the same thing either way
@@ -167,7 +168,7 @@ final class ProgramsModule implements ModuleInterface
                 $unavailable = true;
             }
 
-            $model = ProgramsModule::buildViewModel($sections, $all, $mine, $mineRead);
+            $model = ProgramsModule::buildViewModel($sections, $all, $mine, $mineRead, $now);
 
             // the window decides every sheet's footer; read only when there is a sheet, and
             // a window that cannot be read leaves the footers empty rather than guessing
@@ -182,12 +183,11 @@ final class ProgramsModule implements ModuleInterface
 
             // the organisers' messages about a programme are in its sheet, for everybody
             $messages = [];
-            $now = new \DateTimeImmutable();
             foreach ($this->get(MessageRepository::class)->visible($this->get(EventConfig::class)->slug) as $message) {
                 if ($message['programmeId'] !== null) {
-                    $sentAt = NewsItems::sentAt($message['sentAt']);
+                    $sentAt = NotificationList::sentAt($message['sentAt']);
                     $messages[$message['programmeId']][] = [
-                        'when' => $sentAt === null ? $message['sentAt'] : NewsItems::relative($sentAt, $now),
+                        'when' => $sentAt === null ? $message['sentAt'] : NotificationList::relative($sentAt, $now),
                         // the instant www/shell.js redraws `when` from on the device clock
                         'at' => $sentAt?->format(\DATE_ATOM),
                         'title' => $message['title'],
@@ -203,7 +203,7 @@ final class ProgramsModule implements ModuleInterface
                     : ProgramsModule::footer($detail, $paired, $mineRead, $window ?? new RegistrationWindow(null, null), $now);
             }
 
-            return Kernel::markToast($this->get(Twig::class)->render($response, 'programs.twig', $model + [
+            return $toasts->mark($this->get(Twig::class)->render($response, 'programs.twig', $model + [
                 'notice' => $notices === [] ? null : implode(' ', $notices),
                 'programmesUnavailable' => $unavailable,
                 'isLogged' => $paired,
@@ -228,7 +228,8 @@ final class ProgramsModule implements ModuleInterface
     /**
      * One register or unregister: the provider's answer becomes the session toast, and the
      * reader goes back to the programme. Only a cross-site form or a reader who is not
-     * paired gets a page of its own (403).
+     * paired gets a page of its own (403). Toasts stamps the toast from the clock when it is
+     * left, i.e. after the provider has answered.
      */
     private static function write(
         \Psr\Container\ContainerInterface $c,
@@ -248,7 +249,8 @@ final class ProgramsModule implements ModuleInterface
         if ($identity === null) {
             return self::refused($twig, $response, self::NOT_PAIRED . '.', $base . '/profil', 'Přihlásit se');
         }
-        $session = $c->get(Session::class);
+        $toasts = $c->get(Toasts::class);
+        \assert($toasts instanceof Toasts);
         $provider = $c->get(ProgramProviderInterface::class);
 
         // the success toast of this very write, which a repeat of it must not talk over
@@ -262,28 +264,28 @@ final class ProgramsModule implements ModuleInterface
             $programme = self::programme($provider, $id);
             $name = $programme === null ? null : (string) $programme['name'];
             if ($register) {
-                Kernel::putToast($session, $name === null ? 'Přihlášen' : 'Přihlášen: ' . $name, $programme === null ? null : self::toastLine($programme), $tag);
+                $toasts->put($name === null ? 'Přihlášen' : 'Přihlášen: ' . $name, $programme === null ? null : self::toastLine($programme), $tag);
             } else {
-                Kernel::putToast($session, $name === null ? 'Odhlášen' : 'Odhlášen: ' . $name, 'Místo jsme uvolnili', $tag);
+                $toasts->put($name === null ? 'Odhlášen' : 'Odhlášen: ' . $name, 'Místo jsme uvolnili', $tag);
             }
         } catch (RegistrationRefusedException $e) {
             $title = self::REFUSALS[$e->refusal] ?? self::REFUSED[$register];
             if ($e->refusal === self::REPEATED[$register]) {
                 // A double tap: the first request's success waits unsaid in the session, and
                 // the second one's "you already have it" would replace it with a refusal.
-                Kernel::putToastUnlessPending($session, $title, null, $tag);
+                $toasts->putUnlessPending($title, null, $tag);
             } else {
-                Kernel::putToast($session, $title, null);
+                $toasts->put($title, null);
             }
         } catch (SessionExpiredException) {
             // the page the redirect lands on renders logged out, and the toast says why
-            Kernel::sessionGone($auth, $session);
-            $gone = Kernel::goneToast();
-            Kernel::putToast($session, $gone['title'], $gone['line']);
+            $auth->sessionGone();
+            $gone = $toasts->gone();
+            $toasts->put($gone->title, $gone->line);
         } catch (ProgramUnavailableException | ProgramDataException $e) {
             // LocalStateException included: the local source's state file could not be written
             Collector::collect($e);
-            Kernel::putToast($session, self::WRITE_FAILED[$register], null);
+            $toasts->put(self::WRITE_FAILED[$register], null);
         }
 
         $sectionId = (int) (self::programme($provider, $id)['section']['id'] ?? 0);
@@ -352,7 +354,7 @@ final class ProgramsModule implements ModuleInterface
         }
         $state = $window->state($now);
         if ($state === 'before' && $window->start !== null) {
-            $start = $window->start->setTimezone(new \DateTimeZone(self::ZONE));
+            $start = $window->start->setTimezone(Zone::prague());
 
             return ['state' => 'before', 'line' => 'Přihlašování začne ' . $start->format('j. n. Y \\v ' . self::CLOCK)];
         }
@@ -453,8 +455,9 @@ final class ProgramsModule implements ModuleInterface
      * @param list<array> $mine programmes from getProgramsForIdentity()
      * @param bool $mineRead whether the personal list was read: only then is "not
      *                       registered" true, and only then is anything dimmed
+     * @param \DateTimeImmutable $now the request's now, whose date picks the page the timeline opens on
      */
-    private static function buildViewModel(array $sections, array $all, array $mine, bool $mineRead): array
+    private static function buildViewModel(array $sections, array $all, array $mine, bool $mineRead, \DateTimeImmutable $now): array
     {
         // everything below reads the dates and the ids as given, so both are made sound
         // once, here, rather than guarded at every use
@@ -504,7 +507,7 @@ final class ProgramsModule implements ModuleInterface
 
         return [
             'pages' => $pages,
-            'activePage' => self::activeKey($pages),
+            'activePage' => self::activeKey($pages, $now),
             // Přehled and Moje are continuous scrolls, so each strip opens on the day at the top
             'overview' => $overview,
             'activeOverview' => $overview[0]['key'] ?? null,
@@ -587,11 +590,14 @@ final class ProgramsModule implements ModuleInterface
 
     /**
      * A wall-clock timestamp (read in the default zone, like every other in here) as the
-     * instant it means in the event's zone, DATE_ATOM with its offset.
+     * instant it means in the event's zone, DATE_ATOM with its offset. Zone::PRAGUE is the
+     * zone the provider's naive datetimes are wall-clock times in. Everything else here
+     * reads and prints them in the process's default zone, which is consistent whatever
+     * that zone is; only an instant handed to the client has to name the event's own.
      */
     private static function instant(int $timestamp): string
     {
-        return (new \DateTimeImmutable(date('Y-m-d H:i:s', $timestamp), new \DateTimeZone(self::ZONE)))->format(DATE_ATOM);
+        return (new \DateTimeImmutable(date('Y-m-d H:i:s', $timestamp), Zone::prague()))->format(DATE_ATOM);
     }
 
     /**
@@ -743,10 +749,11 @@ final class ProgramsModule implements ModuleInterface
      * The screen opens on today if the event is running, otherwise on its first page.
      *
      * @param list<array{key: string, day: string}> $pages
+     * @param \DateTimeImmutable $now its date (in its own zone) is today
      */
-    private static function activeKey(array $pages): ?string
+    private static function activeKey(array $pages, \DateTimeImmutable $now): ?string
     {
-        $today = date('Y-m-d');
+        $today = $now->format('Y-m-d');
         foreach ($pages as $page) {
             if ($page['day'] === $today) {
                 return $page['key'];

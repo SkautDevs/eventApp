@@ -6,7 +6,7 @@
 {% block content %}
 	{# kissj no longer knew the reader's session while this page was rendered: logged out here, and told so #}
 	{% if toast ?? null %}
-		{% include '_toast.twig' with toast only %}
+		{% include '_toast.twig' with {title: toast.title, line: toast.line} only %}
 	{% endif %}
 	{% if (event.assets.mainLogoDark ?? false) and (event.assets.mainLogo ?? false) %}
 		{# the identity's own artwork, one drawing per mode: a mark drawn for a pale

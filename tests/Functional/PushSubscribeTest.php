@@ -282,4 +282,9 @@ final class PushSubscribeTest extends AppTestCase
             self::assertSame(201, $this->request($app, 'POST', '/push/subscribe', $sub)->getStatusCode());
         }
     }
+
+    public function testThereIsNoUnsubscribeRoute(): void
+    {
+        self::assertSame(404, $this->request($this->createApp('korbo26'), 'POST', '/push/unsubscribe', ['endpoint' => 'https://fcm.googleapis.com/x'])->getStatusCode());
+    }
 }

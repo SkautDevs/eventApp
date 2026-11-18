@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-use App\Push\NewsItems;
+use App\Push\NotificationList;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-final class NewsItemsTest extends TestCase
+final class NotificationListTest extends TestCase
 {
     private static function prague(string $datetime): \DateTimeImmutable
     {
@@ -34,7 +34,7 @@ final class NewsItemsTest extends TestCase
     #[DataProvider('bands')]
     public function testRelative(string $at, string $now, string $expected): void
     {
-        self::assertSame($expected, NewsItems::relative(self::prague($at), self::prague($now)));
+        self::assertSame($expected, NotificationList::relative(self::prague($at), self::prague($now)));
     }
 
     /** The bands are Prague's, whatever zone the two instants arrive in. */
@@ -44,7 +44,7 @@ final class NewsItemsTest extends TestCase
         $at = new \DateTimeImmutable('2027-05-20 20:00:00', new \DateTimeZone('UTC'));
         $now = new \DateTimeImmutable('2027-05-20 22:10:00', new \DateTimeZone('UTC'));
 
-        self::assertSame('včera 22:00', NewsItems::relative($at, $now));
+        self::assertSame('včera 22:00', NotificationList::relative($at, $now));
     }
 
     /** @return list<array> MessageRepository::visible() rows, newest first */
@@ -60,7 +60,7 @@ final class NewsItemsTest extends TestCase
 
     public function testItemsKeepEverybodysMessagesAndTheReadersProgrammes(): void
     {
-        $items = NewsItems::items(self::messages(), [7 => 'Raft na Labi'], self::prague('2027-05-21 00:10:00'));
+        $items = NotificationList::items(self::messages(), [7 => 'Raft na Labi'], self::prague('2027-05-21 00:10:00'));
 
         self::assertSame([4, 3, 1], array_column($items, 'id'));
         self::assertSame('před 5 min', $items[0]['when']);
@@ -75,7 +75,7 @@ final class NewsItemsTest extends TestCase
 
     public function testAProgrammeWithoutANameFallsBackToItsTargetLabel(): void
     {
-        $items = NewsItems::items(self::messages(), [7 => ''], self::prague('2027-05-21 00:10:00'));
+        $items = NotificationList::items(self::messages(), [7 => ''], self::prague('2027-05-21 00:10:00'));
 
         self::assertSame('Raft', $items[1]['programme']);
     }
@@ -83,7 +83,7 @@ final class NewsItemsTest extends TestCase
     /** The 23:50 message is "před 20 min" at 00:10, and still in its own day's group. */
     public function testGroupsByThePragueDayTheMessageWasSent(): void
     {
-        $groups = NewsItems::groups(NewsItems::items(self::messages(), [7 => 'Raft', 9 => 'Cizí'], self::prague('2027-05-21 00:10:00')));
+        $groups = NotificationList::groups(NotificationList::items(self::messages(), [7 => 'Raft', 9 => 'Cizí'], self::prague('2027-05-21 00:10:00')));
 
         self::assertSame(['news-20270521', 'news-20270520', 'news-20270519'], array_column($groups, 'key'));
         self::assertSame(['Pá 21. 5.', 'Čt 20. 5.', 'St 19. 5.'], array_column($groups, 'label'));
@@ -94,15 +94,15 @@ final class NewsItemsTest extends TestCase
 
     public function testNoItemsNoGroups(): void
     {
-        self::assertSame([], NewsItems::groups([]));
+        self::assertSame([], NotificationList::groups([]));
     }
 
     public function testTodayIsThePragueCalendarDayOfNow(): void
     {
-        $items = NewsItems::items(self::messages(), [7 => 'Raft', 9 => 'Cizí'], self::prague('2027-05-21 00:10:00'));
+        $items = NotificationList::items(self::messages(), [7 => 'Raft', 9 => 'Cizí'], self::prague('2027-05-21 00:10:00'));
 
-        self::assertSame([4], array_column(NewsItems::today($items, self::prague('2027-05-21 00:10:00')), 'id'));
-        self::assertSame([3, 2], array_column(NewsItems::today($items, self::prague('2027-05-20 23:59:00')), 'id'));
-        self::assertSame([], NewsItems::today($items, self::prague('2027-05-22 09:00:00')));
+        self::assertSame([4], array_column(NotificationList::today($items, self::prague('2027-05-21 00:10:00')), 'id'));
+        self::assertSame([3, 2], array_column(NotificationList::today($items, self::prague('2027-05-20 23:59:00')), 'id'));
+        self::assertSame([], NotificationList::today($items, self::prague('2027-05-22 09:00:00')));
     }
 }

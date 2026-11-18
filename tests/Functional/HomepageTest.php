@@ -214,7 +214,7 @@ final class HomepageTest extends AppTestCase
     /** kissj's 401 on the participant read: the reader is logged out and Profil says why. */
     public function testAnExpiredSessionLogsOutAndProfilSaysWhy(): void
     {
-        $provider = new class (new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState)) extends DelegatingProvider {
+        $provider = new class (new \App\Program\LocalProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState)) extends DelegatingProvider {
             public bool $expired = false;
 
             public function getParticipant(string $sessionToken): \App\Program\Participant
@@ -254,7 +254,7 @@ final class HomepageTest extends AppTestCase
     /** An outage is not a logout: the cards are left out and the reader stays paired. */
     public function testAnOutageKeepsTheReaderPaired(): void
     {
-        $provider = new class (new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState)) extends DelegatingProvider {
+        $provider = new class (new \App\Program\LocalProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState)) extends DelegatingProvider {
             public bool $down = false;
 
             public function getParticipant(string $sessionToken): \App\Program\Participant
@@ -298,7 +298,7 @@ final class HomepageTest extends AppTestCase
     /** Before the start the window is the only provider read; its outage only drops the card. */
     public function testAWindowOutageLeavesTheCardOut(): void
     {
-        $provider = new class (new \App\Program\StubProgramProvider(dirname(__DIR__) . '/fixtures/events/window-before/fixtures', $this->stubState)) extends DelegatingProvider {
+        $provider = new class (new \App\Program\LocalProgramProvider(dirname(__DIR__) . '/fixtures/events/window-before/fixtures', $this->stubState)) extends DelegatingProvider {
             public function getRegistrationWindow(): \App\Program\RegistrationWindow
             {
                 throw new \App\Program\ProgramUnavailableException('down');

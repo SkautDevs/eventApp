@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Environment;
 use App\EventConfig;
 use App\Kernel;
 use App\Program\CachingProgramProvider;
 use App\Program\ProgramProviderInterface;
 use App\Program\KissjProgramProvider;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -46,8 +47,8 @@ final class KernelProviderSelectionTest extends TestCase
     {
         $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'local';
 
-        self::assertNull(Kernel::programSource($this->event()));
-        self::assertInstanceOf(StubProgramProvider::class, $this->providerFor());
+        self::assertNull(Environment::fromGlobals()->programSource($this->event()->slug));
+        self::assertInstanceOf(LocalProgramProvider::class, $this->providerFor());
     }
 
     public function testAUrlIsKissjBehindTheCache(): void
@@ -66,12 +67,12 @@ final class KernelProviderSelectionTest extends TestCase
         $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'http://localhost:8080/';
         $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
 
-        self::assertSame('http://localhost:8080', Kernel::programSource($this->event()));
+        self::assertSame('http://localhost:8080', Environment::fromGlobals()->programSource($this->event()->slug));
     }
 
     /**
      * No event falls back to the fixtures: demo data shown as if it were real is worse
-     * than an event that does not boot. EventConfig::env() falls back to getenv, so the
+     * than an event that does not boot. Environment::forEvent() falls back to getenv, so the
      * process environment is cleared too.
      */
     public function testAMissingValueStopsTheEventAtCreate(): void
@@ -126,7 +127,7 @@ final class KernelProviderSelectionTest extends TestCase
     {
         $_ENV['PROGRAM_PROVIDER_OBROK19'] = 'https://kissj.example';
 
-        self::assertInstanceOf(StubProgramProvider::class, $this->providerFor());
+        self::assertInstanceOf(LocalProgramProvider::class, $this->providerFor());
     }
 
     public function testTheRetiredBaseUrlIsReadNowhere(): void
@@ -134,11 +135,11 @@ final class KernelProviderSelectionTest extends TestCase
         $_ENV[self::RETIRED_BASE_URL] = 'https://elsewhere.example';
         putenv(self::RETIRED_BASE_URL . '=https://elsewhere.example');
 
-        self::assertInstanceOf(StubProgramProvider::class, $this->providerFor());
+        self::assertInstanceOf(LocalProgramProvider::class, $this->providerFor());
 
         $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'https://kissj.example';
         $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
-        self::assertSame('https://kissj.example', Kernel::programSource($this->event()));
+        self::assertSame('https://kissj.example', Environment::fromGlobals()->programSource($this->event()->slug));
     }
 
     public function testTheCacheTtlIsWholeSecondsAndFallsBackTo300(): void
@@ -150,21 +151,21 @@ final class KernelProviderSelectionTest extends TestCase
                 $_ENV['PROGRAM_CACHE_TTL'] = $value;
             }
 
-            self::assertSame($expected, Kernel::programCacheTtl(), var_export($value, true));
+            self::assertSame($expected, Environment::fromGlobals()->programCacheTtl(), var_export($value, true));
         }
     }
 
     public function testTheSessionStoreIsVarSessionsUnlessSessionPathSaysOtherwise(): void
     {
-        self::assertSame('/app/var/sessions', Kernel::sessionPath('/app'));
+        self::assertSame('/app/var/sessions', Environment::fromGlobals()->sessionPath('/app'));
 
         $_ENV['SESSION_PATH'] = '';
-        self::assertSame('/app/var/sessions', Kernel::sessionPath('/app'));
+        self::assertSame('/app/var/sessions', Environment::fromGlobals()->sessionPath('/app'));
 
         $_ENV['SESSION_PATH'] = 'var/elsewhere';
-        self::assertSame('/app/var/elsewhere', Kernel::sessionPath('/app'));
+        self::assertSame('/app/var/elsewhere', Environment::fromGlobals()->sessionPath('/app'));
 
         $_ENV['SESSION_PATH'] = '/tmp/eventapp-test-sessions';
-        self::assertSame('/tmp/eventapp-test-sessions', Kernel::sessionPath('/app'));
+        self::assertSame('/tmp/eventapp-test-sessions', Environment::fromGlobals()->sessionPath('/app'));
     }
 }

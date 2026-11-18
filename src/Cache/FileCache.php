@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Cache;
 
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
+
 /**
  * One JSON file per key: `{"fetchedAt": "<DATE_ATOM>", "data": …}`. A write goes to a
  * temporary file in the same directory and is renamed over the entry, so a reader sees
@@ -16,19 +19,18 @@ final class FileCache
 {
     private const string KEY = '/^[a-z0-9-]+$/';
 
-    /** @var \Closure(): \DateTimeImmutable */
-    private readonly \Closure $now;
-
     /** @var \Closure(resource, int, mixed): bool flock(), or a stand-in with its signature */
     private readonly \Closure $flock;
 
     /**
-     * @param (\Closure(): \DateTimeImmutable)|null $now the clock; tests pass a fixed one
+     * @param ClockInterface $clock stamps every entry's fetchedAt; tests pass a fixed one
      * @param (\Closure(resource, int, mixed): bool)|null $flock flock(); tests pass a filesystem that cannot lock
      */
-    public function __construct(private readonly string $dir, ?\Closure $now = null, ?\Closure $flock = null)
-    {
-        $this->now = $now ?? static fn(): \DateTimeImmutable => new \DateTimeImmutable();
+    public function __construct(
+        private readonly string $dir,
+        private readonly ClockInterface $clock = new SystemClock(),
+        ?\Closure $flock = null,
+    ) {
         $this->flock = $flock ?? flock(...);
     }
 
@@ -65,7 +67,7 @@ final class FileCache
 
         try {
             $json = json_encode(
-                ['fetchedAt' => ($this->now)()->format(\DATE_ATOM), 'data' => $data],
+                ['fetchedAt' => $this->clock->now()->format(\DATE_ATOM), 'data' => $data],
                 \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES,
             );
         } catch (\JsonException $e) {

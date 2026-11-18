@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Program;
 
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
+
 /**
  * The `local` programme source: an event's own fixture files under events/<slug>/fixtures/,
  * answering as kissj would, with no network. Dev and every test read it.
@@ -24,7 +27,7 @@ namespace App\Program;
  * - As in kissj, a preregistered programme is in no participant's list: it belongs to a
  *   role, which the app does not know.
  */
-final class StubProgramProvider implements ProgramProviderInterface
+final class LocalProgramProvider implements ProgramProviderInterface
 {
     private const string USER_CODE = '483291';
 
@@ -41,6 +44,7 @@ final class StubProgramProvider implements ProgramProviderInterface
     public function __construct(
         private readonly string $fixturesDir,
         private readonly string $stateDir,
+        private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
     public function getPrograms(): array
@@ -103,7 +107,7 @@ final class StubProgramProvider implements ProgramProviderInterface
             substr(hash('sha256', 'pairing:' . $deviceId), 0, 32),
             self::USER_CODE,
             self::VERIFICATION_URL,
-            new \DateTimeImmutable('+1 hour'),
+            $this->clock->now()->modify('+1 hour'),
             5,
         );
     }
@@ -123,7 +127,7 @@ final class StubProgramProvider implements ProgramProviderInterface
         return new PairingPoll(
             PairingStatus::Approved,
             sprintf('stub-%d-%s', $id, bin2hex(random_bytes(8))),
-            new \DateTimeImmutable('+6 months'),
+            $this->clock->now()->modify('+6 months'),
         );
     }
 
@@ -151,7 +155,7 @@ final class StubProgramProvider implements ProgramProviderInterface
     private function write(string $sessionToken, int $programmeId, bool $register): void
     {
         $participantId = $this->participantId($sessionToken);
-        if (!$this->getRegistrationWindow()->isOpen(new \DateTimeImmutable())) {
+        if (!$this->getRegistrationWindow()->isOpen($this->clock->now())) {
             throw new RegistrationRefusedException('closed');
         }
         $programme = null;

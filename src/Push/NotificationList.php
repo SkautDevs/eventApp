@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace App\Push;
 
+use App\Time\Zone;
+
 /**
  * The sent notifications as readers see them: the ones meant for this reader, each with its
  * time relative to now, grouped by the Prague calendar day it was sent on. Informace lists
  * them all, the home screen today's.
  */
-final class NewsItems
+final class NotificationList
 {
-    /** Kernel::TIMEZONE: the calendar the day groups and "včera" are counted in. */
-    private const string ZONE = 'Europe/Prague';
-
     /** Short Czech weekday names for a day heading, indexed by format('N'). */
     private const array SHORT_WEEKDAYS = [1 => 'Po', 2 => 'Út', 3 => 'St', 4 => 'Čt', 5 => 'Pá', 6 => 'So', 7 => 'Ne'];
 
@@ -65,7 +64,7 @@ final class NewsItems
     /** A MessageRepository stamp as an instant in Prague, or null when it is not one. */
     public static function sentAt(string $stamp): ?\DateTimeImmutable
     {
-        $at = \DateTimeImmutable::createFromFormat('!' . self::STAMP, $stamp, new \DateTimeZone(self::ZONE));
+        $at = \DateTimeImmutable::createFromFormat('!' . self::STAMP, $stamp, Zone::prague());
 
         return $at === false || $at->format(self::STAMP) !== $stamp ? null : $at;
     }
@@ -78,7 +77,7 @@ final class NewsItems
      */
     public static function relative(\DateTimeImmutable $at, \DateTimeImmutable $now): string
     {
-        $zone = new \DateTimeZone(self::ZONE);
+        $zone = Zone::prague();
         $at = $at->setTimezone($zone);
         $now = $now->setTimezone($zone);
         $seconds = $now->getTimestamp() - $at->getTimestamp();
@@ -110,7 +109,7 @@ final class NewsItems
      */
     public static function groups(array $items): array
     {
-        $zone = new \DateTimeZone(self::ZONE);
+        $zone = Zone::prague();
         $groups = [];
         foreach ($items as $item) {
             $day = $item['sentAt']->setTimezone($zone);
@@ -134,7 +133,7 @@ final class NewsItems
      */
     public static function today(array $items, \DateTimeImmutable $now): array
     {
-        $zone = new \DateTimeZone(self::ZONE);
+        $zone = Zone::prague();
         $today = $now->setTimezone($zone)->format('Y-m-d');
 
         return array_values(array_filter(

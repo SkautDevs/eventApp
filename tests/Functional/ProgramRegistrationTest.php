@@ -9,7 +9,7 @@ use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 use App\Program\ProgramUnavailableException;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
@@ -41,7 +41,7 @@ final class ProgramRegistrationTest extends AppTestCase
         if ($write === null && $window === null && $participant === null) {
             return $this->createApp('korbo26');
         }
-        $inner = new StubProgramProvider($this->eventsDir() . '/korbo26/fixtures', $this->stubState);
+        $inner = new LocalProgramProvider($this->eventsDir() . '/korbo26/fixtures', $this->stubState);
         $provider = new class ($inner, $write, $window, $participant) extends DelegatingProvider {
             public function __construct(
                 ProgramProviderInterface $inner,
@@ -399,7 +399,7 @@ final class ProgramRegistrationTest extends AppTestCase
     {
         $file = $this->stubState . '/not-a-directory';
         touch($file);
-        $provider = new StubProgramProvider($this->eventsDir() . '/korbo26/fixtures', $file . '/state');
+        $provider = new LocalProgramProvider($this->eventsDir() . '/korbo26/fixtures', $file . '/state');
         $app = $this->createApp('korbo26', [ProgramProviderInterface::class => $provider]);
         $this->pair($app);
 

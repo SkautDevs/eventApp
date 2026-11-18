@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Cache\FileCache;
 use PHPUnit\Framework\TestCase;
+use Tests\FixedClock;
 
 final class FileCacheTest extends TestCase
 {
@@ -29,7 +30,7 @@ final class FileCacheTest extends TestCase
 
     private function cache(): FileCache
     {
-        return new FileCache($this->dir, fn(): \DateTimeImmutable => $this->now);
+        return new FileCache($this->dir, new FixedClock($this->now));
     }
 
     public function testSetThenGetReturnsTheDataAndTheWriteTime(): void

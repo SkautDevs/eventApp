@@ -192,7 +192,7 @@ final class ProgramsModuleTest extends TestCase
         $fixed = self::program(1, '2027-06-03 08:00:00', '2027-06-03 09:00:00') + ['preregistered' => true];
         $free = self::program(2, '2027-06-03 10:00:00', '2027-06-03 11:00:00') + ['preregistered' => false];
 
-        $model = self::call('buildViewModel', [1 => ['id' => 1, 'title' => 'Blok']], [$fixed, $free], [], true);
+        $model = self::call('buildViewModel', [1 => ['id' => 1, 'title' => 'Blok']], [$fixed, $free], [], true, new \DateTimeImmutable());
 
         $dimmed = array_column($model['overview'][0]['items'], 'dimmed', 'id');
         self::assertSame([1 => false, 2 => true], $dimmed);
@@ -216,12 +216,12 @@ final class ProgramsModuleTest extends TestCase
     public function testTheOverviewHoldsEveryProgrammeAndTheListOnlyTheParticipants(): void
     {
         $fixtures = dirname(__DIR__, 2) . '/events/korbo26/fixtures';
-        $provider = new \App\Program\StubProgramProvider($fixtures, sys_get_temp_dir() . '/eventapp-unused-' . bin2hex(random_bytes(4)));
+        $provider = new \App\Program\LocalProgramProvider($fixtures, sys_get_temp_dir() . '/eventapp-unused-' . bin2hex(random_bytes(4)));
         $all = $provider->getPrograms();
         $mineIds = json_decode((string) file_get_contents($fixtures . '/registered.json'), true)['1'];
         $mine = array_values(array_filter($all, static fn(array $p): bool => in_array($p['id'], $mineIds, true)));
 
-        $model = self::call('buildViewModel', $provider->getSections(), $all, $mine, true);
+        $model = self::call('buildViewModel', $provider->getSections(), $all, $mine, true, new \DateTimeImmutable());
         $preregistered = array_column(array_filter($all, static fn(array $p): bool => $p['preregistered']), 'id');
         self::assertSame([3, 36, 51], $preregistered);
         self::assertSame([], array_intersect($preregistered, $mineIds), 'kissj lists no preregistered programme as anybody\'s');
@@ -260,15 +260,15 @@ final class ProgramsModuleTest extends TestCase
             ['key' => 'page-b', 'day' => date('Y-m-d')],
         ];
 
-        self::assertSame('page-b', self::call('activeKey', $pages));
+        self::assertSame('page-b', self::call('activeKey', $pages, new \DateTimeImmutable()));
     }
 
     public function testTheScreenOpensOnItsFirstPageOutsideTheEvent(): void
     {
         $pages = [['key' => 'page-a', 'day' => '2027-06-03'], ['key' => 'page-b', 'day' => '2027-06-04']];
 
-        self::assertSame('page-a', self::call('activeKey', $pages));
-        self::assertNull(self::call('activeKey', []));
+        self::assertSame('page-a', self::call('activeKey', $pages, new \DateTimeImmutable()));
+        self::assertNull(self::call('activeKey', [], new \DateTimeImmutable()));
     }
 
     // --- records the screen cannot draw -------------------------------------
@@ -366,7 +366,7 @@ final class ProgramsModuleTest extends TestCase
     {
         $sections = [1 => ['id' => 1, 'title' => 'Sekce', 'subTitle' => null]];
 
-        return self::call('buildViewModel', $sections, $all, $mine, $mine !== []);
+        return self::call('buildViewModel', $sections, $all, $mine, $mine !== [], new \DateTimeImmutable());
     }
 
     private static function program(int $id, string $start, string $end, string $location = 'Louka', string $name = 'Program'): array

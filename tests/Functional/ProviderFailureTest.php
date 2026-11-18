@@ -8,7 +8,7 @@ use App\Program\ProgramDataException;
 use App\Program\Pairing;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 
 final class ProviderFailureTest extends AppTestCase
 {
@@ -92,7 +92,7 @@ final class ProviderFailureTest extends AppTestCase
         self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
         self::assertSame('1', $response->getHeaderLine('X-Toast'));
         self::assertStringNotContainsString('class="notice"', $html);
-        // and Profil says it too (Kernel::sessionGone())
+        // and Profil says it too (Authenticator::sessionGone())
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
@@ -123,7 +123,7 @@ final class ProviderFailureTest extends AppTestCase
     /** obrok19's local source, with a start that fails as told. */
     private function failingStart(\Throwable $failure): ProgramProviderInterface
     {
-        return new class (new StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState), $failure) extends DelegatingProvider {
+        return new class (new LocalProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState), $failure) extends DelegatingProvider {
             public function __construct(ProgramProviderInterface $inner, private readonly \Throwable $failure)
             {
                 parent::__construct($inner);

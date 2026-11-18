@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Program;
 
+use App\Time\SystemClock;
+use App\Time\Zone;
+use Psr\Clock\ClockInterface;
+
 /**
  * How old the provider data on this screen is. CachingProgramProvider notes every read;
  * the layout prints the result as data-fetched-at / data-stale on the screen section.
@@ -12,9 +16,6 @@ namespace App\Program;
  */
 final class Freshness
 {
-    /** Kernel::TIMEZONE: the attribute is a local time like every other the app prints */
-    private const string ZONE = 'Europe/Prague';
-
     private ?\DateTimeImmutable $fetchedAt = null;
 
     private bool $stale = false;
@@ -23,9 +24,10 @@ final class Freshness
 
     private \DateTimeImmutable $requestTime;
 
-    public function __construct(?\DateTimeImmutable $requestTime = null)
+    /** Until the first reset(), the request time is the clock's now at construction. */
+    public function __construct(ClockInterface $clock = new SystemClock())
     {
-        $this->requestTime = $requestTime ?? new \DateTimeImmutable();
+        $this->requestTime = $clock->now();
     }
 
     public function reset(\DateTimeImmutable $requestTime): void
@@ -65,8 +67,9 @@ final class Freshness
     public function forView(): array
     {
         return [
+            // Zone::PRAGUE: the attribute is a local time like every other the app prints
             'fetchedAt' => ($this->fetchedAt ?? $this->requestTime)
-                ->setTimezone(new \DateTimeZone(self::ZONE))
+                ->setTimezone(Zone::prague())
                 ->format(\DATE_ATOM),
             'stale' => $this->stale,
         ];

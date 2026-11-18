@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Telemetry;
 
-use App\Kernel;
+use App\Environment;
 use Sentry\ClientBuilder;
 use Sentry\SentrySdk;
 
@@ -15,18 +15,18 @@ use Sentry\SentrySdk;
  */
 final class Telemetry
 {
-    public static function init(): void
+    public static function init(Environment $environment): void
     {
         // A session token or a device code is a plain string argument; with arguments in the
         // traces (the host's ini may leave this off) they would reach Sentry's frames. The
         // Scrubber drops frame vars too, for what was captured before this ran.
         ini_set('zend.exception_ignore_args', '1');
-        $dsn = $_ENV['SENTRY_DSN'] ?? '';
-        if (!is_string($dsn) || $dsn === '') {
+        $dsn = $environment->get('SENTRY_DSN');
+        if ($dsn === '') {
             return;
         }
 
-        SentrySdk::init()->bindClient(ClientBuilder::create(self::options($dsn))->getClient());
+        SentrySdk::init()->bindClient(ClientBuilder::create(self::options($dsn, $environment))->getClient());
     }
 
     /**
@@ -37,14 +37,14 @@ final class Telemetry
      *
      * @return array<string, mixed>
      */
-    public static function options(string $dsn): array
+    public static function options(string $dsn, Environment $environment): array
     {
         return [
             'dsn' => $dsn,
-            'environment' => Kernel::debug() ? 'debug' : 'production',
-            'release' => 'eventapp@' . self::release(dirname(__DIR__, 2)),
-            'traces_sample_rate' => self::rate('SENTRY_TRACES_SAMPLE_RATE'),
-            'profiles_sample_rate' => self::rate('SENTRY_PROFILES_SAMPLE_RATE'),
+            'environment' => $environment->debug() ? 'debug' : 'production',
+            'release' => 'eventapp@' . self::release(dirname(__DIR__, 2), $environment),
+            'traces_sample_rate' => self::rate($environment->get('SENTRY_TRACES_SAMPLE_RATE')),
+            'profiles_sample_rate' => self::rate($environment->get('SENTRY_PROFILES_SAMPLE_RATE')),
             // the SDK default, written out because it is a decision: no IPs, no cookies
             'send_default_pii' => false,
             'before_send' => Scrubber::scrub(...),
@@ -53,10 +53,10 @@ final class Telemetry
     }
 
     /** APP_RELEASE (the Docker build sets it), else the checked-out commit, else 'unknown'. */
-    public static function release(string $root): string
+    public static function release(string $root, Environment $environment): string
     {
-        $release = $_ENV['APP_RELEASE'] ?? '';
-        if (is_string($release) && $release !== '') {
+        $release = $environment->get('APP_RELEASE');
+        if ($release !== '') {
             return $release;
         }
 
@@ -74,10 +74,8 @@ final class Telemetry
     }
 
     /** 0..1; a missing, empty or unparseable value is 0 */
-    private static function rate(string $name): float
+    private static function rate(string $value): float
     {
-        $value = $_ENV[$name] ?? '';
-
         return is_numeric($value) ? max(0.0, min(1.0, (float) $value)) : 0.0;
     }
 }

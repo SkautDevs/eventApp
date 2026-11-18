@@ -6,6 +6,7 @@ namespace Tests\Functional;
 
 use App\EventCatalog;
 use App\Kernel;
+use App\Time\Zone;
 
 final class PickerTest extends AppTestCase
 {
@@ -40,7 +41,7 @@ final class PickerTest extends AppTestCase
     public function testTodayIsTheLocalDayNotTheUtcOne(): void
     {
         // 23:30 UTC on the 20th is 01:30 on the 21st in Prague
-        $today = Kernel::today(new \DateTimeImmutable('2026-09-20 23:30:00 UTC'));
+        $today = Zone::midnight(new \DateTimeImmutable('2026-09-20 23:30:00 UTC'));
         self::assertSame('2026-09-21', $today->format('Y-m-d'));
 
         $html = (string) $this->rawRequest(

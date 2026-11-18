@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Environment;
 use App\Push\EndpointPolicy;
 use PHPUnit\Framework\TestCase;
 
@@ -12,6 +13,12 @@ final class EndpointPolicyTest extends TestCase
     protected function tearDown(): void
     {
         unset($_ENV['PUSH_ENDPOINT_HOSTS']);
+    }
+
+    /** The built-in services plus PUSH_ENDPOINT_HOSTS, as the container builds the policy. */
+    private static function fromEnvironment(): EndpointPolicy
+    {
+        return new EndpointPolicy([...EndpointPolicy::DEFAULT_HOSTS, ...Environment::fromGlobals()->pushEndpointHosts()]);
     }
 
     /** @return iterable<string, array{string}> */
@@ -44,11 +51,11 @@ final class EndpointPolicyTest extends TestCase
 
     public function testTheEnvironmentAddsHostsToTheDefaults(): void
     {
-        self::assertFalse(EndpointPolicy::fromEnvironment()->allows('https://push.example/x'));
+        self::assertFalse(self::fromEnvironment()->allows('https://push.example/x'));
 
         $_ENV['PUSH_ENDPOINT_HOSTS'] = 'push.example, *.dev.example';
 
-        $policy = EndpointPolicy::fromEnvironment();
+        $policy = self::fromEnvironment();
         self::assertTrue($policy->allows('https://push.example/x'));
         self::assertTrue($policy->allows('https://a.dev.example/x'));
         self::assertTrue($policy->allows('https://fcm.googleapis.com/x'), 'the defaults stay');

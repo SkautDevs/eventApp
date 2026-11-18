@@ -34,14 +34,6 @@ final class EndpointPolicy
         ));
     }
 
-    /** The built-in services plus the comma-separated PUSH_ENDPOINT_HOSTS (a test's or a dev setup's). */
-    public static function fromEnvironment(): self
-    {
-        $extra = $_ENV['PUSH_ENDPOINT_HOSTS'] ?? '';
-
-        return new self([...self::DEFAULT_HOSTS, ...explode(',', is_string($extra) ? $extra : '')]);
-    }
-
     public function allows(string $endpoint): bool
     {
         $parts = parse_url($endpoint);

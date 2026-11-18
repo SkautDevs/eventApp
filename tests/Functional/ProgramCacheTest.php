@@ -8,9 +8,10 @@ use App\Cache\FileCache;
 use App\Program\CachingProgramProvider;
 use App\Program\Freshness;
 use App\Program\ProgramProviderInterface;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 use Psr\Container\ContainerInterface;
 use Slim\App;
+use Tests\FixedClock;
 
 /** The decorator end to end: a kissj outage behind a stale entry, as a reader sees it. */
 final class ProgramCacheTest extends AppTestCase
@@ -40,9 +41,9 @@ final class ProgramCacheTest extends AppTestCase
     private function appDuringAnOutage(bool $withEntry = true): App
     {
         if ($withEntry) {
-            $stub = new StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
+            $stub = new LocalProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
             $written = new \DateTimeImmutable('2026-10-01 09:15:00', new \DateTimeZone('Europe/Prague'));
-            (new FileCache($this->dir, static fn(): \DateTimeImmutable => $written))
+            (new FileCache($this->dir, new FixedClock($written)))
                 ->set(CachingProgramProvider::LIST_KEY, [
                     'sections' => $stub->getSections(),
                     'programmes' => $stub->getPrograms(),

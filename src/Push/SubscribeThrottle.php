@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Push;
 
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
+
 /**
  * A limit on new push subscriptions per address and event. The route is unauthenticated
  * and every saved row is a POST at every send, so three hundred new subscriptions per ten
@@ -21,20 +24,23 @@ final class SubscribeThrottle
     /** rows older than this are pruned now and then, so the table stays small without a cron */
     private const string KEEP = 'PT1H';
 
-    public function __construct(private readonly \PDO $pdo) {}
+    public function __construct(
+        private readonly \PDO $pdo,
+        private readonly ClockInterface $clock = new SystemClock(),
+    ) {}
 
-    public function tooMany(string $event, string $key, ?\DateTimeImmutable $now = null): bool
+    public function tooMany(string $event, string $key): bool
     {
-        $since = ($now ?? new \DateTimeImmutable())->sub(new \DateInterval(self::WINDOW));
+        $since = $this->clock->now()->sub(new \DateInterval(self::WINDOW));
         $statement = $this->pdo->prepare('SELECT COUNT(*) FROM subscribe_attempts WHERE event = ? AND ip = ? AND attempted_at > ?');
         $statement->execute([$event, $key, self::stamp($since)]);
 
         return (int) $statement->fetchColumn() >= self::LIMIT;
     }
 
-    public function record(string $event, string $key, ?\DateTimeImmutable $at = null): void
+    public function record(string $event, string $key): void
     {
-        $at ??= new \DateTimeImmutable();
+        $at = $this->clock->now();
         $this->pdo->prepare('INSERT INTO subscribe_attempts (event, ip, attempted_at) VALUES (?, ?, ?)')
             ->execute([$event, $key, self::stamp($at)]);
 

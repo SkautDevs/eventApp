@@ -18,6 +18,7 @@ use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
 use App\Program\ProgramUnavailableException;
 use PHPUnit\Framework\TestCase;
+use Tests\FixedClock;
 
 final class CachingProgramProviderTest extends TestCase
 {
@@ -47,6 +48,9 @@ final class CachingProgramProviderTest extends TestCase
 
     private \DateTimeImmutable $now;
 
+    /** the clock every cache and provider of the test reads; setNow() moves it with $now */
+    private FixedClock $clock;
+
     /** @var list<\Throwable> what reached the collector */
     private array $reported = [];
 
@@ -54,6 +58,7 @@ final class CachingProgramProviderTest extends TestCase
     {
         $this->dir = sys_get_temp_dir() . '/caching-provider-' . bin2hex(random_bytes(4));
         $this->now = new \DateTimeImmutable('2026-10-04 12:00:00', new \DateTimeZone('Europe/Prague'));
+        $this->clock = new FixedClock($this->now);
         $this->reported = [];
     }
 
@@ -65,14 +70,15 @@ final class CachingProgramProviderTest extends TestCase
         @rmdir($this->dir);
     }
 
-    private function clock(): \Closure
+    private function setNow(\DateTimeImmutable $now): void
     {
-        return fn(): \DateTimeImmutable => $this->now;
+        $this->now = $now;
+        $this->clock->set($now);
     }
 
     private function cache(): FileCache
     {
-        return new FileCache($this->dir, $this->clock());
+        return new FileCache($this->dir, $this->clock);
     }
 
     private function provider(FakeProgramProvider $inner, ?Freshness $freshness = null, int $ttl = 300, ?FileCache $cache = null, float $lockWait = 12.0): CachingProgramProvider
@@ -80,9 +86,9 @@ final class CachingProgramProviderTest extends TestCase
         return new CachingProgramProvider(
             inner: $inner,
             cache: $cache ?? $this->cache(),
-            freshness: $freshness ?? new Freshness($this->now),
+            freshness: $freshness ?? new Freshness(new FixedClock($this->now)),
             ttl: $ttl,
-            now: $this->clock(),
+            clock: $this->clock,
             report: function (\Throwable $e): void {
                 $this->reported[] = $e;
             },
@@ -94,7 +100,7 @@ final class CachingProgramProviderTest extends TestCase
     private function seed(string $key, mixed $data, int $age): void
     {
         $then = $this->now->modify(sprintf('-%d seconds', $age));
-        (new FileCache($this->dir, static fn(): \DateTimeImmutable => $then))->set($key, $data);
+        (new FileCache($this->dir, new FixedClock($then)))->set($key, $data);
     }
 
     /** A list entry as the decorator writes it. */
@@ -491,7 +497,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::sessionKey(self::TOKEN), self::sessionEntry(self::OLD_PROGRAMMES), 400);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->identityFailure = self::down();
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
         $provider = $this->provider($inner, $freshness);
 
         $provider->getPrograms();
@@ -521,7 +527,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 301);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->failure = self::down();
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
         $provider = $this->provider($inner, $freshness);
 
         $provider->getPrograms();
@@ -530,7 +536,7 @@ final class CachingProgramProviderTest extends TestCase
 
         // the next request tries again once the breaker has closed: recovery is noticed on
         // the first request after it
-        $this->now = $this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1));
+        $this->setNow($this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1)));
         $freshness->reset($this->now);
         $provider->getPrograms();
         self::assertSame(2, $inner->listCalls);
@@ -543,7 +549,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->failure = $inner->identityFailure = self::down();
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
         $provider = $this->provider($inner, $freshness);
 
         self::assertSame(self::OLD_PROGRAMMES, self::mine($provider));
@@ -561,7 +567,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->failure = $inner->identityFailure = self::down();
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
         $provider = $this->provider($inner, $freshness);
 
         $thrown = null;
@@ -587,7 +593,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
         $inner->identityFailure = self::down();
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
         $provider = $this->provider($inner, $freshness);
 
         self::mine($provider);
@@ -595,7 +601,7 @@ final class CachingProgramProviderTest extends TestCase
         self::assertSame(0, $inner->listCalls);
 
         // past the breaker: within it the expired entry would be served without asking
-        $this->now = $this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1));
+        $this->setNow($this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1)));
         $freshness->reset($this->now);
         self::assertSame(self::PROGRAMMES, $provider->getPrograms());
         self::assertSame(2, $inner->listCalls, 'kissj is asked again on the next request');
@@ -667,7 +673,7 @@ final class CachingProgramProviderTest extends TestCase
         $blocker = (string) tempnam(sys_get_temp_dir(), 'cache-blocker');
         try {
             $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
-            $provider = $this->provider($inner, cache: new FileCache($blocker . '/cache', $this->clock()));
+            $provider = $this->provider($inner, cache: new FileCache($blocker . '/cache', $this->clock));
 
             self::assertSame(self::PROGRAMMES, $provider->getPrograms());
             self::assertCount(1, $this->reported);
@@ -683,7 +689,7 @@ final class CachingProgramProviderTest extends TestCase
         $held = $this->cache()->tryLock(CachingProgramProvider::LIST_KEY);
         self::assertNotNull($held);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
 
         try {
             self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
@@ -716,21 +722,21 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->failure = self::down();
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
 
         self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
         self::assertSame(1, $inner->listCalls);
         self::assertTrue($freshness->isStale());
 
         $start = $this->now;
-        $this->now = $start->modify('+30 seconds');
+        $this->setNow($start->modify('+30 seconds'));
         $freshness->reset($this->now);
         $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         self::assertSame(self::OLD_PROGRAMMES, $this->provider($healthy, $freshness)->getPrograms());
         self::assertSame(0, $healthy->listCalls, 'the breaker is open');
         self::assertTrue($freshness->isStale());
 
-        $this->now = $start->modify('+61 seconds');
+        $this->setNow($start->modify('+61 seconds'));
         $freshness->reset($this->now);
         $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         self::assertSame(self::PROGRAMMES, $this->provider($healthy, $freshness)->getPrograms());
@@ -747,7 +753,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->provider($inner)->getPrograms();
         self::assertNotNull($this->cache()->get(CachingProgramProvider::DOWN_KEY), 'the breaker is open');
 
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
         $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
         self::assertSame(self::PROGRAMMES, self::mine($this->provider($healthy, $freshness)));
         self::assertSame(1, $healthy->identityCalls);
@@ -761,7 +767,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->provider($inner)->getPrograms();
         self::assertNotNull($this->cache()->get(CachingProgramProvider::DOWN_KEY));
 
-        $this->now = $this->now->modify('+61 seconds');
+        $this->setNow($this->now->modify('+61 seconds'));
         $this->provider(new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES))->getPrograms();
 
         self::assertNull($this->cache()->get(CachingProgramProvider::DOWN_KEY));
@@ -773,7 +779,7 @@ final class CachingProgramProviderTest extends TestCase
         $start = $this->now;
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
         foreach ([0, 61, 122] as $offset) {
-            $this->now = $start->modify(sprintf('+%d seconds', $offset));
+            $this->setNow($start->modify(sprintf('+%d seconds', $offset)));
             $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
             $inner->failure = self::down();
             self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner)->getPrograms());
@@ -781,7 +787,7 @@ final class CachingProgramProviderTest extends TestCase
         }
         self::assertCount(1, $this->reported);
 
-        $this->now = $start->modify('+305 seconds');
+        $this->setNow($start->modify('+305 seconds'));
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->failure = self::down();
         $this->provider($inner)->getPrograms();
@@ -797,11 +803,11 @@ final class CachingProgramProviderTest extends TestCase
         $failing->failure = self::down();
         $this->provider($failing)->getPrograms();
 
-        $this->now = $start->modify('+61 seconds');
+        $this->setNow($start->modify('+61 seconds'));
         $this->provider(new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES))->getPrograms();
 
         // within five minutes of the first report: the entry is old again and kissj fails again
-        $this->now = $start->modify('+200 seconds');
+        $this->setNow($start->modify('+200 seconds'));
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
         $failing = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $failing->failure = self::down();
@@ -820,7 +826,7 @@ final class CachingProgramProviderTest extends TestCase
         $held = $this->cache()->tryLock(CachingProgramProvider::LIST_KEY);
         self::assertNotNull($held);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
-        $freshness = new Freshness($this->now);
+        $freshness = new Freshness(new FixedClock($this->now));
 
         try {
             self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
@@ -836,7 +842,7 @@ final class CachingProgramProviderTest extends TestCase
     {
         $tries = 0;
 
-        return new FileCache($this->dir, $this->clock(), static function ($handle, int $operation, &$wouldBlock = null) use (&$tries, $during): bool {
+        return new FileCache($this->dir, $this->clock, static function ($handle, int $operation, &$wouldBlock = null) use (&$tries, $during): bool {
             if ($tries++ === 0) {
                 $wouldBlock = 1;
 

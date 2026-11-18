@@ -6,14 +6,13 @@ namespace App\Module;
 
 use App\Auth\Authenticator;
 use App\EventConfig;
-use App\Kernel;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
 use App\Push\MessageRepository;
-use App\Push\NewsItems;
-use App\Session;
+use App\Push\NotificationList;
 use App\Program\ProgramUnavailableException;
+use Psr\Clock\ClockInterface;
 use Slim\App;
 use Slim\Views\Twig;
 
@@ -25,6 +24,9 @@ use Slim\Views\Twig;
  */
 final class InfoModule implements ModuleInterface
 {
+    /** The clock is the container's; a route reads it once per request. */
+    public function __construct(private readonly ClockInterface $clock) {}
+
     public static function key(): string
     {
         return 'info';
@@ -37,9 +39,12 @@ final class InfoModule implements ModuleInterface
 
     public function registerRoutes(App $app): void
     {
-        $app->get('/informace', function ($request, $response) {
+        // Slim binds a route closure to the container, so the closure takes the clock along
+        $clock = $this->clock;
+        $app->get('/informace', function ($request, $response) use ($clock) {
             $event = $this->get(EventConfig::class);
             $auth = $this->get(Authenticator::class);
+            $now = $clock->now();
             $messages = $this->get(MessageRepository::class)->visible($event->slug);
 
             // programme id => its current name, for the participant's own programmes only
@@ -52,7 +57,7 @@ final class InfoModule implements ModuleInterface
                     }
                 } catch (SessionExpiredException) {
                     // kissj no longer knows the device session: logged out, Profil says why
-                    Kernel::sessionGone($auth, $this->get(Session::class));
+                    $auth->sessionGone();
                     $mine = [];
                 } catch (ProgramUnavailableException|ProgramDataException) {
                     // an outage logs nobody out and is not explained here: without the
@@ -64,7 +69,7 @@ final class InfoModule implements ModuleInterface
             return $this->get(Twig::class)->render($response, 'info.twig', [
                 // optional: an event without content/emergency.php shows no contact
                 'emergency' => $event->content('emergency'),
-                'groups' => NewsItems::groups(NewsItems::items($messages, $mine, new \DateTimeImmutable())),
+                'groups' => NotificationList::groups(NotificationList::items($messages, $mine, $now)),
                 'links' => $event->content('links'),
             ]);
         })->setName('info');

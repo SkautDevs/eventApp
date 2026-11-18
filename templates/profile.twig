@@ -7,9 +7,9 @@
 {% set hasDark = event.roles.dark is defined and event.roles.dark is not empty %}
 
 {% block content %}
-	{# a login's or a logout's toast, on the first full Profil after it (Kernel::takeToast()) #}
+	{# a login's or a logout's toast, on the first full Profil after it (Toasts::take()) #}
 	{% if toast ?? null %}
-		{% include '_toast.twig' with toast only %}
+		{% include '_toast.twig' with {title: toast.title, line: toast.line} only %}
 	{% endif %}
 	<div class="login-box">
 		{% if identity %}

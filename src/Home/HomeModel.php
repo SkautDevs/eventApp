@@ -7,7 +7,8 @@ namespace App\Home;
 use App\EventConfig;
 use App\Module\ProgramsModule;
 use App\Program\RegistrationWindow;
-use App\Push\NewsItems;
+use App\Push\NotificationList;
+use App\Time\Zone;
 
 /**
  * Domů's view model. The server decides which half of the screen a reader sees from the
@@ -18,9 +19,6 @@ use App\Push\NewsItems;
  */
 final class HomeModel
 {
-    /** Kernel::TIMEZONE: the calendar the phases, days and labels are counted in. */
-    private const string ZONE = 'Europe/Prague';
-
     /** Czech weekday names, indexed by format('N'); also the dateToCzechDayName filter's. */
     public const array WEEKDAYS = [
         1 => 'pondělí', 2 => 'úterý', 3 => 'středa', 4 => 'čtvrtek',
@@ -28,7 +26,7 @@ final class HomeModel
     ];
 
     /**
-     * @param list<array> $news NewsItems::items() of the messages this reader may see
+     * @param list<array> $news NotificationList::items() of the messages this reader may see
      * @param list<array> $mine the participant's programmes in the internal shape
      * @param array<int, array{id: int, title: string, subTitle: ?string}> $sections getSections()
      * @return array{
@@ -64,7 +62,7 @@ final class HomeModel
                 : null,
             'window' => self::window($window, $now),
             'paired' => $paired,
-            'news' => NewsItems::today($news, $now),
+            'news' => NotificationList::today($news, $now),
             'nextUp' => self::nextUp($mine, $sections, $now),
         ];
     }
@@ -120,7 +118,7 @@ final class HomeModel
 
     private static function prague(\DateTimeImmutable $at): \DateTimeImmutable
     {
-        return $at->setTimezone(new \DateTimeZone(self::ZONE));
+        return $at->setTimezone(Zone::prague());
     }
 
     /** Whole Prague calendar days from now's date to $date (Y-m-d). */

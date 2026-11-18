@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Program\ProgramProviderInterface;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 use App\Push\MessageRepository;
 
 /** Informace: the crisis contact, every notification under day headings, and the quick links. */
@@ -32,7 +32,7 @@ final class InfoModuleTest extends AppTestCase
     /** A provider whose participant read can be made to fail after the pairing went through. */
     private function failingAfterPairing(string $slug): DelegatingProvider
     {
-        return new class (new StubProgramProvider(dirname(__DIR__, 2) . '/events/' . $slug . '/fixtures', $this->stubState)) extends DelegatingProvider {
+        return new class (new LocalProgramProvider(dirname(__DIR__, 2) . '/events/' . $slug . '/fixtures', $this->stubState)) extends DelegatingProvider {
             public ?\Throwable $failure = null;
 
             public function getParticipant(string $sessionToken): \App\Program\Participant

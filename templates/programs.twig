@@ -39,7 +39,7 @@
 	   timeline because that is what a fresh render defaults to. #}
 	<div class="pg" data-pg-root data-morph-keep="data-view data-step" data-pg-event="{{ event.slug }}" data-view="timeline" data-step="next">
 		{# what a register or unregister said, over the sheet its deep link reopens #}
-		{% if toast %}{% include '_toast.twig' with toast %}{% endif %}
+		{% if toast %}{% include '_toast.twig' with {title: toast.title, line: toast.line} %}{% endif %}
 		{% if notice %}
 			<p class="notice" data-key="notice">{{ notice }}</p>
 		{% endif %}

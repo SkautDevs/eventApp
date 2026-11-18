@@ -7,23 +7,23 @@ namespace Tests\Unit;
 use App\Program\PairingStatus;
 use App\Program\RegistrationRefusedException;
 use App\Program\SessionExpiredException;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 use PHPUnit\Framework\TestCase;
 
-final class StubProgramProviderTest extends TestCase
+final class LocalProgramProviderTest extends TestCase
 {
     /** korbo26's fixture participant 1: real registrations only, none of the preregistered 3, 36 and 51 */
     private const array KORBO_MINE = [5, 10, 26, 31, 45, 50];
 
     private string $stateDir;
 
-    private StubProgramProvider $provider;
+    private LocalProgramProvider $provider;
 
     protected function setUp(): void
     {
         $this->stateDir = sys_get_temp_dir() . '/stub-state-' . bin2hex(random_bytes(6));
         mkdir($this->stateDir);
-        $this->provider = new StubProgramProvider(self::fixtures('obrok19'), $this->stateDir);
+        $this->provider = new LocalProgramProvider(self::fixtures('obrok19'), $this->stateDir);
     }
 
     protected function tearDown(): void
@@ -37,13 +37,13 @@ final class StubProgramProviderTest extends TestCase
         return dirname(__DIR__, 2) . '/events/' . $slug . '/fixtures';
     }
 
-    private function korbo(): StubProgramProvider
+    private function korbo(): LocalProgramProvider
     {
-        return new StubProgramProvider(self::fixtures('korbo26'), $this->stateDir);
+        return new LocalProgramProvider(self::fixtures('korbo26'), $this->stateDir);
     }
 
     /** A session token of participant 1, the way the app gets one: a pairing. */
-    private static function pair(StubProgramProvider $provider): string
+    private static function pair(LocalProgramProvider $provider): string
     {
         $poll = $provider->pollPairing($provider->startPairing(str_repeat('a', 64))->deviceCode);
         self::assertSame(PairingStatus::Approved, $poll->status);
@@ -84,7 +84,7 @@ final class StubProgramProviderTest extends TestCase
 
     public function testNoSectionsFixtureMeansNoSections(): void
     {
-        $provider = new StubProgramProvider(sys_get_temp_dir() . '/no-such-fixtures-' . bin2hex(random_bytes(4)), $this->stateDir);
+        $provider = new LocalProgramProvider(sys_get_temp_dir() . '/no-such-fixtures-' . bin2hex(random_bytes(4)), $this->stateDir);
 
         self::assertSame([], $provider->getSections());
     }
@@ -109,7 +109,7 @@ final class StubProgramProviderTest extends TestCase
         self::assertEquals(new \DateTimeImmutable('2020-01-01T00:00:00+01:00'), $window->start);
         self::assertEquals(new \DateTimeImmutable('2099-01-01T00:00:00+01:00'), $window->end);
 
-        $obrok27 = (new StubProgramProvider(self::fixtures('obrok27'), $this->stateDir))->getRegistrationWindow();
+        $obrok27 = (new LocalProgramProvider(self::fixtures('obrok27'), $this->stateDir))->getRegistrationWindow();
         self::assertSame('2027-03-15T18:00:00+01:00', $obrok27->start?->format(DATE_ATOM));
         self::assertSame('2027-05-19T00:00:00+02:00', $obrok27->end?->format(DATE_ATOM));
 
@@ -159,7 +159,7 @@ final class StubProgramProviderTest extends TestCase
     /** The fixture events have no registered.json: participant 1, with nothing registered. */
     public function testAnEventWithoutRegistrationsPairsParticipantOneWithNoProgrammes(): void
     {
-        $provider = new StubProgramProvider(dirname(__DIR__) . '/fixtures/events/programs/fixtures', $this->stateDir);
+        $provider = new LocalProgramProvider(dirname(__DIR__) . '/fixtures/events/programs/fixtures', $this->stateDir);
 
         $participant = $provider->getParticipant(self::pair($provider));
 
@@ -229,7 +229,7 @@ final class StubProgramProviderTest extends TestCase
         } catch (SessionExpiredException) {
         }
         try {
-            (new StubProgramProvider(self::fixtures('korbo26'), $this->stateDir))->getParticipant($token);
+            (new LocalProgramProvider(self::fixtures('korbo26'), $this->stateDir))->getParticipant($token);
             self::fail('the revocation is kept across requests');
         } catch (SessionExpiredException) {
         }
@@ -251,7 +251,7 @@ final class StubProgramProviderTest extends TestCase
         $provider->register($token, 1);
 
         self::assertSame([1, ...self::KORBO_MINE], array_column($provider->getParticipant($token)->programmes, 'id'));
-        $next = new StubProgramProvider(self::fixtures('korbo26'), $this->stateDir);
+        $next = new LocalProgramProvider(self::fixtures('korbo26'), $this->stateDir);
         self::assertSame([1, ...self::KORBO_MINE], array_column($next->getParticipant($token)->programmes, 'id'));
         self::assertSame(
             ['registrations' => ['1' => [...self::KORBO_MINE, 1]], 'revoked' => []],
@@ -267,7 +267,7 @@ final class StubProgramProviderTest extends TestCase
 
         $provider->unregister($token, 5);
 
-        $next = new StubProgramProvider(self::fixtures('korbo26'), $this->stateDir);
+        $next = new LocalProgramProvider(self::fixtures('korbo26'), $this->stateDir);
         self::assertSame([10, 26, 31, 45, 50], array_column($next->getParticipant($token)->programmes, 'id'));
     }
 
@@ -297,7 +297,7 @@ final class StubProgramProviderTest extends TestCase
         mkdir($dir . '/fixtures', recursive: true);
         file_put_contents($dir . '/fixtures/registered.json', json_encode(['1' => [3, 5]]));
         file_put_contents($dir . '/fixtures/programs.json', json_encode([['id' => 3, 'preregistered' => true], ['id' => 5]]));
-        $provider = new StubProgramProvider($dir . '/fixtures', $this->stateDir);
+        $provider = new LocalProgramProvider($dir . '/fixtures', $this->stateDir);
 
         try {
             self::assertSame([5], array_column($provider->getParticipant('stub-1-0123456789abcdef')->programmes, 'id'));
@@ -340,7 +340,7 @@ final class StubProgramProviderTest extends TestCase
         // a plain file where the directory should be: no mkdir under it, even for root
         $file = $this->stateDir . '/not-a-directory';
         touch($file);
-        $provider = new StubProgramProvider(self::fixtures('korbo26'), $file . '/state');
+        $provider = new LocalProgramProvider(self::fixtures('korbo26'), $file . '/state');
         $token = self::pair($provider);
 
         try {
@@ -383,7 +383,7 @@ final class StubProgramProviderTest extends TestCase
     public function testTheStateDirectoryIsCreatedOnTheFirstWrite(): void
     {
         $dir = $this->stateDir . '/nested';
-        $provider = new StubProgramProvider(self::fixtures('korbo26'), $dir);
+        $provider = new LocalProgramProvider(self::fixtures('korbo26'), $dir);
         $token = self::pair($provider);
 
         try {
@@ -402,7 +402,7 @@ final class StubProgramProviderTest extends TestCase
         file_put_contents($dir . '/fixtures/registered.json', json_encode(['1' => [3, 5], '2' => [5], '3' => []]));
         file_put_contents($dir . '/fixtures/programs.json', json_encode([['id' => 3], ['id' => 5], ['id' => 7]]));
         file_put_contents($dir . '/fixtures/registration.json', json_encode(['start' => '2020-01-01T00:00:00+01:00', 'end' => '2099-01-01T00:00:00+01:00']));
-        $provider = new StubProgramProvider($dir . '/fixtures', $this->stateDir);
+        $provider = new LocalProgramProvider($dir . '/fixtures', $this->stateDir);
 
         try {
             self::assertSame([1, 2], $provider->getParticipantIdsForProgramme(5));

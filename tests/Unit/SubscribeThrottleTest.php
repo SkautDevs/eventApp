@@ -8,6 +8,7 @@ use App\Push\SubscribeThrottle;
 use App\Storage\Database;
 use App\Storage\Migrator;
 use PHPUnit\Framework\TestCase;
+use Tests\FixedClock;
 
 final class SubscribeThrottleTest extends TestCase
 {
@@ -19,10 +20,10 @@ final class SubscribeThrottleTest extends TestCase
         (new Migrator())->migrate($this->pdo);
     }
 
-    private function recordTimes(SubscribeThrottle $throttle, int $times, string $event = 'korbo26', string $key = '10.0.0.1', ?\DateTimeImmutable $at = null): void
+    private function recordTimes(SubscribeThrottle $throttle, int $times, string $event = 'korbo26', string $key = '10.0.0.1'): void
     {
         for ($i = 0; $i < $times; $i++) {
-            $throttle->record($event, $key, $at);
+            $throttle->record($event, $key);
         }
     }
 
@@ -40,13 +41,16 @@ final class SubscribeThrottleTest extends TestCase
 
     public function testSubscriptionsOlderThanTenMinutesDoNotCount(): void
     {
-        $throttle = new SubscribeThrottle($this->pdo);
         $now = new \DateTimeImmutable('2026-10-04 18:00:00', new \DateTimeZone('Europe/Prague'));
+        $clock = new FixedClock($now->modify('-11 minutes'));
+        $throttle = new SubscribeThrottle($this->pdo, $clock);
 
-        $this->recordTimes($throttle, SubscribeThrottle::LIMIT, at: $now->modify('-11 minutes'));
+        $this->recordTimes($throttle, SubscribeThrottle::LIMIT);
 
-        self::assertFalse($throttle->tooMany('korbo26', '10.0.0.1', $now));
-        self::assertTrue($throttle->tooMany('korbo26', '10.0.0.1', $now->modify('-5 minutes')));
+        $clock->set($now);
+        self::assertFalse($throttle->tooMany('korbo26', '10.0.0.1'));
+        $clock->set($now->modify('-5 minutes'));
+        self::assertTrue($throttle->tooMany('korbo26', '10.0.0.1'));
     }
 
     public function testEachEventAndEachAddressHasItsOwnCount(): void

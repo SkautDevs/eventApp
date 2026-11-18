@@ -8,6 +8,7 @@ use App\Auth\PairingThrottle;
 use App\Storage\Database;
 use App\Storage\Migrator;
 use PHPUnit\Framework\TestCase;
+use Tests\FixedClock;
 
 final class PairingThrottleTest extends TestCase
 {
@@ -19,10 +20,10 @@ final class PairingThrottleTest extends TestCase
         (new Migrator())->migrate($this->pdo);
     }
 
-    private function startTimes(PairingThrottle $throttle, int $times, string $event = 'korbo26', string $ip = '10.0.0.1', ?\DateTimeImmutable $at = null): void
+    private function startTimes(PairingThrottle $throttle, int $times, string $event = 'korbo26', string $ip = '10.0.0.1'): void
     {
         for ($i = 0; $i < $times; $i++) {
-            $throttle->record($event, $ip, $at);
+            $throttle->record($event, $ip);
         }
     }
 
@@ -40,13 +41,16 @@ final class PairingThrottleTest extends TestCase
 
     public function testStartsOlderThanTenMinutesDoNotCount(): void
     {
-        $throttle = new PairingThrottle($this->pdo);
         $now = new \DateTimeImmutable('2026-10-04 18:00:00', new \DateTimeZone('Europe/Prague'));
+        $clock = new FixedClock($now->modify('-11 minutes'));
+        $throttle = new PairingThrottle($this->pdo, $clock);
 
-        $this->startTimes($throttle, 300, at: $now->modify('-11 minutes'));
+        $this->startTimes($throttle, 300);
 
-        self::assertFalse($throttle->tooMany('korbo26', '10.0.0.1', $now));
-        self::assertTrue($throttle->tooMany('korbo26', '10.0.0.1', $now->modify('-5 minutes')));
+        $clock->set($now);
+        self::assertFalse($throttle->tooMany('korbo26', '10.0.0.1'));
+        $clock->set($now->modify('-5 minutes'));
+        self::assertTrue($throttle->tooMany('korbo26', '10.0.0.1'));
     }
 
     public function testEachEventAndEachAddressHasItsOwnCount(): void

@@ -211,9 +211,9 @@ final class ServiceWorkerTest extends AppTestCase
     /** obrok19's Program screen as a fragment, from a cache entry written at $written, with kissj down. */
     private function programmeFragment(string $dir, string $written, int $ttl): string
     {
-        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
+        $stub = new \App\Program\LocalProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
         $at = new \DateTimeImmutable($written, new \DateTimeZone('Europe/Prague'));
-        (new \App\Cache\FileCache($dir, static fn(): \DateTimeImmutable => $at))->set(\App\Program\CachingProgramProvider::LIST_KEY, [
+        (new \App\Cache\FileCache($dir, new \Tests\FixedClock($at)))->set(\App\Program\CachingProgramProvider::LIST_KEY, [
             'sections' => $stub->getSections(),
             'programmes' => $stub->getPrograms(),
             'registration' => ['start' => null, 'end' => null],
@@ -241,11 +241,11 @@ final class ServiceWorkerTest extends AppTestCase
     {
         $sw = $this->source();
 
-        self::assertStringContainsString("return response.headers.get('" . \App\Kernel::TOAST_HEADER . "') === '1';", $sw);
+        self::assertStringContainsString("return response.headers.get('" . \App\Toast\Toasts::HEADER . "') === '1';", $sw);
         self::assertStringContainsString('if (storable(response) && !toasted(response)) {', $sw);
         self::assertStringContainsString('(toasted(response) ? Promise.resolve() : putHtml(generation, key, copy))', $sw);
-        self::assertStringContainsString("new Request(url, {headers: {'" . \App\Kernel::WORKER_FILL_HEADER . "': '1'}})", $sw);
-        self::assertStringContainsString("new Request(url, {headers: {'X-Screen': '1', '" . \App\Kernel::WORKER_FILL_HEADER . "': '1'}})", $sw);
+        self::assertStringContainsString("new Request(url, {headers: {'" . \App\Toast\Toasts::WORKER_FILL_HEADER . "': '1'}})", $sw);
+        self::assertStringContainsString("new Request(url, {headers: {'X-Screen': '1', '" . \App\Toast\Toasts::WORKER_FILL_HEADER . "': '1'}})", $sw);
         // a page that was not stored leaves its older copy in, which reconcile() must weigh too
         self::assertStringContainsString('(!stored || request.url !== key.url)', $sw);
     }

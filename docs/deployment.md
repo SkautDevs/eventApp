@@ -520,7 +520,7 @@ What the stack does, and why:
   `LogToSentryIssueHandler`, so code reports an exception through
   `Telemetry\Collector::collect()`, never through the logger. Routine log lines such as
   `push.sent` stay on stdout. Push and cache counts are span data (`push.send`,
-  `push.welcome`, `push.subscribe`, `push.unsubscribe`, `program.cache`), not issues. A
+  `push.welcome`, `push.subscribe`, `program.cache`), not issues. A
   request that matched no route is the one transaction `unmatched`.
 - **Assets carry a content hash.** `templates/_layout.twig` links the stylesheet and
   every script through `asset_version()`, which appends `?v=` and the first 8 hex
@@ -585,9 +585,7 @@ and are unaffected.
    The slug matches `/^[a-z0-9-]+$/` and ends in a two-digit year (`korbo26`).
 2. Set `listed` (shown in the picker or not; a missing key means unlisted) and `dates`
    (`start`, `end` as `YYYY-MM-DD`; the picker splits upcoming from past on `end`, and
-   Domů shows its before, during and after halves by them) in the config, and point
-   `website` (not shown anywhere at the moment) at the event's own site or
-   remove the key.
+   Domů shows its before, during and after halves by them) in the config.
 3. Copy `www/events/obrok27/` to `www/events/<slug>/` and replace the logos, favicons
    and manifest (its `id`, `start_url`, `scope` and `shortcuts` name the slug; a shortcut
    only for a screen the event enables). Generate the icon set from the event's drawing

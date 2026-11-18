@@ -22,7 +22,7 @@ foreach ([
 // fixture files, so none reaches a real kissj whatever a local .env names.
 foreach ([dirname(__DIR__) . '/events', __DIR__ . '/fixtures/events'] as $eventsDir) {
     foreach (glob($eventsDir . '/*', GLOB_ONLYDIR) ?: [] as $dir) {
-        // the key as EventConfig::envKey() builds it
+        // the key as Environment::eventKey() builds it
         $name = 'PROGRAM_PROVIDER_' . strtoupper(str_replace('-', '_', basename($dir)));
         $_ENV[$name] = 'local';
         putenv($name . '=local');

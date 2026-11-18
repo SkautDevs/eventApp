@@ -8,6 +8,9 @@ use App\Cache\CacheEntry;
 use App\Cache\FileCache;
 use App\Telemetry\Collector;
 use App\Telemetry\Tracer;
+use App\Time\SystemClock;
+use App\Time\Zone;
+use Psr\Clock\ClockInterface;
 
 /**
  * kissj's answers, kept on disk: the `list` entry (sections, programmes and the
@@ -78,9 +81,6 @@ final class CachingProgramProvider implements ProgramProviderInterface
     /** when a hidden failure was last reported: its fetchedAt; a success keeps it */
     public const string REPORTED_KEY = 'kissj-reported';
 
-    /** @var \Closure(): \DateTimeImmutable */
-    private readonly \Closure $now;
-
     /** @var \Closure(\Throwable): void */
     private readonly \Closure $report;
 
@@ -96,7 +96,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
 
     /**
      * @param int $ttl seconds an entry is served without asking; 0 asks every time
-     * @param (\Closure(): \DateTimeImmutable)|null $now the clock; tests pass a fixed one
+     * @param ClockInterface $clock the clock; tests pass a fixed one
      * @param (\Closure(\Throwable): void)|null $report where a hidden failure goes; Sentry by default
      * @param float $lockWait seconds a request with no entry waits for another one fetching it
      */
@@ -105,11 +105,10 @@ final class CachingProgramProvider implements ProgramProviderInterface
         private readonly FileCache $cache,
         private readonly Freshness $freshness,
         private readonly int $ttl,
-        ?\Closure $now = null,
+        private readonly ClockInterface $clock = new SystemClock(),
         ?\Closure $report = null,
         private readonly float $lockWait = 12.0,
     ) {
-        $this->now = $now ?? static fn(): \DateTimeImmutable => new \DateTimeImmutable();
         $this->report = $report ?? Collector::collect(...);
     }
 
@@ -292,7 +291,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
         $parsed = \DateTimeImmutable::createFromFormat(\DATE_ATOM, $atom);
         \assert($parsed !== false, 'the list entry was checked as usable');
 
-        return $parsed->setTimezone(new \DateTimeZone('Europe/Prague'));
+        return $parsed->setTimezone(Zone::prague());
     }
 
     /** Whether a stored window end is null or a DATE_ATOM instant. */
@@ -355,7 +354,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
      */
     private function resolve(string $key, \Closure $fetch, \Closure $usable): array
     {
-        $now = ($this->now)();
+        $now = $this->clock->now();
         $entry = $this->usableEntry($key, $usable);
         if ($entry !== null && $entry->isFresh($this->ttl, $now)) {
             return self::served($entry, 'hit', $now);
@@ -380,7 +379,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
             if ($entry !== null) {
                 return self::served($entry, 'locked', $now, stale: $this->cache->get(self::DOWN_KEY) !== null);
             }
-            $waitedSince = ($this->now)();
+            $waitedSince = $this->clock->now();
             $release = $this->cache->waitLock($key, $this->lockWait);
         }
 

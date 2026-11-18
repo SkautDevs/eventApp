@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Program;
 
 use App\Telemetry\Tracer;
+use App\Time\Zone;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ResponseException;
 use GuzzleHttp\Exception\TransferException;
@@ -360,7 +361,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
         if (!is_string($iso)) {
             throw new ProgramDataException(sprintf('kissj sent a %s that is not a datetime string for %s', $field, $where));
         }
-        $prague = new \DateTimeZone('Europe/Prague');
+        $prague = Zone::prague();
         try {
             return (new \DateTimeImmutable($iso, $prague))->setTimezone($prague);
         } catch (\Exception) {
@@ -430,7 +431,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
             throw new ProgramDataException('kissj sent a datetime that is not a string');
         }
 
-        $prague = new \DateTimeZone('Europe/Prague');
+        $prague = Zone::prague();
         try {
             // the zone is the fallback for a naive datetime, which is what a PHP app most
             // likely emits — a no-op when the string carries an offset of its own

@@ -302,11 +302,12 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testAFlagStopsWorkingWhenTheTokenIsRemovedFromTheConfig(): void
     {
-        $app = $this->app();
-        $this->logIn($app, 'tajny-token');
+        $this->logIn($this->app(), 'tajny-token');
         $_ENV['ADMIN_TOKEN_OBROK19'] = '';
 
-        self::assertSame(403, $this->request($app, 'GET', '/admin/notify')->getStatusCode());
+        // an app reads its environment once, when it is built, as a request does in production;
+        // the session is shared under the CLI, so the login carries over
+        self::assertSame(403, $this->request($this->app(), 'GET', '/admin/notify')->getStatusCode());
     }
 
     public function testALoggedInSessionSends(): void
@@ -471,9 +472,9 @@ final class AdminNotifyTest extends AppTestCase
 
     public function testKissjFailingToListParticipantsSendsNothing(): void
     {
-        $stub = new \App\Program\StubProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState);
+        $stub = new \App\Program\LocalProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState);
         $provider = new class ($stub) implements \App\Program\ProgramProviderInterface {
-            public function __construct(private readonly \App\Program\StubProgramProvider $stub) {}
+            public function __construct(private readonly \App\Program\LocalProgramProvider $stub) {}
 
             public function getPrograms(): array
             {

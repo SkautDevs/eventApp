@@ -12,21 +12,31 @@ use Psr\Http\Message\ServerRequestInterface;
  * it is the entry that many hops from the right end of X-Forwarded-For: everything left
  * of what our own proxies appended was written by the client and proves nothing.
  * Anything that is not an IP address, or a chain shorter than the proxy count, falls back
- * to REMOTE_ADDR.
+ * to REMOTE_ADDR. Both settings come from App\Environment through the container.
  */
-final class ClientIp
+final readonly class ClientIp
 {
-    public static function of(ServerRequestInterface $request): string
+    /**
+     * @param int          $trustedProxyCount TRUSTED_PROXY_COUNT: how many hops of X-Forwarded-For our own proxies wrote
+     * @param list<string> $trustedProxies    TRUSTED_PROXIES: addresses and CIDR ranges trusted as proxies besides
+     *                                        loopback and private ones; an entry that is neither is skipped
+     */
+    public function __construct(
+        private int $trustedProxyCount,
+        private array $trustedProxies,
+    ) {}
+
+    public function of(ServerRequestInterface $request): string
     {
         $remote = $request->getServerParams()['REMOTE_ADDR'] ?? '';
         $remote = is_string($remote) && $remote !== '' ? $remote : 'unknown';
 
-        $hops = self::trustedProxyCount();
+        $hops = $this->trustedProxyCount;
         // The header is worth reading only on a connection from a proxy of ours, which is
         // a loopback or private address. A reader connecting straight from the internet
         // wrote X-Forwarded-For themselves, and the login limit must not believe it.
         // TRUSTED_PROXIES widens that to named public addresses (a CDN, a hosted balancer).
-        if ($hops === 0 || !(self::isProxyAddress($remote) || self::isListedProxy($remote))) {
+        if ($hops === 0 || !(self::isProxyAddress($remote) || $this->isListedProxy($remote))) {
             return $remote;
         }
 
@@ -48,9 +58,9 @@ final class ClientIp
      * An IPv4-mapped address (::ffff:a.b.c.d, from a dual-stack socket) is its IPv4 address,
      * or every IPv4 reader of such a server would share the one key ::/64.
      */
-    public static function throttleKey(ServerRequestInterface $request): string
+    public function throttleKey(ServerRequestInterface $request): string
     {
-        $ip = self::of($request);
+        $ip = $this->of($request);
         if (filter_var($ip, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV6) === false) {
             return $ip;
         }
@@ -84,13 +94,12 @@ final class ClientIp
     }
 
     /**
-     * Whether TRUSTED_PROXIES names the address: a comma-separated list of addresses and
-     * CIDR ranges, IPv4 or IPv6. An entry that is neither is skipped, never fatal.
+     * Whether TRUSTED_PROXIES names the address: a list of addresses and CIDR ranges,
+     * IPv4 or IPv6. An entry that is neither is skipped, never fatal.
      */
-    private static function isListedProxy(string $ip): bool
+    private function isListedProxy(string $ip): bool
     {
-        $raw = $_ENV['TRUSTED_PROXIES'] ?? getenv('TRUSTED_PROXIES');
-        if (!is_string($raw) || trim($raw) === '') {
+        if ($this->trustedProxies === []) {
             return false;
         }
         $packed = @inet_pton($ip);
@@ -99,7 +108,7 @@ final class ClientIp
         }
         $packed = self::unmapIpv4($packed) ?? $packed;
 
-        foreach (explode(',', $raw) as $entry) {
+        foreach ($this->trustedProxies as $entry) {
             $parts = explode('/', trim($entry), 2);
             $network = @inet_pton($parts[0]);
             if ($parts[0] === '' || $network === false) {
@@ -143,12 +152,5 @@ final class ClientIp
         return strlen($packed) === 16 && str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff")
             ? substr($packed, 12)
             : null;
-    }
-
-    private static function trustedProxyCount(): int
-    {
-        $value = $_ENV['TRUSTED_PROXY_COUNT'] ?? '0';
-
-        return is_string($value) && ctype_digit($value) ? (int) $value : 0;
     }
 }

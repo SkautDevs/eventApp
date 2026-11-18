@@ -54,8 +54,6 @@ final class EventConfig
         public readonly bool $listed,
         /** @var array{start: string, end: string}|null  Y-m-d, both inclusive */
         public readonly ?array $dates,
-        /** The event's own website, an absolute http(s) URL: what Profil's "web akce" opens. */
-        public readonly ?string $website,
         public readonly array $raw,
         public readonly string $dir,
     ) {}
@@ -110,15 +108,6 @@ final class EventConfig
             throw new \RuntimeException(sprintf('Event config "%s" is listed but has no dates', $slug));
         }
 
-        $website = $data['website'] ?? null;
-        if ($website !== null) {
-            $scheme = is_string($website) ? parse_url($website, \PHP_URL_SCHEME) : null;
-            $host = is_string($website) ? parse_url($website, \PHP_URL_HOST) : null;
-            if (!in_array(is_string($scheme) ? strtolower($scheme) : null, ['http', 'https'], true) || !is_string($host) || $host === '') {
-                throw new \RuntimeException(sprintf('Event config "%s" has an invalid website (expected an absolute http(s) URL)', $slug));
-            }
-        }
-
         $csp = $data['csp'] ?? [];
         if (!is_array($csp)) {
             throw new \RuntimeException(sprintf('Event config "%s" has an invalid csp (expected directive => origins)', $slug));
@@ -148,30 +137,9 @@ final class EventConfig
             features: $data['features'],
             listed: $listed,
             dates: $dates,
-            website: $website,
             raw: $data,
             dir: dirname($file),
         );
-    }
-
-    /** The per-event env var name: `ADMIN_TOKEN` → `ADMIN_TOKEN_OBROK27`. */
-    public function envKey(string $name): string
-    {
-        return $name . '_' . strtoupper(str_replace('-', '_', $this->slug));
-    }
-
-    /**
-     * A per-event setting from the environment. Deliberately no fallback to the
-     * unsuffixed name: one instance serves every event, so an instance-wide
-     * ADMIN_TOKEN or KISSJ_API_KEY would silently apply to all of them.
-     */
-    public function env(string $name, string $default = ''): string
-    {
-        $key = $this->envKey($name);
-        // $_ENV can be empty under php-fpm's variables_order, where the process env still has it
-        $value = $_ENV[$key] ?? getenv($key);
-
-        return is_string($value) && $value !== '' ? $value : $default;
     }
 
     public function content(string $name): array

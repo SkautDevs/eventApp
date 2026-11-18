@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Push;
 
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
+
 /**
  * Every message an organiser sent, kept forever. Informace and a programme's sheet
  * are built from it, which is why a message can be hidden — never deleted, and the last
@@ -12,7 +15,10 @@ namespace App\Push;
 final class MessageRepository
 {
     /** The schema is the Migrator's. */
-    public function __construct(private readonly \PDO $pdo) {}
+    public function __construct(
+        private readonly \PDO $pdo,
+        private readonly ClockInterface $clock = new SystemClock(),
+    ) {}
 
     public function add(
         string $event,
@@ -33,7 +39,7 @@ final class MessageRepository
         );
         $statement->execute([
             'event' => $event,
-            'sent_at' => self::stamp($at),
+            'sent_at' => $this->stamp($at),
             'programme_id' => $programmeId,
             'target_label' => $targetLabel,
             'title' => $title,
@@ -67,7 +73,7 @@ final class MessageRepository
         );
         $statement->execute([
             'event' => $event,
-            'sent_at' => self::stamp($at),
+            'sent_at' => $this->stamp($at),
             'programme_id' => $programmeId,
             'target_label' => $targetLabel,
             'title' => $title,
@@ -122,14 +128,15 @@ final class MessageRepository
         $statement = $this->pdo->prepare(
             'UPDATE messages SET hidden = :hidden, toggled_at = :at, toggled_by = :by WHERE id = :id AND event = :event',
         );
-        $statement->execute(['hidden' => $hidden ? 1 : 0, 'at' => self::stamp($at), 'by' => $by, 'id' => $id, 'event' => $event]);
+        $statement->execute(['hidden' => $hidden ? 1 : 0, 'at' => $this->stamp($at), 'by' => $by, 'id' => $id, 'event' => $event]);
 
         return $statement->rowCount() === 1;
     }
 
-    private static function stamp(?\DateTimeImmutable $at): string
+    /** The instant given, or now by the clock, as the local time the column holds. */
+    private function stamp(?\DateTimeImmutable $at): string
     {
-        return ($at ?? new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        return ($at ?? $this->clock->now())->format('Y-m-d H:i:s');
     }
 
     private static function row(array $r): array

@@ -10,7 +10,7 @@ use App\Program\Participant;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
-use App\Program\StubProgramProvider;
+use App\Program\LocalProgramProvider;
 use Slim\App;
 
 /**
@@ -30,7 +30,7 @@ final class PairingTest extends AppTestCase
 
     private function counted(string $slug = 'korbo26'): CountingProgramProvider
     {
-        return new CountingProgramProvider(new StubProgramProvider(dirname(__DIR__, 2) . '/events/' . $slug . '/fixtures', $this->stubState));
+        return new CountingProgramProvider(new LocalProgramProvider(dirname(__DIR__, 2) . '/events/' . $slug . '/fixtures', $this->stubState));
     }
 
     private function html(App $app, string $path): string
@@ -356,7 +356,7 @@ final class PairingTest extends AppTestCase
     public function testAnApprovalClearsAnEarlierOutcome(): void
     {
         $app = $this->korbo();
-        \App\Kernel::sessionGone($app->getContainer()->get(\App\Auth\Authenticator::class), $app->getContainer()->get(\App\Session::class));
+        $app->getContainer()->get(\App\Auth\Authenticator::class)->sessionGone();
         $this->pair($app);
 
         self::assertArrayNotHasKey('pairingOutcome', $_SESSION['korbo26']);

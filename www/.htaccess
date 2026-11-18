@@ -15,7 +15,7 @@ Options -Indexes
 # .htaccess still gets them from PHP, and a response that never reaches PHP (a static
 # asset, a directory refusal, an Apache-level error page) still gets them here.
 #
-# The values must stay identical to Kernel::addSecurityHeadersMiddleware. mod_headers
+# The values must stay identical to SecurityHeadersMiddleware::HEADERS. mod_headers
 # runs its fixup before PHP generates the response, so PHP's header does not replace
 # Apache's — it is appended next to it, and two X-Frame-Options with different values
 # is a header a browser is entitled to discard. Hence the env guard: the RewriteRule

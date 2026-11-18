@@ -6,7 +6,9 @@ namespace Tests\Unit;
 
 use App\Auth\Authenticator;
 use App\Auth\Identity;
+use App\Auth\PairingState;
 use App\Session;
+use App\Time\SystemClock;
 use PHPUnit\Framework\TestCase;
 
 final class AuthenticatorTest extends TestCase
@@ -16,9 +18,14 @@ final class AuthenticatorTest extends TestCase
         $_SESSION = [];
     }
 
+    private static function authenticator(Session $session): Authenticator
+    {
+        return new Authenticator($session, new PairingState($session, new SystemClock()));
+    }
+
     public function testLoginRoundtrip(): void
     {
-        $auth = new Authenticator(new Session());
+        $auth = self::authenticator(new Session());
 
         self::assertFalse($auth->isLogged());
         self::assertNull($auth->identity());
@@ -38,7 +45,7 @@ final class AuthenticatorTest extends TestCase
     {
         // a session written by the old code must not crash the app bar
         $_SESSION = ['identity' => ['type' => 'skautis', 'displayName' => 'Jan Novák (jnovak)', 'skautisUserId' => 123]];
-        $auth = new Authenticator(new Session());
+        $auth = self::authenticator(new Session());
 
         self::assertNull($auth->identity());
         self::assertFalse($auth->isLogged());
@@ -49,6 +56,6 @@ final class AuthenticatorTest extends TestCase
         // a code-only identity from before pairing carries no session token
         $_SESSION = ['identity' => ['displayName' => 'Účastník', 'participantId' => 1]];
 
-        self::assertFalse((new Authenticator(new Session()))->isLogged());
+        self::assertFalse(self::authenticator(new Session())->isLogged());
     }
 }

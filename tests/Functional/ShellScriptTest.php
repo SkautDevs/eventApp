@@ -159,7 +159,7 @@ final class ShellScriptTest extends AppTestCase
 
     /**
      * The server's relative times and Domů's date are redrawn from the device clock, with
-     * NewsItems::relative()'s bands, on the home screen's triggers.
+     * NotificationList::relative()'s bands, on the home screen's triggers.
      */
     public function testRelativeTimesAndTheHomeDateAreRedrawnFromTheDeviceClock(): void
     {

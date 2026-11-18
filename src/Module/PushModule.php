@@ -7,11 +7,22 @@ namespace App\Module;
 use App\Push\PushSenderInterface;
 use App\Push\SendOutcome;
 use App\Push\SubscriptionRepository;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 
 final class PushModule implements ModuleInterface
 {
+    /**
+     * The clock is the container's; the admin login reads it. The environment holds the
+     * event's ADMIN_TOKEN_<SLUG>, and the client address is what the subscribe limit counts by.
+     */
+    public function __construct(
+        private readonly ClockInterface $clock,
+        private readonly \App\Environment $environment,
+        private readonly \App\Http\ClientIp $clientIp,
+    ) {}
+
     public static function key(): string
     {
         return 'push';
@@ -24,10 +35,14 @@ final class PushModule implements ModuleInterface
 
     public function registerRoutes(App $app): void
     {
-        $app->post('/push/subscribe', function ($request, $response) use ($app) {
+        // Slim binds a route closure to the container, so the closures take the clock along
+        $clock = $this->clock;
+        $environment = $this->environment;
+        $clientIp = $this->clientIp;
+        $app->post('/push/subscribe', function ($request, $response) use ($app, $clientIp) {
             $event = $this->get(\App\EventConfig::class);
 
-            return \App\Telemetry\Tracer::span('push.subscribe', 'subscribe ' . $event->slug, function () use ($request, $response, $app, $event) {
+            return \App\Telemetry\Tracer::span('push.subscribe', 'subscribe ' . $event->slug, function () use ($request, $response, $app, $event, $clientIp) {
                 $body = (array) $request->getParsedBody();
                 $repository = $this->get(SubscriptionRepository::class);
                 $endpoint = is_string($body['endpoint'] ?? null) ? $body['endpoint'] : '';
@@ -43,7 +58,7 @@ final class PushModule implements ModuleInterface
                 }
                 $isNew = $repository->find($event->slug, $endpoint) === null;
                 $throttle = $this->get(\App\Push\SubscribeThrottle::class);
-                $address = \App\Http\ClientIp::throttleKey($request);
+                $address = $clientIp->throttleKey($request);
                 if ($isNew && $throttle->tooMany($event->slug, $address)) {
                     return self::json($response, 429, ['saved' => false, 'error' => 'too-many']);
                 }
@@ -99,39 +114,20 @@ final class PushModule implements ModuleInterface
             });
         })->setName('push-subscribe');
 
-        // Turning notifications off. The browser lets go of the subscription first, so this
-        // is housekeeping: unauthenticated like subscribe, and 204 whether or not the endpoint
-        // was known, because the answer must not tell anyone which endpoints exist.
-        $app->post('/push/unsubscribe', function ($request, $response) {
-            $event = $this->get(\App\EventConfig::class);
-
-            return \App\Telemetry\Tracer::span('push.unsubscribe', 'unsubscribe ' . $event->slug, function () use ($request, $response, $event) {
-                $endpoint = ((array) $request->getParsedBody())['endpoint'] ?? null;
-                if (!is_string($endpoint)) {
-                    return $response->withStatus(400);
-                }
-                $repository = $this->get(SubscriptionRepository::class);
-                \App\Telemetry\Tracer::spanTag('push.found', $repository->find($event->slug, $endpoint) === null ? '0' : '1');
-                $repository->delete($event->slug, $endpoint);
-
-                return $response->withStatus(204);
-            });
-        })->setName('push-unsubscribe');
-
         // The shared link /admin/notify?token=<ADMIN_TOKEN_<SLUG>> logs the browser in for a
         // day and redirects to the bare URL, so the token never sits in history, a referrer
         // or a Sentry transaction. The forms carry a CSRF token instead.
-        $isAdmin = function () use ($app): bool {
+        $isAdmin = function () use ($app, $clock, $environment): bool {
             $c = $app->getContainer();
             // removing the token from the config closes the page for sessions already open
-            if ($c->get(\App\EventConfig::class)->env('ADMIN_TOKEN') === '') {
+            if ($environment->forEvent($c->get(\App\EventConfig::class)->slug, 'ADMIN_TOKEN') === '') {
                 return false;
             }
             $flag = $c->get(\App\Session::class)->get('admin');
             if (!is_array($flag) || !is_int($flag['since'] ?? null)) {
                 return false;
             }
-            $age = time() - $flag['since'];
+            $age = $clock->now()->getTimestamp() - $flag['since'];
 
             return $age >= 0 && $age < self::ADMIN_SESSION_SECONDS;
         };
@@ -214,10 +210,10 @@ final class PushModule implements ModuleInterface
                 ->render($response->withStatus(403), 'admin-expired.twig', ['message' => $echo]);
         };
 
-        $app->get('/admin/notify', function ($request, $response) use ($isAdmin, $render, $app) {
+        $app->get('/admin/notify', function ($request, $response) use ($isAdmin, $render, $app, $clock, $environment) {
             $query = $request->getQueryParams();
             if (array_key_exists('token', $query)) {
-                $expected = $this->get(\App\EventConfig::class)->env('ADMIN_TOKEN');
+                $expected = $environment->forEvent($this->get(\App\EventConfig::class)->slug, 'ADMIN_TOKEN');
                 $given = is_string($query['token']) ? $query['token'] : '';
                 if ($expected === '' || !hash_equals($expected, $given)) {
                     return $response->withStatus(403);
@@ -225,7 +221,7 @@ final class PushModule implements ModuleInterface
                 $session = $this->get(\App\Session::class);
                 // a privilege change, so the session ID changes with it (see Authenticator::store())
                 $session->regenerateId();
-                $session->set('admin', ['since' => time()]);
+                $session->set('admin', ['since' => $clock->now()->getTimestamp()]);
                 // Re-opening the link (a second tab, the team chat) must not invalidate a form
                 // already open elsewhere, so a well-formed token survives the hop.
                 $csrf = $session->get('csrf');

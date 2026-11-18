@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Auth;
 
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
+
 /**
  * A limit on pairing starts, so one phone cannot burn kissj's cap on pending pairings.
  * Every start counts. A camp behind one NAT puts hundreds of readers on one address, so
@@ -19,20 +22,23 @@ final class PairingThrottle
     /** rows older than this are pruned now and then, so the table stays small without a cron */
     private const string KEEP = 'PT1H';
 
-    public function __construct(private readonly \PDO $pdo) {}
+    public function __construct(
+        private readonly \PDO $pdo,
+        private readonly ClockInterface $clock = new SystemClock(),
+    ) {}
 
-    public function tooMany(string $event, string $ip, ?\DateTimeImmutable $now = null): bool
+    public function tooMany(string $event, string $ip): bool
     {
-        $since = ($now ?? new \DateTimeImmutable())->sub(new \DateInterval(self::WINDOW));
+        $since = $this->clock->now()->sub(new \DateInterval(self::WINDOW));
         $statement = $this->pdo->prepare('SELECT COUNT(*) FROM pairing_attempts WHERE event = ? AND ip = ? AND attempted_at > ?');
         $statement->execute([$event, $ip, self::stamp($since)]);
 
         return (int) $statement->fetchColumn() >= self::LIMIT;
     }
 
-    public function record(string $event, string $ip, ?\DateTimeImmutable $at = null): void
+    public function record(string $event, string $ip): void
     {
-        $at ??= new \DateTimeImmutable();
+        $at = $this->clock->now();
         $this->pdo->prepare('INSERT INTO pairing_attempts (event, ip, attempted_at) VALUES (?, ?, ?)')
             ->execute([$event, $ip, self::stamp($at)]);
 

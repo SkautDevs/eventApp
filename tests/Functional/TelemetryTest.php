@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Environment;
 use App\EventConfig;
 use App\Kernel;
 use App\Telemetry\Telemetry;
@@ -58,7 +59,7 @@ final class TelemetryTest extends TestCase
         $before = ini_get('zend.exception_ignore_args');
         ini_set('zend.exception_ignore_args', '0');
         try {
-            Telemetry::init();
+            Telemetry::init(Environment::fromGlobals());
 
             self::assertSame('1', ini_get('zend.exception_ignore_args'));
         } finally {
@@ -71,7 +72,7 @@ final class TelemetryTest extends TestCase
         $_ENV['APP_RELEASE'] = 'abc1234';
         file_put_contents($this->dir . '/.git/HEAD', str_repeat('f', 40) . "\n");
 
-        self::assertSame('abc1234', Telemetry::release($this->dir));
+        self::assertSame('abc1234', Telemetry::release($this->dir, Environment::fromGlobals()));
     }
 
     public function testWithoutAppReleaseTheBranchHeadIsUsed(): void
@@ -79,22 +80,22 @@ final class TelemetryTest extends TestCase
         file_put_contents($this->dir . '/.git/HEAD', "ref: refs/heads/master\n");
         file_put_contents($this->dir . '/.git/refs/heads/master', '1b86114' . str_repeat('0', 33) . "\n");
 
-        self::assertSame('1b86114', Telemetry::release($this->dir));
+        self::assertSame('1b86114', Telemetry::release($this->dir, Environment::fromGlobals()));
     }
 
     public function testADetachedHeadIsUsedAsIs(): void
     {
         file_put_contents($this->dir . '/.git/HEAD', '847e29e' . str_repeat('a', 33) . "\n");
 
-        self::assertSame('847e29e', Telemetry::release($this->dir));
+        self::assertSame('847e29e', Telemetry::release($this->dir, Environment::fromGlobals()));
     }
 
     public function testWithNeitherTheReleaseIsUnknown(): void
     {
-        self::assertSame('unknown', Telemetry::release($this->dir . '/nowhere'));
+        self::assertSame('unknown', Telemetry::release($this->dir . '/nowhere', Environment::fromGlobals()));
 
         file_put_contents($this->dir . '/.git/HEAD', "ref: refs/heads/gone\n");
-        self::assertSame('unknown', Telemetry::release($this->dir), 'a ref file that does not exist (packed refs)');
+        self::assertSame('unknown', Telemetry::release($this->dir, Environment::fromGlobals()), 'a ref file that does not exist (packed refs)');
     }
 
     public function testCollectingWithoutAClientIsANoOp(): void
@@ -151,7 +152,7 @@ final class TelemetryTest extends TestCase
     /** Like kissj: the SDK's default integrations stay, ErrorListenerIntegration among them. */
     public function testTheSdkKeepsItsDefaultIntegrationsLikeKissj(): void
     {
-        $options = Telemetry::options('https://public@sentry.example/1');
+        $options = Telemetry::options('https://public@sentry.example/1', Environment::fromGlobals());
 
         self::assertSame('https://public@sentry.example/1', $options['dsn']);
         self::assertArrayNotHasKey('default_integrations', $options);

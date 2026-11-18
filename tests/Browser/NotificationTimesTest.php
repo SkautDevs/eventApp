@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * The notifications as a copy read later sees them: every relative time and Domů's date
  * heading are redrawn by www/shell.js from the device clock (window.pgClock here), with the
- * server's bands (NewsItems::relative()) on the Prague calendar. And a notification card is
+ * server's bands (NotificationList::relative()) on the Prague calendar. And a notification card is
  * text, read from the left.
  */
 #[Group('browser')]

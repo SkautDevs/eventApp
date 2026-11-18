@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace App\Push;
 
+use App\Time\SystemClock;
+use Psr\Clock\ClockInterface;
+
 final class SubscriptionRepository
 {
     /** Longest endpoint any push service is known to issue is well under this */
     private const int MAX_FIELD_LENGTH = 2048;
 
     /** The schema is the Migrator's: a row is keyed by (event, endpoint). */
-    public function __construct(private readonly \PDO $pdo) {}
+    public function __construct(
+        private readonly \PDO $pdo,
+        private readonly ClockInterface $clock = new SystemClock(),
+    ) {}
 
     /**
      * The route behind this is unauthenticated, so the body is attacker-controlled:
@@ -59,7 +65,7 @@ final class SubscriptionRepository
             'endpoint' => $endpoint,
             'public_key' => $publicKey,
             'auth_token' => $authToken,
-            'created_at' => date('c'),
+            'created_at' => $this->clock->now()->format('c'),
             'event' => $event,
             'participant_id' => $participantId,
         ]);
