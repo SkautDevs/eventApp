@@ -1,0 +1,878 @@
+@charset "utf-8";
+/* Program: the pager, the views, the timeline, the list and the bottom sheet. */
+
+/* ---------------------------------------------------------------------------
+   Program screen (/programy)
+
+   Two views live in the same page — a Gantt-style timeline of everything and a
+   personal list — and a segmented switcher docked above the tab bar picks one.
+   The timeline is the only part of the app allowed to scroll sideways; it does
+   that inside .tl-scroll, with the hour ruler stuck to the top of that box and
+   the stage column stuck to its left edge, so the body never moves in either
+   direction however many stages a day has.
+
+   The grid REBINDS the core roles rather than inventing names for itself: its
+   ground is a surface, its stage column and cards are structure, its hairlines
+   are edges, and the mark on the programmes you are registered for is state.
+   One colour, one role, the same vocabulary as the rest of the app — which is
+   why the stage column is no longer painted in the state colour. It was an
+   accent doing decoration on the largest block of the screen, and that is why
+   nothing else here could read as an accent.
+
+   The hour ruler is the exception, and it has a role of its own to be it:
+   `signature`, structure that carries the identity. It behaves exactly like
+   structure — a filled band of chrome with type on it — but its value is the
+   event's own colour rather than the neutral structure tone, because a
+   monochrome grid leaves the time axis nowhere to be found at a glance. It is
+   the only use of that role in the app; painting a second surface with it would
+   put the screen straight back where it was. It is deliberately a QUIET cast of
+   the identity rather than a full-strength slab: at full strength it is the
+   loudest thing on the screen in light mode and a lit panel at night, and it is
+   chrome, not the accent.
+
+   The stage column keeps a pair of its own, but the value is now a plain neutral
+   in both modes — the lime cast it wore is gone. The two tokens exist because
+   the card and the column want different tones out of the same tier: the card
+   separates from the grid by a tone step AND its hairline, while the column is a
+   band of chrome behind bold names and wants the ink ratio instead.
+
+   The rebinding sits on .tl-scroll and not on .pg, because custom properties
+   inherit: on .pg it would also reach the day strips, the view tabs
+   and the personal list, which are page chrome and not grid chrome.
+
+   The fallbacks are the neutral Figma grid, mixed out of the TEXT pair rather
+   than the brand pair: that pair is the darkest and lightest neutral an event
+   owns, so the mix is a genuine grey in every event.
+
+   The Figma frame paints the grid in neutral greys, which belong to no event's
+   identity and cannot be written as literals here. They are mixed out of the
+   TEXT pair — --color-text against --color-text-invert — because that pair is
+   the darkest and lightest neutral an event owns, so the mix is a genuine grey
+   everywhere. The base pair would not do: obrok19's base is a mid-green, and
+   deriving the ground from it left a green grid carrying green cards.
+
+   For the same reason the grid's dark chrome (hour ruler, stage column, plain
+   cards) is --color-text rather than --color-base. On obrok27 the two keys hold
+   the same value, so that event is unchanged and stays faithful to Figma; on
+   obrok19 it turns a flat green wash into the neutral grid the design draws,
+   and leaves --color-primary free to be the one colour on the screen, marking
+   the programmes you are registered for. "Not registered" stays opacity.
+   --------------------------------------------------------------------------- */
+
+.screen[data-tab="programs"] {
+	/* The screen manages its own vertical rhythm — pager, view, docked switcher —
+	   so the shared top padding goes. The bottom padding stays and holds exactly
+	   the tab bar's height, and the network banner's while it is up: it is what
+	   puts the end of the column on top of that fixed chrome, so a long list can be
+	   scrolled all the way to its last row and the switcher's docked position and
+	   its in-flow position coincide. */
+	padding: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height));
+}
+
+/* The screen is a column exactly one screenful tall: the pager on top, the
+   active view taking what is left, and the view switcher docked at the bottom.
+   Because the switcher is in flow it reserves its height instead of covering
+   the last row of whatever is behind it. */
+.pg {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--screen-height);
+	/* One hour of programme, in pixels, and the only thing the zoom changes —
+	   everything on the grid is positioned as a multiple of it, so setting the
+	   property IS the zoom. Figma's literal 40px leaves a 45-minute card 30px
+	   wide, too narrow for any name; 80px keeps a short name readable and still
+	   fits a 12-hour day in three screenfuls of sideways scrolling, which is why
+	   it is where the screen opens. The bounds are declared here rather than in
+	   the script, so the range lives in one place: 40px is the Figma scale, where
+	   a card is a bar to be read against the ruler, and 200px is roughly where a
+	   half-hour programme's full name fits on one line. */
+	--hour-width: 80px;
+	--hour-width-min: 40px;
+	--hour-width-max: 200px;
+	--tl-stage-width: 104px;
+	/* 4px of air above and below leaves the 36px card Figma draws */
+	--tl-row-height: 44px;
+	--pager-height: 48px;
+
+	text-align: left;
+}
+
+/* --- pager --------------------------------------------------------------- */
+
+.pager {
+	position: sticky;
+	/* docked under the app bar, notch included — the bar grows by the top inset */
+	top: calc(var(--appbar-height) + var(--appbar-inset));
+	z-index: 8;
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	/* No gap and no side padding: the strip of day chips takes whatever the zoom
+	   pair leaves it and scrolls the rest sideways. Each control keeps its own
+	   touch target through its box, so nothing here shrinks a hit area. */
+	gap: 0;
+	height: var(--pager-height);
+	padding: 0;
+	background-color: var(--ground);
+	border-bottom: 1px solid var(--edge);
+}
+
+/* The day strip: every day is a chip, and a strip wider than the phone scrolls
+   sideways under the finger. The current day wears the state fill, exactly as the
+   current screen does in the tab bar. */
+.days {
+	position: relative;
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	height: 100%;
+	padding: 0 8px;
+	overflow-x: auto;
+	overscroll-behavior-x: contain;
+	scrollbar-width: none;
+}
+
+.days::-webkit-scrollbar {
+	display: none;
+}
+
+.day-chip {
+	flex: 0 0 auto;
+	min-width: 44px;
+	min-height: 44px;
+	padding: 0 12px;
+	border-radius: var(--radius-pill);
+	color: var(--on-ground);
+	font-size: var(--fs-md);
+	white-space: nowrap;
+}
+
+.day-chip[aria-current="true"] {
+	background-color: var(--state);
+	color: var(--on-state);
+	font-weight: 700;
+}
+
+/* .days scrolls sideways, so it clips: an outset ring would lose its top and bottom */
+.day-chip:focus-visible {
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
+}
+
+/* The hour-scale zoom, at the right end of the pager row and only on the row the
+   timeline uses — the two lists have no time axis to stretch. */
+.pager-zoom {
+	flex: 0 0 auto;
+	display: flex;
+	gap: 0;
+}
+
+/* The visible ink is a 21px glyph, but the box around it is a full 44x44 touch
+   target: the padding is the target, not the mark. Two of these cost 88px of a
+   402px row; the day strip beside them scrolls what does not fit. */
+.pager-zoom-btn {
+	width: 44px;
+	height: 44px;
+	border-radius: var(--radius);
+	color: var(--emphasis);
+	/* px on purpose: chrome glyph, see --fs-* in :root */
+	font-size: 21px;
+	line-height: 1;
+}
+
+/* disabled rather than silent, so the end of the range is visible */
+.pager-zoom-btn[disabled] {
+	opacity: 0.25;
+	cursor: default;
+}
+
+/* --- view switching ------------------------------------------------------ */
+
+.view-overview,
+.view-timeline,
+.view-list,
+.pg:not([data-view="overview"]) [data-pg-pager="overview"],
+.pg:not([data-view="timeline"]) [data-pg-pager="timeline"],
+.pg:not([data-view="list"]) [data-pg-pager="list"] {
+	display: none;
+}
+
+/* the active view takes whatever the day strip and the switcher leave it */
+.pg[data-view="overview"] .view-overview,
+.pg[data-view="timeline"] .view-timeline,
+.pg[data-view="list"] .view-list {
+	display: block;
+	flex: 1 0 auto;
+}
+
+/* --- timeline ------------------------------------------------------------ */
+
+/* The timeline pages: one day at a time, stepped with ‹ ›. The personal
+   list does not page — every day of it is present and visible, first to last, and the
+   reader scrolls through the lot. */
+.tl-page {
+	display: none;
+}
+
+.tl-page.is-active {
+	display: block;
+}
+
+/* The one box in the app that scrolls in both directions. It takes the screen
+   minus the two pieces of chrome this screen adds — the pager above it and the
+   docked view switcher below — so the grid fills the frame the way Figma's does
+   and its last row stays reachable instead of sitting under the switcher. */
+.tl-scroll {
+	--surface: var(--role-grid, color-mix(in srgb, var(--color-text) 59%, var(--color-text-invert)));
+	--structure: var(--role-grid-structure, var(--color-text));
+	--on-structure: var(--role-on-grid-structure, var(--color-text-invert));
+	--edge: var(--role-grid-edge, var(--color-text-invert));
+	/* Structure that carries the identity — see the block comment above. The hour
+	   ruler is its only use, and it defaults to the grid's own structure, so an
+	   event that declares nothing keeps the neutral ruler it has today. */
+	--signature: var(--role-signature, var(--structure));
+	--on-signature: var(--role-on-signature, var(--on-structure));
+	/* the stage column: structure by behaviour, and separate from the card fill
+	   only because the two want opposite things out of the same value */
+	--stage: var(--role-stage, var(--structure));
+	--on-stage: var(--role-on-stage, var(--on-structure));
+	/* The card's own boundary. Neither the fill nor the line carries the card on its
+	   own: a card at 3:1 against a barely-lit grid is a mid-grey block, which is a
+	   light element in a dark screen, and on a pale grid the palest card there is
+	   is still only a small step away from it. So the two work together — a measurable step in the
+	   fill plus a hairline that clears 3:1 against BOTH the card and the grid. */
+	--hairline: var(--role-hairline, color-mix(in srgb, var(--edge) 45%, transparent));
+	/* How a programme you are registered for is marked, and it is a per-mode choice
+	   because the accent behaves differently in each: on a light grid the card takes
+	   the state colour as its ground and keeps its dark ink, which is the only shape
+	   an identity colour survives on a pale ground; on a dark grid it keeps the
+	   neutral card and takes a thick edge in the accent, which a pale card swallows. */
+	--reg-bg: var(--role-registered-bg, var(--color-primary));
+	--reg-line: var(--role-registered-line, var(--hairline));
+	--reg-width: var(--role-registered-width, 1px);
+	/* the registered card's own ink: on an accent fill the grid's card ink can fall far
+	   below AA (navigamus27 light was 2.0:1), so a set that fills with its accent names it */
+	--reg-fg: var(--role-on-registered, var(--on-structure));
+	display: flex;
+	flex-direction: column;
+	height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
+	overflow: auto;
+	overscroll-behavior: contain;
+	background-color: var(--surface);
+	/* one finger still pans the grid in both directions, but two fingers are the
+	   zoom gesture's, not the browser's — without this its own pinch-zoom would
+	   fight the handler. The page's viewport meta is deliberately left alone, so
+	   pinching anywhere else in the app still zooms the page as usual. */
+	touch-action: pan-x pan-y;
+}
+
+/* min-width keeps the ruler and the rows spanning the box when the day is
+   narrower than the screen, which zooming all the way out can produce */
+.tl-inner {
+	flex: 1 0 auto;
+	display: flex;
+	flex-direction: column;
+	width: calc(var(--tl-stage-width) + var(--tl-hours) * var(--hour-width));
+	min-width: 100%;
+}
+
+.tl-ruler {
+	position: sticky;
+	top: 0;
+	z-index: 6;
+	display: flex;
+	flex: 0 0 auto;
+	height: 47px;
+	background-color: var(--signature);
+}
+
+.tl-ticks {
+	position: relative;
+	flex: 0 0 calc(var(--tl-hours) * var(--hour-width));
+}
+
+.tl-tick {
+	position: absolute;
+	bottom: 7px;
+	padding-left: 5px;
+	/* px on purpose: grid instrument, see --fs-* in :root */
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1;
+	color: var(--on-signature);
+	white-space: nowrap;
+}
+
+/* Zoomed in far enough that a label no longer fits its hour, the text thins to
+   every second hour while every hour keeps its mark, so the axis still reads as
+   an hour grid instead of as one run-on string. The script sets data-hour-step
+   from the live scale, which is what makes it follow a pinch.
+
+   Two things this must not do, and does not: it never touches a tick's position
+   — those are absolute, off --hour-width, and the anchoring maths depends on it
+   — and it never blanks the first label, which is the reader's way into the
+   axis. nth-child(even) hides the 2nd, 4th, 6th and leaves the 1st alone.
+
+   visibility, not display: .tl-tick draws its mark above itself with a ::before
+   offset from its own height, so collapsing the text box would drop every mark
+   down the ruler. */
+.pg[data-hour-step="2"] .tl-tick:nth-child(even) .tl-tick-label {
+	visibility: hidden;
+}
+
+/* the mark the label belongs to, sitting exactly on the hour */
+.tl-tick::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	bottom: calc(100% + 5px);
+	width: 2px;
+	height: 11px;
+	background-color: var(--on-signature);
+}
+
+/* The current-time line. It lives on the page whose axis holds "now" (data-now, set
+   by www/js/programs/nowline.js from the reader's clock, with --now-offset in hours from the
+   axis start) and is placed in the same unit as everything else on the grid, so the
+   zoom carries it along. The server writes neither, so a background morph leaves
+   both alone. .tl-inner is the line's containing block. */
+.tl-inner {
+	position: relative;
+}
+
+.tl-now,
+.tl-now-tick {
+	display: none;
+	position: absolute;
+	width: 2px;
+	pointer-events: none;
+	background-color: var(--now);
+}
+
+.tl-page[data-now] .tl-now,
+.tl-page[data-now] .tl-now-tick {
+	display: block;
+}
+
+/* Under the ruler, over the cards, under the stage column: the cards carry no
+   z-index, the pinned .tl-stage is 3 and the sticky .tl-ruler 6. It starts below
+   the ruler's 47px and past the stage column, which is pinned over the axis. */
+.tl-now {
+	top: 47px;
+	bottom: 0;
+	left: calc(var(--tl-stage-width) + var(--hour-width) * var(--now-offset, 0));
+	z-index: 2;
+}
+
+/* the line's mark on the ruler, inside .tl-ticks, so the corner cell (7) covers it */
+.tl-now-tick {
+	top: 0;
+	bottom: 0;
+	left: calc(var(--hour-width) * var(--now-offset, 0));
+	z-index: 1;
+}
+
+.tl-now-label {
+	position: absolute;
+	top: 3px;
+	left: 4px;
+	padding: 1px 4px;
+	border-radius: var(--radius-card);
+	background-color: var(--now);
+	color: var(--on-action);
+	/* px on purpose: grid instrument, see --fs-* in :root */
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+
+.tl-row {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: stretch;
+	border-bottom: 1px solid var(--edge);
+}
+
+/* the stage names stay put while the hours scroll under them */
+.tl-stage {
+	position: sticky;
+	left: 0;
+	z-index: 3;
+	flex: 0 0 var(--tl-stage-width);
+	display: flex;
+	align-items: center;
+	padding: 6px 10px;
+	background-color: var(--stage);
+	color: var(--on-stage);
+	/* px on purpose: grid instrument, see --fs-* in :root */
+	font-size: 14px;
+	font-weight: 700;
+	line-height: 1.15;
+	overflow-wrap: anywhere;
+}
+
+/* The corner cell: pinned in both directions, so neither the ruler nor the
+   stage column ever slides out from under it. It belongs to the ruler rather
+   than to the stage column, so it shows the ruler's ground through — on an
+   event that grounds the two the same way, that is the same pixel as before. */
+.tl-stage-head {
+	z-index: 7;
+	padding: 0;
+	background-color: transparent;
+}
+
+/* the stage colour carries on down the left edge and the grid neutral under the
+   tracks, so a day with three stages reads as the same frame as one with twelve */
+.tl-fill {
+	display: flex;
+	flex: 1 0 0;
+}
+
+.tl-tracks {
+	position: relative;
+	flex: 0 0 calc(var(--tl-hours) * var(--hour-width));
+}
+
+/* one hairline per hour, drawn behind the cards */
+.tl-lines {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	opacity: 0.35;
+	background-image: repeating-linear-gradient(to right, var(--edge) 0 1px, transparent 1px var(--hour-width));
+}
+
+.tl-track {
+	position: relative;
+	height: var(--tl-row-height);
+}
+
+/* Accepted target exceptions. The card is 36px tall (46px wide at least) because the
+   grid's geometry is the Figma card and is frozen; it clears the WCAG 2.5.8 24px floor.
+   .pl-open is a one-line button, but the pointer target is the whole .pl-item card
+   (44px and up), which is what the handler matches on. Inline text links (colophon,
+   .credit) are exempt by the standard. */
+.tl-card {
+	position: absolute;
+	top: 4px;
+	bottom: 4px;
+	/* a half-hour programme is 40px at this scale — still worth a thumb */
+	min-width: 46px;
+	display: flex;
+	align-items: center;
+	padding: 2px 7px;
+	/* a hairline in the grid's line colour, so the card edge stays crisp where the
+	   ink and the ground are closest — obrok19's pair is 3.1:1 */
+	border: 1px solid var(--hairline);
+	border-radius: var(--radius-card);
+	background-color: var(--structure);
+	color: var(--on-structure);
+	font-family: inherit;
+	/* px on purpose: grid instrument, see --fs-* in :root */
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 1.1;
+	text-align: left;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.tl-card-name {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.tl-card.is-registered {
+	background-color: var(--reg-bg);
+	border-color: var(--reg-line);
+	border-width: var(--reg-width);
+	color: var(--reg-fg);
+	font-weight: 700;
+}
+
+/* logged in, everything you are not registered for steps back — opacity, never a colour;
+   Přehled's rows the same way, and only there. Stepping back is not fading out: 0.75 keeps
+   body ink at AA on its ground in every shipped set (obrok19's light grey ink is the
+   tightest, 4.6:1 composited; ThemingTest measures it), where 0.45 left it at 2.3:1. */
+.tl-card.is-dimmed,
+.pl-item.is-dimmed {
+	opacity: 0.75;
+}
+
+.tl-card:focus-visible {
+	outline-offset: -3px;
+	box-shadow: inset 0 0 0 5px var(--ground);
+}
+
+/* --- the list: Přehled and Moje ------------------------------------------ */
+
+/* One continuous scroll over the whole event, in each of the two list views. The
+   strip above only marks where the reader is; it is the day headings inside the
+   scroll that do the dividing. */
+
+/* The last day has to be able to dock under the strip like every other one, and it
+   cannot if the document ends two rows below its heading: its chip would land short
+   and the strip would never mark it current. Its box is therefore
+   at least as tall as the band the reader reads in — the same height the timeline's
+   grid takes — so there is always scroll left for it to claim. */
+.pl-day:last-child {
+	min-height: calc(var(--screen-height) - var(--pager-height) - var(--tabs-height));
+}
+
+/* Sticky against the bottom edge of the strip, so the day being read is named twice —
+   in the strip, which follows the scroll, and here, where the reader's eye already is.
+   It is a bar, so it takes the bar tier and its hairline. */
+.pl-head {
+	position: sticky;
+	/* the notch included, exactly as the strip above it has it: the two dock against
+	   the same line, and bandTop() in www/js/programs/daylist.js reads the same three tokens —
+	   the day the strip names has to be the day whose heading is stuck here */
+	top: calc(var(--appbar-height) + var(--appbar-inset) + var(--pager-height));
+	z-index: 5;
+	margin: 0;
+	padding: 8px 14px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border-bottom: 1px solid var(--edge);
+	font-size: var(--fs-md);
+	line-height: 1.2;
+}
+
+/* A start-time column, then the name, "do HH:MM · place" and the tag in the second.
+   Every line but the time is placed in the second column; each takes the next row. */
+.pl-item {
+	display: grid;
+	grid-template-columns: 3.25em minmax(0, 1fr);
+	column-gap: 10px;
+	align-items: start;
+	padding: 12px 14px;
+	border-bottom: 1px solid var(--edge);
+	cursor: pointer;
+}
+
+.pl-item > * {
+	grid-column: 2;
+}
+
+.pl-item > .pl-time {
+	grid-column: 1;
+	grid-row: 1 / span 4;
+}
+
+/* "now" in Můj program, from the reader's clock (www/js/programs/nowline.js): what is running
+   carries a "probíhá" chip, and the next thing to start has the current-time line
+   above it with a "teď" chip. Both chips are small fills of --now under on-action ink
+   — the same pair as the timeline's label, AA by construction (ThemingTest) — and
+   neither is ink of --now on the ground: --now is the action FILL, which as text on
+   a pale ground falls to 2.8:1. The running chip hangs off the card itself, top
+   right, so it is outside .pl-time's 0.75 opacity; the name beside it leaves room. */
+.pl-item[data-now] {
+	position: relative;
+}
+
+.pl-item[data-now="running"] .pl-name {
+	padding-right: 5.5em;
+}
+
+.pl-item[data-now="running"]::after,
+.pl-item[data-now="next"]::before {
+	position: absolute;
+	padding: 0 6px;
+	border-radius: var(--radius-card);
+	background-color: var(--now);
+	color: var(--on-action);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	line-height: 1.4;
+}
+
+.pl-item[data-now="running"]::after {
+	content: "probíhá";
+	top: 12px;
+	right: 14px;
+}
+
+.pl-item[data-now="next"] {
+	border-top: 2px solid var(--now);
+}
+
+.pl-item[data-now="next"]::before {
+	content: "teď";
+	top: -0.7em;
+	left: 14px;
+}
+
+/* The card is not the control. As <article role="button"> it flattened four lines of
+   programme — time, name, place, perex — into one 120-character accessible name, and
+   the reader had no way to hear the parts. The NAME is the control and the rest of
+   the card stays text; a pointer press anywhere on the card still opens the sheet,
+   because the handler matches the nearest [data-pg-open] and the card carries one.
+   It is styled to be indistinguishable from the h3 it sits in. */
+.pl-open {
+	display: block;
+	width: 100%;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.pl-time {
+	margin: 0;
+	font-size: var(--fs-md);
+	font-weight: 700;
+	line-height: 1.5;
+	opacity: 0.75;
+}
+
+/* a name is whatever kissj sends: one unbroken run (obrok27's fixtures carry 366 stray
+   accents) must wrap rather than widen the list and push the docked bars off a phone */
+.pl-name {
+	margin: 0 0 2px;
+	font-size: var(--fs-lg);
+	overflow-wrap: anywhere;
+}
+
+.pl-meta {
+	margin: 0 0 4px;
+	font-size: var(--fs-sm);
+}
+
+/* "Zapsáno": a small fill of the state the active tab wears, under its own ink, with
+   the ground's hairline round it — obrok27's light state is 1.01:1 on its pale ground,
+   and the pill had no edge at all there */
+.pl-tag {
+	justify-self: start;
+	margin: 0 0 4px;
+	padding: 0 8px;
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius-pill);
+	background-color: var(--state);
+	color: var(--on-state);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	line-height: 1.6;
+}
+
+/* a description is plain text whose line breaks are meant (kissj's API contract 3.0) */
+.pl-perex {
+	margin: 0;
+	font-size: var(--fs-sm);
+	line-height: 1.35;
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+/* --- programme detail, as a bottom sheet --------------------------------- */
+
+/* hidden rather than display:none, so the closing slide has something to play on */
+.sheet {
+	position: fixed;
+	inset: 0;
+	z-index: 50;
+	visibility: hidden;
+}
+
+.sheet.is-open {
+	visibility: visible;
+}
+
+.sheet-backdrop {
+	position: absolute;
+	inset: 0;
+	background-color: var(--scrim);
+	opacity: 0;
+}
+
+.sheet.is-open .sheet-backdrop {
+	opacity: 0.55;
+}
+
+/* anchored to the bottom edge of the phone column, as tall as its content needs
+   and no taller than 85% of the screen, scrolling inside itself past that.
+
+   The sheet is a surface of its own, so it rebinds the surface pair rather than
+   adding a name. Both shipped events hand it the light end in light mode and the
+   unlit one at night — it is one of the biggest filled areas in the app and
+   it follows the mode like every other. The fallback is the Figma prototype's
+   dark panel with inverted type, which is what an event declaring nothing keeps;
+   the pair always moves together, so it can never end up light on light. */
+.sheet-card {
+	position: absolute;
+	left: 50%;
+	bottom: 0;
+	width: 100%;
+	max-width: var(--app-width);
+	max-height: calc(var(--app-height) * 0.85);
+	display: flex;
+	flex-direction: column;
+	--surface: var(--role-sheet, var(--color-base));
+	--on-surface: var(--role-on-sheet, var(--color-text-invert));
+	/* the close row is the sheet's own action, so the action pair is rebound here
+	   too: it has to separate from THIS surface, not from the page ground */
+	--action: var(--role-sheet-action, color-mix(in srgb, var(--color-primary) 35%, var(--color-text-invert)));
+	--on-action: var(--role-on-sheet-action, var(--color-text));
+	border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+	background-color: var(--surface);
+	color: var(--on-surface);
+	border-top: var(--edge-width) solid var(--edge);
+	transform: translate(-50%, 100%);
+	overflow: hidden;
+}
+
+.sheet.is-open .sheet-card {
+	transform: translate(-50%, 0);
+}
+
+.sheet-card:focus {
+	outline: none;
+	box-shadow: none;
+}
+
+.sheet-scroll {
+	flex: 0 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: 20px 18px 16px;
+}
+
+.sheet-body {
+	display: none;
+}
+
+.sheet-body.is-open {
+	display: block;
+}
+
+/* the name, with the section as a chip under it */
+.sheet-head {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+/* the sheet's own heading colour: everywhere else an h2 is --color-darker, but
+   on the sheet it takes the same end of the ramp as the rest of the sheet's type */
+.sheet-name {
+	max-width: 100%;
+	margin: 0;
+	color: var(--on-surface);
+	font-size: var(--fs-2xl);
+	font-weight: 700;
+	line-height: 1.1;
+	overflow-wrap: anywhere;
+}
+
+/* the section, tonal like a secondary button: the pair carries its own ink */
+.sheet-chip {
+	display: inline-block;
+	max-width: 100%;
+	padding: 2px 10px;
+	border-radius: var(--radius-pill);
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+	font-size: var(--fs-xs);
+	font-weight: 700;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+/* Kdy and Kde, two columns: the label, then what it says */
+.sheet-facts {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 4px 12px;
+	margin: 0 0 12px;
+	font-size: var(--fs-md);
+}
+
+.sheet-facts dt {
+	font-weight: 700;
+}
+
+.sheet-facts dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+/* the star carries the accent here; the primary would be a poor read on the
+   dark ground, and Figma sets every line of sheet type to the same light colour */
+.sheet-mine {
+	margin: 0 0 8px;
+	font-size: var(--fs-sm);
+}
+
+.sheet-perex {
+	margin: 0 0 12px;
+	line-height: 1.4;
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+.sheet-lector {
+	margin: 0 0 8px;
+}
+
+/* What the reader can do about the programme: one line, one button, or nothing. The
+   buttons take the sheet's width, like its close row under them. */
+.sheet-footer {
+	margin: 16px 0 0;
+}
+
+.sheet-footer:empty {
+	display: none;
+}
+
+.sheet-footer form {
+	margin: 0;
+}
+
+.sheet-footer .btn {
+	width: 100%;
+}
+
+.sheet-line {
+	margin: 0;
+	font-weight: 700;
+}
+
+/* Figma paints this row a coral that belonged to no event's palette and to no
+   job — a third hue on a screen that already had two — so the literal is gone and
+   the row wears the accent that means "action" everywhere else in the app.
+
+   It is a token pair rather than one colour because the row has to separate from
+   whatever ground the sheet is on, and events set that independently. The default
+   is a light TINT of the action colour, which lifts off the dark sheet that is
+   the default; full-strength primary would not, and on obrok19 in particular a
+   dark red on a dark green sheet measures 1.2:1 and disappears. An event whose
+   sheet is a light surface overrides both, where full strength reads as the
+   action and a tint of it would wash out. Measured: default 3.3:1 off obrok19's
+   sheet carrying a 4.7:1 label. */
+.sheet-close {
+	flex: 0 0 auto;
+	display: block;
+	width: 100%;
+	padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+	border: none;
+	background-color: var(--action);
+	color: var(--on-action);
+	font-family: inherit;
+	font-size: var(--fs-xl);
+	font-weight: 700;
+	text-align: center;
+	cursor: pointer;
+}
+
+/* inset like .tabs-tab and .tl-card: the button runs to the card's edges and
+   .sheet-card clips (overflow: hidden), so an outset ring would keep only its top */
+.sheet-close:focus-visible {
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
+}

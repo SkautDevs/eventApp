@@ -8,6 +8,7 @@ use App\EventConfig;
 use App\Http\AssetVersion;
 use App\Http\Precache;
 use App\Http\ScriptVersion;
+use App\Module\Modules;
 
 /** What the service worker keeps, as the server says it. */
 final class PrecacheTest extends AppTestCase
@@ -37,8 +38,12 @@ final class PrecacheTest extends AppTestCase
     {
         $assets = $this->listFor('obrok27')['assets'];
 
-        $hash = substr((string) hash_file('sha256', dirname(__DIR__, 2) . '/www/style.css'), 0, 8);
-        self::assertContains('/style.css?v=' . $hash, $assets);
+        $modules = $this->createApp('obrok27')->getContainer()?->get(Modules::class);
+        self::assertInstanceOf(Modules::class, $modules);
+        foreach (['css/base.css', ...$modules->stylesheets(), 'css/motion.css'] as $sheet) {
+            $hash = substr((string) hash_file('sha256', dirname(__DIR__, 2) . '/www/' . $sheet), 0, 8);
+            self::assertContains('/' . $sheet . '?v=' . $hash, $assets);
+        }
         // every script of the tree, under the tree's one version, for every event
         $scripts = new ScriptVersion(dirname(__DIR__, 2) . '/www');
         foreach (glob(dirname(__DIR__, 2) . '/events/*/config.php') ?: [] as $config) {
@@ -92,9 +97,11 @@ final class PrecacheTest extends AppTestCase
         // a fixture event ships no files at all: the scripts and the shell's fonts, and
         // nothing that would 404
         $minimal = $this->listFor('minimal', fixtureEvent: true)['assets'];
-        self::assertCount(1 + count((new ScriptVersion($root . '/www'))->files()) + 7, $minimal);
+        $modules = $this->createApp('minimal', fixtureEvent: true)->getContainer()?->get(Modules::class);
+        self::assertInstanceOf(Modules::class, $modules);
+        self::assertCount(2 + count($modules->stylesheets()) + count((new ScriptVersion($root . '/www'))->files()) + 7, $minimal);
         foreach ($minimal as $url) {
-            self::assertMatchesRegularExpression('~^/(style\.css\?v=[0-9a-f]{8}|js/[0-9a-f]{8}/.+|fonts/.+\.woff2|vendor/fontawesome-free-5\.8\.1/.+)$~', $url);
+            self::assertMatchesRegularExpression('~^/(css/[a-z]+\.css\?v=[0-9a-f]{8}|js/[0-9a-f]{8}/.+|fonts/.+\.woff2|vendor/fontawesome-free-5\.8\.1/.+)$~', $url);
         }
     }
 

@@ -58,7 +58,7 @@ final class Definitions
                             http: new \GuzzleHttp\Client(['base_uri' => $programSource . '/', 'timeout' => 10]),
                             apiKey: $apiKey,
                         ),
-                        cache: new Cache\FileCache($root . '/var/cache/' . $event->slug, $clock),
+                        cache: new Cache\FileCache($environment->cachePath($root) . '/' . $event->slug, $clock),
                         freshness: $freshness,
                         ttl: $environment->programCacheTtl(),
                         clock: $clock,
@@ -73,10 +73,11 @@ final class Definitions
             // service worker's precache list
             Http\AssetVersion::class => fn(): Http\AssetVersion => new Http\AssetVersion($root . '/www'),
             // the scripts' one version, the www/js/ tree's: script_url() in the layout, and
-            // the precache list
-            Http\ScriptVersion::class => fn(): Http\ScriptVersion => new Http\ScriptVersion($root . '/www'),
-            // the scripts' static import graph: the layout preloads every file an entry imports
-            Http\ScriptGraph::class => fn(Paths $paths): Http\ScriptGraph => new Http\ScriptGraph($paths->www),
+            // the precache list; kept across requests under CACHE_PATH, var/cache (ScriptTree)
+            Http\ScriptVersion::class => fn(Environment $environment): Http\ScriptVersion => new Http\ScriptVersion($root . '/www', $environment->cachePath($root)),
+            // the scripts' static import graph: the layout preloads every file an entry
+            // imports; kept across requests under CACHE_PATH, var/cache (ScriptTree)
+            Http\ScriptGraph::class => fn(Paths $paths, Environment $environment): Http\ScriptGraph => new Http\ScriptGraph($paths->www, $environment->cachePath($paths->root)),
             // var/sessions (or SESSION_PATH), created 0700 on first use: nothing about sessions
             // depends on the host's ini (the FTP host's handler and defaults are unknown)
             Session::class => fn(ClockInterface $clock, Environment $environment): Session => new Session($event->slug, $environment->sessionPath($root), appRoot: $root, clock: $clock),

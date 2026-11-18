@@ -137,7 +137,7 @@ final class ProgramRegistrationTest extends AppTestCase
         $html = (string) $page->getBody();
         $toast = self::toast($html);
         self::assertSame(
-            '<div class="toast" role="status" data-toast data-key="toast"><p><strong>Přihlášen: Volejbal</strong><span>St 16. 9. · 8:00–22:00 · Volejbalové hřiště</span></p><button type="button" class="toast-close" data-toast-close aria-label="Zavřít">✕</button></div>',
+            '<div class="toast" role="status" data-toast data-key="toast"><p><strong>Zapsáno: Volejbal</strong><span>St 16. 9. · 8:00–22:00 · Volejbalové hřiště</span></p><button type="button" class="toast-close" data-toast-close aria-label="Zavřít">✕</button></div>',
             $toast,
         );
         // the section is the sheet's business, not the toast's
@@ -161,7 +161,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         self::assertNull(self::toast($this->html($app, '/programy', ['X-Screen' => '1'])));
         self::assertNull(self::toast($this->html($app, '/programy', ['X-Worker-Fill' => '1'])));
-        self::assertStringContainsString('Přihlášen: Volejbal', (string) self::toast($this->html($app)));
+        self::assertStringContainsString('Zapsáno: Volejbal', (string) self::toast($this->html($app)));
     }
 
     public function testAnUnregistrationSaysTheSeatIsFree(): void
@@ -175,7 +175,7 @@ final class ProgramRegistrationTest extends AppTestCase
         self::assertStringEndsWith('-program-' . self::MINE, $response->getHeaderLine('Location'));
 
         $html = $this->html($app);
-        self::assertStringContainsString('<strong>Odhlášen: ' . htmlspecialchars($this->programmeName(self::MINE)) . '</strong><span>Místo jsme uvolnili</span>', (string) self::toast($html));
+        self::assertStringContainsString('<strong>Zápis zrušen: ' . htmlspecialchars($this->programmeName(self::MINE)) . '</strong><span>Místo jsme uvolnili</span>', (string) self::toast($html));
         self::assertStringNotContainsString('is-registered', self::cardClasses($html, self::MINE));
     }
 
@@ -197,11 +197,11 @@ final class ProgramRegistrationTest extends AppTestCase
         $html = $this->html($app);
 
         self::assertSame(
-            '<form method="post" action="/korbo26/programy/1/prihlasit" data-key="register" data-pg-write="1"><button class="btn btn-primary">Přihlásit se</button></form>',
+            '<form method="post" action="/korbo26/programy/1/prihlasit" data-key="register" data-pg-write="1"><button class="btn btn-primary">Zapsat program</button></form>',
             self::sheet($html, self::FREE),
         );
         self::assertSame(
-            '<form method="post" action="/korbo26/programy/5/odhlasit" data-key="unregister" data-pg-write="5"><button class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z programu</button></form>',
+            '<form method="post" action="/korbo26/programy/5/odhlasit" data-key="unregister" data-pg-write="5"><button class="btn" data-confirm="Opravdu zrušit zápis?">Zrušit zápis</button></form>',
             self::sheet($html, self::MINE),
         );
         // a preregistered programme shows no button, and is not dimmed
@@ -252,11 +252,11 @@ final class ProgramRegistrationTest extends AppTestCase
 
         $this->post($app, self::FREE);
         self::assertSame(302, $this->post($app, self::FREE)->getStatusCode());
-        self::assertStringContainsString('<strong>Přihlášen: Volejbal</strong>', (string) self::toast($this->html($app)));
+        self::assertStringContainsString('<strong>Zapsáno: Volejbal</strong>', (string) self::toast($this->html($app)));
 
         $this->post($app, self::FREE, 'odhlasit');
         $this->post($app, self::FREE, 'odhlasit');
-        self::assertStringContainsString('<strong>Odhlášen: Volejbal</strong>', (string) self::toast($this->html($app)));
+        self::assertStringContainsString('<strong>Zápis zrušen: Volejbal</strong>', (string) self::toast($this->html($app)));
     }
 
     /** Only a repeat of the very write is quiet: another programme's refusal is still said. */
@@ -276,7 +276,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         foreach ([self::FREE, self::MINE, self::PREREGISTERED] as $id) {
             // not paired comes first, even before "preregistered"
-            self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro přihlašování se přihlas kódem z KissJ</a>', self::sheet($html, $id), "programme {$id}");
+            self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, $id), "programme {$id}");
         }
         self::assertStringNotContainsString('/prihlasit"', $html);
     }
@@ -286,7 +286,7 @@ final class ProgramRegistrationTest extends AppTestCase
         $response = $this->post($this->korbo(), self::FREE);
 
         self::assertSame(403, $response->getStatusCode());
-        self::assertStringContainsString('Pro přihlašování se přihlas kódem z KissJ.', (string) $response->getBody());
+        self::assertStringContainsString('Pro zápis na programy se přihlas kódem z KissJ.', (string) $response->getBody());
     }
 
     public function testACrossSitePostIsRefused(): void
@@ -300,7 +300,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         $unregister = $this->post($app, self::MINE, 'odhlasit', ['Sec-Fetch-Site' => 'cross-site']);
         self::assertSame(403, $unregister->getStatusCode());
-        self::assertStringContainsString('Odhlášení z programu se nepodařilo. Načti stránku a zkus to znovu.', (string) $unregister->getBody());
+        self::assertStringContainsString('Zrušení zápisu se nepodařilo. Načti stránku a zkus to znovu.', (string) $unregister->getBody());
         self::assertStringContainsString('is-registered', self::cardClasses($this->html($app), self::MINE));
     }
 
@@ -319,7 +319,7 @@ final class ProgramRegistrationTest extends AppTestCase
     {
         $html = $this->html($this->createApp('window-before', fixtureEvent: true));
 
-        self::assertSame('<a class="btn" href="/window-before/profil" data-key="unpaired">Pro přihlašování se přihlas kódem z KissJ</a>', self::sheet($html, 1));
+        self::assertSame('<a class="btn" href="/window-before/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, 1));
     }
 
     /** @return iterable<string, array{RegistrationWindow, string, string}> */
@@ -356,7 +356,7 @@ final class ProgramRegistrationTest extends AppTestCase
         $this->pair($app);
         $this->post($app, self::FREE);
 
-        self::assertStringContainsString('<p><strong>Přihlášení se nepodařilo.</strong></p>', (string) self::toast($this->html($app)));
+        self::assertStringContainsString('<p><strong>Zápis se nepodařil.</strong></p>', (string) self::toast($this->html($app)));
     }
 
     public function testAnOutageIsSaidAsOne(): void
@@ -366,16 +366,16 @@ final class ProgramRegistrationTest extends AppTestCase
         $response = $this->post($app, self::FREE);
 
         self::assertSame(302, $response->getStatusCode());
-        self::assertStringContainsString('<p><strong>Přihlášení se teď nedaří, zkus to prosím později.</strong></p>', (string) self::toast($this->html($app)));
+        self::assertStringContainsString('<p><strong>Zápis se teď nedaří, zkus to prosím později.</strong></p>', (string) self::toast($this->html($app)));
     }
 
-    /** The unregister side says what it is: odhlášení, not přihlášení. */
+    /** The unregister side says what it is: zrušení zápisu, not zápis. */
     public function testAnUnregisterFailureIsWordedAsOne(): void
     {
         foreach ([
-            'unknown code' => [new RegistrationRefusedException('somethingNew'), 'Odhlášení se nepodařilo.'],
+            'unknown code' => [new RegistrationRefusedException('somethingNew'), 'Zrušení zápisu se nepodařilo.'],
             'known code' => [new RegistrationRefusedException('closed'), 'Přihlašování není otevřené.'],
-            'outage' => [new ProgramUnavailableException('kissj is down'), 'Odhlášení se teď nedaří, zkus to prosím později.'],
+            'outage' => [new ProgramUnavailableException('kissj is down'), 'Zrušení zápisu se teď nedaří, zkus to prosím později.'],
         ] as $case => [$failure, $title]) {
             $app = $this->korbo(static fn() => throw $failure);
             // the session outlives the app within a test, so the identity is stored directly
@@ -395,7 +395,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         $html = $this->html($app);
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) self::toast($html));
-        self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro přihlašování se přihlas kódem z KissJ</a>', self::sheet($html, self::MINE));
+        self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, self::MINE));
     }
 
     /** The local source's state file cannot be written: an outage toast, never a 500. */
@@ -409,7 +409,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         $response = $this->post($app, self::FREE);
         self::assertSame(302, $response->getStatusCode());
-        self::assertStringContainsString('<p><strong>Přihlášení se teď nedaří, zkus to prosím později.</strong></p>', (string) self::toast($this->html($app)));
+        self::assertStringContainsString('<p><strong>Zápis se teď nedaří, zkus to prosím později.</strong></p>', (string) self::toast($this->html($app)));
     }
 
     public function testAGoneSessionLogsTheReaderOut(): void
@@ -421,7 +421,7 @@ final class ProgramRegistrationTest extends AppTestCase
         $html = $this->html($app);
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) self::toast($html));
         // logged out: the footers send the reader to Profil again
-        self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro přihlašování se přihlas kódem z KissJ</a>', self::sheet($html, self::FREE));
+        self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, self::FREE));
     }
 
     /** When and where, as the toast says it: a run past midnight names its start day only. */

@@ -13,8 +13,10 @@ namespace App\Http;
  * (orphans()). An absolute `/js/…` specifier is refused, because it would bypass the
  * version prefix the page loaded the importer under (ScriptVersion).
  *
- * Each file's imports are memoised for the life of the PHP process by its path, mtime and
- * size, so a php-fpm worker parses a file once per deploy.
+ * The graph is built at most once per instance (one per request: the container's), and
+ * kept across requests in a small file under var/cache keyed by the tree's stat signature
+ * (ScriptTree), so the files are parsed again only when one changes, is added, removed or
+ * renamed.
  */
 final class ScriptGraph
 {
@@ -25,13 +27,14 @@ final class ScriptGraph
      */
     private const string IMPORT = '/^[ \t]*(?:import\s*(?:[^;\'"()]*?\bfrom\s*)?|export\s*(?:\*(?:\s*as\s+[\w$]+)?|\{[^}]*\})\s*from\s*)([\'"])([^\'"\n]+)\1/m';
 
-    /** @var array<string, list<string>> "<file>:<mtime>:<size>" => its specifiers, in source order */
-    private static array $memo = [];
-
     /** @var array<string, array{imports: list<string>, unresolved: list<string>}>|null relative path => its resolved imports and its unresolved specifiers */
     private ?array $graph = null;
 
-    public function __construct(private readonly string $docroot) {}
+    /** @param string|null $cacheDir where ScriptTree keeps the graph across requests; null builds it once per instance */
+    public function __construct(
+        private readonly string $docroot,
+        private readonly ?string $cacheDir = null,
+    ) {}
 
     /**
      * The entry's transitive static imports in the order they are evaluated (a module's own
@@ -103,9 +106,15 @@ final class ScriptGraph
         if ($this->graph !== null) {
             return $this->graph;
         }
+        $tree = ScriptTree::read($this->dir(), $this->cacheDir);
+        $cached = self::validGraph($tree->get('graph'));
+        if ($cached !== null) {
+            return $this->graph = $cached;
+        }
         $dir = $this->dir();
         $graph = [];
-        foreach ($this->files() as $file) {
+        $files = array_values(array_filter($tree->files, static fn(string $file): bool => str_ends_with($file, '.js')));
+        foreach ($files as $file) {
             $imports = [];
             $unresolved = [];
             foreach ($this->specifiers($file) as $specifier) {
@@ -118,30 +127,42 @@ final class ScriptGraph
             }
             $graph[$file] = ['imports' => $imports, 'unresolved' => $unresolved];
         }
+        $tree->put('graph', $graph);
 
         return $this->graph = $graph;
     }
 
     /**
-     * Every .js file under <docroot>/js, relative, sorted.
+     * A cached graph as graph() returns it, or null when the value has another shape.
      *
-     * @return list<string>
+     * @return array<string, array{imports: list<string>, unresolved: list<string>}>|null
      */
-    private function files(): array
+    private static function validGraph(mixed $value): ?array
     {
-        $dir = $this->dir();
-        if (!is_dir($dir)) {
-            return [];
+        if (!is_array($value)) {
+            return null;
         }
-        $files = [];
-        foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS)) as $file) {
-            if ($file instanceof \SplFileInfo && $file->isFile() && $file->getExtension() === 'js') {
-                $files[] = substr($file->getPathname(), strlen($dir) + 1);
+        $graph = [];
+        foreach ($value as $file => $node) {
+            if (!is_string($file) || !is_array($node) || !isset($node['imports'], $node['unresolved'])) {
+                return null;
             }
+            $imports = $node['imports'];
+            $unresolved = $node['unresolved'];
+            if (!is_array($imports) || !array_is_list($imports) || !is_array($unresolved) || !array_is_list($unresolved)) {
+                return null;
+            }
+            foreach ([...$imports, ...$unresolved] as $item) {
+                if (!is_string($item)) {
+                    return null;
+                }
+            }
+            /** @var list<string> $imports */
+            /** @var list<string> $unresolved */
+            $graph[$file] = ['imports' => $imports, 'unresolved' => $unresolved];
         }
-        sort($files, SORT_STRING);
 
-        return $files;
+        return $graph;
     }
 
     /**
@@ -151,15 +172,9 @@ final class ScriptGraph
      */
     private function specifiers(string $file): array
     {
-        $path = $this->dir() . '/' . $file;
-        clearstatcache(true, $path);
-        $key = $path . ':' . (int) @filemtime($path) . ':' . (int) @filesize($path);
-        if (isset(self::$memo[$key])) {
-            return self::$memo[$key];
-        }
-        preg_match_all(self::IMPORT, self::stripComments((string) @file_get_contents($path)), $matches);
+        preg_match_all(self::IMPORT, self::stripComments((string) @file_get_contents($this->dir() . '/' . $file)), $matches);
 
-        return self::$memo[$key] = $matches[2];
+        return $matches[2];
     }
 
     /**

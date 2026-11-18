@@ -1,0 +1,11 @@
+@charset "utf-8";
+/* The admin page. */
+
+/* the admin page's message log: an entry's text keeps the line breaks it was sent with */
+.notify-log-entry {
+	margin: 24px 0;
+}
+
+.notify-log-body {
+	white-space: pre-line;
+}

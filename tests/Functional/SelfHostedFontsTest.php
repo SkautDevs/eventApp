@@ -6,6 +6,7 @@ namespace Tests\Functional;
 
 use App\EventCatalog;
 use App\Kernel;
+use Tests\CoreStylesheet;
 
 /**
  * No font and no icon comes from a third-party origin: an installed app shows every
@@ -71,7 +72,7 @@ final class SelfHostedFontsTest extends AppTestCase
 
     public function testTheStylesheetLoadsNoFontFromAnotherOrigin(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
 
         self::assertDoesNotMatchRegularExpression('~url\(\s*[\'"]?(https?:)?//~i', $css);
     }

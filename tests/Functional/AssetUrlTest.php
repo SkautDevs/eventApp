@@ -19,13 +19,15 @@ final class AssetUrlTest extends AppTestCase
             $app = $this->createApp($slug);
             $html = (string) $this->request($app, 'GET', '/')->getBody();
 
-            $style = substr((string) hash_file('sha256', $root . '/www/style.css'), 0, 8);
-            self::assertStringContainsString('href="style.css?v=' . $style . '"', $html, $slug);
+            $modules = $app->getContainer()?->get(Modules::class);
+            self::assertInstanceOf(Modules::class, $modules);
+            foreach (['css/base.css', ...$modules->stylesheets(), 'css/motion.css'] as $sheet) {
+                $style = substr((string) hash_file('sha256', $root . '/www/' . $sheet), 0, 8);
+                self::assertStringContainsString('href="' . $sheet . '?v=' . $style . '"', $html, $slug);
+            }
 
             // the tags the layout emits for this event: one entry per module with a script,
             // in the modules' order
-            $modules = $app->getContainer()?->get(Modules::class);
-            self::assertInstanceOf(Modules::class, $modules);
             $expected = $modules->scripts();
             self::assertNotSame([], $expected, $slug);
             preg_match_all('~<script type="module" src="(/js/([0-9a-f]{8})/([^"]+))"></script>~', $html, $matches);

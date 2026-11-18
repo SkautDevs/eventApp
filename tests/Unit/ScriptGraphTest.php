@@ -168,4 +168,35 @@ final class ScriptGraphTest extends TestCase
         self::assertSame(['c/index.js', 'lost.js'], $graph->orphans(['a/index.js']));
         self::assertSame(['lost.js'], $graph->orphans(['a/index.js', 'c/index.js']));
     }
+
+    public function testTheGraphIsKeptAcrossInstancesAndAChangedFileIsReadAtOnce(): void
+    {
+        $this->graph(['a/index.js' => "import './b.js';\n", 'a/b.js' => '']);
+        $cache = $this->dir . '/cache';
+        self::assertSame(['a/b.js'], (new ScriptGraph($this->dir, $cache))->imports('a/index.js'));
+        $entries = glob($cache . '/scripts-graph-*.json') ?: [];
+        self::assertCount(1, $entries);
+
+        // a later instance reads the entry instead of parsing: a planted graph comes back
+        file_put_contents($entries[0], '{"a/index.js":{"imports":["planted.js"],"unresolved":[]}}');
+        self::assertSame(['planted.js'], (new ScriptGraph($this->dir, $cache))->imports('a/index.js'));
+
+        // a changed file changes the signature, so the tree is parsed again and the old entry goes
+        file_put_contents($this->dir . '/js/a/index.js', "import './b.js';\nimport './c.js';\n");
+        file_put_contents($this->dir . '/js/a/c.js', '');
+        self::assertSame(['a/b.js', 'a/c.js'], (new ScriptGraph($this->dir, $cache))->imports('a/index.js'));
+        self::assertCount(1, glob($cache . '/scripts-graph-*.json') ?: []);
+    }
+
+    public function testAMalformedCachedGraphIsIgnored(): void
+    {
+        $this->graph(['a/index.js' => "import './b.js';\n", 'a/b.js' => '']);
+        $cache = $this->dir . '/cache';
+        (new ScriptGraph($this->dir, $cache))->imports('a/index.js');
+        $entries = glob($cache . '/scripts-graph-*.json') ?: [];
+        self::assertCount(1, $entries);
+
+        file_put_contents($entries[0], '{"a/index.js":{"imports":[1],"unresolved":[]}}');
+        self::assertSame(['a/b.js'], (new ScriptGraph($this->dir, $cache))->imports('a/index.js'));
+    }
 }

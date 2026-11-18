@@ -32,6 +32,11 @@ final class HomeModule implements ModuleInterface
         return 'home/index.js';
     }
 
+    public function stylesheet(): string
+    {
+        return 'home.css';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

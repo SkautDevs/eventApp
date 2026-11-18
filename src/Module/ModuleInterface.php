@@ -24,6 +24,13 @@ interface ModuleInterface
      */
     public function script(): ?string;
 
+    /**
+     * The module's stylesheet, relative to www/css (`<name>.css`), or null for a module
+     * without one. The layout links the sheets in module order (Modules::stylesheets()),
+     * between css/base.css and css/motion.css.
+     */
+    public function stylesheet(): ?string;
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void;
 }

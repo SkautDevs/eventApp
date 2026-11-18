@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use Tests\CoreStylesheet;
+
 /**
  * Přehled and Moje are one list component: one continuous scroll over the whole event.
  *
@@ -66,7 +68,7 @@ final class ProgramListTest extends AppTestCase
             self::assertSame(!$mine, str_contains($classes, 'is-dimmed'), "programme {$id}");
         }
         // the tag is on the participant's rows and nowhere else
-        self::assertSame(count(self::MINE), substr_count($overview, '<span class="pl-tag">Přihlášen</span>'));
+        self::assertSame(count(self::MINE), substr_count($overview, '<span class="pl-tag">Zapsáno</span>'));
         // every row: the start time, the name, then "do HH:MM · place"
         self::assertMatchesRegularExpression('#<p class="pl-time">\d{2}:\d{2}</p>#', $overview);
         self::assertMatchesRegularExpression('#<p class="pl-meta">do \d{2}:\d{2}( · [^<]+)?</p>#u', $overview);
@@ -80,7 +82,7 @@ final class ProgramListTest extends AppTestCase
         self::assertCount(self::PROGRAMMES, $rows);
         self::assertStringNotContainsString('is-dimmed', implode(' ', $rows));
         self::assertStringNotContainsString('is-registered', implode(' ', $rows));
-        self::assertStringNotContainsString('Přihlášen<', $html);
+        self::assertStringNotContainsString('Zapsáno<', $html);
         self::assertStringNotContainsString('pl-tag', $html);
     }
 
@@ -94,7 +96,7 @@ final class ProgramListTest extends AppTestCase
         foreach ($rows as $id => $classes) {
             self::assertSame('pl-item is-registered', $classes, "programme {$id}");
         }
-        self::assertSame(count(self::MINE), substr_count($list, '<span class="pl-tag">Přihlášen</span>'));
+        self::assertSame(count(self::MINE), substr_count($list, '<span class="pl-tag">Zapsáno</span>'));
     }
 
     /** The pill names the three views in their order, Harmonogram still the default. */
@@ -173,7 +175,7 @@ final class ProgramListTest extends AppTestCase
 
     public function testTheChipsAreFullSizedTouchTargets(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         self::assertMatchesRegularExpression('/\.day-chip\s*\{[^}]*min-height:\s*44px/s', $css);
         self::assertMatchesRegularExpression('/\.day-chip\s*\{[^}]*min-width:\s*44px/s', $css);
     }
@@ -181,7 +183,7 @@ final class ProgramListTest extends AppTestCase
     /** Every day is visible: nothing in the list is display:none any more. */
     public function testTheStylesheetNoLongerHidesADay(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
 
         self::assertStringNotContainsString('.tl-page, .pl-day', $css);
         self::assertStringNotContainsString('.pl-day.is-active', $css);

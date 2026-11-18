@@ -17,7 +17,7 @@ proměnná `PROGRAM_PROVIDER_<SLUG>`: `local` čte soubory `events/<slug>/fixtur
 Chybějící nebo jiná hodnota akci nenastartuje. Nasazená instance zatím čte kissj staging
 (`https://staging.kissj.net` s klíčem dané akce); `obrok19`, kterou kissj nemá, je `local`.
 
-Přihlášení je párování zařízení s KissJ (`docs/kissj-contract.md`): na `/<slug>/profil` se
+Přihlášení je párování zařízení s KissJ: na `/<slug>/profil` se
 začne, kód se potvrdí v KissJ. Zdroj `local` párování schválí hned při prvním dotazu.
 
 Nasazení: viz `docs/deployment.md`.

@@ -45,7 +45,7 @@ final class RenderGate extends BrowserTestCase
     private const string CLOCK_PAGE = '/obrok27/offline';
 
     /** A static file of the test origin: a document with no script, where the session storage is cleared. */
-    private const string BLANK_PAGE = '/style.css';
+    private const string BLANK_PAGE = '/css/base.css';
 
     /** The pairing poll, blocked for the state that shows the code. */
     private const string POLL_PATTERN = '*/profil/propojit/stav';

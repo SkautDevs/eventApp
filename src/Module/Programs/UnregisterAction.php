@@ -19,7 +19,7 @@ use Slim\Routing\RouteContext;
 final class UnregisterAction
 {
     /** The 403 page's message for a cross-site form. */
-    private const string CROSS_SITE = 'Odhlášení z programu se nepodařilo. Načti stránku a zkus to znovu.';
+    private const string CROSS_SITE = 'Zrušení zápisu se nepodařilo. Načti stránku a zkus to znovu.';
 
     public function __construct(
         private readonly RefusalPage $refusal,

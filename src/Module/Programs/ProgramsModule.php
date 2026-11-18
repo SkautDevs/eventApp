@@ -36,6 +36,11 @@ final class ProgramsModule implements ModuleInterface
         return 'programs/index.js';
     }
 
+    public function stylesheet(): string
+    {
+        return 'programs.css';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

@@ -31,7 +31,7 @@ final class ToastsTest extends TestCase
 
     public function testAToastOlderThanAMinuteIsDroppedUnsaid(): void
     {
-        $this->toasts->put('Přihlášen: Lanovka', 'Pá 21. 5. · 9:00–12:30');
+        $this->toasts->put('Zapsáno: Lanovka', 'Pá 21. 5. · 9:00–12:30');
         $this->clock->set($this->clock->now()->modify('+61 seconds'));
         self::assertNull($this->toasts->take($this->documentRequest()));
         self::assertFalse($this->session->has('toast'));
@@ -39,9 +39,9 @@ final class ToastsTest extends TestCase
 
     public function testAToastAMinuteOldIsStillSaid(): void
     {
-        $this->toasts->put('Přihlášen: Lanovka', 'Pá 21. 5. · 9:00–12:30');
+        $this->toasts->put('Zapsáno: Lanovka', 'Pá 21. 5. · 9:00–12:30');
         $this->clock->set($this->clock->now()->modify('+60 seconds'));
-        self::assertEquals(new Toast('Přihlášen: Lanovka', 'Pá 21. 5. · 9:00–12:30'), $this->toasts->take($this->documentRequest()));
+        self::assertToast('Zapsáno: Lanovka', 'Pá 21. 5. · 9:00–12:30', $this->toasts->take($this->documentRequest()));
         self::assertFalse($this->session->has('toast'));
     }
 
@@ -50,14 +50,14 @@ final class ToastsTest extends TestCase
         $this->toasts->put('Odhlášeno', null);
         self::assertNull($this->toasts->take($this->documentRequest(['X-Screen' => '1'])));
         self::assertNull($this->toasts->take($this->documentRequest([Toasts::WORKER_FILL_HEADER => '1'])));
-        self::assertEquals(new Toast('Odhlášeno'), $this->toasts->take($this->documentRequest()));
+        self::assertToast('Odhlášeno', null, $this->toasts->take($this->documentRequest()));
     }
 
     public function testARepeatedWritesRefusalDoesNotTalkOverItsOwnSuccess(): void
     {
-        $this->toasts->put('Přihlášen: Lanovka', null, 'register:7');
+        $this->toasts->put('Zapsáno: Lanovka', null, 'register:7');
         $this->toasts->putUnlessPending('Na program už jsi přihlášen.', null, 'register:7');
-        self::assertSame('Přihlášen: Lanovka', $this->toasts->take($this->documentRequest())?->title);
+        self::assertSame('Zapsáno: Lanovka', $this->toasts->take($this->documentRequest())?->title);
     }
 
     public function testTheStoredShapeIsThePreviousReleases(): void
@@ -86,12 +86,12 @@ final class ToastsTest extends TestCase
     {
         // a session file from before the deploy: the literal shape the old Kernel wrote
         $this->session->set('toast', ['title' => 'Jsi přihlášen', 'line' => null, 'at' => $this->clock->now()->getTimestamp()]);
-        self::assertEquals(new Toast('Jsi přihlášen'), $this->toasts->take($this->documentRequest()));
+        self::assertToast('Jsi přihlášen', null, $this->toasts->take($this->documentRequest()));
     }
 
     public function testTheGoneToastSaysWhy(): void
     {
-        self::assertEquals(new Toast('Odhlášeno', 'Propojení s KissJ už neplatí, přihlas se znovu.'), $this->toasts->gone());
+        self::assertToast('Odhlášeno', 'Propojení s KissJ už neplatí, přihlas se znovu.', $this->toasts->gone());
     }
 
     public function testOnlyAResponseCarryingAToastIsMarked(): void
@@ -102,6 +102,14 @@ final class ToastsTest extends TestCase
     }
 
     /** @param array<string, string> $headers */
+    /** Title and line compared with assertSame: assertEquals would take a '' line for null. */
+    private static function assertToast(string $title, ?string $line, ?Toast $toast): void
+    {
+        self::assertNotNull($toast);
+        self::assertSame($title, $toast->title);
+        self::assertSame($line, $toast->line);
+    }
+
     private function documentRequest(array $headers = []): ServerRequestInterface
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/korbo26/profil');

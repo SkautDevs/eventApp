@@ -1,0 +1,90 @@
+@charset "utf-8";
+/* Profil: the paired reader, the pairing code and the mode control. */
+
+/* --- Profil ---------------------------------------------------------------- */
+
+/* the paired reader: the avatar ring and the name, on one line */
+.profile-who {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+}
+
+.profile-who .avatar {
+	width: 48px;
+	height: 48px;
+	font-size: var(--fs-lg);
+}
+
+/* the code the reader types into KissJ: large, spaced, and never broken across lines */
+.pairing-code {
+	margin: 16px 0 8px;
+	font-size: var(--fs-2xl);
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+.profile-logout {
+	margin: 24px 0;
+}
+
+/* Světlý / Tmavý / Podle systému as one segmented bar. The radios stay real radios
+   (one name, arrow keys move between them) and are only drawn by their labels: the
+   chosen one wears the state fill under its own ink, as the current day chip does. */
+.mode-control {
+	display: flex;
+	margin: 16px 8px;
+	padding: 0;
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius-pill);
+	overflow: hidden;
+	background-color: var(--structure);
+	color: var(--on-structure);
+}
+
+.mode-control legend {
+	/* a fieldset's legend sits in its border; the bar names itself to assistive tech
+	   and the three labels say the rest */
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.mode-control label {
+	position: relative;
+	flex: 1 1 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 44px;
+	padding: 0 8px;
+	font-size: var(--fs-sm);
+	cursor: pointer;
+}
+
+.mode-control input {
+	position: absolute;
+	inset: 0;
+	margin: 0;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.mode-control label:has(input:checked) {
+	background-color: var(--state);
+	color: var(--on-state);
+	font-weight: 700;
+}
+
+/* the bar clips, so the ring goes inside the chosen segment, as on a day chip */
+.mode-control label:has(input:focus-visible) {
+	outline: 2px solid var(--on-ground);
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
+}

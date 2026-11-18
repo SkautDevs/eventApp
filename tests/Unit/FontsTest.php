@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Http\Fonts;
 use PHPUnit\Framework\TestCase;
+use Tests\CoreStylesheet;
 
 /**
  * The table the worker's offline set is built from and the stylesheets that actually
@@ -39,9 +40,9 @@ final class FontsTest extends TestCase
 
     public function testEveryFontFaceInTheStylesheetIsInTheTable(): void
     {
-        $css = (string) file_get_contents(self::WWW . '/style.css');
+        $css = CoreStylesheet::read(self::WWW);
         preg_match_all('/@font-face\s*\{[^}]*\}/', $css, $faces);
-        self::assertNotEmpty($faces[0], 'style.css declares no @font-face at all');
+        self::assertNotEmpty($faces[0], 'www/css/ declares no @font-face at all');
 
         $table = self::allTableFiles();
         $urls = [];
@@ -50,7 +51,7 @@ final class FontsTest extends TestCase
             self::assertCount(1, $m[1], 'one src, one woff2 per face: ' . $face);
             foreach ($m[1] as $url) {
                 self::assertStringEndsWith('.woff2', $url);
-                self::assertContains($url, $table, $url . ' is loaded by style.css but missing from App\Http\Fonts');
+                self::assertContains($url, $table, $url . ' is loaded by www/css/ but missing from App\Http\Fonts');
                 $urls[] = $url;
             }
         }

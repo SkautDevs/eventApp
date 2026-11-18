@@ -21,10 +21,11 @@ final class Precache
     private const array EVENT_FILES = ['site.webmanifest', 'favicon-16x16.png', 'favicon-32x32.png', 'apple-touch-icon.png'];
 
     /**
+     * @param list<string> $stylesheets the core sheets the layout links, in its order (Modules::sheets())
      * @param list<MenuItem> $menu the tab bar, in its order, Domů first
      * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>}
      */
-    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $menu, string $docroot): array
+    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $stylesheets, array $menu, string $docroot): array
     {
         // every tab, Domů first, then Profil and the offline page
         $documents = [];
@@ -34,7 +35,12 @@ final class Precache
         $documents[] = $routes->urlFor('profile');
         $documents[] = $routes->urlFor('offline');
 
-        $assets = ['/' . $versions->url('style.css')];
+        // the core sheets the layout links for this event: those of its registered modules
+        // only, not every file under www/css/
+        $assets = [];
+        foreach ($stylesheets as $sheet) {
+            $assets[] = '/' . $versions->url($sheet);
+        }
         // every script of the www/js/ tree, for every event, under the tree's one version:
         // the few an event without the Program or the Mapa screen never loads cost a few
         // kilobytes, and a list that follows the tree cannot miss a file a script imports

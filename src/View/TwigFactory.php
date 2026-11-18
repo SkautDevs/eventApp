@@ -17,10 +17,10 @@ use Twig\TwigFilter;
 
 /**
  * An event's Twig environment, with the globals the layout reads (`event`, `base`,
- * `vapidPublicKey`, the script entries `scripts` and the files they import, `preloads`,
- * and `fragment`, `screenPath` and `cspNonce`, which the per-request middlewares
- * overwrite), the functions `auth_identity`, `data_freshness`,
- * `asset_version` and `script_url` and the `dateToCzechDayName` filter. The instance
+ * `vapidPublicKey`, the script entries `scripts`, and `fragment`, `screenPath` and
+ * `cspNonce`, which the per-request middlewares overwrite), the functions `auth_identity`,
+ * `data_freshness`, `asset_version`, `script_url` and `script_preloads` (the files the
+ * entries import) and the `dateToCzechDayName` filter. The instance
  * app's plain one is InstanceTwigFactory's.
  */
 final readonly class TwigFactory
@@ -97,7 +97,7 @@ final readonly class TwigFactory
                 return $freshness->forView();
             },
         ));
-        // `style.css` → `style.css?v=<first 8 hex of its sha256>`: the URL changes
+        // `css/base.css` → `css/base.css?v=<first 8 hex of its sha256>`: the URL changes
         // exactly when the bytes do, so nothing is bumped by hand
         $env->addFunction(new \Twig\TwigFunction(
             'asset_version',
@@ -122,24 +122,35 @@ final readonly class TwigFactory
             },
         ));
         // The layout's scripts: `scripts`, one module entry per module with a script in module
-        // order (Modules::scripts()), and `preloads`, every file those entries import, each
-        // once in the order first met, so the browser fetches the whole graph at once
-        // rather than one import level per round trip
+        // order (Modules::scripts()), and `script_preloads()`, every file those entries import,
+        // each once in the order first met, so the browser fetches the whole graph at once
+        // rather than one import level per round trip. A function, not a global: only the
+        // layout calls it, so a fragment (X-Screen) never reads the import graph.
         $modules = $c->get(Module\Modules::class);
         // the event container autowires the class under its own name
         \assert($modules instanceof Module\Modules);
-        $graph = $c->get(Http\ScriptGraph::class);
-        // the event container builds the class under its own name (Definitions::forEvent())
-        \assert($graph instanceof Http\ScriptGraph);
         $scripts = $modules->scripts();
-        $preloads = [];
-        foreach ($scripts as $entry) {
-            foreach ($graph->imports($entry) as $file) {
-                $preloads[$file] = true;
-            }
-        }
         $env->addGlobal('scripts', $scripts);
-        $env->addGlobal('preloads', array_keys($preloads));
+        $env->addFunction(new \Twig\TwigFunction(
+            'script_preloads',
+            /** @return list<string> */
+            function () use ($c, $scripts): array {
+                $graph = $c->get(Http\ScriptGraph::class);
+                // the event container builds the class under its own name (Definitions::forEvent())
+                \assert($graph instanceof Http\ScriptGraph);
+                $preloads = [];
+                foreach ($scripts as $entry) {
+                    foreach ($graph->imports($entry) as $file) {
+                        $preloads[$file] = true;
+                    }
+                }
+
+                return array_keys($preloads);
+            },
+        ));
+        // the core stylesheets, each a path under www/ for asset_version(), in link order
+        // (Modules::sheets()): the event's own sheet is linked after them by the layout
+        $env->addGlobal('stylesheets', $modules->sheets());
         $env->addFilter(new TwigFilter('dateToCzechDayName', function (\DateTimeInterface $datetime): string {
             return HomeModel::WEEKDAYS[(int) $datetime->format('N')];
         }));

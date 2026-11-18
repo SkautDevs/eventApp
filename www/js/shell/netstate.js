@@ -65,7 +65,7 @@ function textFor(section, spoken) {
 
 // The banner's height as --netstate-height on the root (0px while it is hidden): the
 // docked view switcher stands on it, and every screen's bottom padding and one-screenful
-// height make room for it (www/style.css), so it covers nothing. Measured on every draw,
+// height make room for it (www/css/shell.css), so it covers nothing. Measured on every draw,
 // and again whenever its box changes by itself (a font arriving, a rotated phone
 // wrapping it onto another number of lines).
 let netstateHeight = -1;

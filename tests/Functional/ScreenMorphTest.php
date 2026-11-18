@@ -94,7 +94,7 @@ final class ScreenMorphTest extends AppTestCase
     /**
      * A sheet footer's one child is keyed by what it offers. The morph never removes an
      * attribute the fresh markup lacks, so an unkeyed form matched by position across an
-     * unregister → register change kept the unregister's data-confirm on "Přihlásit se".
+     * unregister → register change kept the unregister's data-confirm on "Zapsat program".
      * Keyed, the two forms are different elements and the morph replaces one with the other.
      */
     public function testEverySheetFooterChildIsKeyedByItsState(): void

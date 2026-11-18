@@ -29,6 +29,11 @@ final class InfoModule implements ModuleInterface
         return null;
     }
 
+    public function stylesheet(): string
+    {
+        return 'info.css';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

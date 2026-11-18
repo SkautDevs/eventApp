@@ -36,6 +36,8 @@ final class ScriptServingTest extends TestCase
             'SENTRY_DSN' => '',
             'PUSH_DB_PATH' => self::DATABASE,
             'STUB_STATE_PATH' => self::$stubState,
+            // tests/bootstrap.php's, so the server creates no var/cache
+            'CACHE_PATH' => (string) ($_ENV['CACHE_PATH'] ?? ''),
         ]);
         $server->start();
         self::$server = $server;
@@ -76,6 +78,20 @@ final class ScriptServingTest extends TestCase
         self::assertSame(200, $status);
         self::assertSame('text/javascript; charset=utf-8', $headers['content-type']);
         self::assertStringEqualsFile(dirname(__DIR__, 2) . '/www/js/' . $file, $body);
+    }
+
+    /** The server keeps the scripts' version and graph in tests/bootstrap.php's CACHE_PATH, never in var/cache. */
+    public function testAPageServedKeepsItsScriptCacheInTheTestsOwnDirectory(): void
+    {
+        $cache = (string) ($_ENV['CACHE_PATH'] ?? '');
+        self::assertNotSame('', $cache);
+        self::assertStringStartsNotWith(dirname(__DIR__, 2) . '/', $cache);
+
+        [$status, , $body] = $this->get('/korbo26/profil');
+        self::assertSame(200, $status);
+        self::assertStringContainsString('rel="modulepreload"', $body);
+        self::assertNotSame([], glob($cache . '/scripts-version-*.json') ?: []);
+        self::assertNotSame([], glob($cache . '/scripts-graph-*.json') ?: []);
     }
 
     public function testAVersionedPathToNoFileIsTheAppsNotFound(): void

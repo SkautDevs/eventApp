@@ -62,6 +62,8 @@ final class SessionLockTest extends TestCase
             'KISSJ_API_KEY_KORBO26' => 'test-key',
             'PUSH_DB_PATH' => self::DATABASE,
             'STUB_STATE_PATH' => self::$stubState,
+            // tests/bootstrap.php's, so the server creates no var/cache
+            'CACHE_PATH' => (string) ($_ENV['CACHE_PATH'] ?? ''),
             'PHP_CLI_SERVER_WORKERS' => '4',
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one
             'VAPID_PUBLIC_KEY' => (string) ($_ENV['VAPID_PUBLIC_KEY'] ?? ''),

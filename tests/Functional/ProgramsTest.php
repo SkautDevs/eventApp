@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Program\ProgramProviderInterface;
+use Tests\CoreStylesheet;
 
 final class ProgramsTest extends AppTestCase
 {
@@ -43,7 +44,7 @@ final class ProgramsTest extends AppTestCase
      */
     public function testTheProviderNoticeIsNotAButton(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         $twig = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/programs.twig');
 
         self::assertStringContainsString('<p class="notice" data-key="notice">{{ notice }}</p>', $twig);
@@ -51,7 +52,7 @@ final class ProgramsTest extends AppTestCase
         // the notice keeps the shrink-to-fit box the class used to have
         self::assertMatchesRegularExpression('/\.notice \{[^}]*display: inline-block;/', $css);
         // while the two page actions fill the column inside the existing gutter
-        self::assertMatchesRegularExpression('/\.btn, \.btn:visited,\s*\n\.highlight, \.highlight:visited \{[^}]*width: calc\(100% - 16px\);/', $css);
+        self::assertMatchesRegularExpression('/\.btn,\s*\.btn:visited,\s*\.highlight,\s*\.highlight:visited \{[^}]*width: calc\(100% - 16px\);/', $css);
     }
 
     /**
@@ -346,7 +347,7 @@ final class ProgramsTest extends AppTestCase
 
         self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
         self::assertStringNotContainsString('is-dimmed', $html);
-        self::assertStringNotContainsString('Zatím nemáš přihlášený žádný program.', $html);
+        self::assertStringNotContainsString('Zatím nemáš zapsaný žádný program.', $html);
     }
 
     /** U-M5: with no programme list the outage notice speaks alone. */

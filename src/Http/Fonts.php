@@ -12,7 +12,7 @@ namespace App\Http;
  * The paths sit under /fonts/ and /vendor/, which carry no content hash: a changed file
  * gets a new name, never new bytes under the old one (a year of `immutable` in nginx and
  * .htaccess, cache-first in www/sw.js). FontsTest keeps this table, the `@font-face`
- * rules of www/style.css and Font Awesome's own stylesheet in step.
+ * rules of www/css/base.css and Font Awesome's own stylesheet in step.
  */
 final class Fonts
 {

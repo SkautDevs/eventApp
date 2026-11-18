@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Program;
 
 /**
- * A started device pairing (docs/kissj-contract.md, "Device pairing"): the device code is
+ * A started device pairing (kissj's API contract 3.0, "Device pairing"): the device code is
  * eventApp's to poll with and is shown to nobody; the user code is what the reader types
  * into kissj.
  */

@@ -26,6 +26,11 @@ final class MapModule implements ModuleInterface
         return 'map/index.js';
     }
 
+    public function stylesheet(): string
+    {
+        return 'map.css';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

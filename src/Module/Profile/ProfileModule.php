@@ -29,6 +29,11 @@ final class ProfileModule implements ModuleInterface
         return 'profile/index.js';
     }
 
+    public function stylesheet(): string
+    {
+        return 'profile.css';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

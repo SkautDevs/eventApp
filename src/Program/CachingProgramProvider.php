@@ -16,33 +16,50 @@ use Psr\Clock\ClockInterface;
  * kissj's answers, kept on disk: the `list` entry (sections, programmes and the
  * registration window, from one list response) and one `session-…` entry per device
  * session (the participant and their programmes). A fresh entry is served without
- * asking; an expired or missing one is fetched and rewritten; an expired one is served — however old — when
- * kissj fails, and the failure goes to Sentry instead of the reader. Only a missing entry
- * lets kissj's trouble through to the modules' notices.
+ * asking; an expired or missing one is fetched and rewritten; an expired one is served —
+ * however old — when kissj fails, and the failure goes to Sentry instead of the reader.
+ * Only a missing entry lets kissj's trouble through to the modules' notices. An entry of
+ * the wrong shape (or a file that is not JSON or has no `fetchedAt`) counts as missing, and
+ * a failed write is reported, not thrown.
  *
- * Under load, three more rules keep kissj from being asked by every request at once:
- * - single-flight per entry: one request holds `<key>.lock` and fetches; another that has
- *   an expired entry serves it as it is (`cache.result` `locked` — being refreshed, not
- *   stale, so no "naposledy načteno" — unless `kissj-down` exists, when the probe holding
- *   the lock may well fail too and the copy is marked stale), and one with nothing to show
- *   waits up to $lockWait seconds for the holder's answer before asking itself — unless the
- *   holder failed meanwhile, when it rethrows without a timeout of its own;
- * - a breaker across requests: a failure writes the `kissj-down` entry, and for
- *   BREAKER_SECONDS after it an expired entry is served stale without asking. A missing
- *   entry still asks — the breaker never turns a slow page into an empty one. A success
- *   deletes the marker;
- * - a hidden failure reaches Sentry at most once per REPORT_SECONDS across all requests,
- *   remembered in `kissj-reported`, which a success leaves alone — a flapping kissj would
- *   otherwise be reported on every flap.
- * Where the cache directory cannot be written all three quietly do nothing, and the
- * provider behaves as it did without them.
+ * Within a request the decorator memoises every resolved read (keyed by
+ * `Freshness::generation()`) and remembers the inner provider's first failure, after which
+ * an expired entry is served stale and a missing one rethrows that failure without asking
+ * kissj again — so an outage costs one timeout per request however many entries a page
+ * reads. Every read updates the request-scoped `Program\Freshness` (the oldest fetch time
+ * served, and whether anything was stale), which the screen middleware resets per request.
+ *
+ * Across requests three more rules keep kissj from being asked by every request at once,
+ * all kept as files beside the entries:
+ * - single-flight per entry: `FileCache::tryLock()` takes a non-blocking `flock` on
+ *   `<key>.lock`, and the holder fetches; another request that has an expired entry serves
+ *   it as it is (`cache.result` `locked` — being refreshed, not stale, so no "naposledy
+ *   načteno" — unless `kissj-down` exists, when the probe holding the lock may well fail
+ *   too and the copy is marked stale), and one with nothing to show waits up to $lockWait
+ *   seconds (12 s; kissj's own timeout is 10 s) via `waitLock()`, then serves the holder's
+ *   fresh entry, rethrows if the holder failed meanwhile (without a timeout of its own), or
+ *   fetches itself. A filesystem that cannot lock at all yields a no-op lock rather than
+ *   "held", and the empty lock files accumulate, one per entry;
+ * - a breaker: a failure writes the `kissj-down` entry, and for BREAKER_SECONDS (60) after
+ *   it an expired entry is served stale without asking. A missing entry still asks — the
+ *   breaker never turns a slow page into an empty one. A success deletes the marker. One
+ *   participant's bad answer opens it for the whole event;
+ * - a hidden failure reaches Sentry at most once per REPORT_SECONDS (5 minutes) across all
+ *   requests, remembered in `kissj-reported`, which a success leaves alone — a flapping
+ *   kissj would otherwise be reported on every flap.
+ * Where the cache directory (`var/cache/`) cannot be written all three quietly do nothing,
+ * and the provider behaves as it did without them.
  *
  * The pairing calls, the revoke and a programme's participants are never cached. A
  * register or unregister that succeeds deletes the session's entry and this request's
- * memo of it, so the very next read — the redirect after the write — asks kissj again;
- * a read that was already asking kissj meanwhile does not store its answer
- * (forgetChanged()).
- * A refusal saying the list is out of date (STALE_LIST_REFUSALS) deletes the list too.
+ * memo of it, so the very next read — the redirect after the write — asks kissj again.
+ * The delete first rewrites the entry's write marker (`written-<key>`, a random value,
+ * WRITTEN_PREFIX) and then waits for the entry's lock, so a read that was already asking
+ * kissj meanwhile does not store its answer from before the write (forgetChanged()).
+ * A refusal changed nothing and keeps both, except `alreadyRegistered`/`notRegistered`
+ * (STALE_REFUSALS: the cached participant is not what kissj holds, so the session entry
+ * goes the same way) and `notFound`/`closed`/`notPossible` (STALE_LIST_REFUSALS: the
+ * cached list is out of date, so the `list` entry goes); an outage keeps the entry.
  *
  * Installed by Kernel around KissjProgramProvider only: the stub's fixture files are
  * already a local copy.
@@ -61,7 +78,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
     /**
      * refusals that prove the cached list stale: the programme is gone (`notFound`), the
      * window is not what we show (`closed`), or the programme became preregistered
-     * (`notPossible`) — docs/kissj-contract.md's codes
+     * (`notPossible`) — the codes of kissj's API contract 3.0
      */
     private const array STALE_LIST_REFUSALS = ['notFound', 'closed', 'notPossible'];
 

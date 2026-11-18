@@ -1,0 +1,187 @@
+@charset "utf-8";
+/* Linked after every other core sheet, so its rules come last. */
+
+/* --- motion --------------------------------------------------------------
+   Everything that moves is declared here and nowhere else, so a reader who has
+   asked for reduced motion simply never sees this block and gets the same
+   screen with every state change applied instantly.
+
+   One duration for the whole app — --motion, which an event may retune through
+   --theme-motion — and a plain ease curve. The sheet still slides in from
+   its edge and the tab indicator still travels; nothing else animates,
+   so switching view and pressing a card land immediately.
+   ------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: no-preference) {
+	/* the sheet stays visible until the slide-out has finished */
+	.sheet {
+		transition: visibility 0s linear var(--motion);
+	}
+
+	.sheet.is-open {
+		transition-delay: 0s;
+	}
+
+	.sheet-backdrop {
+		transition: opacity var(--motion) ease;
+	}
+
+	.sheet-card {
+		transition: transform var(--motion) ease;
+	}
+
+	.tabs-indicator {
+		transition: transform var(--motion) ease;
+	}
+
+	/* the Program pill's segments differ in width, so its indicator travels by its box */
+	.pg .tabs-indicator {
+		transition:
+			left var(--motion) ease,
+			width var(--motion) ease;
+	}
+
+	.tabs-tab {
+		transition: opacity var(--motion) ease;
+	}
+
+	/* pressed, not animated: the feedback is the scale, and it arrives at once */
+	.tl-card:active {
+		transform: scale(0.96);
+	}
+
+	.pl-item:active {
+		transform: scale(0.985);
+	}
+
+	/* Stepping to another page still slides the new one in from the side. Only the
+	   timeline pages, so only the timeline has anything to slide: the personal list
+	   scrolls, and a day heading that re-animated every time the strip noticed it
+	   would be a twitch, not a transition. */
+	.tl-page.is-active {
+		animation: pg-page-next var(--motion) ease;
+	}
+
+	/* A page sliding in sticks out sideways, and a phone widens the whole layout to fit
+	   it, dropping the fixed tab bar under the fold. clip, unlike hidden, is no scroller. */
+	.view-timeline {
+		overflow-x: clip;
+	}
+
+	.pg[data-step="prev"] .tl-page.is-active {
+		animation-name: pg-page-prev;
+	}
+
+	@keyframes pg-page-next {
+		from {
+			opacity: 0;
+			transform: translateX(14px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	@keyframes pg-page-prev {
+		from {
+			opacity: 0;
+			transform: translateX(-14px);
+		}
+		to {
+			opacity: 1;
+			transform: translateX(0);
+		}
+	}
+
+	/* Switching screens slides by tab order: moving right along the tab bar brings
+	   the new screen in from the right, moving left brings it in from the left. The
+	   View Transitions API does the work; the loader only sets data-nav on the root,
+	   and skips the API entirely when it is missing — the swap is then instant, which
+	   is a fallback rather than a JS animation.
+
+	   What slides is the root snapshot, i.e. everything that is not separately named
+	   — which is <main> and nothing else, because the two bars claim their own names
+	   below. <main> itself deliberately does NOT carry a name: a view-transition-name
+	   makes an element a stacking context, and the sheet is a fixed child of <main>
+	   that has to keep painting over the tab bar. */
+	:root::view-transition-old(root) {
+		animation: screen-out var(--motion) ease both;
+	}
+
+	:root::view-transition-new(root) {
+		animation: screen-in var(--motion) ease both;
+	}
+
+	:root[data-nav="back"]::view-transition-old(root) {
+		animation-name: screen-out-back;
+	}
+
+	:root[data-nav="back"]::view-transition-new(root) {
+		animation-name: screen-in-back;
+	}
+
+	/* The shell stays put while the screen under it moves. The bars are not identical
+	   across a switch — the app bar's title and the tab bar's active chip both change —
+	   so they keep the default cross-fade, at the app's one duration, and only their
+	   contents change rather than their position. */
+	.appbar {
+		view-transition-name: appbar;
+	}
+
+	.tabbar {
+		view-transition-name: tabbar;
+	}
+
+	:root::view-transition-old(appbar),
+	:root::view-transition-new(appbar),
+	:root::view-transition-old(tabbar),
+	:root::view-transition-new(tabbar),
+	:root::view-transition-group(appbar),
+	:root::view-transition-group(tabbar) {
+		animation-duration: var(--motion);
+	}
+
+	@keyframes screen-in {
+		from {
+			opacity: 0;
+			transform: translateX(24px);
+		}
+	}
+
+	@keyframes screen-out {
+		to {
+			opacity: 0;
+			transform: translateX(-24px);
+		}
+	}
+
+	@keyframes screen-in-back {
+		from {
+			opacity: 0;
+			transform: translateX(-24px);
+		}
+	}
+
+	@keyframes screen-out-back {
+		to {
+			opacity: 0;
+			transform: translateX(24px);
+		}
+	}
+
+	/* indeterminate: the bar grows across and starts again; scaleX keeps it inside the tab bar */
+	:root[data-loading] .progress {
+		transform-origin: left center;
+		animation: progress-grow 1.2s ease-in-out infinite;
+	}
+
+	@keyframes progress-grow {
+		from {
+			transform: scaleX(0);
+		}
+		to {
+			transform: scaleX(1);
+		}
+	}
+}

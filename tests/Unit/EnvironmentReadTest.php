@@ -179,6 +179,21 @@ final class EnvironmentReadTest extends TestCase
         self::assertSame('/tmp/eventapp-test-stub', Environment::fromGlobals()->stubStatePath('/app'));
     }
 
+    public function testTheCacheIsVarCacheUnlessCachePathSaysOtherwise(): void
+    {
+        unset($_ENV['CACHE_PATH']);
+        self::assertSame('/app/var/cache', Environment::fromGlobals()->cachePath('/app'));
+
+        $_ENV['CACHE_PATH'] = '';
+        self::assertSame('/app/var/cache', Environment::fromGlobals()->cachePath('/app'));
+
+        $_ENV['CACHE_PATH'] = 'var/elsewhere';
+        self::assertSame('/app/var/elsewhere', Environment::fromGlobals()->cachePath('/app'));
+
+        $_ENV['CACHE_PATH'] = '/tmp/eventapp-test-cache';
+        self::assertSame('/tmp/eventapp-test-cache', Environment::fromGlobals()->cachePath('/app'));
+    }
+
     public function testLocalIsNoProgramSource(): void
     {
         $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'local';

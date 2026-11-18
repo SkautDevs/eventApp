@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Program;
 
 /**
- * Where an event's programme comes from: kissj (docs/kissj-contract.md) or the event's
+ * Where an event's programme comes from: kissj (its API contract 3.0) or the event's
  * local fixture files. Every method may throw ProgramUnavailableException or ProgramDataException
  * when the source fails; the personal ones throw SessionExpiredException when the device
  * session is no longer valid, which logs the reader out.

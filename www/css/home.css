@@ -1,0 +1,265 @@
+@charset "utf-8";
+/* Domů: its cards, the next programme, the link cards and the screen's own column. */
+
+/* --- the home screen's cards ------------------------------------------------ */
+
+/* Domů's cards are blocks of text with an action under them, not one-line links: the
+   link-card's row turns into a column. */
+.pair-card,
+article.link-card,
+.link-card.countdown,
+.link-card.countdown:visited {
+	flex-direction: column;
+	align-items: stretch;
+	gap: 4px;
+	text-align: left;
+}
+
+.pair-card h2,
+article.link-card h3,
+.countdown h3 {
+	margin: 0;
+	font-size: var(--fs-lg);
+	color: inherit;
+}
+
+.pair-card p,
+article.link-card p,
+.countdown p {
+	margin: 0;
+}
+
+/* the card's button fills the card, not the column's gutter */
+.pair-card .btn,
+article.link-card .btn {
+	width: 100%;
+	margin: 8px 0 0;
+	text-align: center;
+}
+
+.link-card.countdown[hidden] {
+	display: none;
+}
+
+/* the two headings that open a half of the screen */
+.home-kicker,
+.home-date {
+	margin: 8px 8px 0;
+	text-align: left;
+}
+
+.home-kicker {
+	font-size: var(--fs-md);
+}
+
+/* the install offer and the notifications button under one heading (Domů and Profil) */
+.install-card {
+	margin: 16px 8px;
+	padding: 12px 14px;
+	border-radius: var(--radius-card);
+	background-color: var(--surface);
+	color: var(--on-surface);
+	border: max(var(--edge-width), 1px) solid var(--edge);
+	text-align: left;
+}
+
+.install-card[hidden] {
+	display: none;
+}
+
+.install-card h2 {
+	margin: 0 0 4px;
+	font-size: var(--fs-lg);
+	color: inherit;
+}
+
+.install-card p {
+	margin: 0 0 8px;
+}
+
+/* inside the card the buttons fill it rather than the column */
+.install-card .btn {
+	width: 100%;
+}
+
+.install-card .install,
+.install-card p.push-enable,
+.install-card p.push-status {
+	margin: 8px 0 0;
+}
+
+/* --- the next programme (home screen) ------------------------------------ */
+
+.next-up {
+	margin: 0 8px 16px;
+	text-align: left;
+}
+
+.next-up h2 {
+	margin: 0 0 8px;
+	font-size: var(--fs-md);
+}
+
+.next-up .next-card + .next-card {
+	margin-top: 8px;
+}
+
+.next-card[hidden] {
+	display: none;
+}
+
+.next-card p {
+	margin: 0;
+}
+
+.next-lead,
+.next-section {
+	font-size: var(--fs-sm);
+	font-weight: 400;
+}
+
+.next-section {
+	opacity: 0.8;
+}
+
+.link-card,
+.link-card:visited {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 56px;
+	padding: 10px 14px;
+	border-radius: var(--radius-card);
+	background-color: var(--surface);
+	color: var(--on-surface);
+	border: max(var(--edge-width), 1px) solid var(--edge);
+	text-decoration: none;
+	overflow-wrap: anywhere;
+}
+
+/* the one the organisers want pressed: the same tonal wash as the link CTA */
+.link-card.is-highlight,
+.link-card.is-highlight:visited {
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+}
+
+.link-card-icon {
+	flex: 0 0 24px;
+	font-size: var(--fs-xl);
+	text-align: center;
+	color: var(--action-link);
+}
+
+.link-card.is-highlight .link-card-icon {
+	color: inherit;
+}
+
+.link-card-text {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-size: var(--fs-md);
+	font-weight: 700;
+}
+
+.link-card-note {
+	display: block;
+	font-size: var(--fs-sm);
+	font-weight: 400;
+	opacity: 0.8;
+}
+
+.link-card-out {
+	flex: 0 0 auto;
+	font-size: var(--fs-sm);
+	opacity: 0.7;
+}
+
+/* --- screens ------------------------------------------------------------- */
+
+img.logo {
+	max-width: 70%;
+	height: auto;
+}
+
+/* The home screen is a single screenful, not a document: it fills the space
+   between the two bars and the two logos are capped in viewport units so the
+   whole thing fits an ordinary phone. Below 520px of height it scrolls instead. */
+.screen[data-tab="homepage"] {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-evenly;
+	align-items: center;
+	gap: 8px;
+	min-height: var(--screen-height);
+	padding-top: 0;
+}
+
+.screen[data-tab="homepage"] > * {
+	margin: 0;
+}
+
+/* the column's own top margin is zeroed with the rest; the mark keeps a little air */
+.screen[data-tab="homepage"] > img.mainLogo {
+	margin-top: 8px;
+}
+
+/* the home screen centres its children, which would leave a page action as wide
+   as its own label; the paragraphs that carry one take the full column instead */
+.screen[data-tab="homepage"] > p {
+	align-self: stretch;
+}
+
+/* the cards and headings are blocks of the column, each in the 8px gutter */
+.screen[data-tab="homepage"] > :is(section, article, h2, div.news, a.link-card, div.link-card) {
+	align-self: stretch;
+	margin-inline: 8px;
+}
+
+/* Both caps are a share of --app-height rather than of vh: that token is already
+   100dvh wherever dvh exists and 100vh where it does not, so the two drawings
+   shrink with the same viewport the screen around them is measured against. Read
+   straight off vh they were sized against a taller viewport than the one the screen
+   actually gets, which is part of how the home screen overran its own frame. */
+img.mainLogo {
+	max-height: calc(var(--app-height) * 0.38);
+	width: auto;
+}
+
+.colophon img.logo {
+	max-height: calc(var(--app-height) * 0.11);
+	max-width: 60%;
+	/* about half a line of air between the mark and the text under it */
+	margin-bottom: 0.75em;
+}
+
+/* A phone held sideways is about 400px tall, and the home screen's proportions are
+   written for a portrait column. Squeezed into one screenful the mark shrank to
+   nothing, so here the screen scrolls instead and the mark keeps a readable floor.
+   The shared .screen padding still reserves the tab bar, which is what lets the
+   colophon scroll out from under it.
+   The threshold is a height rather than an orientation because a short portrait
+   phone has exactly the same problem. */
+@media (max-height: 520px) {
+	img.mainLogo {
+		max-height: max(96px, calc(var(--app-height) * 0.25));
+	}
+
+	.colophon img.logo {
+		max-height: calc(var(--app-height) * 0.08);
+	}
+}
+
+.colophon p {
+	margin: 4px 0;
+}
+
+/* The one line of text in the app that is a link and nothing else, so the ink being
+   faded here is --action-link rather than body copy. At 0.75 obrok27's purple came
+   out at 4.24:1 on the pale ground — the line still reads as a credit at 0.8, and
+   the worst pairing in either event is then 4.68:1. */
+.credit {
+	font-size: var(--fs-xs);
+	opacity: 0.8;
+}

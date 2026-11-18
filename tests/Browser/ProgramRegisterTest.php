@@ -68,8 +68,8 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::assertStringNotContainsString('is-registered', self::script('return document.querySelector(\'.tl-card[data-key="' . self::ID . '"]\').className;'));
 
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitForLanding('Přihlášen: ');
-        self::assertSame('Přihlášen: Volejbal', self::script('return document.querySelector("[data-toast] strong").textContent;'));
+        self::waitForLanding('Zapsáno: ');
+        self::assertSame('Zapsáno: Volejbal', self::script('return document.querySelector("[data-toast] strong").textContent;'));
         self::assertSame('St 16. 9. · 8:00–22:00 · Volejbalové hřiště', self::script('return document.querySelector("[data-toast] span").textContent;'));
         // the sheet says the time the way the toast does
         self::assertSame('st 16. 9. 8:00–22:00', self::script('return document.querySelector(".sheet-body.is-open .sheet-facts dd").textContent;'));
@@ -80,10 +80,10 @@ final class ProgramRegisterTest extends BrowserTestCase
 
         // the unregister asks first: the first tap only changes the label
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::assertSame('Opravdu odhlásit?', self::script('return document.querySelector(".sheet-body.is-open .sheet-footer button").textContent;'));
+        self::assertSame('Opravdu zrušit zápis?', self::script('return document.querySelector(".sheet-body.is-open .sheet-footer button").textContent;'));
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitForLanding('Odhlášen: ');
-        self::assertSame('Odhlášen: Volejbal', self::script('return document.querySelector("[data-toast] strong").textContent;'));
+        self::waitForLanding('Zápis zrušen: ');
+        self::assertSame('Zápis zrušen: Volejbal', self::script('return document.querySelector("[data-toast] strong").textContent;'));
         self::assertSame('Místo jsme uvolnili', self::script('return document.querySelector("[data-toast] span").textContent;'));
         self::assertStringNotContainsString('is-registered', self::script('return document.querySelector(\'.tl-card[data-key="' . self::ID . '"]\').className;'));
     }
@@ -98,15 +98,15 @@ final class ProgramRegisterTest extends BrowserTestCase
 
         self::script($open);
         self::waitForSheet(self::MINE);
-        self::assertSame('Odhlásit se z programu', self::script('return document.querySelector(arguments[0]).textContent;', [$button]));
+        self::assertSame('Zrušit zápis', self::script('return document.querySelector(arguments[0]).textContent;', [$button]));
         self::tap($button);
-        self::assertSame('Opravdu odhlásit?', self::script('return document.querySelector(arguments[0]).textContent;', [$button]));
+        self::assertSame('Opravdu zrušit zápis?', self::script('return document.querySelector(arguments[0]).textContent;', [$button]));
 
         self::tap('.sheet.is-open .sheet-close');
         self::waitFor('return document.querySelector(".sheet.is-open") === null;');
         self::script($open);
         self::waitForSheet(self::MINE);
-        self::assertSame('Odhlásit se z programu', self::script('return document.querySelector(arguments[0]).textContent;', [$button]));
+        self::assertSame('Zrušit zápis', self::script('return document.querySelector(arguments[0]).textContent;', [$button]));
         self::assertFalse(self::script('return document.querySelector(arguments[0]).hasAttribute("data-confirming");', [$button]));
 
         self::tap('.sheet.is-open .sheet-close');
@@ -118,7 +118,7 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::pair();
         self::openSheet();
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitForLanding('Přihlášen: ');
+        self::waitForLanding('Zapsáno: ');
 
         // the toast is over the open sheet and not inert, and it covers nothing of the close button
         $layout = self::script(<<<'JS'
@@ -158,7 +158,7 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::pair();
         self::openSheet();
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitForLanding('Přihlášen: ');
+        self::waitForLanding('Zapsáno: ');
 
         $visited = [];
         for ($i = 0; $i < 8; $i++) {
@@ -190,7 +190,7 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::waitForSheet(self::ID);
 
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitForLanding('Přihlášen: ');
+        self::waitForLanding('Zapsáno: ');
         self::assertSame('overview', self::script('return document.querySelector("[data-pg-root]").dataset.view;'));
         self::assertSame('true', self::script('return document.querySelector(\'[data-pg-view="overview"]\').getAttribute("aria-selected");'));
         self::assertStringContainsString('#section-1-program-1', self::script('return location.href;'));
@@ -213,12 +213,12 @@ final class ProgramRegisterTest extends BrowserTestCase
 
         self::tap('.sheet-body.is-open .sheet-footer button');
         self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitForLanding('Odhlášen: ', self::MINE);
+        self::waitForLanding('Zápis zrušen: ', self::MINE);
         self::assertSame('list', self::script('return document.querySelector("[data-pg-root]").dataset.view;'));
         self::assertSame('true', self::script('return document.querySelector(\'[data-pg-view="list"]\').getAttribute("aria-selected");'));
         // it has left Moje, and the sheet now offers the registration back
         self::assertNull(self::script('return document.querySelector(\'.view-list .pl-item[data-key="' . self::MINE . '"]\');'));
-        self::assertSame('Přihlásit se', self::script('return document.querySelector(".sheet-body.is-open .sheet-footer button").textContent;'));
+        self::assertSame('Zapsat program', self::script('return document.querySelector(".sheet-body.is-open .sheet-footer button").textContent;'));
     }
 
     /**
@@ -250,7 +250,7 @@ final class ProgramRegisterTest extends BrowserTestCase
      * Another device unregisters the programme and a background revalidation morphs the
      * screen: the footer's unregister form becomes the register form. The morph removes no
      * attribute the fresh markup lacks, so a patched form would keep the unregister's
-     * data-confirm and ask "Opravdu odhlásit?" on a registration. The forms are keyed by
+     * data-confirm and ask "Opravdu zrušit zápis?" on a registration. The forms are keyed by
      * state, and one replaces the other.
      */
     public function testAMorphFromUnregisterToRegisterAsksNothing(): void
@@ -266,7 +266,7 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::script("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'screen-updated', path: '/korbo26/programy'}}));");
 
         self::waitFor('return document.querySelector(arguments[0] + \' form[action$="/prihlasit"]\') !== null;', [$footer]);
-        self::assertSame('Přihlásit se', self::script('return document.querySelector(arguments[0] + " button").textContent;', [$footer]));
+        self::assertSame('Zapsat program', self::script('return document.querySelector(arguments[0] + " button").textContent;', [$footer]));
         self::assertFalse(self::script('return document.querySelector(arguments[0] + " button").hasAttribute("data-confirm");', [$footer]));
     }
 }

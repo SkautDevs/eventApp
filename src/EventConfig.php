@@ -23,7 +23,7 @@ use App\Event\Link;
 final readonly class EventConfig
 {
     /**
-     * The shared www/style.css deliberately carries no colour fallbacks, so a missing
+     * The shared sheets under www/css/ deliberately carry no colour fallbacks, so a missing
      * key does not degrade — it renders as `unset`. Fail at boot instead of shipping
      * an event whose headings inherit the body colour.
      */
@@ -56,14 +56,14 @@ final readonly class EventConfig
         /**
          * Optional look-and-feel overrides, emitted as --theme-* custom properties.
          * Unlike $colors no key is required and it may be empty: every rule
-         * in www/style.css that reads one carries today's value as its var() fallback,
+         * in www/css/ that reads one carries today's value as its var() fallback,
          * so an event that declares no theme renders exactly as it did before the map
          * existed. Values are raw CSS and may reference the palette, e.g.
          * 'ruler-bg' => 'var(--color-primary)'.
          */
         public array $theme,
         /**
-         * Semantic colour roles. Optional like $theme: www/style.css falls every role back
+         * Semantic colour roles. Optional like $theme: www/css/ falls every role back
          * to the palette expression its rules used before roles existed, so an event that
          * declares none renders exactly as it did. An event without a dark set is
          * light-only and its layout shows no mode toggle.

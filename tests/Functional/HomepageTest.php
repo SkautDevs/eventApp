@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Push\MessageRepository;
+use Tests\CoreStylesheet;
 
 /**
  * Domů. Which half of it a reader sees follows the event's dates, so every assertion that
@@ -45,7 +46,7 @@ final class HomepageTest extends AppTestCase
 
     public function testLongUrlsWrapInsteadOfBeingClipped(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         foreach (['.news-body', '.sheet-perex', '.pl-perex'] as $selector) {
             self::assertMatchesRegularExpression('/' . preg_quote($selector, '/') . '\s*\{[^}]*overflow-wrap:\s*anywhere/', $css, $selector);
         }

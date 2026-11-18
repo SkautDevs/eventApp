@@ -322,6 +322,8 @@ abstract class BrowserTestCase extends PantherTestCase
             'PUSH_DB_PATH' => self::DATABASE,
             'SESSION_PATH' => self::sessionDirectory(),
             'STUB_STATE_PATH' => self::stubStateDirectory(),
+            // tests/bootstrap.php's, so the server creates no var/cache
+            'CACHE_PATH' => (string) ($_ENV['CACHE_PATH'] ?? ''),
             // the worker's install fetches a dozen files at once; one PHP worker would queue them
             'PHP_CLI_SERVER_WORKERS' => '4',
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one

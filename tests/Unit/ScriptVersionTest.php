@@ -64,6 +64,57 @@ final class ScriptVersionTest extends TestCase
         self::assertSame(['a.js'], $version->files());
     }
 
+    public function testTheHashIsKeptAcrossInstancesInTheCacheDirectory(): void
+    {
+        $this->put('js/a.js', 'one');
+        $cache = $this->root . '/cache';
+        $hash = (new ScriptVersion($this->root, $cache))->hash();
+        self::assertSame($hash, (new ScriptVersion($this->root))->hash());
+        $entries = glob($cache . '/scripts-version-*.json') ?: [];
+        self::assertCount(1, $entries);
+
+        // a later instance reads the entry instead of hashing the tree: a planted value comes back
+        file_put_contents($entries[0], '"0badc0de"');
+        self::assertSame('0badc0de', (new ScriptVersion($this->root, $cache))->hash());
+    }
+
+    public function testAChangedTreeMissesTheCacheAtOnceAndReplacesTheEntry(): void
+    {
+        $this->put('js/a.js', 'one');
+        $cache = $this->root . '/cache';
+        $before = (new ScriptVersion($this->root, $cache))->hash();
+
+        $this->put('js/a.js', 'three');
+        $after = (new ScriptVersion($this->root, $cache))->hash();
+        self::assertNotSame($before, $after);
+        self::assertSame($after, (new ScriptVersion($this->root))->hash());
+        self::assertCount(1, glob($cache . '/scripts-version-*.json') ?: [], 'the older entry is removed');
+    }
+
+    public function testAMalformedEntryIsIgnored(): void
+    {
+        $this->put('js/a.js', 'one');
+        $cache = $this->root . '/cache';
+        $hash = (new ScriptVersion($this->root, $cache))->hash();
+        $entries = glob($cache . '/scripts-version-*.json') ?: [];
+        self::assertCount(1, $entries);
+
+        file_put_contents($entries[0], '{"not": "a hash"');
+        self::assertSame($hash, (new ScriptVersion($this->root, $cache))->hash());
+    }
+
+    public function testOneInstanceHashesOnce(): void
+    {
+        $this->put('js/a.js', 'one');
+        $version = new ScriptVersion($this->root);
+        $hash = $version->hash();
+
+        // within one request (one instance) the tree is not read again
+        $this->put('js/a.js', 'three');
+        self::assertSame($hash, $version->hash());
+        self::assertSame('/js/' . $hash . '/a.js', $version->url('a.js'));
+    }
+
     public function testAMissingFileFailsLoudly(): void
     {
         $this->expectExceptionMessage('Script "gone.js" does not exist');

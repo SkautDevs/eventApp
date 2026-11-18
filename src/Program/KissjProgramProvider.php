@@ -11,7 +11,7 @@ use GuzzleHttp\Exception\ResponseException;
 use GuzzleHttp\Exception\TransferException;
 
 /**
- * Talks to kissj's programme API, as docs/kissj-contract.md (2.0) describes it: the
+ * Talks to kissj's programme API, as kissj's API contract 3.0 describes it: the
  * list, the device pairing, the participant behind a device session, the write
  * endpoints and the revoke. Everything that arrives is validated here rather than trusted.
  *
@@ -376,7 +376,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * Maps one kissj programme onto a Programme — see docs/kissj-contract.md.
+     * Maps one kissj programme onto a Programme — see kissj's API contract 3.0.
      * Fields the contract does not map (`targetRoles`, whatever comes later) are ignored.
      *
      * @param mixed $kissj one element of whatever kissj sent, trusted for nothing

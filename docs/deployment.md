@@ -4,7 +4,7 @@ One instance of the app serves every event. The event is the first path segment
 (`/obrok27/`, `/korbo26/programy`); `/` is a picker of the events whose config says
 `listed => true`. There is nothing to deploy per event except its directory.
 
-Login is kissj's device pairing (`docs/kissj-contract.md`, "Device pairing"): a reader
+Login is kissj's device pairing (kissj's API contract 3.0, "Device pairing"): a reader
 starts it on `/<slug>/profil`, confirms the code in KissJ, and the app keeps kissj's
 device session token in its server-side session. There is no SkautIS app to register and
 no `soap` extension to install.
@@ -263,6 +263,7 @@ Instance-wide:
 | `VAPID_SUBJECT` | `mailto:` contact for the push services. Must start with `mailto:` or `https://`; checked at boot like the keys. |
 | `PUSH_DB_PATH` | Defaults to `var/push.sqlite`; may be relative to the project root. Holds the push subscriptions, the message log that Informace and Domů show, and the two per-address limits' counters. |
 | `SESSION_PATH` | Directory of the session files; defaults to `var/sessions` and, like `PUSH_DB_PATH`, may be relative to the project root. Leave it unset: the browser tests set it to keep their sessions out of the tree. A path outside the app root must belong to PHP's user and grant nothing to group or others, or the store falls back (see [Sessions](#sessions)). |
+| `CACHE_PATH` | Directory of the kissj cache (`<slug>/` per event) and of the scripts' `scripts-*.json`; defaults to `var/cache` and may be relative to the project root. Leave it unset: the tests set it to keep their cache out of the tree. |
 | `SENTRY_DSN` | Sentry project DSN. Empty (the default) switches error reporting and tracing off entirely. |
 | `SENTRY_TRACES_SAMPLE_RATE` | Share of requests traced, `0`..`1`; `.env.example` suggests `0.05`. Missing or empty means `0`. |
 | `SENTRY_PROFILES_SAMPLE_RATE` | Share of traced requests profiled, `0`..`1`; leave at `0` unless the excimer extension is installed. |
@@ -283,8 +284,8 @@ Per event, each name suffixed with the slug in upper case and `-` turned into `_
 **The deployed instance reads kissj staging for now**: every event kissj staging has is
 `PROGRAM_PROVIDER_<SLUG>=https://staging.kissj.net` with that event's
 `KISSJ_API_KEY_<SLUG>`; `obrok19`, which kissj does not have, is `local`. A missing
-line stops that event from booting. kissj must implement contract **2.0**
-(`docs/kissj-contract.md`, "Versions"): a kissj on 1.0 sends no participant id and has
+line stops that event from booting. kissj must implement contract **3.0**
+(kissj's API contract 3.0, "Versions"): a kissj on 1.0 sends no participant id and has
 no revoke, so pairing an event to it fails. Sending a notification to one programme
 asks kissj's `GET /v3/programme/{id}/participants` for the ids of the participants the
 message goes to.
@@ -412,7 +413,7 @@ The stack is two containers: `app` (php-fpm, built from `Dockerfile`) and `web`
 request to `www/index.php`.
 
 **Build and deploy from one checkout.** PHP renders the templates that are baked into
-the image, while nginx serves `style.css`, the scripts under `www/js/` and the logos from the host's
+the image, while nginx serves the stylesheets under `www/css/`, the scripts under `www/js/` and the logos from the host's
 `./www` bind mount. Pulling without `--build`, or building the image from a different
 checkout than the one next to `docker-compose.prod.yml`, pairs new assets with old
 templates or the reverse.
@@ -526,15 +527,21 @@ What the stack does, and why:
   `push.sent` stay on stdout. Push and cache counts are span data (`push.send`,
   `push.welcome`, `push.subscribe`, `program.cache`), not issues. A
   request that matched no route is the one transaction `unmatched`.
-- **Assets carry a content hash.** `templates/_layout.twig` links the two stylesheets
-  through `asset_version()`, which appends `?v=` and the first 8 hex characters of the
-  file's sha256 (`App\Http\AssetVersion`, memoised per PHP process by path, mtime and
-  size). The scripts live under `www/js/` and are linked through `script_url()` as
+- **Assets carry a content hash.** `templates/_layout.twig` links the core stylesheets
+  under `www/css/` and the event's own sheet through `asset_version()`, which appends
+  `?v=` and the first 8 hex characters of the file's sha256 (`App\Http\AssetVersion`,
+  memoised by path, mtime and size for the rest of one request only: PHP keeps no static
+  property between requests, so each request hashes the sheets it links). The scripts
+  live under `www/js/` and are linked through `script_url()` as
   `/js/<hash>/<path>`, where the hash is the first 8 hex of a sha256 over every file of
-  the `www/js/` tree (`App\Http\ScriptVersion`). There is one hash for all of them, so a
+  the `www/js/` tree (`App\Http\ScriptVersion`). The hash and the scripts' import graph
+  are computed once per request and kept across requests in `var/cache/scripts-*.json` (`CACHE_PATH`),
+  keyed by one stat walk of the tree (every file's path, mtime, size and inode), so a
+  changed file is seen by the next request with no deploy step, and deleting the files is
+  always safe. There is one hash for all of them, so a
   change to any script changes the prefix of every script, and a module's relative
-  imports resolve under its own prefix, so a page loads all its modules from one deploy
-  (except during an upload, below).
+  imports resolve under its own prefix, so a page asks for all its modules under one
+  deploy's prefix (what it can still get is below).
   An import map would have done the same, but it needs Safari 16.4, which would change
   what old iPhones get. The prefix is no directory: three rules that must agree serve `/js/<8 hex>/<path>` as
   `www/js/<path>` — the `RewriteRule` in `www/.htaccess`, the `rewrite` in
@@ -552,12 +559,17 @@ What the stack does, and why:
   modules, one import of an export that is not there stops the whole graph of that
   entry, not just one function. The window lasts as long as the upload, and it is the same
   window a `?v=` stylesheet has today: its old query string also gets the new file.
+  The same rule reaches past the upload. A page that still holds the previous deploy's
+  HTML (the worker's offline copy) and fetches a script under its old hash that neither
+  the worker nor the HTTP cache holds gets the new deploy's file, and the HTTP cache keeps
+  it under the old URL for a year. That page can run modules of two deploys side by side.
+  The worker precaches the whole tree under one hash, which keeps this rare.
 - **Fonts and icons are self-hosted and never change in place.** `www/fonts/` (themix,
   skautbold, Montserrat) and `www/vendor/fontawesome-free-5.8.1/` are committed, carry no
   hash, get the same year of `immutable` (by extension: woff2, css) and are served
   cache-first by the service worker. A changed file gets a new name — a new Montserrat
   version a new `montserrat-v<N>-…` file, a new Font Awesome a new directory — with the
-  references in `www/style.css`, `templates/_layout.twig` and `App\Http\Fonts` changed to
+  references in `www/css/base.css`, `templates/_layout.twig` and `App\Http\Fonts` changed to
   match. No page loads anything typographic from a CDN.
 - `www/sw.js` must stay at the docroot root. The worker is registered with scope
   `/<slug>/`, which is only allowed for a script at or above that path.

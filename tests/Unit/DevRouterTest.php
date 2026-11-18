@@ -15,16 +15,19 @@ final class DevRouterTest extends TestCase
 {
     public function testAnExistingFileIsLeftToTheBuiltInServer(): void
     {
-        $saved = $_SERVER['REQUEST_URI'] ?? null;
-        $_SERVER['REQUEST_URI'] = '/sw.js';
+        // a stylesheet is always asked for with its ?v= content hash, which the router must strip
+        foreach (['/sw.js', '/css/base.css?v=12345678'] as $uri) {
+            $saved = $_SERVER['REQUEST_URI'] ?? null;
+            $_SERVER['REQUEST_URI'] = $uri;
 
-        try {
-            $result = (static fn(): mixed => require dirname(__DIR__, 2) . '/bin/router.php')();
-        } finally {
-            $_SERVER['REQUEST_URI'] = $saved;
+            try {
+                $result = (static fn(): mixed => require dirname(__DIR__, 2) . '/bin/router.php')();
+            } finally {
+                $_SERVER['REQUEST_URI'] = $saved;
+            }
+
+            self::assertFalse($result, $uri);
         }
-
-        self::assertFalse($result);
         self::assertStringContainsString("require __DIR__ . '/../www/index.php';", (string) file_get_contents(dirname(__DIR__, 2) . '/bin/router.php'));
     }
 

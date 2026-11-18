@@ -29,7 +29,7 @@ use App\Toast\Toasts;
 final class RegistrationWriter
 {
     /**
-     * The toast title for each of kissj's refusal codes (docs/kissj-contract.md); a code
+     * The toast title for each of kissj's refusal codes (kissj's API contract 3.0); a code
      * not listed here is REFUSED.
      */
     private const array REFUSALS = [
@@ -39,18 +39,18 @@ final class RegistrationWriter
         'notPossible' => 'Na tenhle program se nepřihlašuje, máš ho automaticky.',
         'wrongRole' => 'Tenhle program není určený pro tvoji roli.',
         'alreadyRegistered' => 'Tenhle program už máš.',
-        'notRegistered' => 'Tenhle program nemáš, není z čeho se odhlásit.',
+        'notRegistered' => 'Tenhle program nemáš zapsaný, není co rušit.',
         'conflict' => 'Koliduje s programem, který už máš ve stejném bloku.',
         'full' => 'Je plno.',
     ];
 
     /** The toast title for a refusal code REFUSALS does not know, per verb (true: register). */
-    private const array REFUSED = [true => 'Přihlášení se nepodařilo.', false => 'Odhlášení se nepodařilo.'];
+    private const array REFUSED = [true => 'Zápis se nepodařil.', false => 'Zrušení zápisu se nepodařilo.'];
 
     /** The toast title when the provider could not be reached or answered nonsense, per verb. */
     private const array WRITE_FAILED = [
-        true => 'Přihlášení se teď nedaří, zkus to prosím později.',
-        false => 'Odhlášení se teď nedaří, zkus to prosím později.',
+        true => 'Zápis se teď nedaří, zkus to prosím později.',
+        false => 'Zrušení zápisu se teď nedaří, zkus to prosím později.',
     ];
 
     /**
@@ -60,7 +60,7 @@ final class RegistrationWriter
     private const array REPEATED = [true => 'alreadyRegistered', false => 'notRegistered'];
 
     /** The sheet's line, the toast's second line and the 403 page's message for a reader who is not paired. */
-    public const string NOT_PAIRED = 'Pro přihlašování se přihlas kódem z KissJ';
+    public const string NOT_PAIRED = 'Pro zápis na programy se přihlas kódem z KissJ';
 
     public function __construct(
         private readonly ProgramProviderInterface $provider,
@@ -97,9 +97,9 @@ final class RegistrationWriter
             $programme = $this->programme($programmeId);
             $name = $programme?->name;
             if ($register) {
-                $toasts->put($name === null ? 'Přihlášen' : 'Přihlášen: ' . $name, $programme === null ? null : self::toastLine($programme), $tag);
+                $toasts->put($name === null ? 'Zapsáno' : 'Zapsáno: ' . $name, $programme === null ? null : self::toastLine($programme), $tag);
             } else {
-                $toasts->put($name === null ? 'Odhlášen' : 'Odhlášen: ' . $name, 'Místo jsme uvolnili', $tag);
+                $toasts->put($name === null ? 'Zápis zrušen' : 'Zápis zrušen: ' . $name, 'Místo jsme uvolnili', $tag);
             }
         } catch (RegistrationRefusedException $e) {
             $title = self::REFUSALS[$e->refusal] ?? self::REFUSED[$register];

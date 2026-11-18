@@ -17,7 +17,9 @@ namespace App;
  * `PROGRAM_CACHE_TTL`, `VAPID_*`, `PUSH_DB_PATH`, `SESSION_PATH` (sessionPath(), default
  * `var/sessions`, relative paths against the project root like `PUSH_DB_PATH`; the
  * browser tests point it at a temp dir), `STUB_STATE_PATH` (stubStatePath(), default
- * `var/stub`, resolved the same way; every test points it at a temp dir),
+ * `var/stub`, resolved the same way; every test points it at a temp dir), `CACHE_PATH`
+ * (cachePath(), default `var/cache`, resolved the same way; the tests point it at a temp
+ * dir),
  * `PUSH_ENDPOINT_HOSTS`, `TRUSTED_PROXY_COUNT`, `TRUSTED_PROXIES`, `SENTRY_DSN`,
  * `SENTRY_TRACES_SAMPLE_RATE` (`.env.example`: 0.05), `SENTRY_PROFILES_SAMPLE_RATE` and
  * `APP_RELEASE` are instance-wide and read from `$_ENV` (`TRUSTED_PROXIES` falls back to
@@ -123,6 +125,23 @@ final readonly class Environment
         $path = $this->get('SESSION_PATH');
         if ($path === '') {
             return $root . '/var/sessions';
+        }
+
+        return str_starts_with($path, '/') ? $path : $root . '/' . $path;
+    }
+
+    /**
+     * CACHE_PATH: the directory of the kissj cache (one subdirectory per event) and of the
+     * scripts' version and import graph (ScriptTree), var/cache unless set; relative paths
+     * are resolved against the project root like SESSION_PATH. The tests point it at a
+     * temporary directory of their own (tests/bootstrap.php), so a test run creates no
+     * var/cache.
+     */
+    public function cachePath(string $root): string
+    {
+        $path = $this->get('CACHE_PATH');
+        if ($path === '') {
+            return $root . '/var/cache';
         }
 
         return str_starts_with($path, '/') ? $path : $root . '/' . $path;

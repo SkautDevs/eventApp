@@ -36,6 +36,7 @@ final class PrecacheAction
             RouteContext::fromRequest($request)->getRouteParser(),
             $this->versions,
             $this->scripts,
+            $this->modules->sheets(),
             $this->modules->menu(),
             $this->paths->www,
         );

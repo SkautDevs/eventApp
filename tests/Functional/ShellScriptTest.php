@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use Tests\CoreStylesheet;
+
 /**
  * The installed-app concerns: www/js/shell/ (the worker, the banner, the toast, the
  * confirmations, the loading bar, the install), www/js/ui/reltime.js, Domů's draws
@@ -41,7 +43,7 @@ final class ShellScriptTest extends AppTestCase
 
     private static function stylesheet(): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        return CoreStylesheet::read();
     }
 
     public function testAMapThatCannotLoadOfflineSaysSo(): void

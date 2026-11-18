@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.5). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime by the first path segment: every event lives under `/{slug}/`, and `/` is a picker of the listed ones. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices, toasts and flash messages, and the weekday names in `HomeModel`, `NotificationList`, `Programs\Times` and `www/js/home/countdown.js`. Every surface a reader sees addresses them as *ty*: templates, notices and toasts, push status lines, ARIA labels, `<title>`s. UI strings spell the registration system **KissJ**, and the organisers' messages are **notifikace**, never novinky (the Informace heading, Domů's `Starší notifikace`, the manifest shortcut). The admin page is for organisers and stays neutral and imperative, and per-event content is the organisers' own text. Commit messages and `docs/` are in English without AI-authorship trailers (the existing `docs/kissj-contract.md` predates this and is still Czech).
+Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 8.5). One codebase serves multiple events — each event is a config + content directory under `events/<slug>/` plus public assets under `www/events/<slug>/`, selected at runtime by the first path segment: every event lives under `/{slug}/`, and `/` is a picker of the listed ones. Code is in English — comments, docblocks, exception messages, identifiers. Czech is reserved for what users actually read: UI strings in `templates/`, per-event content under `events/<slug>/content/`, user-facing notices, toasts and flash messages, and the weekday names in `HomeModel`, `NotificationList`, `Programs\Times` and `www/js/home/countdown.js`. Every surface a reader sees addresses them as *ty*: templates, notices and toasts, push status lines, ARIA labels, `<title>`s. UI strings spell the registration system **KissJ**, and the organisers' messages are **notifikace**, never novinky (the Informace heading, Domů's `Starší notifikace`, the manifest shortcut). The admin page is for organisers and stays neutral and imperative, and per-event content is the organisers' own text. Commit messages and `docs/` are in English without AI-authorship trailers.
 
 ## Commands
 
@@ -14,7 +14,7 @@ Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 
 - `vendor/bin/phpunit --exclude-group browser` — the fast run, no Chrome tests. There is no host PHP: run it as `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine vendor/bin/phpunit --exclude-group browser` — 8.5 is the lowest supported PHP and what CI and production run (`.github/php-version`, read by every workflow; `deploy.yml` deploys every push to `master` over FTP once `ci.yml` passes, see `docs/deployment.md`). The fast run keeps the local source's state in temp directories of its own; a `var/stub` it leaves behind is a bug
 - `docker compose --profile browser run --rm --use-aliases test vendor/bin/phpunit --group browser` — the Chrome tests: `symfony/panther` drives `selenium/standalone-chrome` (the `chrome` service), and the test case serves the app itself from the `test` container (`--use-aliases` makes it reachable as `test`). `docker compose --profile browser stop chrome` afterwards, and `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine sh -c 'rm -rf var/twig/* var/sessions var/cache var/stub'`, because the `test` service runs as root. There is no Node anywhere
 - `vendor/bin/phpunit --filter testGetHomepage` — run a single test
-- `docker run -d --name eventapp-korbo --rm -p 8082:8080 -v "$PWD":/app -w /app -e PROGRAM_PROVIDER_KORBO26=local -e APP_DEBUG=1 php:8.5-alpine php -S 0.0.0.0:8080 -t www/ bin/router.php` — serve the `korbo26` dev event (the realistic Korbo camp data from its local fixture files) on `localhost:8082/korbo26/programy`; the `-e` values override `.env`. On Profil, `Přihlásit kódem z KissJ` pairs at once (the `local` source approves the first poll) as the fixture participant 1, Jana Nováková, registered for 6 programmes; korbo26's registration window is open (2020–2099), so the sheet registers and unregisters. Those writes land in `var/stub/korbo26.json`; delete it to get the fixtures' registrations back
+- `docker run -d --name eventapp-korbo --rm -p 8082:8080 -v "$PWD":/app -w /app -e PROGRAM_PROVIDER_KORBO26=local -e APP_DEBUG=1 php:8.5-alpine php -S 0.0.0.0:8080 -t www/ bin/router.php` — serve the `korbo26` dev event (the realistic Korbo camp data from its local fixture files) on `localhost:8082/korbo26/programy`; the `-e` values override `.env`. How it pairs and registers: `docs/architecture/bootstrap-and-config.md`
 - `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine sh -c 'apk add --no-cache libpng-dev >/dev/null && docker-php-ext-install gd >/dev/null && php bin/event-icons.php <slug> <source.png> <#background>'` — regenerate an event's favicons, apple-touch icon and manifest icons from one drawing (GD is installed on the fly, the stock image lacks it); it prints the `assets.favicon16`/`favicon32`/`appleTouch` lines for the config, and files it wrote as root need a `chown` afterwards
 - `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine php bin/kissj-fixtures.php <slug> [--clamp-all-day=HH:MM-HH:MM]` — regenerate `events/<slug>/fixtures/` from `tests/fixtures/kissj/<slug>/` (`programme-list.json`, `participant.json`) through the real `KissjProgramProvider` mapping: `programs.json`, `sections.json`, `registered.json` (the fixture participant's programmes, keyed by their kissj participant id) and `registration.json` (the list's window, removed when it has none); `--clamp-all-day` narrows programmes that kissj stores as whole-day runs to the given window
 - `docker compose --profile browser run --rm --use-aliases test php bin/baseline.php` — re-take `docs/baseline/obrok19/*.png` (the four obrok19 screens `home`, `informace`, `profil`, `programy` at 390 × 844 through the local provider, in the browser tests' own server and Chrome, the install button hidden). obrok19 has no `dates`, so Domů shows the date heading of the day it is shot: two runs on the same day give byte-identical PNGs, two on different days differ there. `docker compose --profile browser stop chrome` afterwards; with a local chromedriver, `php bin/baseline.php`
@@ -24,6 +24,7 @@ Modular support web app for Czech scout events (Obrok). Built on Slim 4 (PHP >= 
 - `just lint` — the three above (`just cs`, `just stan`, `just biome`); CI's `lint` job runs the same three
 - `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine sh -c 'apk add --no-cache libfaketime tzdata >/dev/null && php bin/gate.php html <label>'` — the HTML gate: dump every event's HTTP responses under a frozen clock into `var/gate/<label>/html/`
 - `docker compose --profile browser run --rm --use-aliases test sh -c 'apk add --no-cache libfaketime tzdata >/dev/null && php bin/gate.php render <label>'` — the render gate: dump every element's box and computed style per screen state in Chrome into `var/gate/<label>/render/`; `docker compose --profile browser stop chrome` afterwards
+- `docker compose --profile browser run --rm --use-aliases test vendor/bin/phpunit --filter JsUnitTest` — the JavaScript unit tests (`tests/js/`) in Chrome; clean up as after the Chrome tests
 - `php bin/gate.php diff [--frontend] <a> <b>` — compare two gate labels after normalisation: `identical: N files`, or each differing file with a short diff; `--frontend` also drops script and stylesheet elements
 - Local only, not in the repo (`.gitignore`): the mock events' source material under `docs/` and the two converters that read it, with their tests. Only the JSON they produced is committed, so the two commands below work only on a machine that still has those files.
 - `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine php bin/obrok-harmonogram.php "docs/Harmonogram celé akce.xlsx"` — convert the organisers' harmonogram spreadsheet into `tests/fixtures/kissj/obrok27/`; then run `docker run --rm -v "$PWD":/app -w /app php:8.5-alpine php bin/kissj-fixtures.php obrok27` to regenerate the served `events/obrok27/fixtures/` from it
@@ -33,16 +34,18 @@ Before running, copy `.env.example` to `.env`, set `APP_DEBUG=1` for dev, keep a
 
 ## Modules
 
-One row per screen, as the code stands on 2026-11-18. Each screen is a module under `src/Module/<Name>/`: the module class registers its routes (relative to `/<slug>`), and each route is an action class in the same directory. `_layout.twig` loads `www/js/<dir>/index.js` for each module with a script, the shell's on every page. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`), `Push\PushModule` (`POST /push/subscribe`) and `Handbook\HandbookModule` (the handbook PDF).
+One row per screen, as the code stands on 2026-11-18. A screen is one name in three places: a PHP module under `src/Module/<Name>/` (the module class registers its routes, relative to `/<slug>`, each route an action class in the same directory), a script directory `www/js/<name>/` whose `index.js` is the module's `script()`, and a sheet `www/css/<name>.css`, its `stylesheet()`. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`; `www/js/shell/` and `www/css/shell.css` on every page), `Push\PushModule` (`POST /push/subscribe`, `www/js/push/`) and `Handbook\HandbookModule` (the handbook PDF). The routes are in each screen's document.
 
-| Screen | Routes | Module | Script | Template |
+| Screen | PHP | JS | CSS | Template |
 |---|---|---|---|---|
-| Domů | `GET /` | `Home\HomeModule`, `src/Module/Home/` | `www/js/home/` (next-up cards, countdown, date) | `homepage.twig`, `_install.twig`, `_toast.twig` |
-| Program | `GET /programy`, `POST /programy/{id}/prihlasit`, `POST /programy/{id}/odhlasit` | `Programs\ProgramsModule`, `src/Module/Programs/` | `www/js/programs/` | `programs.twig`, `_toast.twig` |
-| Místa | `GET /mapa` | `Map\MapModule`, `src/Module/Map/` | `www/js/map/` | `map.twig` |
-| Informace | `GET /informace` | `Info\InfoModule`, `src/Module/Info/` | none (`www/js/ui/reltime.js` redraws the times) | `info.twig` |
-| Profil | `GET /profil`, `POST /profil/propojit`, `GET /profil/propojit/stav`, `POST /profil/odpojit` | `Profile\ProfileModule`, `src/Module/Profile/` | `www/js/profile/` (poll, mode control), `www/js/push/` (opt-in) | `profile.twig`, `_install.twig`, `_toast.twig` |
-| Admin page | `GET /admin/notify`, `POST /admin/notify`, `POST /admin/notify/{id}/hidden` | `Admin\AdminModule`, `src/Module/Admin/` (with `push`) | inline nonced `<script>` in the template | `admin-notify.twig`, `admin-expired.twig` |
+| Domů | `src/Module/Home/` | `www/js/home/` | `www/css/home.css` | `homepage.twig` |
+| Program | `src/Module/Programs/` | `www/js/programs/` | `www/css/programs.css` | `programs.twig` |
+| Místa | `src/Module/Map/` | `www/js/map/` | `www/css/map.css` | `map.twig` |
+| Informace | `src/Module/Info/` | none (`www/js/ui/reltime.js` redraws the times) | `www/css/info.css` | `info.twig` |
+| Profil | `src/Module/Profile/` | `www/js/profile/`, `www/js/push/` (opt-in) | `www/css/profile.css` | `profile.twig` |
+| Admin page (with `push`) | `src/Module/Admin/` | inline `<script>` | `www/css/admin.css` | `admin-notify.twig`, `admin-expired.twig` |
+
+**Adding a screen**: one PHP module, one JS directory, one CSS file, under one name. `src/Module/<Name>/<Name>Module.php` implements `ModuleInterface`, is listed in `ModuleRegistry::ORDER` and in `CORE` (every event) or `MODULES` (a feature), and returns `'<name>/index.js'` from `script()` and `'<name>.css'` from `stylesheet()`. Its place in `ORDER` is its sheet's place in the link order ([theming.md](docs/architecture/theming.md)).
 
 ## Conventions
 
@@ -65,7 +68,7 @@ One row per screen, as the code stands on 2026-11-18. Each screen is a module un
 - `docs/architecture/auth-and-session.md`: device pairing, logout, the session store and its cookie.
 - `docs/architecture/shell-and-loader.md`: the layout, the screen stack, the loader and its morph, toasts, the `www/js/` modules, asset versions, the install card.
 - `docs/architecture/service-worker.md`: the precache list, cache strategies, purge on write, offline answers.
-- `docs/architecture/theming.md`: palette, semantic roles, light and dark sets, theme and fonts, logos per surface.
+- `docs/architecture/theming.md`: the core stylesheets, palette, semantic roles, light and dark sets, theme and fonts, logos per surface.
 - `docs/architecture/home.md`: Domů in its three phases.
 - `docs/architecture/programs.md`: the Program screen, its three views, day chips, the sheet and registration.
 - `docs/architecture/map.md`: Místa, the Google map and the site plan.
@@ -75,7 +78,7 @@ One row per screen, as the code stands on 2026-11-18. Each screen is a module un
 
 ## Rules that are easy to break
 
-- No colour literal and no `--color-*` key in `www/style.css`: rules read semantic roles. See `docs/architecture/theming.md`.
+- No colour literal and no `--color-*` key in `www/css/`: rules read semantic roles. See `docs/architecture/theming.md`.
 - A colour change touches both hand-written role sets, light and dark. See `docs/architecture/theming.md`.
 - A stylesheet carries `?v=<hash>` (`asset_version()`), a script lives under `/js/<hash>/` (`script_url()`); a changed font or icon file ships under a new name. See `docs/architecture/shell-and-loader.md`.
 - Never give `<main>` a `view-transition-name` or anything else that makes it a stacking context. See `docs/architecture/shell-and-loader.md`.

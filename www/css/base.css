@@ -1,0 +1,346 @@
+@charset "utf-8";
+/* CSS Document */
+
+/* Every face is served from the app itself — www/fonts/, next to this file — so an
+   installed app keeps its typefaces offline (App\Http\Fonts puts them in the worker's
+   offline set; FontsTest keeps that table and these rules in step). One woff2 per
+   face and one `src` per rule: every browser that runs the service worker reads woff2.
+   A changed file gets a new name, never new bytes under the old one: /fonts/ carries a
+   year of `immutable` and no content hash. Nothing renders italic, so no italic face. */
+@font-face {
+	font-family: "themix";
+	src: url("/fonts/themix/TheMix_LT_400.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "themix";
+	src: url("/fonts/themix/TheMix_LT_700.woff2") format("woff2");
+	font-weight: 700;
+	font-style: normal;
+}
+
+@font-face {
+	font-family: "skautbold";
+	src: url("/fonts/skautbold/skaut-bold-webfont.woff2") format("woff2");
+	font-weight: normal;
+	font-style: normal;
+}
+
+/* Montserrat (SIL OFL 1.1, www/fonts/montserrat/OFL.txt), obrok27's face. Google's v31
+   variable files, one per subset, with a wght axis of 100-900 (obrok27's headings are 800);
+   the unicode-range lines are Google's own, so a page fetches latin-ext only when it shows
+   a character from it. */
+@font-face {
+	font-family: "Montserrat";
+	src: url("/fonts/montserrat/montserrat-v31-latin-ext.woff2") format("woff2");
+	font-weight: 400 900;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+	font-family: "Montserrat";
+	src: url("/fonts/montserrat/montserrat-v31-latin.woff2") format("woff2");
+	font-weight: 400 900;
+	font-style: normal;
+	font-display: swap;
+	unicode-range:
+		U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+		U+FEFF, U+FFFD;
+}
+
+/* Seatren and Luciao Sans, navigamus27's faces (licensed for the event, as in kissj's
+   Navigamus 2027 skin). Each ships one regular weight, Czech included: Seatren is the
+   display face, always uppercase, and nothing asks it for a bold. */
+@font-face {
+	font-family: "Seatren";
+	src: url("/fonts/seatren/seatren-v1.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Luciao Sans";
+	src: url("/fonts/luciao-sans/luciao-sans-v1-regular.woff2") format("woff2");
+	font-weight: 400;
+	font-style: normal;
+	font-display: swap;
+}
+
+/* ---------------------------------------------------------------------------
+   App shell.
+
+   COLOUR IS ROLES, NOT PALETTE KEYS. Below this block no rule names --color-*;
+   every one of them reads a semantic role, and the roles are the only place the
+   palette is touched. That is the whole fix for "the colours are really mixed":
+   a rule saying "the app bar is --color-base" is a fact about one widget, not a
+   system, and once four different keys are all in play with no rule about which
+   means what, nothing can read as an accent because everything is one.
+
+   The rule that keeps it honest: A COLOUR HOLDS EXACTLY ONE ROLE. If the event's
+   lime is `state`, lime is not also a surface, a ground or a piece of chrome.
+
+   The budget the roles are sized for is 60:30:10 — a tinted neutral `ground`
+   (with `surface` as its one block tier), `structure` for the bars, the cards
+   and the timeline's chrome, and a 10 split between `action` ("you can do this")
+   and `state` ("you are here / this is yours").
+
+   LIGHT MODE IS LIGHT AND DARK MODE IS DARK, all the way through. `structure` is
+   the ground of the bars, the sheet and the timeline's cards, so in a light set it
+   is the lightest thing on the screen and in a dark set the darkest — a filled
+   near-unlit bar in light mode is exactly the "dark element in the light mode"
+   that this system existed to stop. Two consequences the rules below depend on:
+   an accent can only appear as INK or as a small filled chip carrying dark ink,
+   never as a large fill (an event's identity colour is routinely under 3:1 on a
+   pale ground), and separation cannot come from a step
+   alone, because content scrolls under a bar of very nearly its own colour. Every
+   bar, sheet and card therefore carries a HAIRLINE as well, in both modes: light
+   mode's is neutral, dark mode's is tinted with the accent. `--edge-width` is 0
+   for an event that declares nothing, so the built-in fallbacks are untouched.
+
+   Every role falls back to the expression its rules used before roles existed —
+   `structure` is the one exception, and it says why on its own line — so an event
+   that declares none renders as it did, which obrok19 proves with a pixel diff.
+   An event that declares roles gives two full sets, light and dark; _layout.twig
+   emits them as --role-* and this file never sees which mode is active.
+
+   Three scopes REBIND the core roles rather than adding new names: a text field,
+   the bottom sheet and the timeline grid are each their own little surface with
+   their own structure on it. Same vocabulary, local values. Only one role sits
+   BESIDE the core set rather than inside it — `signature`, structure carrying the
+   identity, whose single use is the hour ruler.
+   --------------------------------------------------------------------------- */
+
+:root {
+	/* ===== 60 — the page ================================================= */
+	--ground: var(--role-ground, var(--color-background));
+	--on-ground: var(--role-on-ground, var(--color-text));
+	/* the one block tier above the ground; transparent means "no tier" */
+	--surface: var(--role-surface, transparent);
+	--on-surface: var(--role-on-surface, var(--color-text));
+
+	/* ===== 30 — structure: the bars, the buttons, the grid's chrome ======
+	   The default is the palette's DEEPER tone rather than --color-base, because
+	   structure is the one role that is a filled ground under inverted type at
+	   body size: obrok19's base carries --color-text-invert at 3.85:1, below AA,
+	   and its darker green at 6.84:1. --color-base stays the default for `edge`,
+	   `emphasis` and `scrim`, where it is a hairline or ink and never a ground
+	   under the inverted text colour. */
+	--structure: var(--role-structure, var(--color-darker));
+	--on-structure: var(--role-on-structure, var(--color-text-invert));
+	/* The quiet form of an action, and the shape a standing notice takes: a heavily
+	   mixed wash of the accent carrying that same accent at full strength as ink.
+	   It exists because a secondary button cannot be a filled accent (that is what
+	   `action` is for) and must not be a filled dark block either. The fallback is
+	   the structure pair, which is what these rules read before the role existed. */
+	--tonal: var(--role-tonal, var(--structure));
+	--on-tonal: var(--role-on-tonal, var(--on-structure));
+	/* Bars, sheets and cards are told apart from the ground by a tone step AND a
+	   hairline — the step alone leaves a pale card sliding under an app bar of very
+	   nearly its own tone. The width is a role so that an event which declares nothing gets no
+	   edge and no change; both hand-authored sets in the app declare one. */
+	--edge-width: var(--role-edge-width, 0px);
+
+	/* ===== 10a — action: "you can do this" =============================== */
+	--action: var(--role-action, var(--color-primary));
+	--on-action: var(--role-on-action, var(--color-text-invert));
+	/* the same colour as --action wherever an event declares roles; separate only
+	   because obrok19 is frozen on the browser's own blue for links */
+	--action-link: var(--role-action-link, var(--color-link));
+
+	/* ===== 10b — state: "you are here / this is yours" =================== */
+	--state: var(--role-state, var(--color-nav-active, var(--color-text-invert)));
+	--on-state: var(--role-on-state, var(--color-base));
+	/* "now" on the schedule: the timeline's current-time line and its label. Its own
+	   role so the palette round can give it a colour of its own; until then it is the
+	   action ink. The label sets on-action on it, so a declared `now` must keep
+	   on-action legible on itself. */
+	--now: var(--role-now, var(--action));
+
+	/* ===== support ======================================================= */
+	/* separators and hairlines */
+	--edge: var(--role-edge, var(--color-base));
+	/* the one heading colour that is neither ground nor structure */
+	--heading: var(--role-heading, var(--color-darker));
+	/* Ink with more weight than body copy: subheadings, and the icon controls that
+	   sit directly on the ground. It is deliberately NOT `structure`, even though
+	   obrok19's palette happens to make them the same value — structure is a FILL
+	   at the dark end, and a fill at the dark end used as ink on a ground that is
+	   also at the dark end, which is what dark mode is, cannot be seen. */
+	--emphasis: var(--role-emphasis, var(--color-base));
+	/* the scrim behind a modal, always used at partial opacity */
+	--scrim: var(--role-scrim, var(--color-base));
+
+	/* the whole app is laid out as a phone, centred, at every viewport width */
+	--app-width: 480px;
+	/* one duration for everything in the app that moves, on a plain curve */
+	--motion: var(--theme-motion, 120ms);
+	/* corner rounding, in the four sizes the app actually uses: the general one,
+	   pills, the bottom sheet, and the timeline card. An event that
+	   wants to look blocky sets them all to 0 in one place. */
+	--radius: var(--theme-radius, 8px);
+	--radius-pill: var(--theme-radius-pill, 999px);
+	--radius-sheet: var(--theme-radius-sheet, 18px);
+	--radius-card: var(--theme-radius-card, 4px);
+	/* Type, as a seven-step rem scale fitted to the sizes the app already used, so at a
+	   16px root nothing moves by more than a pixel and a reader's own text size reaches
+	   every line of copy. Two kinds of rule stay in px on purpose, and ThemingTest names
+	   them: the chrome glyphs of the fixed-height bars and of the instrument controls
+	   (the zoom pairs, one floating on the plan; www/js/programs/ reads the bar heights as
+	   plain pixel numbers) and the timeline grid's own type, whose geometry is frozen. Můj program is the large-type path through the schedule. */
+	--fs-2xs: 0.6875rem; /* 11: tab bar labels */
+	--fs-xs: 0.8125rem; /* 13: credit, who, section line */
+	--fs-sm: 0.875rem; /* 14: list meta, sheet meta */
+	--fs-md: 1rem; /* 16: body, buttons, fields, strips */
+	--fs-lg: 1.0625rem; /* 17: h3, list item name */
+	--fs-xl: 1.25rem; /* 20: app bar title, sheet close */
+	--fs-2xl: 1.5rem; /* 24: h2, sheet name */
+	--appbar-height: 52px;
+	/* The notch, on a standalone install with viewport-fit=cover. Every other fixed
+	   element in the app already clears the bottom inset; this is the app bar's half
+	   of the same job. It stays a token of its own rather than being folded into
+	   --appbar-height, because that one is read as a plain number by www/js/programs/
+	   and a calc() there would parse as zero. */
+	--appbar-inset: env(safe-area-inset-top, 0px);
+	--tabbar-height: 58px;
+	/* the view switcher docked above the tab bar on /programy and on a /mapa with
+	   two views. It is chrome like the two bars, so screens that carry it subtract it
+	   from --screen-height; every other screen simply never references it. */
+	--tabs-height: 48px;
+	/* The network banner's height while it is up (www/js/shell/netstate.js writes it on the root), 0px
+	   while it is hidden. It docks on the tab bar, so it is bottom chrome like the bar: the
+	   space a screen gets, its bottom padding and the docked view switcher all make room
+	   for it, and it covers nothing. */
+	--netstate-height: 0px;
+	--app-height: 100vh;
+	/* the space a screen actually gets between the two bars (and the banner, when it is up) */
+	/* biome-ignore format: a custom property keeps its text as written, line breaks included, and the computed value is compared as text */
+	--screen-height: calc(var(--app-height) - var(--appbar-height) - var(--appbar-inset) - var(--tabbar-height) - env(safe-area-inset-bottom, 0px) - var(--netstate-height));
+}
+
+/* dvh excludes the mobile browser's collapsing toolbars, which vh does not */
+@supports (height: 100dvh) {
+	:root {
+		--app-height: 100dvh;
+	}
+}
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+/* --- assistive text ------------------------------------------------------ */
+
+/* Present to a screen reader, absent to the eye. Not `display: none` and not
+   `visibility: hidden` — both remove the text from the accessibility tree along
+   with the pixels, which is the opposite of the point. This is what carries the
+   per-screen <h1> the app bar already draws, the profile link's own label, and the
+   live region that names a screen the loader has swapped in. */
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	border: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* The first thing in the tab order, and the only way past the map's iframe or a
+   long screen to the app's own navigation without tabbing through the lot. It is
+   off-screen until focused rather than absent, so it never takes layout. */
+.skip-link,
+.skip-link:visited {
+	position: fixed;
+	top: calc(var(--appbar-inset) + 6px);
+	left: 50%;
+	z-index: 100;
+	transform: translate(-50%, -200%);
+	padding: 10px 16px;
+	border-radius: var(--radius);
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border: 1px solid var(--edge);
+	text-decoration: none;
+}
+
+.skip-link:focus {
+	transform: translate(-50%, 0);
+}
+
+/* --- focus --------------------------------------------------------------- */
+
+/* One ring for every control, in the ground pair. Ink on ground clears AA in every
+   role set; on a fill that is not the ground (the state app bar, a structure bar,
+   the sheet) the halo in --ground is what separates the ring from the fill. Three
+   rings move inside their box because the box clips (.tabs-tab, .tl-card,
+   .sheet-close); the two dialog containers and the screen section take focus
+   programmatically and draw none. Nothing in the motion block touches it, so the
+   ring never animates. The ring owns box-shadow while a control has focus: a
+   control's own shadow is lost. */
+:focus-visible {
+	outline: 2px solid var(--on-ground);
+	outline-offset: 2px;
+	box-shadow: 0 0 0 4px var(--ground);
+}
+
+body {
+	font-family: var(--theme-font, themix, sans-serif);
+	font-size: var(--fs-md);
+	background-color: var(--ground);
+	color: var(--on-ground);
+	text-align: center;
+	margin: 0;
+	min-height: var(--app-height);
+	overflow-x: hidden;
+}
+
+/* --- bare buttons -------------------------------------------------------- */
+
+/* The controls that are a glyph or a label on whatever is under them, rather than a
+   filled button: one reset, and each rule below states only what differs. .tl-card
+   (hairline) and .sheet-close (filled) are not bare and are not in it. */
+.day-chip,
+.pager-zoom-btn,
+.tabs-tab,
+.pl-open {
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	font-family: inherit;
+	cursor: pointer;
+}
+
+/* --- typography ---------------------------------------------------------- */
+
+h2 {
+	font-weight: 700;
+	font-size: var(--fs-2xl);
+	color: var(--heading);
+}
+
+h3 {
+	font-weight: 700;
+	font-size: var(--fs-lg);
+	color: var(--emphasis);
+}
+
+p {
+	font-weight: 400;
+	font-style: normal;
+	font-size: var(--fs-md);
+}
+
+b {
+	font-weight: 700;
+}

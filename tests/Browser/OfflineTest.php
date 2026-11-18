@@ -92,13 +92,7 @@ final class OfflineTest extends BrowserTestCase
         self::pair();
 
         // the Program page the worker refilled after the purge is the logged-in one
-        self::waitForAsync(<<<'JS'
-            const done = arguments[arguments.length - 1];
-            caches.open(arguments[0])
-                .then(cache => cache.match('/korbo26/programy', {ignoreVary: true}))
-                .then(response => (response ? response.text() : ''))
-                .then(html => done(html.includes('is-registered')), () => done(false));
-            JS, [$cache]);
+        self::waitForCachedPage($cache, '/korbo26/programy', 'is-registered');
 
         self::stopServer();
         self::visit('/korbo26/programy');
@@ -117,9 +111,16 @@ final class OfflineTest extends BrowserTestCase
         self::visit('/korbo26/');
         self::$browser->manage()->deleteAllCookies();
         self::visit('/korbo26/profil');
-        self::waitForPrecache('korbo26');
+        $cache = self::waitForPrecache('korbo26');
         $start = '[data-screen="/korbo26/profil"] form[action="/korbo26/profil/propojit"] button[type="submit"]';
         self::waitFor('return document.querySelector(arguments[0]) !== null;', [$start]);
+        // A browser left logged in by an earlier test holds pages of that identity: this
+        // visit makes the worker purge them and refill them logged out, in the background.
+        // The 303 the tap gets is answered from these two copies, so the server stays up
+        // until both are back, rendered logged out.
+        foreach (['/korbo26/profil', '/korbo26/offline'] as $path) {
+            self::waitForCachedPage($cache, $path, '<meta name="push-identity" content="">');
+        }
         self::script('window.__before = 1;');
         self::stopServer();
 
@@ -173,5 +174,17 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
         // shown again: still due, so asked again
         self::waitFor('return window.__checks.filter(check => check.done).length >= 2;');
+    }
+
+    /** Wait until the worker's cache $cache holds the page $path, and its HTML contains $needle. */
+    private static function waitForCachedPage(string $cache, string $path, string $needle): void
+    {
+        self::waitForAsync(<<<'JS'
+            const done = arguments[arguments.length - 1];
+            caches.open(arguments[0])
+                .then(cache => cache.match(arguments[1], {ignoreVary: true}))
+                .then(response => (response ? response.text() : ''))
+                .then(html => done(html.includes(arguments[2])), () => done(false));
+            JS, [$cache, $path, $needle]);
     }
 }

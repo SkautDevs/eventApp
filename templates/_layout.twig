@@ -82,8 +82,10 @@
 		}
 	{% endif %}
 	</style>
-	<link rel="stylesheet" href="{{ asset_version('style.css') }}">
-	{# versioned like style.css so a changed sheet is refetched #}
+	{%~ for sheet in stylesheets %}
+	<link rel="stylesheet" href="{{ asset_version(sheet) }}">
+	{%~ endfor %}
+	{# versioned like the core sheets so a changed sheet is refetched #}
 	{% if event.assets.stylesheet ?? false %}
 		<link rel="stylesheet" href="{{ asset_version(event.assets.stylesheet) }}">
 	{% endif %}
@@ -95,7 +97,7 @@
 	   browser fetches the whole graph at once instead of one import level per round trip,
 	   then one entry per module that has a script, in module order (Modules::scripts()):
 	   the shell's entry, which starts the screen loader, before any screen's own. #}
-	{%~ for file in preloads %}
+	{%~ for file in script_preloads() %}
 	<link rel="modulepreload" href="{{ script_url(file) }}">
 	{%~ endfor %}
 	{%~ for entry in scripts %}

@@ -30,6 +30,11 @@ final class PushModule implements ModuleInterface
         return 'push/index.js';
     }
 
+    public function stylesheet(): ?string
+    {
+        return null;
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

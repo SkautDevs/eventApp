@@ -6,7 +6,7 @@ namespace App\Program;
 
 /**
  * Maps kissj's `sections` list onto Section objects — see
- * docs/kissj-contract.md. It lives apart from KissjProgramProvider because the stub's
+ * kissj's API contract 3.0. It lives apart from KissjProgramProvider because the stub's
  * fixtures/sections.json is that same list, so both providers map it identically.
  */
 final class Sections

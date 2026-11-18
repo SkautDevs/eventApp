@@ -27,6 +27,11 @@ final class HandbookModule implements ModuleInterface
         return null;
     }
 
+    public function stylesheet(): ?string
+    {
+        return null;
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {

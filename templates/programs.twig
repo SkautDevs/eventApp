@@ -21,7 +21,7 @@
 					<p class="pl-time">{{ item.time }}</p>
 					<h3 class="pl-name"><button type="button" class="pl-open" data-pg-open="{{ item.id }}">{{ item.name }}</button></h3>
 					<p class="pl-meta">{{ item.until }}{% if item.location %} · {{ item.location }}{% endif %}</p>
-					{% if item.registered %}<span class="pl-tag">Přihlášen</span>{% endif %}
+					{% if item.registered %}<span class="pl-tag">Zapsáno</span>{% endif %}
 					{% if kind == 'list' and item.perex %}<p class="pl-perex">{{ item.perex }}</p>{% endif %}
 				</article>
 			{% endfor %}
@@ -108,7 +108,7 @@
 										{% for track in row.tracks %}
 											<div class="tl-track">
 												{% for card in track %}
-													<button type="button" class="tl-card{{ card.registered ? ' is-registered' }}{{ card.dimmed ? ' is-dimmed' }}" data-key="{{ card.id }}" style="left: calc(var(--hour-width) * {{ card.offset }}); width: calc(var(--hour-width) * {{ card.span }})" data-pg-open="{{ card.id }}" aria-label="{{ card.name }}, {{ card.time }}{% if card.registered %}, přihlášeno{% endif %}">
+													<button type="button" class="tl-card{{ card.registered ? ' is-registered' }}{{ card.dimmed ? ' is-dimmed' }}" data-key="{{ card.id }}" style="left: calc(var(--hour-width) * {{ card.offset }}); width: calc(var(--hour-width) * {{ card.span }})" data-pg-open="{{ card.id }}" aria-label="{{ card.name }}, {{ card.time }}{% if card.registered %}, zapsáno{% endif %}">
 														<span class="tl-card-name">{{ card.name }}</span>
 													</button>
 												{% endfor %}
@@ -134,7 +134,7 @@
 			{% elseif not mineRead %}
 				{# the notice above says the personal list could not be read; "nothing registered" would be a guess #}
 			{% elseif days is empty %}
-				<p class="empty">Zatím nemáš přihlášený žádný program.</p>
+				<p class="empty">Zatím nemáš zapsaný žádný program.</p>
 			{% else %}
 				{{ pg.dayList('list', days) }}
 			{% endif %}
@@ -189,15 +189,15 @@
 							<div class="sheet-footer">
 								{%- if detail.footer -%}
 									{%- if detail.footer.state == 'unpaired' -%}
-										<a class="btn" href="{{ url_for('profile') }}" data-key="unpaired">Pro přihlašování se přihlas kódem z KissJ</a>
+										<a class="btn" href="{{ url_for('profile') }}" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>
 									{%- elseif detail.footer.state in ['before', 'after', 'none'] -%}
 										<p class="sheet-line" data-key="{{ detail.footer.state }}">{{ detail.footer.line }}</p>
 									{%- elseif detail.footer.state == 'register' -%}
 										{#- data-pg-write: www/js/programs/deeplink.js disables the button on submit and notes the view it was sent from -#}
-										<form method="post" action="{{ url_for('program-register', {id: detail.id}) }}" data-key="register" data-pg-write="{{ detail.id }}"><button class="btn btn-primary">Přihlásit se</button></form>
+										<form method="post" action="{{ url_for('program-register', {id: detail.id}) }}" data-key="register" data-pg-write="{{ detail.id }}"><button class="btn btn-primary">Zapsat program</button></form>
 									{%- elseif detail.footer.state == 'unregister' -%}
 										{#- the first tap asks, the second submits (www/js/shell/confirm.js) -#}
-										<form method="post" action="{{ url_for('program-unregister', {id: detail.id}) }}" data-key="unregister" data-pg-write="{{ detail.id }}"><button class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z programu</button></form>
+										<form method="post" action="{{ url_for('program-unregister', {id: detail.id}) }}" data-key="unregister" data-pg-write="{{ detail.id }}"><button class="btn" data-confirm="Opravdu zrušit zápis?">Zrušit zápis</button></form>
 									{%- endif -%}
 								{%- endif -%}
 							</div>

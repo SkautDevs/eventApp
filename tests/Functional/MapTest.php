@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use Tests\CoreStylesheet;
+
 /** Místa: the map screen, with Google's embed, the handbook's plan, or both. */
 final class MapTest extends AppTestCase
 {
@@ -61,7 +63,7 @@ final class MapTest extends AppTestCase
         self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe [^>]*></iframe>\s*</div>\s*<p class="empty map-offline#', $html);
         // the button escapes .empty's fade: only the sentence is faded, the note is opaque
         self::assertStringContainsString('<span class="map-offline-text">Mapa potřebuje připojení.</span> <button', $html);
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         self::assertMatchesRegularExpression('/\.empty\.map-offline-plan \{\s*opacity: 1;/', $css);
         self::assertMatchesRegularExpression('/\.map-offline-text \{\s*opacity: 0\.8;/', $css);
     }

@@ -9,23 +9,48 @@ use App\Time\SystemClock;
 use Psr\Clock\ClockInterface;
 
 /**
- * The reader's session, kept by PHP's file handler but never held open.
+ * The reader's session, kept by PHP's file handler but never held open. One is built per
+ * event, as `new Session($slug, $environment->sessionPath($root), appRoot: $root, clock:
+ * $clock)`.
  *
  * Read: the stored values are loaded with read_and_close, so a slow request (kissj takes up
- * to 10 s) never makes the next request with the same cookie wait for the handler's lock —
- * one phone's install burst used to pin a dozen workers that way. A request without the
- * cookie reads nothing and starts nothing, so a crawler leaves no file behind.
+ * to 10 s) never makes the next request with the same cookie wait for the handler's lock
+ * (`SessionLockTest`) — one phone's install burst used to pin a dozen workers that way. A
+ * request without the cookie — or, on the app's own files store, with a cookie whose session
+ * file does not exist — reads nothing and starts nothing (no file, no `Set-Cookie`), so a
+ * crawler leaves no file behind. id() is the exception, starting a session when there is
+ * none, because the pairing's device id is its hash (under CLI a random ID kept in
+ * `$_SESSION` stands in).
  * Write: every change reopens the session, applies itself to freshly read values under the
  * handler's lock, and closes it again (transact()), which also makes a read-modify-write
- * atomic against a parallel request.
+ * atomic against a parallel request — the admin nonce's check-and-consume and the toast's
+ * take among them. A reopen resumes the stored ID without sending the cookie again.
  *
- * Nothing depends on the host's ini: the store, the 30-day lifetime, GC, strict mode, the
- * cache limiter and the cookie flags are set here before every start. The store is chosen
- * as a pair (storage()): the files handler in var/sessions, else the files handler in a
- * private directory under the system temp dir, else the host's own handler *and* path,
- * untouched — the files handler is never pointed at a path meant for another handler
- * (tcp://… of a redis host). One cookie serves every event on the host, so each event's
- * values live under its own key.
+ * Nothing depends on the host's ini (the FTP host's handler and defaults are unknown):
+ * everything is set here before every start. The store is chosen as a pair (storage()):
+ * - the files handler in `var/sessions` (or `SESSION_PATH`; created 0700, refused as a
+ *   symlink, and outside the app root also refused unless owned by the process user with
+ *   no group/other bits);
+ * - else the files handler in a private `eventapp-sessions-<8 hex of the app root's
+ *   sha256>` under the system temp dir, under the same ownership rules;
+ * - else the host's own handler *and* path, untouched — the files handler is never pointed
+ *   at a path meant for another handler (tcp://… of a redis host).
+ * A fallback is reported through `Collector` once per process. The other settings: a 30-day
+ * `gc_maxlifetime` with its own GC at 1/1000, strict mode, cookie-only IDs, `lazy_write`,
+ * `cache_limiter` `''` (the screen middleware states the pages' cache policy instead) and a
+ * host-only cookie `eventapp` that is `HttpOnly`, `SameSite=Lax` and `Secure` on HTTPS.
+ * `session.auto_start` is the one thing it cannot set at run time and must be off on the
+ * host. On the host's own store, where mayBeStored() cannot look for the file, a cookie the
+ * store does not know (collected, invented) still gets a new cookie and an empty file under
+ * strict mode — accepted. On the app's own files store it reads nothing and starts nothing,
+ * as above.
+ *
+ * The cookie lasts LIFETIME (30 days) and slides: refreshCookie(), called by
+ * `Http\SessionCookieMiddleware` on every full logged-in page, re-sends it with a fresh
+ * expiry and touches the session file once a day (not on the host's store), because
+ * read_and_close never updates it and the GC would otherwise count from the last write.
+ *
+ * One cookie serves every event on the host, so each event's values live under its own key.
  *
  * Under CLI (every in-process test) no session is ever started and $_SESSION is a plain array.
  */

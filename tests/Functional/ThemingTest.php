@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Http\ScriptGraph;
+use Tests\CoreStylesheet;
 
 final class ThemingTest extends AppTestCase
 {
@@ -27,7 +28,7 @@ final class ThemingTest extends AppTestCase
     /** Rules for markup that no longer exists are deleted, not kept "just in case". */
     public function testRetiredRulesAreGone(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
 
         foreach (['border-table', 'harmonogram', 'login-hint', 'h3 + table', '.hide {'] as $retired) {
             self::assertStringNotContainsString($retired, $css, $retired);
@@ -37,7 +38,7 @@ final class ThemingTest extends AppTestCase
     /** The bare-button reset is said once; each control states only what differs. */
     public function testTheButtonResetIsSaidOnce(): void
     {
-        $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', CoreStylesheet::read());
         $buttons = ['.day-chip', '.pager-zoom-btn', '.tabs-tab', '.pl-open'];
 
         self::assertSame(1, preg_match('/(\.day-chip,[^{]*)\{([^}]*)\}/', $css, $reset));
@@ -60,9 +61,22 @@ final class ThemingTest extends AppTestCase
         }
     }
 
+    /** Every sheet under www/css/ is read by the checks below: a new one cannot escape them. */
+    public function testTheCoreStylesheetListIsEverySheetUnderCss(): void
+    {
+        $www = dirname(__DIR__, 2) . '/www';
+        $onDisk = array_map(static fn(string $file): string => substr($file, strlen($www) + 1), glob($www . '/css/*.css') ?: []);
+        $listed = CoreStylesheet::files();
+        sort($onDisk);
+        sort($listed);
+
+        self::assertNotSame([], $onDisk);
+        self::assertSame($onDisk, $listed);
+    }
+
     public function testCoreStylesheetHasNoColorLiterals(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         // dropping the :root block must never be necessary — the palette is injected by the layout.
         // (?!-) keeps the property name "white-space" from reading as the colour keyword.
         self::assertDoesNotMatchRegularExpression('/#[0-9a-fA-F]{3,6}\b|rgba?\(|\b(?:white|black)\b(?!-)/i', $css);
@@ -70,7 +84,7 @@ final class ThemingTest extends AppTestCase
 
     public function testPageBackgroundComesFromPalette(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
 
         // the page itself, not merely somewhere in the file — and the role it reads
         // resolves to the palette key for an event that declares no role of its own
@@ -80,7 +94,7 @@ final class ThemingTest extends AppTestCase
 
     public function testLinksAreThemedNotBrowserDefaultBlue(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
 
         self::assertStringContainsString('color: var(--action-link);', self::declarationsFor($css, 'a'));
         self::assertStringContainsString('--action-link: var(--role-action-link, var(--color-link));', $css);
@@ -148,7 +162,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testPageGroundIsSeparateFromTheIdentityColour(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
         self::assertStringContainsString('background-color: var(--ground);', self::declarationsFor($css, 'body'));
@@ -161,7 +175,7 @@ final class ThemingTest extends AppTestCase
     /** The coral belonged to no palette and to no job, so it is gone from both events. */
     public function testTheCoralCloseRowIsGoneFromEveryEvent(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         // no dangling fallback plumbing for a key no event carries any more
         self::assertStringNotContainsString('--color-sheet-close', $css);
 
@@ -211,7 +225,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testEveryThemeTokenHasAFallbackInTheStylesheet(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         preg_match_all('/var\(\s*(--theme-[a-z0-9-]+)\s*([,)])/i', $css, $matches, PREG_SET_ORDER);
 
         self::assertNotEmpty($matches, 'the stylesheet reads no theme token at all');
@@ -239,17 +253,19 @@ final class ThemingTest extends AppTestCase
      */
     public function testNoRuleInTheStylesheetNamesAPaletteKey(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
         $offenders = [];
-        foreach (explode("\n", $css) as $i => $line) {
-            if (!str_contains($line, 'var(--color-')) {
-                continue;
+        foreach (CoreStylesheet::files() as $file) {
+            $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/' . $file);
+            foreach (explode("\n", $css) as $i => $line) {
+                if (!str_contains($line, 'var(--color-')) {
+                    continue;
+                }
+                // a role definition is `--name: var(--role-x, <palette expression>)`
+                if (preg_match('/^\s*--[a-z0-9-]+:\s*var\(--role-[a-z0-9-]+,/', $line) === 1) {
+                    continue;
+                }
+                $offenders[] = $file . ':' . ($i + 1) . ': ' . trim($line);
             }
-            // a role definition is `--name: var(--role-x, <palette expression>)`
-            if (preg_match('/^\s*--[a-z0-9-]+:\s*var\(--role-[a-z0-9-]+,/', $line) === 1) {
-                continue;
-            }
-            $offenders[] = ($i + 1) . ': ' . trim($line);
         }
 
         self::assertSame([], $offenders, 'these rules read the palette instead of a role');
@@ -258,7 +274,7 @@ final class ThemingTest extends AppTestCase
     /** Every role has to resolve for an event that declares none, or obrok19 breaks. */
     public function testEveryRoleFallsBackToThePalette(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         preg_match_all('/var\(\s*(--role-[a-z0-9-]+)\s*([,)])/i', $css, $matches, PREG_SET_ORDER);
 
         self::assertNotEmpty($matches, 'the stylesheet reads no role at all');
@@ -303,7 +319,7 @@ final class ThemingTest extends AppTestCase
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
 
         $script = strpos($html, "localStorage.getItem('obrokColorMode')");
-        $sheet = strpos($html, 'href="style.css');
+        $sheet = strpos($html, 'href="css/base.css');
         self::assertIsInt($script, 'the mode script is missing');
         self::assertIsInt($sheet, 'the stylesheet is not linked at all');
         self::assertLessThan($sheet, $script, 'the mode is set after the stylesheet is linked');
@@ -356,7 +372,7 @@ final class ThemingTest extends AppTestCase
             $this->pair($app);
             self::assertStringNotContainsString('data-mode-toggle', (string) $this->request($app, 'GET', '/profil')->getBody(), $slug . ' paired');
         }
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         self::assertStringNotContainsString('.appbar-mode', $css);
         self::assertStringNotContainsString('.appbar-who', $css);
         self::assertStringNotContainsString('.mode-sun', $css);
@@ -413,7 +429,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTheActiveTabChipCarriesItsGlyphAtAA(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         $chip = self::declarationsFor($css, '.tab.is-active');
 
         self::assertNotSame('', $chip, 'the active tab has no rule of its own');
@@ -449,7 +465,7 @@ final class ThemingTest extends AppTestCase
     /** The sheet is a role now; the palette key that used to ground it is retired. */
     public function testTheSheetGroundIsARoleAndNotAPaletteKey(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         self::assertStringNotContainsString('--color-sheet-bg', $css);
         self::assertStringContainsString('--surface: var(--role-sheet, var(--color-base));', $css);
 
@@ -467,7 +483,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTheIdentityRoleIsUsedByTheHourRulerAndNothingElse(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
 
         self::assertStringContainsString('--signature: var(--role-signature, var(--structure));', $css);
         // the ruler by name, not "some rule in the file" — the count below says how many
@@ -536,7 +552,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testStructureDefaultsToThePalettesDeeperTone(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         self::assertStringContainsString('--structure: var(--role-structure, var(--color-darker));', $css);
 
         // Both shipped events declare their own structure pair now, so the fallback's
@@ -607,7 +623,7 @@ final class ThemingTest extends AppTestCase
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
     {
         $allowed = ['.appbar-profile', '.tab i', '.pager-zoom-btn', '.plan-zoom-btn', '.tl-tick', '.tl-now-label', '.tl-stage', '.tl-card'];
-        $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', CoreStylesheet::read());
 
         $offenders = [];
         $sizes = 0;
@@ -662,7 +678,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTheFocusRingIsOneGlobalRule(): void
     {
-        $css = (string) preg_replace('!/\*.*?\*/!s', '', (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css'));
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', CoreStylesheet::read());
 
         self::assertSame(1, preg_match_all('/(?:^|\})\s*:focus-visible\s*\{([^}]*)\}/', $css, $ring));
         self::assertStringContainsString('outline: 2px solid var(--on-ground);', $ring[1][0]);
@@ -698,7 +714,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTheLoadingBarClearsThreeToOneOnTheTabBar(): void
     {
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         self::assertMatchesRegularExpression('/(?<![-a-z])background(?:-color)?:\s*var\(--on-structure\);/', self::declarationsFor($css, '.progress'));
         self::assertStringContainsString('background-color: var(--structure);', self::declarationsFor($css, '.tabbar'));
 
@@ -876,7 +892,7 @@ final class ThemingTest extends AppTestCase
     }
 
     /**
-     * The "Přihlášen" tag is a small state fill on the ground, and obrok27's light state is
+     * The "Zapsáno" tag is a small state fill on the ground, and obrok27's light state is
      * 1.01:1 on its pale ground: the pill needs the ground's hairline to exist at all.
      */
     public function testTheRegisteredTagCarriesTheGroundsHairline(): void
@@ -907,7 +923,7 @@ final class ThemingTest extends AppTestCase
     private function cssOfEvent(string $slug): string
     {
         $root = dirname(__DIR__, 2);
-        $css = (string) file_get_contents($root . '/www/style.css');
+        $css = CoreStylesheet::read();
         $own = \App\EventConfig::load($this->eventsDir(), $slug)->assets->stylesheet;
 
         return is_string($own) && $own !== '' ? $css . "\n" . file_get_contents($root . '/www/' . $own) : $css;
@@ -982,7 +998,7 @@ final class ThemingTest extends AppTestCase
     /** The shared stylesheet, as written. */
     private function css(): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        return CoreStylesheet::read();
     }
 
     /** WCAG 2.1 relative-luminance contrast ratio between two #rrggbb values. */

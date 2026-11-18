@@ -88,5 +88,9 @@ export async function finish() {
 		}
 	}
 	results.done = true;
+	// keep what the page's error listener recorded meanwhile (runner.html): an uncaught error
+	// from a timer or a listener of a module under test, outside every test's promise chain
+	const recorded = window.__results && Array.isArray(window.__results.failed) ? window.__results.failed : [];
+	results.failed = recorded.concat(results.failed);
 	window.__results = results;
 }

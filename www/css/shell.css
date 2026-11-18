@@ -1,0 +1,741 @@
+@charset "utf-8";
+/* The app's frame on every screen: the app bar, the screen stack, the error and offline
+   pages, the network banner and the toast, the tab bar, links, buttons and fields, the
+   notification card, and the docked view switcher that Program and Místa share. */
+
+/* --- app bar ------------------------------------------------------------- */
+
+.appbar {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	/* The bar's geometry, named once so the brand's cap below can be derived from it
+	   rather than restated: the gap between the two ends, every control's touch
+	   target, the gap between the controls, and the controls' floor — the profile
+	   link, the one control at that end. */
+	--appbar-gap: 8px;
+	--appbar-target: 44px;
+	--appbar-tools-gap: 2px;
+	--appbar-tools-floor: var(--appbar-target);
+	gap: var(--appbar-gap);
+	max-width: var(--app-width);
+	margin: 0 auto;
+	/* the notch is the bar's own band: the fill runs up under it and the row of
+	   controls starts below it, so nothing lands behind the hardware */
+	padding: var(--appbar-inset) 12px 0;
+	height: calc(var(--appbar-height) + var(--appbar-inset));
+	/* The bar is a filled band of the event's own colour, so its ink is that fill's
+	   own pair and nothing else. It used to take --on-structure, which is the ink for
+	   the neutral bar tier and flips with the mode — while the fill under it, the
+	   accent, does not. obrok27's pale dark-mode ink therefore landed on lime at
+	   1.12:1 and obrok19's body grey on green at 2.56:1. The same pair the active
+	   tab's chip uses measures 13.4:1 and 4.8:1 on those two fills, which is what it
+	   is for. One colour, one role, one ink. */
+	background-color: var(--state);
+	color: var(--on-state);
+	border-bottom: var(--edge-width) solid var(--edge);
+}
+
+.appbar-brand,
+.appbar-brand:visited,
+.appbar-profile,
+.appbar-profile:visited {
+	display: flex;
+	align-items: center;
+	color: var(--on-state);
+	text-decoration: none;
+}
+
+/* The brand end never takes part in the bar's shrinking: it keeps its natural width,
+   exactly as it did when its automatic minimum (the WHOLE title — an item's
+   min-content ignores its overflow) held it there, so at an ordinary width the
+   title is never trimmed by even a fraction of a pixel. A proportional share would
+   have done that, and a fraction is all an ellipsis needs. What it may not do is
+   push into the controls' floor: with the 44 × 44 targets that put the bar 38–55px
+   past a 195px viewport. So it is capped at what the floor leaves, and only there
+   does the title ellipsise, down to its own 4ch floor. */
+.appbar-brand {
+	gap: 10px;
+	min-height: var(--appbar-target);
+	flex-shrink: 0;
+	min-width: 0;
+	max-width: calc(100% - var(--appbar-tools-floor) - var(--appbar-gap));
+}
+
+.appbar-logo {
+	height: 26px;
+	width: auto;
+}
+
+/* the one display face in the shell; themed separately from the body face so an
+   event can swap its whole typography without dragging Skaut's bold into it */
+.appbar-title {
+	font-family: var(--theme-font-display, skautbold, sans-serif);
+	/* skautbold is a one-weight family, so the default is the body's weight; a
+	   variable face put in its place has to say which weight is the display one */
+	font-weight: var(--theme-font-display-weight, 400);
+	font-size: var(--fs-xl);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	/* `overflow: hidden` makes a flex item's automatic minimum size 0, so at 200%
+	   page zoom this box was squeezed out of existence and the bar showed a logo and
+	   nothing else. Four characters plus the ellipsis is the least that still names
+	   the screen. */
+	min-width: 4ch;
+}
+
+/* the right-hand end of the bar: the profile link */
+.appbar-tools {
+	display: flex;
+	align-items: center;
+	gap: var(--appbar-tools-gap);
+	/* Shrinkable, now that the title next to it refuses to disappear. At 200% zoom
+	   the bar is 195px wide and the two ends together want more than that; something
+	   has to give, and it is the identity's own text — the screen's name is the one
+	   thing on this bar the reader cannot get anywhere else. Without this the two
+	   ends simply overlapped. It is the only end that shrinks (the brand does not),
+	   so it takes the whole shortfall... */
+	flex: 0 1 auto;
+	/* ...but never below its own targets. Its automatic minimum would count the
+	   identity's whole name. */
+	min-width: var(--appbar-tools-floor);
+}
+
+/* At 200% zoom of a 390px phone (195px) the mark, its gap, a 4ch title and two 44px
+   targets need 202px. The mark is decoration (alt="") and the title is the one thing
+   the reader cannot get elsewhere, so below 250px the mark steps aside and the title
+   keeps the room: 73px at 195px instead of its 44px floor. */
+@media (max-width: 249px) {
+	.appbar-logo {
+		display: none;
+	}
+}
+
+/* the link keeps a 44 × 44 target around the icon or the avatar */
+.appbar-profile {
+	gap: 6px;
+	/* px on purpose: chrome glyph, see --fs-* in :root */
+	font-size: 22px;
+	min-width: var(--appbar-target);
+	min-height: var(--appbar-target);
+	justify-content: center;
+}
+
+/* the second drawing of a mode pair stays out until its mode is on */
+.mode-dark-only {
+	display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not([data-mode="light"]) .mode-light-only {
+		display: none;
+	}
+
+	:root:not([data-mode="light"]) .mode-dark-only {
+		display: block;
+	}
+}
+
+:root[data-mode="dark"] .mode-light-only {
+	display: none;
+}
+
+:root[data-mode="dark"] .mode-dark-only {
+	display: block;
+}
+
+/* On Profil the link is lit like the active tab. The tab is filled with `state`, but
+   the app bar already is, so here the bar's pair swaps: its ink becomes the fill and
+   its fill the ink, at exactly the bar's own contrast. */
+.appbar-profile.is-active,
+.appbar-profile.is-active:visited {
+	background-color: var(--on-state);
+	color: var(--state);
+	border-radius: var(--theme-radius-pill, 999px);
+}
+
+/* the glyph, or the avatar, is the link */
+.appbar-profile i {
+	flex: 0 0 auto;
+}
+
+/* The paired reader's initials in a ring of the bar's own ink: no fill, so nothing but
+   the bar's own pair is on the bar. */
+.avatar,
+.appbar-avatar {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	border: 2px solid currentColor;
+	border-radius: 50%;
+	font-family: var(--theme-font, themix, sans-serif);
+	font-weight: 700;
+	line-height: 1;
+	letter-spacing: 0;
+}
+
+.appbar-avatar {
+	width: 32px;
+	height: 32px;
+	font-size: var(--fs-sm);
+}
+
+/* --- content ------------------------------------------------------------- */
+
+main {
+	display: block;
+	max-width: var(--app-width);
+	margin: 0 auto;
+	/* Deliberately NOT a view-transition-name, however tempting: naming an element
+	   makes it a stacking context, and the sheet is a fixed child of <main> that
+	   has to keep painting over the fixed tab bar. The swap animates
+	   the root snapshot instead — see the transition rules at the foot of this file. */
+}
+
+/* --- screens ------------------------------------------------------------- */
+
+/* <main> holds every screen the reader has visited; exactly one of them is not
+   hidden. Hidden rather than detached, because re-inserting a detached <iframe>
+   re-fetches it and the map's would restart on every visit. The padding lives here
+   rather than on <main> so a screen can drop it — the map and the Program screen
+   both run edge to edge. */
+.screen {
+	display: block;
+	/* clear the fixed tab bar, plus the home indicator on notched phones and the network
+	   banner while it is up, so the last line can be scrolled clear of both */
+	padding: 8px 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height) + 16px);
+}
+
+/* the per-screen rules below out-specify the UA's own [hidden], so say it again
+   loud enough to survive them */
+main > .screen[hidden] {
+	display: none;
+}
+
+/* the loader (www/js/loader/) focuses the section after a swap so a screen reader lands on it; the
+   section is not a control, and after a keyboard tap it would otherwise match
+   :focus-visible and ring the whole screen */
+.screen:focus-visible {
+	outline: none;
+	box-shadow: none;
+}
+
+/* --- error pages --------------------------------------------------------- */
+
+.error-page {
+	padding: 24px 16px;
+}
+
+/* APP_DEBUG only: the exception's trace, on the event's own page */
+.error-details {
+	margin: 16px;
+	text-align: left;
+}
+
+.error-details pre {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font-size: var(--fs-xs);
+}
+
+/* --- no-JS, install ------------------------------------------------------ */
+
+.noscript {
+	margin: 16px;
+	padding: 10px 18px;
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+	border-radius: var(--radius);
+}
+
+.install {
+	margin: 16px 0;
+}
+
+/* --- the network banner and the toast ------------------------------------ */
+
+/* "Jsi offline. Data byla naposledy aktualizována v …" — once per document, docked right
+   above the tab bar and centred in the column the way the bar is (www/js/shell/netstate.js fills it
+   and unhides it). Chrome like the bars, so structure under its own ink, with the hairline
+   every bar carries; under the tab bar (20). The docked view switcher (15) stands on it
+   rather than under it: --netstate-height lifts the switcher and every screen's foot. */
+.netstate {
+	position: fixed;
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+	left: 0;
+	right: 0;
+	margin: 0 auto;
+	width: 100%;
+	max-width: var(--app-width);
+	z-index: 19;
+	padding: 8px 16px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border-top: var(--edge-width) solid var(--edge);
+	font-size: var(--fs-sm);
+	line-height: 1.35;
+}
+
+/* A title, an optional second line and the close button, under the app bar and across
+   the column minus its 8px gutter. The same pair as the banner: the prototype draws it
+   as a dark strip in both modes, which the colour rules exclude in light mode. Over an
+   open sheet (50): a register's toast lands with that sheet open, and its close button
+   is in the sheet's Tab ring (www/js/programs/sheet.js). */
+.toast {
+	position: fixed;
+	top: calc(var(--appbar-height) + var(--appbar-inset) + 8px);
+	left: 0;
+	right: 0;
+	margin: 0 auto;
+	width: calc(100% - 16px);
+	max-width: calc(var(--app-width) - 16px);
+	z-index: 60;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 4px 4px 16px;
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border: var(--edge-width) solid var(--edge);
+	border-radius: var(--radius);
+}
+
+.toast p {
+	flex: 1 1 auto;
+	min-width: 0;
+	margin: 8px 0;
+}
+
+.toast strong,
+.toast span {
+	display: block;
+}
+
+.toast span {
+	font-size: var(--fs-sm);
+}
+
+.toast-close {
+	flex: 0 0 auto;
+	width: 2.75rem;
+	height: 2.75rem;
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	color: inherit;
+	font-family: inherit;
+	font-size: var(--fs-lg);
+	cursor: pointer;
+}
+
+/* --- tab bar ------------------------------------------------------------- */
+
+/* Centred by its margins, not translateX(-50%): a half-pixel offset is rounded one way
+   live and another in a screen switch's snapshot, so the bar jumped for every switch. */
+.tabbar {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--app-width);
+	z-index: 20;
+	display: flex;
+	background-color: var(--structure);
+	border-top: var(--edge-width) solid var(--edge);
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 2px along the tab bar's top edge while the loader waits for a screen it has never shown
+   (data-loading, set by www/js/shell/progress.js). In the bar's own ink, because a 2px line has to
+   read against the bar it sits on: a light `state` can be near its pale bar's own colour. Without motion it is a static full-width bar. */
+.progress {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 2px;
+	background: var(--on-structure);
+	visibility: hidden;
+	pointer-events: none;
+}
+
+:root[data-loading] .progress {
+	visibility: visible;
+}
+
+.tab,
+.tab:visited {
+	flex: 1 1 0;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	min-height: var(--tabbar-height);
+	padding: 6px 2px;
+	font-size: var(--fs-2xs);
+	line-height: 1.15;
+	text-decoration: none;
+	color: var(--on-structure);
+	/* An inactive tab steps back by fading its ink into the bar, which means the ink
+	   it ends up with is the one that owes AA, not the one declared. At 0.6 obrok19's
+	   soft grey landed on its own pale bar at 3.31:1 — below AA for an 11px label.
+	   0.75 is the step where every shipped pairing clears it: obrok19 4.76:1. */
+	opacity: 0.75;
+}
+
+.tab i {
+	/* px on purpose: chrome glyph, see --fs-* in :root */
+	font-size: 20px;
+}
+
+.tab-logo {
+	height: 20px;
+	width: auto;
+}
+
+.tab span {
+	max-width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* The one place in the shell that carries `state`: which screen you are on. The
+   whole tab is filled with the event's identity colour, because that is the only
+   shape it survives in light mode (a bright accent is far under 3:1 as ink on a
+   pale bar but fine as a fill under dark ink), and it gives `state` one form in both modes.
+
+   The ink comes with the fill. It used to be left on --on-structure, which is the
+   bar's ink and flips with the mode, while the fill under it does not: obrok27's
+   pale dark-mode grey therefore sat on lime at 1.11:1. Same cure as .appbar above,
+   which is filled with the same colour. One colour, one role, one ink. */
+.tab.is-active,
+.tab.is-active:visited {
+	opacity: 1;
+	background-color: var(--state);
+	color: var(--on-state);
+}
+
+/* the mark keeps the breathing room the chip used to give it */
+.tab.is-active i,
+.tab.is-active .tab-logo {
+	padding: 2px 14px;
+}
+
+/* A glyph takes the active tab's ink; a LOGO cannot, and a drawing in the event's
+   own colour is exactly what disappears on a tab filled with it. So an event that
+   puts artwork in the home tab names a second drawing for that state — obrok19's
+   inverted shield — and the class is only
+   emitted when it does, so an event with one drawing keeps showing it. */
+.tab-logo-chip {
+	display: none;
+}
+
+.tab.is-active .tab-logo.tab-logo-chip {
+	display: block;
+}
+
+.tab.is-active .tab-logo.tab-logo-plain {
+	display: none;
+}
+
+/* --- links, buttons, forms ----------------------------------------------- */
+
+/* without this rule links keep the browser's default blue */
+a,
+a:visited {
+	color: var(--action-link);
+}
+
+/* A page-level action fills the column. Not the width of the screen: the 8px
+   side margin is the same gutter div.news already uses, so
+   a button lines up with the content blocks above it rather than bleeding to
+   the edge. auto margins rather than a wider box, so the rule works the same on
+   a <button> (which is shrink-to-fit even as a block) and on an <a>.
+
+   This is layout, not identity, so unlike the colour work it reaches every
+   event. The controls it deliberately does not reach are the ones that share a
+   row with something else: the zoom pair, the day arrows, the four bottom tabs
+   and the view tabs. */
+.btn,
+.btn:visited,
+.highlight,
+.highlight:visited {
+	/* block, not flex: these labels mix text with an icon, and flex would make
+	   each run of text its own item — "Krizový telefon 📱 797 859 598" would
+	   arrive as three boxes with gaps between them instead of one sentence */
+	display: block;
+	width: calc(100% - 16px);
+	margin-left: auto;
+	margin-right: auto;
+	border: none;
+	font-family: inherit;
+	text-decoration: none;
+	cursor: pointer;
+	/* a label is routinely a bare URL or a phone number, neither of which offers the
+	   line breaker anywhere to break; at 200% zoom one runs straight out of the
+	   column, and body { overflow-x: hidden } then puts it out of reach for good */
+	overflow-wrap: anywhere;
+	/* Tonal, not a filled dark block: the secondary button and the link CTA are the
+	   two widest things on the home screen, and an unlit slab there is what made
+	   light mode read as dark. The wash carries them; they need no outline. */
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+}
+
+/* padding plus a 1.25 line make the box 44px on a one-line label at a 16px root, so the tap
+   target is the type's own frame rather than a min-height it floats inside */
+.highlight,
+.highlight:visited {
+	padding: 12px 18px;
+	line-height: 1.25;
+	border-radius: var(--radius);
+}
+
+.btn,
+.btn:visited {
+	border-radius: var(--radius-pill);
+	min-height: 44px;
+	padding: 11px 22px;
+	font-size: var(--fs-md);
+}
+
+.btn-primary,
+.btn-primary:visited {
+	background-color: var(--action);
+	color: var(--on-action);
+}
+
+/* .highlight used to do two jobs — a link the reader should press, and a line of
+   text telling them something went wrong. Only the first is a button; a notice
+   that stretched across the column would read as pressable and is not. This is
+   the old .highlight, unchanged, for the job that is not an action. */
+.notice {
+	display: inline-block;
+	/* a tonal block, like the secondary button, but never a button shape */
+	background-color: var(--tonal);
+	color: var(--on-tonal);
+	padding: 10px 18px;
+	border-radius: var(--radius);
+	text-decoration: none;
+}
+
+/* The field sits on the page ground, so it needs its own surface to read as a
+   field. It rebinds the surface pair rather than introducing a third name. */
+input[type="text"],
+textarea,
+.stacked-form select {
+	--surface: var(--role-field, var(--color-text-invert));
+	--on-surface: var(--role-on-field, var(--color-text));
+	font-family: inherit;
+	font-size: var(--fs-md);
+	max-width: 100%;
+	min-height: 44px;
+	padding: 10px 12px;
+	border: 2px solid var(--edge);
+	border-radius: var(--radius);
+	background-color: var(--surface);
+	color: var(--on-surface);
+}
+
+.stacked-form label {
+	display: block;
+	margin: 10px 0 4px;
+}
+
+/* the field takes the same column and the same gutter as the button under it,
+   so the form reads as one stack rather than as a field with a tail */
+.stacked-form input,
+.stacked-form textarea,
+.stacked-form select {
+	display: block;
+	width: calc(100% - 16px);
+	margin-left: auto;
+	margin-right: auto;
+}
+
+/* the notification opt-in, the pairing's waiting line and the login box: centred */
+p.push-enable,
+p.push-status,
+p.pairing-status,
+div.login-box {
+	text-align: center;
+}
+
+.login-box form {
+	margin: 8px 0;
+}
+
+.empty {
+	padding: 32px 24px;
+	opacity: 0.8;
+}
+
+/* The second and last surface tier: a content block sitting on the page ground.
+   There is no third, raised tier — depth in this app is two tones and nothing
+   else. Default transparent, so an event that declares no surface shade keeps
+   blocks on the bare ground exactly as before.
+
+   A hairline rather than the 4px frame it used to be: with a neutral separator
+   the frame reads as a border treatment, and the block is now told apart from the
+   ground by its own tone as well. */
+/* A card of text, so it reads from the left like one (body centres by default) */
+div.news {
+	border: 1px solid var(--edge);
+	border-radius: var(--radius);
+	margin: 0 8px 8px;
+	padding: 0 16px;
+	text-align: left;
+	background-color: var(--surface);
+	color: var(--on-surface);
+}
+
+/* Informace lists the notifications under the day they were sent on */
+.news-day h3 {
+	margin: 16px 8px 8px;
+}
+
+/* the relative time sits after the title, quieter than it */
+.news-when {
+	font-size: var(--fs-sm);
+	font-weight: 400;
+	white-space: nowrap;
+}
+
+/* A message is plain text whose line breaks are meant, like a perex */
+.news-body {
+	white-space: pre-line;
+	/* a long URL wraps instead of being clipped by body's overflow-x: hidden */
+	overflow-wrap: anywhere;
+}
+
+/* --- the docked view switcher -------------------------------------------- */
+
+/* Sticky, not fixed: in flow it reserves its height at the foot of the column,
+   and while a long list scrolls it stays docked on top of the tab bar. The two
+   positions coincide, because the column ends exactly where the tab bar begins. */
+.tabs-wrap {
+	position: sticky;
+	/* on the tab bar, or on the network banner while it is up */
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height));
+	z-index: 15;
+	flex: 0 0 auto;
+}
+
+.tabs {
+	position: relative;
+	display: flex;
+	height: var(--tabs-height);
+	background-color: var(--structure);
+	border-top: var(--edge-width) solid var(--edge);
+	/* which view you are looking at is state, like which screen you are on — but
+	   obrok19 is frozen on the accent here, so that is what the fallback keeps */
+	--state: var(--role-view-state, var(--color-primary));
+	--on-state: var(--role-on-view-state, var(--color-text-invert));
+}
+
+/* The selected segment is painted by one element that slides, not by two that
+   blink. Both segments are half the bar, so the indicator is a plain 50% and
+   one segment of travel is exactly translateX(100%) — no pixel widths, which is
+   what used to let a long label escape the control it was supposed to sit in. */
+.tabs-indicator {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 50%;
+	height: 100%;
+	background-color: var(--state);
+}
+
+/* The Program screen's pill has three segments — Přehled, Harmonogram, Moje — and
+   three equal thirds cut "Harmonogram" short on a 390px phone. So each segment's share
+   follows its label, still in percent of the bar: Harmonogram takes the most, Moje the
+   least, and all three labels fit whole down to 320px in every event's fonts, each
+   with about the same 13 to 15px to spare there (tests/Browser/ViewPillTest). The indicator moves by left and width rather than by a
+   translate, because the segments it travels between are no longer one size. */
+.pg .tabs {
+	--pill-overview: 30%;
+	--pill-timeline: 46%;
+	--pill-list: 24%;
+}
+
+.pg .tabs-tab {
+	gap: 4px;
+	padding-inline: 4px;
+}
+
+.pg .tabs-tab[data-pg-view="overview"] {
+	flex: 0 0 var(--pill-overview);
+}
+
+.pg .tabs-tab[data-pg-view="timeline"] {
+	flex: 0 0 var(--pill-timeline);
+}
+
+.pg .tabs-tab[data-pg-view="list"] {
+	flex: 0 0 var(--pill-list);
+}
+
+.pg .tabs-indicator {
+	width: var(--pill-overview);
+}
+
+.pg[data-view="timeline"] .tabs-indicator {
+	left: var(--pill-overview);
+	width: var(--pill-timeline);
+}
+
+.pg[data-view="list"] .tabs-indicator {
+	left: calc(var(--pill-overview) + var(--pill-timeline));
+	width: var(--pill-list);
+}
+
+.tabs-tab {
+	position: relative;
+	z-index: 1;
+	flex: 1 1 50%;
+	min-width: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 8px 10px;
+	color: var(--on-structure);
+	font-size: var(--fs-md);
+	/* same arithmetic as .tab in the bottom bar: what a faded label owes AA on is
+	   the ink it is painted with, not the ink it declares. 0.6 was 3.31:1 on
+	   obrok19's pale switcher. */
+	opacity: 0.75;
+}
+
+/* the icon keeps its size; only the words give way on a narrow phone */
+.tabs-tab i {
+	flex: 0 0 auto;
+}
+
+.tabs-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.tabs-tab[aria-selected="true"] {
+	color: var(--on-state);
+	font-weight: 700;
+	opacity: 1;
+}
+
+.tabs-tab:focus-visible {
+	outline-offset: -2px;
+	box-shadow: inset 0 0 0 4px var(--ground);
+}

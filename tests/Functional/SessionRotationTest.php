@@ -51,6 +51,8 @@ final class SessionRotationTest extends TestCase
             'PROGRAM_PROVIDER_KORBO26' => 'local',
             'PUSH_DB_PATH' => self::DATABASE,
             'STUB_STATE_PATH' => self::$stubState,
+            // tests/bootstrap.php's, so the server creates no var/cache
+            'CACHE_PATH' => (string) ($_ENV['CACHE_PATH'] ?? ''),
             'ADMIN_TOKEN_KORBO26' => self::ADMIN_TOKEN,
             // tests/bootstrap.php's throwaway pair: every event has push and refuses to boot without one
             'VAPID_PUBLIC_KEY' => (string) ($_ENV['VAPID_PUBLIC_KEY'] ?? ''),

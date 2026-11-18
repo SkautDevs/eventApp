@@ -7,9 +7,10 @@ namespace Tests\Functional;
 use App\Program\KissjProgramProvider;
 use App\Program\ProgramProviderInterface;
 use GuzzleHttp\Client;
-use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Handler\MockHandler;
 use Slim\App;
+use Tests\CoreStylesheet;
 use Tests\KorboResponses;
 
 /**
@@ -156,7 +157,7 @@ final class KorboProgramsTest extends AppTestCase
     }
 
     /**
-     * A description is plain text (docs/kissj-contract.md). Programme 53's carries a
+     * A description is plain text (kissj's API contract 3.0). Programme 53's carries a
      * literal `->` and a literal `<…>` placeholder; Twig escapes each exactly once, and
      * nothing in it is rendered as markup.
      */
@@ -190,7 +191,7 @@ final class KorboProgramsTest extends AppTestCase
         self::assertStringContainsString("<p class=\"sheet-perex\">Máme frisbee, máme louku!\nUděláme dvě čáry!\nZahrajeme přátelskou hru frisbee!\n(kdo nezná, rychle se naučí)</p>", $html);
 
         // and every element that renders a perex draws those breaks as lines
-        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/style.css');
+        $css = CoreStylesheet::read();
         preg_match_all('/<(\w+) class="([\w-]*perex[\w-]*)"/', (string) file_get_contents(dirname(__DIR__, 2) . '/templates/programs.twig'), $perexes);
         // the second sheet-perex is an organiser's message in the sheet, plain text like the perex
         self::assertSame(['pl-perex', 'sheet-perex', 'sheet-perex'], $perexes[2]);
@@ -351,9 +352,9 @@ final class KorboProgramsTest extends AppTestCase
         foreach ($cards as [, $classes, $id, $label]) {
             if (str_contains($classes, 'is-registered')) {
                 $registered++;
-                self::assertStringEndsWith(', přihlášeno', $label, "programme {$id}");
+                self::assertStringEndsWith(', zapsáno', $label, "programme {$id}");
             } else {
-                self::assertStringEndsNotWith(', přihlášeno', $label, "programme {$id}");
+                self::assertStringEndsNotWith(', zapsáno', $label, "programme {$id}");
             }
         }
         self::assertGreaterThan(0, $registered);

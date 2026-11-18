@@ -13,6 +13,24 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+/**
+ * `WebPushSender` gives every push request a 5 s timeout (`TIMEOUT_SECONDS`; the library's
+ * 30 s could outlast nginx's 45 s on an admin batch), deletes at send time any row whose endpoint
+ * the allow-list refuses (rows from before it existed) or whose keys fail
+ * `SubscriptionKeys::valid()`, sends through `Push\IsolatingWebPush` — the library with
+ * `prepare()` per notification, so a row whose encryption still throws is set aside and
+ * deleted instead of taking the whole batch down (only when *every* row is set aside is it the
+ * platform's fault: all count as failed, none is deleted, the first error is reported), and
+ * with its own `flush()`, which sends a batch concurrently through Guzzle's promises (web-push
+ * 11's sends one request after another, and its `flushPooled()` needs an HTTPlug adapter that
+ * does not exist for Guzzle 8) with `http_errors` off, so a 404 or 410 is a report; a
+ * throwable that is not a PSR-18 client failure propagates as before — and keeps strikes: a
+ * `Failed` send adds one to the row's `failures` — but only when the row's push-service host
+ * delivered at least one other notification of the same batch (`WebPushSender::strikable()`),
+ * so a send where nothing arrived, or one service's outage, strikes nobody — `MAX_FAILURES`
+ * (5) in a row delete it (counted as failed, not removed), and a delivery resets it, as do new
+ * keys on a re-subscribe (`save()` upserts and keeps the count when the keys are the same).
+ */
 final class WebPushSender implements PushSenderInterface
 {
     /**

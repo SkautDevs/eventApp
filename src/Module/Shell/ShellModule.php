@@ -29,6 +29,11 @@ final class ShellModule implements ModuleInterface
         return 'shell/index.js';
     }
 
+    public function stylesheet(): string
+    {
+        return 'shell.css';
+    }
+
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {
