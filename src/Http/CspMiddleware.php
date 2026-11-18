@@ -49,10 +49,11 @@ final class CspMiddleware implements MiddlewareInterface
      */
     public static function extrasFor(EventConfig $event): array
     {
+        /** @var array<string, list<string>> $extras */
         $extras = [];
 
-        $embedUrl = $event->get('map')['embedUrl'] ?? null;
-        if ($event->isEnabled('map') && is_string($embedUrl) && !str_contains($embedUrl, 'REPLACE-ME')) {
+        $embedUrl = $event->map?->embedUrl;
+        if ($event->isEnabled('map') && $embedUrl !== null && !str_contains($embedUrl, 'REPLACE-ME')) {
             $mapOrigin = self::origin($embedUrl);
             if ($mapOrigin !== null) {
                 $extras['frame-src'][] = $mapOrigin;

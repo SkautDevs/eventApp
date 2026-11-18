@@ -9,6 +9,7 @@ use App\Program\KissjTransferException;
 use App\Program\PairingStatus;
 use App\Program\ProgramDataException;
 use App\Program\RegistrationRefusedException;
+use App\Program\Section;
 use App\Program\SessionExpiredException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
@@ -102,6 +103,15 @@ final class KissjProgramProviderTest extends TestCase
         return json_decode((string) $this->lastRequest()->getBody(), true);
     }
 
+    /**
+     * @param array<int, Section> $sections
+     * @return array<int, array<string, mixed>> their rows, keys kept
+     */
+    private static function sectionRows(array $sections): array
+    {
+        return array_map(static fn(Section $section): array => $section->toArray(), $sections);
+    }
+
     public function testGetProgramsNormalizesShape(): void
     {
         $programs = $this->answering(new Response(200, [], self::listBody([self::programme()])))->getPrograms();
@@ -117,7 +127,7 @@ final class KissjProgramProviderTest extends TestCase
             'perex' => 'Perex programu.',
             'tools' => null,
             'preregistered' => false,
-        ], $programs[0]);
+        ], $programs[0]->toArray());
     }
 
     public function testAPreregisteredProgrammeSaysSo(): void
@@ -147,7 +157,7 @@ final class KissjProgramProviderTest extends TestCase
         self::assertSame([
             10 => ['id' => 10, 'title' => 'Putování', 'subTitle' => null],
             1 => ['id' => 1, 'title' => 'Hlavní program', 'subTitle' => null],
-        ], $this->answering(new Response(200, [], self::listBody()))->getSections());
+        ], self::sectionRows($this->answering(new Response(200, [], self::listBody()))->getSections()));
     }
 
     /**
@@ -160,6 +170,7 @@ final class KissjProgramProviderTest extends TestCase
             ['id' => 17, 'name' => 'Netradiční sporty', 'subtitle' => '1. blok'],
             ['id' => 18, 'name' => 'Mše', 'subtitle' => ''],
         ])))->getSections();
+        $sections = self::sectionRows($sections);
 
         self::assertSame(['id' => 17, 'title' => 'Netradiční sporty', 'subTitle' => '1. blok'], $sections[17]);
         self::assertSame(['id' => 18, 'title' => 'Mše', 'subTitle' => null], $sections[18]);
@@ -222,8 +233,8 @@ final class KissjProgramProviderTest extends TestCase
     {
         $programs = $this->answering(new Response(200, [], self::listBody([self::programme(['place' => '', 'description' => ''])])))->getPrograms();
 
-        self::assertNull($programs[0]['location']);
-        self::assertNull($programs[0]['perex']);
+        self::assertNull($programs[0]->location);
+        self::assertNull($programs[0]->perex);
     }
 
     /**
@@ -261,9 +272,9 @@ final class KissjProgramProviderTest extends TestCase
                 ])))->getPrograms();
 
                 // no offset: taken at face value, as the event's own clock
-                self::assertSame('2027-06-03 08:00:00', $programs[0]['start']['date'], $serverZone);
+                self::assertSame('2027-06-03 08:00:00', $programs[0]->toArray()['start']['date'], $serverZone);
                 // an offset it does carry is converted to that same clock
-                self::assertSame('2027-06-03 10:00:00', $programs[1]['start']['date'], $serverZone);
+                self::assertSame('2027-06-03 10:00:00', $programs[1]->toArray()['start']['date'], $serverZone);
             } finally {
                 date_default_timezone_set($previous);
             }
@@ -339,9 +350,9 @@ final class KissjProgramProviderTest extends TestCase
         self::assertSame(4711, $participant->id);
         self::assertSame('Jana', $participant->nickname);
         self::assertSame([7], array_column($participant->programmes, 'id'));
-        self::assertSame('2027-06-03 15:00:00', $participant->programmes[0]['start']['date']);
-        self::assertSame(['id' => 1], $participant->programmes[0]['section']);
-        self::assertTrue($participant->programmes[0]['preregistered']);
+        self::assertSame('2027-06-03 15:00:00', $participant->programmes[0]->toArray()['start']['date']);
+        self::assertSame(['id' => 1], $participant->programmes[0]->toArray()['section']);
+        self::assertTrue($participant->programmes[0]->preregistered);
     }
 
     public function testANullNicknameStaysNull(): void

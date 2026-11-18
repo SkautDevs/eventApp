@@ -7,6 +7,7 @@ namespace App\Module\Home;
 use App\Auth\Authenticator;
 use App\Auth\CurrentParticipant;
 use App\EventConfig;
+use App\Module\Home\View\HomePage;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\ProgramUnavailableException;
@@ -14,6 +15,7 @@ use App\Program\RegistrationWindow;
 use App\Push\MessageRepository;
 use App\Push\NotificationList;
 use App\Toast\Toasts;
+use App\View\TemplateContext;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -84,16 +86,18 @@ final class ShowAction
         if ($phase !== 'before' && in_array('info', $event->features, true)) {
             $names = [];
             foreach ($mine as $programme) {
-                $names[(int) $programme['id']] = (string) ($programme['name'] ?? '');
+                $names[$programme->id] = $programme->name;
             }
             $news = NotificationList::items($this->messages->visible($event->slug), $names, $now);
         }
 
-        return $this->toasts->mark($this->twig->render($response, 'homepage.twig', [
-            'links' => $event->content('links'),
+        $page = new HomePage(
+            links: $event->links(),
             // asked after the read, which may have logged the reader out
-            'home' => HomeModel::build($event, $news, $mine, $sections, $this->auth->isLogged(), $window, $now),
-            'toast' => $toast,
-        ]), $toast);
+            home: HomeModel::build($event, $news, $mine, $sections, $this->auth->isLogged(), $window, $now),
+            toast: $toast,
+        );
+
+        return $this->toasts->mark($this->twig->render($response, 'homepage.twig', TemplateContext::of($page)), $toast);
     }
 }

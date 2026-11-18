@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Push;
 
+use App\Storage\Row;
 use App\Time\SystemClock;
 use Psr\Clock\ClockInterface;
 
@@ -93,7 +94,7 @@ final class MessageRepository
         $statement->execute(['sent' => $sent, 'removed' => $removed, 'failed' => $failed, 'unreached' => $unreached, 'id' => $id, 'event' => $event]);
     }
 
-    /** @return list<array> newest first; $page is 1-based */
+    /** @return list<Message> newest first; $page is 1-based */
     public function page(string $event, int $page, int $perPage = 50): array
     {
         $statement = $this->pdo->prepare('SELECT * FROM messages WHERE event = :event ORDER BY id DESC LIMIT :limit OFFSET :offset');
@@ -102,7 +103,7 @@ final class MessageRepository
         $statement->bindValue('offset', max(0, $page - 1) * $perPage, \PDO::PARAM_INT);
         $statement->execute();
 
-        return array_map(self::row(...), $statement->fetchAll(\PDO::FETCH_ASSOC));
+        return array_map(Message::fromRow(...), Row::all($statement->fetchAll(\PDO::FETCH_ASSOC)));
     }
 
     public function count(string $event): int
@@ -113,13 +114,13 @@ final class MessageRepository
         return (int) $statement->fetchColumn();
     }
 
-    /** @return list<array> the messages readers see, newest first */
+    /** @return list<Message> the messages readers see, newest first */
     public function visible(string $event): array
     {
         $statement = $this->pdo->prepare('SELECT * FROM messages WHERE event = :event AND hidden = 0 ORDER BY id DESC');
         $statement->execute(['event' => $event]);
 
-        return array_map(self::row(...), $statement->fetchAll(\PDO::FETCH_ASSOC));
+        return array_map(Message::fromRow(...), Row::all($statement->fetchAll(\PDO::FETCH_ASSOC)));
     }
 
     /** @return bool false when the event has no message with that id */
@@ -137,27 +138,5 @@ final class MessageRepository
     private function stamp(?\DateTimeImmutable $at): string
     {
         return ($at ?? $this->clock->now())->format('Y-m-d H:i:s');
-    }
-
-    private static function row(array $r): array
-    {
-        return [
-            'id' => (int) $r['id'],
-            'event' => $r['event'],
-            'sentAt' => $r['sent_at'],
-            'programmeId' => $r['programme_id'] === null ? null : (int) $r['programme_id'],
-            'targetLabel' => $r['target_label'],
-            'title' => $r['title'],
-            'body' => $r['body'],
-            'signature' => $r['signature'],
-            // NULL while the send runs, and for good when it died
-            'sent' => $r['sent'] === null ? null : (int) $r['sent'],
-            'removed' => $r['removed'] === null ? null : (int) $r['removed'],
-            'failed' => $r['failed'] === null ? null : (int) $r['failed'],
-            'unreached' => $r['unreached'] === null ? null : (int) $r['unreached'],
-            'hidden' => (bool) $r['hidden'],
-            'toggledAt' => $r['toggled_at'],
-            'toggledBy' => $r['toggled_by'],
-        ];
     }
 }

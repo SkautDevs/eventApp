@@ -43,7 +43,7 @@ final class Definitions
             Environment::class => $environment,
             // the one source of "now": every reader of the time gets it from here
             ClockInterface::class => \DI\get(Time\SystemClock::class),
-            \App\Program\ProgramProviderInterface::class => function (ContainerInterface $c, ClockInterface $clock, Environment $environment) use ($event, $root): \App\Program\ProgramProviderInterface {
+            \App\Program\ProgramProviderInterface::class => function (ClockInterface $clock, Environment $environment, Program\Freshness $freshness) use ($event, $root): \App\Program\ProgramProviderInterface {
                 $programSource = $environment->programSource($event->slug);
                 if ($programSource !== null) {
                     // kissj resolves the event from the key, so the key is what picks the event
@@ -59,7 +59,7 @@ final class Definitions
                             apiKey: $apiKey,
                         ),
                         cache: new Cache\FileCache($root . '/var/cache/' . $event->slug, $clock),
-                        freshness: $c->get(Program\Freshness::class),
+                        freshness: $freshness,
                         ttl: $environment->programCacheTtl(),
                         clock: $clock,
                     );
@@ -115,14 +115,25 @@ final class Definitions
                 new \Sentry\Monolog\LogToSentryIssueHandler(\Sentry\SentrySdk::getCurrentHub(), \Monolog\Level::Warning),
             ]),
             Kernel::ERRORS_LOGGER => fn(): \Psr\Log\LoggerInterface => self::errorsLogger(),
-            \App\Push\PushSenderInterface::class => fn(\Psr\Container\ContainerInterface $c, Environment $environment): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
+            \App\Push\PushSenderInterface::class => fn(
+                \Psr\Container\ContainerInterface $c,
+                Environment $environment,
+                \App\Push\EndpointPolicy $endpoints,
+                \Psr\Log\LoggerInterface $logger,
+            ): \App\Push\PushSenderInterface => new \App\Push\WebPushSender(
                 // resolved on the first send: building the sender must not open the database
-                repository: static fn(): \App\Push\SubscriptionRepository => $c->get(\App\Push\SubscriptionRepository::class),
-                endpoints: $c->get(\App\Push\EndpointPolicy::class),
+                repository: static function () use ($c): \App\Push\SubscriptionRepository {
+                    $repository = $c->get(\App\Push\SubscriptionRepository::class);
+                    // defined above under its own name, autowired (a lazy proxy of the class)
+                    \assert($repository instanceof \App\Push\SubscriptionRepository);
+
+                    return $repository;
+                },
+                endpoints: $endpoints,
                 vapidPublicKey: $environment->vapid()['public'],
                 vapidPrivateKey: $environment->vapid()['private'],
                 vapidSubject: $environment->vapid()['subject'],
-                logger: $c->get(\Psr\Log\LoggerInterface::class),
+                logger: $logger,
             ),
             Twig::class => fn(ContainerInterface $c, Environment $environment): Twig => new TwigFactory($event, $environment, $root)->create($c),
         ];

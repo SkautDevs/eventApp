@@ -6,11 +6,14 @@ namespace Tests\Functional;
 
 use App\Module\Programs\RegistrationWriter;
 use App\Module\Programs\SheetBuilder;
+use App\Module\Programs\View\Sheet;
+use App\Module\Programs\View\SheetFooter;
 use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
 use App\Program\LocalProgramProvider;
+use App\Program\Programme;
 use App\Program\ProgramUnavailableException;
 use Psr\Http\Message\ResponseInterface;
 use Slim\App;
@@ -331,11 +334,11 @@ final class ProgramRegistrationTest extends AppTestCase
     #[\PHPUnit\Framework\Attributes\DataProvider('closedWindows')]
     public function testAClosedWindowIsSaidWithoutATrailingPeriod(RegistrationWindow $window, string $state, string $line): void
     {
-        $footer = static fn(array $detail): ?array => (new \ReflectionMethod(SheetBuilder::class, 'footer'))
-            ->invoke(null, $detail, true, true, $window, new \DateTimeImmutable('2026-11-17T12:00:00+01:00'));
+        $footer = static fn(array $detail): ?SheetFooter => (new \ReflectionMethod(SheetBuilder::class, 'footer'))
+            ->invoke(null, new Sheet(1, 'Program', '', null, null, null, null, null, null, $detail['registered'], $detail['preregistered']), true, true, $window, new \DateTimeImmutable('2026-11-17T12:00:00+01:00'));
 
-        self::assertSame(['state' => $state, 'line' => $line], $footer(['preregistered' => false, 'registered' => false]));
-        self::assertSame(['state' => $state, 'line' => $line], $footer(['preregistered' => true, 'registered' => true]));
+        self::assertSame(['state' => $state, 'line' => $line], get_object_vars($footer(['preregistered' => false, 'registered' => false])));
+        self::assertSame(['state' => $state, 'line' => $line], get_object_vars($footer(['preregistered' => true, 'registered' => true])));
     }
 
     public function testARefusalCodeIsItsCzechLine(): void
@@ -424,9 +427,9 @@ final class ProgramRegistrationTest extends AppTestCase
     /** When and where, as the toast says it: a run past midnight names its start day only. */
     public function testTheToastLine(): void
     {
-        $programme = static fn(string $start, string $end, ?string $location): array => [
+        $programme = static fn(string $start, string $end, ?string $location): Programme => Programme::fromArray([
             'id' => 9, 'name' => 'X', 'section' => ['id' => 1], 'start' => ['date' => $start], 'end' => ['date' => $end], 'location' => $location,
-        ];
+        ]) ?? throw new \LogicException('not a programme row');
 
         self::assertSame('Pá 21. 5. · 9:00–12:30 · Žlutý les', RegistrationWriter::toastLine($programme('2027-05-21 09:00:00', '2027-05-21 12:30:00', 'Žlutý les')));
         self::assertSame('Čt 20. 5. · 22:00–1:30', RegistrationWriter::toastLine($programme('2027-05-20 22:00:00', '2027-05-21 01:30:00', null)));

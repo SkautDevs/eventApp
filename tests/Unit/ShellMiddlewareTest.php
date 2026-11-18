@@ -57,7 +57,7 @@ final class ShellMiddlewareTest extends TestCase
         self::assertSame('X-Screen', $response->getHeaderLine('Vary'));
         self::assertSame(ScreenMiddleware::PAGE_CACHE_CONTROL, $response->getHeaderLine('Cache-Control'));
         self::assertSame('no-store, no-cache, must-revalidate', ScreenMiddleware::PAGE_CACHE_CONTROL);
-        self::assertSame($now->format(DATE_ATOM), $freshness->forView()['fetchedAt']);
+        self::assertSame($now->format(DATE_ATOM), $freshness->forView()->fetchedAt);
     }
 
     public function testTheScreenMiddlewareKeepsARoutesOwnPolicyAndLeavesJsonAlone(): void

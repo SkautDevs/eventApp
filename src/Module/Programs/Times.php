@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace App\Module\Programs;
 
+use App\Program\Programme;
 use App\Time\Zone;
 
 /**
- * How the Program screen reads and prints a programme's times: the provider's
- * `{'date': ...}` values as timestamps (parse(), ts()), a programme's day (dayOf()), the
- * day label ("čt 30. 5."), the range of a programme ("8:00–12:00", or both days for a run
- * past midnight) and an instant handed to the client. Every timestamp is a wall-clock time
- * read in the process's default zone; only instant() names the event's own. Pure.
+ * How the Program screen reads and prints a programme's times: a placed programme's start
+ * and end (start(), end()), its day (dayOf()), the day label ("čt 30. 5."), the range of a
+ * programme ("8:00–12:00", or both days for a run past midnight) and an instant handed to
+ * the client. A programme's times are Prague wall-clock DateTimeImmutables and every one
+ * is printed with format() on them, so the output is the event's own whatever zone the
+ * process runs in; at() turns a timeline instant back into one. Pure.
  */
 final class Times
 {
@@ -25,8 +27,8 @@ final class Times
 
     /**
      * Czech weekday abbreviations for the pager label, indexed by the ISO weekday number (format 'N').
-     * Kernel carries the full names for its dateToCzechDayName filter; the pager
-     * needs the short forms, which do not exist anywhere else.
+     * The full names are HomeModel::WEEKDAYS, which TwigFactory's dateToCzechDayName filter
+     * reads; the pager needs the short forms, which do not exist anywhere else.
      */
     public const array SHORT_DAY_NAMES = [1 => 'po', 2 => 'út', 3 => 'st', 4 => 'čt', 5 => 'pá', 6 => 'so', 7 => 'ne'];
 
@@ -42,70 +44,62 @@ final class Times
      * e.g. "8:00–12:00"; a programme that runs into another day names both days, the
      * way the sheet does. Ending at midnight is ending the evening it started on.
      */
-    public static function timeRange(array $program): string
+    public static function timeRange(Programme $program): string
     {
         $segments = TimelineBuilder::segments($program);
         if (count($segments) > 1) {
             return self::whenLabel($program);
         }
 
-        return date(self::CLOCK, self::ts($program['start'])) . '–' . date(self::CLOCK, self::ts($program['end']));
+        return self::start($program)->format(self::CLOCK) . '–' . self::end($program)->format(self::CLOCK);
     }
 
     /**
      * e.g. "čt 30. 5. 8:00–12:00", or with both days when the programme runs past midnight:
      * "čt 30. 5. 22:00 – pá 31. 5. 1:30" — spaced there, because the dash joins two dates.
      */
-    public static function whenLabel(array $program): string
+    public static function whenLabel(Programme $program): string
     {
-        $start = self::ts($program['start']);
-        $end = self::ts($program['end']);
-        $startDay = self::dayLabel(date('Y-m-d', $start));
-        $endDay = self::dayLabel(date('Y-m-d', $end));
+        $start = self::start($program);
+        $end = self::end($program);
+        $startDay = self::dayLabel($start->format('Y-m-d'));
+        $endDay = self::dayLabel($end->format('Y-m-d'));
 
         return $startDay === $endDay
-            ? $startDay . ' ' . date(self::CLOCK, $start) . '–' . date(self::CLOCK, $end)
-            : $startDay . ' ' . date(self::CLOCK, $start) . ' – ' . $endDay . ' ' . date(self::CLOCK, $end);
+            ? $startDay . ' ' . $start->format(self::CLOCK) . '–' . $end->format(self::CLOCK)
+            : $startDay . ' ' . $start->format(self::CLOCK) . ' – ' . $endDay . ' ' . $end->format(self::CLOCK);
     }
 
-    public static function dayOf(array $program): string
+    public static function dayOf(Programme $program): string
     {
-        return date('Y-m-d', self::ts($program['start']));
-    }
-
-    public static function ts(mixed $datetime): int
-    {
-        return self::parse($datetime) ?? 0;
+        return self::start($program)->format('Y-m-d');
     }
 
     /**
-     * The timestamp of a `{'date': ...}` value, or null when there is none to read —
-     * a null, a missing key, an empty string or anything strtotime() rejects.
-     * ScheduleBuilder::withParsableDates() is what keeps such a record off the screen;
-     * this is also why ts() takes mixed, so a hand-edited fixture is a dropped row and
-     * not a TypeError five frames further in.
+     * The start of a programme the screen places. ScheduleBuilder::withParsableDates() is
+     * what keeps a programme without both dates off the screen, so one reaching here
+     * without a start is a bug, not data.
      */
-    public static function parse(mixed $datetime): ?int
+    public static function start(Programme $program): \DateTimeImmutable
     {
-        $date = is_array($datetime) ? ($datetime['date'] ?? null) : null;
-        if (!is_string($date) || trim($date) === '') {
-            return null;
-        }
-
-        $timestamp = strtotime($date);
-
-        return $timestamp === false ? null : $timestamp;
+        return $program->start ?? throw new \LogicException('A programme without a start is never placed on the screen');
     }
 
-    /**
-     * A wall-clock timestamp (read in the default zone, like every other in here) as the
-     * instant it means in the event's zone, DATE_ATOM with its offset. Zone::PRAGUE is the
-     * zone the provider's naive datetimes are wall-clock times in. Everything else here
-     * reads and prints them in the process's default zone, which is consistent whatever
-     * that zone is; only an instant handed to the client has to name the event's own.
-     */
-    public static function instant(int $timestamp): string
+    /** The end of a placed programme; see start(). */
+    public static function end(Programme $program): \DateTimeImmutable
     {
-        return (new \DateTimeImmutable(date('Y-m-d H:i:s', $timestamp), Zone::prague()))->format(DATE_ATOM);
+        return $program->end ?? throw new \LogicException('A programme without an end is never placed on the screen');
+    }
+
+    /** A timeline instant (a Unix timestamp) as the Prague time it is. */
+    public static function at(int $timestamp): \DateTimeImmutable
+    {
+        return (new \DateTimeImmutable('@' . $timestamp))->setTimezone(Zone::prague());
+    }
+
+    /** A time as the instant handed to the client: DATE_ATOM in Europe/Prague, with its offset. */
+    public static function instant(\DateTimeImmutable $at): string
+    {
+        return $at->setTimezone(Zone::prague())->format(DATE_ATOM);
     }
 }

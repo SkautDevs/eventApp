@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Programs;
 
+use App\Module\Programs\View\Sheet;
+use App\Module\Programs\View\SheetFooter;
+use App\Program\Programme;
 use App\Program\RegistrationWindow;
+use App\Program\Section;
 use App\Time\Zone;
 
 /**
@@ -15,27 +19,30 @@ use App\Time\Zone;
 final class SheetBuilder
 {
     /**
-     * @param array<int, array> $sections
+     * The sheet prints the location as given; only the cards and the list rows trim it.
+     *
+     * @param array<int, Section> $sections
      * @param array<int, string> $pageOfProgram
      * @param array<int, true> $registeredIds
      */
-    public static function buildDetail(array $program, array $sections, array $pageOfProgram, array $registeredIds): array
+    public static function buildDetail(Programme $program, array $sections, array $pageOfProgram, array $registeredIds): Sheet
     {
-        $section = $sections[$program['section']['id'] ?? -1] ?? null;
+        $section = $sections[$program->sectionId] ?? null;
 
-        return [
-            'id' => $program['id'],
-            'name' => $program['name'],
-            'when' => Times::whenLabel($program),
-            'location' => $program['location'] ?? null,
-            'perex' => $program['perex'] ?? null,
-            'lector' => $program['lector'] ?? null,
-            'tools' => $program['tools'] ?? null,
-            'section' => $section === null ? null : self::sectionTitle($section),
-            'page' => $pageOfProgram[$program['id']] ?? null,
-            'registered' => isset($registeredIds[$program['id']]),
-            'preregistered' => self::preregistered($program),
-        ];
+        return new Sheet(
+            id: $program->id,
+            name: $program->name,
+            when: Times::whenLabel($program),
+            location: $program->location,
+            perex: $program->perex,
+            lector: $program->lector,
+            tools: $program->tools,
+            section: $section === null ? null : self::sectionTitle($section),
+            page: $pageOfProgram[$program->id] ?? null,
+            registered: isset($registeredIds[$program->id]),
+            // kissj's isPreregistered: fixed for its roles, never in a participant's own list
+            preregistered: $program->preregistered,
+        );
     }
 
     /**
@@ -44,44 +51,37 @@ final class SheetBuilder
      * preregistered programme, else register or unregister. Null when the participant's
      * own list could not be read: "register" would be a guess.
      *
-     * @param array{preregistered: bool, registered: bool} $detail
-     * @return array{state: string, line: ?string}|null
+     * Only the sheet's `preregistered` and `registered` are read.
      */
-    public static function footer(array $detail, bool $paired, bool $mineRead, RegistrationWindow $window, \DateTimeImmutable $now): ?array
+    public static function footer(Sheet $detail, bool $paired, bool $mineRead, RegistrationWindow $window, \DateTimeImmutable $now): ?SheetFooter
     {
         if (!$paired) {
-            return ['state' => 'unpaired', 'line' => null];
+            return new SheetFooter('unpaired', null);
         }
         $state = $window->state($now);
         if ($state === 'before' && $window->start !== null) {
             $start = $window->start->setTimezone(Zone::prague());
 
-            return ['state' => 'before', 'line' => 'Přihlašování začne ' . $start->format('j. n. Y \\v ' . Times::CLOCK)];
+            return new SheetFooter('before', 'Přihlašování začne ' . $start->format('j. n. Y \\v ' . Times::CLOCK));
         }
         if ($state === 'after') {
-            return ['state' => 'after', 'line' => 'Přihlašování skončilo'];
+            return new SheetFooter('after', 'Přihlašování skončilo');
         }
         if ($state !== 'open') {
-            return ['state' => 'none', 'line' => 'Přihlašování zatím není otevřené'];
+            return new SheetFooter('none', 'Přihlašování zatím není otevřené');
         }
-        if ($detail['preregistered']) {
-            return ['state' => 'fixed', 'line' => null];
+        if ($detail->preregistered) {
+            return new SheetFooter('fixed', null);
         }
         if (!$mineRead) {
             return null;
         }
 
-        return ['state' => $detail['registered'] ? 'unregister' : 'register', 'line' => null];
+        return new SheetFooter($detail->registered ? 'unregister' : 'register', null);
     }
 
-    /** kissj's isPreregistered: fixed for its roles, never in a participant's own list. */
-    public static function preregistered(array $program): bool
+    private static function sectionTitle(Section $section): string
     {
-        return ($program['preregistered'] ?? false) === true;
-    }
-
-    private static function sectionTitle(array $section): string
-    {
-        return isset($section['subTitle']) ? $section['title'] . ' – ' . $section['subTitle'] : $section['title'];
+        return $section->subTitle !== null ? $section->title . ' – ' . $section->subTitle : $section->title;
     }
 }

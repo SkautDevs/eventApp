@@ -18,7 +18,7 @@ final class ShowAction
 {
     public function __construct(
         private readonly AdminSession $admin,
-        private readonly AdminPage $page,
+        private readonly AdminPageRenderer $page,
     ) {}
 
     /** @param array<string, string> $args */

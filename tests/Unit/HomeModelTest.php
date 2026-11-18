@@ -6,7 +6,11 @@ namespace Tests\Unit;
 
 use App\EventConfig;
 use App\Module\Home\HomeModel;
+use App\Module\Home\View\HomeView;
+use App\Program\Programme;
 use App\Program\RegistrationWindow;
+use App\Program\Section;
+use App\Push\Notification;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -27,7 +31,7 @@ final class HomeModelTest extends TestCase
         return new RegistrationWindow(null, null);
     }
 
-    /** @param list<array> $news @param list<array> $mine @param array<int, array> $sections */
+    /** @param list<array> $news @param list<array> $mine programme rows @param array<int, array> $sections section rows */
     private static function build(
         string $now,
         ?EventConfig $event = null,
@@ -36,8 +40,16 @@ final class HomeModelTest extends TestCase
         array $mine = [],
         array $sections = [],
         bool $paired = false,
-    ): array {
-        return HomeModel::build($event ?? self::obrok27(), $news, $mine, $sections, $paired, $window ?? self::noWindow(), self::prague($now));
+    ): HomeView {
+        return HomeModel::build(
+            $event ?? self::obrok27(),
+            $news,
+            array_map(static fn(array $row): Programme => Programme::fromArray($row) ?? throw new \LogicException('no programme'), $mine),
+            array_map(Section::fromArray(...), $sections),
+            $paired,
+            $window ?? self::noWindow(),
+            self::prague($now),
+        );
     }
 
     /** @return iterable<string, array{string, string}> */
@@ -54,7 +66,7 @@ final class HomeModelTest extends TestCase
     #[DataProvider('phases')]
     public function testThePhaseFollowsThePragueCalendar(string $now, string $phase): void
     {
-        self::assertSame($phase, self::build($now)['phase']);
+        self::assertSame($phase, self::build($now)->phase);
     }
 
     public function testThePhaseIsReadInPragueWhateverZoneNowArrivesIn(): void
@@ -62,32 +74,32 @@ final class HomeModelTest extends TestCase
         // 22:30 UTC on the 18th is half past midnight on the 19th in Prague
         $model = HomeModel::build(self::obrok27(), [], [], [], false, self::noWindow(), new \DateTimeImmutable('2027-05-18 22:30:00', new \DateTimeZone('UTC')));
 
-        self::assertSame('during', $model['phase']);
+        self::assertSame('during', $model->phase);
     }
 
     public function testAnEventWithoutDatesHasNoPhase(): void
     {
         $model = self::build('2027-05-21 10:00:00', EventConfig::load(dirname(__DIR__, 2) . '/events', 'obrok19'));
 
-        self::assertNull($model['phase']);
-        self::assertNull($model['countdown']);
+        self::assertNull($model->phase);
+        self::assertNull($model->countdown);
     }
 
     public function testTodaysLabelIsTheFullWeekdayCapitalised(): void
     {
-        self::assertSame('Pátek 21. 5.', self::build('2027-05-21 10:00:00')['todayLabel']);
-        self::assertSame('Úterý 18. 5.', self::build('2027-05-18 10:00:00')['todayLabel']);
-        self::assertSame('Čtvrtek 20. 5.', self::build('2027-05-20 10:00:00')['todayLabel']);
+        self::assertSame('Pátek 21. 5.', self::build('2027-05-21 10:00:00')->todayLabel);
+        self::assertSame('Úterý 18. 5.', self::build('2027-05-18 10:00:00')->todayLabel);
+        self::assertSame('Čtvrtek 20. 5.', self::build('2027-05-20 10:00:00')->todayLabel);
     }
 
     public function testTheCountdownCountsPragueDaysToTheStart(): void
     {
         self::assertSame(
             ['days' => 193, 'start' => '2027-05-19', 'range' => '19.–23. 5. 2027'],
-            self::build('2026-11-07 23:30:00')['countdown'],
+            get_object_vars(self::build('2026-11-07 23:30:00')->countdown),
         );
-        self::assertSame(1, self::build('2027-05-18 00:00:01')['countdown']['days']);
-        self::assertNull(self::build('2027-05-19 08:00:00')['countdown']);
+        self::assertSame(1, self::build('2027-05-18 00:00:01')->countdown->days);
+        self::assertNull(self::build('2027-05-19 08:00:00')->countdown);
     }
 
     /** @return iterable<string, array{string, string, string}> */
@@ -109,14 +121,14 @@ final class HomeModelTest extends TestCase
     {
         $window = new RegistrationWindow(self::prague('2027-03-15 18:00:00'), self::prague('2027-04-15 20:00:00'));
 
-        self::assertSame(['state' => 'before', 'label' => '15. 3. 2027 · 18:00'], self::build('2026-11-07 12:00:00', window: $window)['window']);
+        self::assertSame(['state' => 'before', 'label' => '15. 3. 2027 · 18:00'], get_object_vars(self::build('2026-11-07 12:00:00', window: $window)->window));
     }
 
     public function testTheWindowCardWhileOpenNamesItsEnd(): void
     {
         $window = new RegistrationWindow(self::prague('2027-03-15 18:00:00'), self::prague('2027-04-15 20:00:00'));
 
-        self::assertSame(['state' => 'open', 'label' => 'Do 15. 4. 2027'], self::build('2027-04-01 12:00:00', window: $window)['window']);
+        self::assertSame(['state' => 'open', 'label' => 'Do 15. 4. 2027'], get_object_vars(self::build('2027-04-01 12:00:00', window: $window)->window));
     }
 
     public function testTheWindowLabelsAreWrittenInPrague(): void
@@ -124,28 +136,28 @@ final class HomeModelTest extends TestCase
         // 17:00 UTC in March is 18:00 in Prague
         $window = new RegistrationWindow(new \DateTimeImmutable('2027-03-15 17:00:00', new \DateTimeZone('UTC')), self::prague('2027-04-15 20:00:00'));
 
-        self::assertSame('15. 3. 2027 · 18:00', self::build('2026-11-07 12:00:00', window: $window)['window']['label']);
+        self::assertSame('15. 3. 2027 · 18:00', self::build('2026-11-07 12:00:00', window: $window)->window->label);
     }
 
     public function testNoWindowCardWithoutAWindowOrAfterIt(): void
     {
-        self::assertNull(self::build('2026-11-07 12:00:00')['window']);
+        self::assertNull(self::build('2026-11-07 12:00:00')->window);
         $window = new RegistrationWindow(self::prague('2027-03-15 18:00:00'), self::prague('2027-04-15 20:00:00'));
-        self::assertNull(self::build('2027-04-16 12:00:00', window: $window)['window']);
+        self::assertNull(self::build('2027-04-16 12:00:00', window: $window)->window);
     }
 
     public function testPairedIsPassedThrough(): void
     {
-        self::assertTrue(self::build('2026-11-07 12:00:00', paired: true)['paired']);
-        self::assertFalse(self::build('2026-11-07 12:00:00')['paired']);
+        self::assertTrue(self::build('2026-11-07 12:00:00', paired: true)->paired);
+        self::assertFalse(self::build('2026-11-07 12:00:00')->paired);
     }
 
     public function testTheNewsAreTodaysOnly(): void
     {
-        $item = static fn(int $id, string $at): array => ['id' => $id, 'when' => '', 'sentAt' => self::prague($at), 'title' => 't', 'body' => 'b', 'programme' => null];
+        $item = static fn(int $id, string $at): Notification => new Notification(id: $id, when: '', at: '', sentAt: self::prague($at), title: 't', body: 'b', programme: null);
         $news = [$item(3, '2027-05-21 09:00:00'), $item(2, '2027-05-21 00:05:00'), $item(1, '2027-05-20 23:50:00')];
 
-        self::assertSame([3, 2], array_column(self::build('2027-05-21 10:00:00', news: $news)['news'], 'id'));
+        self::assertSame([3, 2], array_column(self::build('2027-05-21 10:00:00', news: $news)->news, 'id'));
     }
 
     /** @return list<array> the participant's programmes in the internal shape */
@@ -175,20 +187,20 @@ final class HomeModelTest extends TestCase
             1 => ['id' => 1, 'title' => 'Workshopy', 'subTitle' => null],
             2 => ['id' => 2, 'title' => 'Přednášky', 'subTitle' => 'odpoledne'],
         ];
-        $nextUp = self::build('2027-05-21 12:00:00', mine: self::mine(), sections: $sections)['nextUp'];
+        $nextUp = self::build('2027-05-21 12:00:00', mine: self::mine(), sections: $sections)->nextUp;
 
-        self::assertSame([1, 2, 3, 4], array_column($nextUp['items'], 'id'));
+        self::assertSame([1, 2, 3, 4], array_column($nextUp->items, 'id'));
         // the first not yet over: 1 runs until 12:30
-        self::assertSame(0, $nextUp['index']);
-        $byId = array_column($nextUp['items'], null, 'id');
-        self::assertSame(['11:00', 'do 12:30', 'Žlutý les', 'Workshopy'], [$byId[1]['time'], $byId[1]['until'], $byId[1]['location'], $byId[1]['section']]);
-        self::assertSame(['14:00', 'do 15:30', 'Modrý les', 'Přednášky'], [$byId[2]['time'], $byId[2]['until'], $byId[2]['location'], $byId[2]['section']]);
+        self::assertSame(0, $nextUp->index);
+        $byId = array_column($nextUp->items, null, 'id');
+        self::assertSame(['11:00', 'do 12:30', 'Žlutý les', 'Workshopy'], [$byId[1]->time, $byId[1]->until, $byId[1]->location, $byId[1]->section]);
+        self::assertSame(['14:00', 'do 15:30', 'Modrý les', 'Přednášky'], [$byId[2]->time, $byId[2]->until, $byId[2]->location, $byId[2]->section]);
         // no location, no section; a section the event does not list is none
-        self::assertSame(['20:00', 'do 22:00', null, null], [$byId[3]['time'], $byId[3]['until'], $byId[3]['location'], $byId[3]['section']]);
-        self::assertNull($byId[4]['section']);
+        self::assertSame(['20:00', 'do 22:00', null, null], [$byId[3]->time, $byId[3]->until, $byId[3]->location, $byId[3]->section]);
+        self::assertNull($byId[4]->section);
         // the instants the shell compares with the device clock stay
-        self::assertSame('2027-05-21T11:00:00+02:00', $byId[1]['start']);
-        self::assertSame('2027-05-21T12:30:00+02:00', $byId[1]['end']);
+        self::assertSame('2027-05-21T11:00:00+02:00', $byId[1]->start);
+        self::assertSame('2027-05-21T12:30:00+02:00', $byId[1]->end);
     }
 
     public function testNextUpTimesAreWrittenAsTheProgramScreenWritesThem(): void
@@ -202,22 +214,22 @@ final class HomeModelTest extends TestCase
             'location' => null,
             'perex' => null,
         ]];
-        $item = self::build('2027-05-21 08:00:00', mine: $mine)['nextUp']['items'][0];
+        $item = self::build('2027-05-21 08:00:00', mine: $mine)->nextUp->items[0];
 
         // no leading zero on the hour, as Times::CLOCK prints it
-        self::assertSame(['9:00', 'do 9:45'], [$item['time'], $item['until']]);
+        self::assertSame(['9:00', 'do 9:45'], [$item->time, $item->until]);
     }
 
     public function testNoProgrammesNoNextUp(): void
     {
-        self::assertNull(self::build('2027-05-21 12:00:00')['nextUp']);
+        self::assertNull(self::build('2027-05-21 12:00:00')->nextUp);
     }
 
     public function testEverythingOverLeavesTheItemsForTheDeviceClock(): void
     {
-        $nextUp = self::build('2027-05-22 12:00:00', mine: self::mine())['nextUp'];
+        $nextUp = self::build('2027-05-22 12:00:00', mine: self::mine())->nextUp;
 
-        self::assertCount(4, $nextUp['items']);
-        self::assertNull($nextUp['index']);
+        self::assertCount(4, $nextUp->items);
+        self::assertNull($nextUp->index);
     }
 }

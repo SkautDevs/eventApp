@@ -12,15 +12,14 @@ namespace App\Program;
  */
 interface ProgramProviderInterface
 {
-    /** @return list<array> programs in the internal shape, each with `preregistered` (bool) */
+    /** @return list<Programme> */
     public function getPrograms(): array;
 
     /**
      * The event's programme sections — the detail sheet names a programme's section,
      * and a programme whose section is not listed here is not shown.
      *
-     * @return array<int, array{id: int, title: string, subTitle: ?string}>
-     *         keyed by id, in display order
+     * @return array<int, Section> keyed by id, in display order
      */
     public function getSections(): array;
 

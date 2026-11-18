@@ -11,6 +11,10 @@ namespace Tools\Fixtures;
  */
 final class AllDayClamp
 {
+    /**
+     * @param list<array<string, mixed>> $programmes programme rows (Programme::toArray())
+     * @return list<array<string, mixed>>
+     */
     public static function apply(array $programmes, string $from, string $to): array
     {
         return array_map(static function (array $p) use ($from, $to): array {

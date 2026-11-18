@@ -78,7 +78,8 @@ final class Scrubber
             $formatted = $event->getMessageFormatted();
             $event->setMessage(
                 self::redact($message),
-                array_map(static fn(mixed $param): mixed => is_string($param) ? self::redact($param) : $param, $event->getMessageParams()),
+                // the SDK types the parameters as strings
+                array_map(self::redact(...), $event->getMessageParams()),
                 $formatted === null ? null : self::redact($formatted),
             );
         }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Program;
 
 /**
- * Maps kissj's `sections` list onto the shape the Program screen reads — see
+ * Maps kissj's `sections` list onto Section objects — see
  * docs/kissj-contract.md. It lives apart from KissjProgramProvider because the stub's
  * fixtures/sections.json is that same list, so both providers map it identically.
  */
@@ -13,8 +13,7 @@ final class Sections
 {
     /**
      * @param mixed $raw the `sections` value as decoded, trusted for nothing
-     * @return array<int, array{id: int, title: string, subTitle: ?string}>
-     *         keyed by id, in the order kissj sent them — which is the display order
+     * @return array<int, Section> keyed by id, in the order kissj sent them — which is the display order
      */
     public static function fromKissj(mixed $raw): array
     {
@@ -34,16 +33,13 @@ final class Sections
                 throw new ProgramDataException('kissj section record has no name');
             }
 
-            $sections[$section['id']] = [
-                'id' => $section['id'],
-                'title' => $section['name'],
-                'subTitle' => self::optionalString($section, 'subtitle'),
-            ];
+            $sections[$section['id']] = new Section($section['id'], $section['name'], self::optionalString($section, 'subtitle'));
         }
 
         return $sections;
     }
 
+    /** @param array<mixed> $record */
     private static function optionalString(array $record, string $key): ?string
     {
         $value = $record[$key] ?? null;

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Programs;
 
+use App\Module\Programs\View\Day;
+use App\Module\Programs\View\ListItem;
+use App\Program\Programme;
+
 /**
  * Přehled and Moje, the Program screen's two lists: programmes grouped by calendar day,
  * every day rendered one after the other. Pure.
@@ -16,9 +20,10 @@ final class DayListBuilder
      * simply does not exist in the list. One shape for both; the template decides what
      * each view shows of it (only Přehled dims).
      *
-     * @param list<array> $programs
+     * @param list<Programme> $programs
      * @param array<int, true> $registeredIds the participant's programme ids
      * @param bool $mineRead whether the personal list was read: only then is anything dimmed
+     * @return list<Day>
      */
     public static function buildDays(array $programs, array $registeredIds, bool $mineRead): array
     {
@@ -30,35 +35,35 @@ final class DayListBuilder
 
         $days = [];
         foreach ($byDay as $day => $dayPrograms) {
-            usort($dayPrograms, static fn(array $a, array $b): int => Times::ts($a['start']) <=> Times::ts($b['start']));
-            $days[] = [
-                'key' => 'day-' . date('Ymd', strtotime($day)),
-                'day' => $day,
-                'label' => Times::dayLabel($day),
-                'items' => array_map(static function (array $p) use ($registeredIds, $mineRead): array {
-                    $start = Times::ts($p['start']);
-                    $end = Times::ts($p['end']);
-                    $registered = isset($registeredIds[$p['id']]);
-                    $location = trim((string) ($p['location'] ?? ''));
+            usort($dayPrograms, static fn(Programme $a, Programme $b): int => Times::start($a)->getTimestamp() <=> Times::start($b)->getTimestamp());
+            $days[] = new Day(
+                key: 'day-' . (new \DateTimeImmutable($day))->format('Ymd'),
+                day: $day,
+                label: Times::dayLabel($day),
+                items: array_map(static function (Programme $p) use ($registeredIds, $mineRead): ListItem {
+                    $start = Times::start($p);
+                    $end = Times::end($p);
+                    $registered = isset($registeredIds[$p->id]);
+                    $location = trim($p->location ?? '');
 
-                    return [
-                        'id' => $p['id'],
-                        'name' => $p['name'],
-                        'time' => date(Times::CLOCK, $start),
+                    return new ListItem(
+                        id: $p->id,
+                        name: $p->name,
+                        time: $start->format(Times::CLOCK),
                         // a programme running into another day names the day it ends on,
                         // as every other label of a multi-day run does
-                        'until' => 'do ' . (count(TimelineBuilder::segments($p)) > 1 ? Times::dayLabel(date('Y-m-d', $end)) . ' ' : '') . date(Times::CLOCK, $end),
-                        'range' => date(Times::CLOCK, $start) . '–' . date(Times::CLOCK, $end),
-                        'start' => Times::instant($start),
-                        'end' => Times::instant($end),
-                        'location' => $location === '' ? null : $location,
-                        'perex' => $p['perex'] ?? null,
-                        'registered' => $registered,
+                        until: 'do ' . (count(TimelineBuilder::segments($p)) > 1 ? Times::dayLabel($end->format('Y-m-d')) . ' ' : '') . $end->format(Times::CLOCK),
+                        range: $start->format(Times::CLOCK) . '–' . $end->format(Times::CLOCK),
+                        start: Times::instant($start),
+                        end: Times::instant($end),
+                        location: $location === '' ? null : $location,
+                        perex: $p->perex,
+                        registered: $registered,
                         // a preregistered programme is never dimmed: see TimelineBuilder::buildCard()
-                        'dimmed' => $mineRead && !$registered && !SheetBuilder::preregistered($p),
-                    ];
+                        dimmed: $mineRead && !$registered && !$p->preregistered,
+                    );
                 }, $dayPrograms),
-            ];
+            );
         }
 
         return $days;

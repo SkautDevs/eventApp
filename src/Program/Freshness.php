@@ -63,15 +63,15 @@ final class Freshness
         return $this->generation;
     }
 
-    /** @return array{fetchedAt: string, stale: bool} what the screen section carries */
-    public function forView(): array
+    /** What the screen section carries. */
+    public function forView(): FreshnessView
     {
-        return [
+        return new FreshnessView(
             // Zone::PRAGUE: the attribute is a local time like every other the app prints
-            'fetchedAt' => ($this->fetchedAt ?? $this->requestTime)
+            fetchedAt: ($this->fetchedAt ?? $this->requestTime)
                 ->setTimezone(Zone::prague())
                 ->format(\DATE_ATOM),
-            'stale' => $this->stale,
-        ];
+            stale: $this->stale,
+        );
     }
 }

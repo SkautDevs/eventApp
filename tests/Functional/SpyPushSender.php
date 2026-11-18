@@ -6,6 +6,7 @@ namespace Tests\Functional;
 
 use App\Push\PushSenderInterface;
 use App\Push\SendOutcome;
+use App\Push\SendResult;
 
 final class SpyPushSender implements PushSenderInterface
 {
@@ -18,7 +19,12 @@ final class SpyPushSender implements PushSenderInterface
     public SendOutcome $welcomeOutcome = SendOutcome::Delivered;
 
     /** what every sendToEvent() comes back as */
-    public array $result = ['recipients' => 3, 'sent' => 2, 'removed' => 1, 'failed' => 0];
+    public SendResult $result;
+
+    public function __construct()
+    {
+        $this->result = new SendResult(3, 2, 1, 0);
+    }
 
     public function sendToEvent(
         string $event,
@@ -28,7 +34,7 @@ final class SpyPushSender implements PushSenderInterface
         ?string $url = null,
         ?array $participantIds = null,
         ?int $programme = null,
-    ): array {
+    ): SendResult {
         $this->calls[] = [$title, $body, $icon, $event, $url, $participantIds, $programme];
 
         return $this->result;

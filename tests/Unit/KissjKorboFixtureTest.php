@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Program\KissjProgramProvider;
+use App\Program\Programme;
+use App\Program\Section;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -36,12 +38,12 @@ final class KissjKorboFixtureTest extends TestCase
         );
     }
 
-    /** @return array<int, array> the normalised programmes, keyed by id */
+    /** @return array<int, array> the normalised programmes as their stored rows (Programme::toArray()), keyed by id */
     private function programmesById(): array
     {
         $byId = [];
         foreach ($this->provider(KorboResponses::LIST)->getPrograms() as $program) {
-            $byId[$program['id']] = $program;
+            $byId[$program->id] = $program->toArray();
         }
 
         return $byId;
@@ -49,7 +51,7 @@ final class KissjKorboFixtureTest extends TestCase
 
     public function testSectionsArriveInKissjsOrder(): void
     {
-        $sections = $this->provider(KorboResponses::LIST)->getSections();
+        $sections = array_map(static fn(Section $section): array => $section->toArray(), $this->provider(KorboResponses::LIST)->getSections());
 
         self::assertSame([1, 2, 3, 4, 5, 6], array_keys($sections));
         self::assertSame(
@@ -70,7 +72,7 @@ final class KissjKorboFixtureTest extends TestCase
         $provider->getSections();
 
         self::assertCount(59, $programmes);
-        self::assertSame(range(1, 59), array_column($programmes, 'id'));
+        self::assertSame(range(1, 59), array_map(static fn(Programme $programme): int => $programme->id, $programmes));
         self::assertCount(1, $this->history, 'programmes and sections come from one response');
     }
 

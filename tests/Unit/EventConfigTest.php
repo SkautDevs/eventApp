@@ -128,12 +128,40 @@ final class EventConfigTest extends TestCase
         self::assertSame(['themix', 'Montserrat', 'Font Awesome'], $event->fontFamilies());
     }
 
-    public function testContentLoadsFileAndDefaultsToEmpty(): void
+    public function testLinksComeFromTheContentFileAndNoEmergencyFileIsNull(): void
     {
         $config = EventConfig::load($this->eventsDir, 'obrok19');
 
-        self::assertNotEmpty($config->content('links'));
-        self::assertSame([], $config->content('neexistuje'));
+        self::assertNotEmpty($config->links());
+        self::assertNull($config->emergency());
+    }
+
+    public function testTheMapsKeepTheConfigsOwnOrder(): void
+    {
+        $raw = require dirname(__DIR__, 2) . '/events/obrok27/config.php';
+        $event = EventConfig::load(dirname(__DIR__, 2) . '/events', 'obrok27');
+        self::assertSame(array_keys($raw['colors']), array_keys($event->colors));
+        self::assertSame(array_keys($raw['roles']['light']), array_keys($event->roles->light));
+        self::assertSame(array_keys($raw['theme']), array_keys($event->theme));
+    }
+
+    public function testTheAssetPathsKeepTheirOrderAndLeaveTheStylesheetOut(): void
+    {
+        $raw = require dirname(__DIR__, 2) . '/events/obrok27/config.php';
+        $expected = array_filter($raw['assets'], static fn($path, $key) => $key !== 'stylesheet' && is_string($path) && $path !== '', ARRAY_FILTER_USE_BOTH);
+        self::assertSame($expected, EventConfig::load(dirname(__DIR__, 2) . '/events', 'obrok27')->assets->paths());
+    }
+
+    public function testAnEventWithoutADarkSetHasAnEmptyOne(): void
+    {
+        self::assertSame([], EventConfig::load(dirname(__DIR__, 2) . '/events', 'obrok19')->roles->dark);
+    }
+
+    public function testAnEventWithoutContentFilesHasNoLinksAndNoEmergency(): void
+    {
+        $event = EventConfig::load(dirname(__DIR__, 2) . '/events', 'miquik26');
+        self::assertSame([], $event->links());
+        self::assertNull($event->emergency());
     }
 
     public function testListedDefaultsToFalseAndDatesToNull(): void
@@ -143,14 +171,18 @@ final class EventConfigTest extends TestCase
         self::assertNull($event->dates);
     }
 
-    /** Loads a minimal event whose config gains $extra lines; the temp dir is always removed. */
+    /**
+     * Loads a minimal event whose config gains $extra lines at its end, where a key the
+     * minimal config already has is overridden; the temp dir is always removed.
+     */
     private function loadWithConfigLines(string $extra): EventConfig
     {
         $dir = sys_get_temp_dir() . '/ev-' . bin2hex(random_bytes(4));
         mkdir($dir . '/tmp26', 0777, true);
         try {
-            $minimal = file_get_contents(dirname(__DIR__) . '/fixtures/events/minimal/config.php');
-            file_put_contents($dir . '/tmp26/config.php', str_replace("return [", "return [\n" . $extra, $minimal));
+            $minimal = (string) file_get_contents(dirname(__DIR__) . '/fixtures/events/minimal/config.php');
+            $end = (int) strrpos($minimal, '];');
+            file_put_contents($dir . '/tmp26/config.php', substr($minimal, 0, $end) . $extra . "\n" . substr($minimal, $end));
 
             return EventConfig::load($dir, 'tmp26');
         } finally {
@@ -183,6 +215,55 @@ final class EventConfigTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('dates');
         $this->loadWithConfigLines('    ' . $line);
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function untypedValues(): array
+    {
+        $colors = "['background' => '#ffffff', 'link' => '#0000ee', 'base' => '#000000', 'darker' => '#000000', 'primary' => '#000000', 'text' => '#000000', 'text-invert' => '#ffffff'";
+
+        return [
+            'a name that is a number' => ["'name' => 5,", 'has a name that is not a string'],
+            'features that are a string' => ["'features' => 'info',", 'has features that are not a list of strings'],
+            'features that are a map' => ["'features' => ['a' => 'push'],", 'has features that are not a list of strings'],
+            'features with a number' => ["'features' => ['push', 7],", 'has features that are not a list of strings'],
+            'colors that are a string' => ["'colors' => '#000000',", 'has colors that is not a map'],
+            'a colour that is an array' => ["'colors' => " . $colors . ", 'extra' => ['#000000']],", 'has colors.extra that is not a string'],
+            'theme that is a string' => ["'theme' => 'radius: 0',", 'has theme that is not a map'],
+            'a theme value that is a bool' => ["'theme' => ['radius' => true],", 'has theme.radius that is not a string'],
+            'a theme value that is null' => ["'theme' => ['radius' => null],", 'has theme.radius that is not a string'],
+            'a theme key that is a number' => ["'theme' => ['0'],", 'has theme.0 that is not a string'],
+            'roles that are a string' => ["'roles' => 'light',", 'has invalid roles (expected light and dark)'],
+            'a light set that is a string' => ["'roles' => ['light' => '#ffffff'],", 'has roles.light that is not a map'],
+            'a dark set that is a string' => ["'roles' => ['light' => [], 'dark' => '#000000'],", 'has roles.dark that is not a map'],
+            'a light role that is an array' => ["'roles' => ['light' => ['ground' => ['#ffffff']]],", 'has roles.light.ground that is not a string'],
+            'a dark role that is a bool' => ["'roles' => ['dark' => ['ground' => false]],", 'has roles.dark.ground that is not a string'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('untypedValues')]
+    public function testAValueOfTheWrongTypeFailsAtBoot(string $line, string $message): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage($message);
+        $this->loadWithConfigLines('    ' . $line);
+    }
+
+    /**
+     * A number in a CSS map is taken as its string form: the layout printed `700` and
+     * `1.5` as they are, and still prints them the same way.
+     */
+    public function testANumberInTheThemeBootsAndRendersLikeItsStringForm(): void
+    {
+        $event = $this->loadWithConfigLines("    'theme' => ['font-display-weight' => 700, 'line' => 1.5],");
+        self::assertSame(['font-display-weight' => '700', 'line' => '1.5'], $event->theme);
+
+        $twig = new \Twig\Environment(new \Twig\Loader\ArrayLoader([
+            'theme' => '{% for name, value in event.theme %}--theme-{{ name }}: {{ value|raw }};{% endfor %}',
+        ]));
+        $before = $twig->render('theme', ['event' => ['theme' => ['font-display-weight' => 700, 'line' => 1.5]]]);
+        self::assertSame('--theme-font-display-weight: 700;--theme-line: 1.5;', $before);
+        self::assertSame($before, $twig->render('theme', ['event' => $event]));
     }
 
     public function testASlugWithATrailingNewlineIsRejected(): void

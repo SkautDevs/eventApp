@@ -179,19 +179,19 @@ final class ProgramsTest extends AppTestCase
 
             public function getPrograms(): array
             {
-                return [[
+                return [\App\Program\Programme::fromArray([
                     'id' => 1,
                     'name' => $this->name,
                     'section' => ['id' => 7],
                     'start' => ['date' => '2027-06-03 09:00:00'],
                     'end' => ['date' => '2027-06-03 10:00:00'],
                     'location' => 'Les',
-                ]];
+                ]) ?? throw new \LogicException('not a programme row')];
             }
 
             public function getSections(): array
             {
-                return $this->sections;
+                return array_map(\App\Program\Section::fromArray(...), $this->sections);
             }
 
             public function getRegistrationWindow(): \App\Program\RegistrationWindow

@@ -6,7 +6,7 @@ default:
 cs:
     docker run --rm -u "$(id -u):$(id -g)" -v "{{justfile_directory()}}":/app -w /app php:8.5-alpine vendor/bin/php-cs-fixer fix --dry-run --diff
 
-# Analyse src with PHPStan against its baseline.
+# Analyse src with PHPStan at level max; there is no baseline.
 stan:
     docker run --rm -u "$(id -u):$(id -g)" -v "{{justfile_directory()}}":/app -w /app php:8.5-alpine vendor/bin/phpstan analyse --memory-limit=1G
 

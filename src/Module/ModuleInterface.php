@@ -18,5 +18,6 @@ interface ModuleInterface
     /** A tab in the bottom bar, or null for a module without one. */
     public function menuItem(): ?MenuItem;
 
+    /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void;
 }

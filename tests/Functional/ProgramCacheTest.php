@@ -9,6 +9,8 @@ use App\Program\CachingProgramProvider;
 use App\Program\Freshness;
 use App\Program\ProgramProviderInterface;
 use App\Program\LocalProgramProvider;
+use App\Program\Programme;
+use App\Program\Section;
 use Psr\Container\ContainerInterface;
 use Slim\App;
 use Tests\FixedClock;
@@ -45,8 +47,9 @@ final class ProgramCacheTest extends AppTestCase
             $written = new \DateTimeImmutable('2026-10-01 09:15:00', new \DateTimeZone('Europe/Prague'));
             (new FileCache($this->dir, new FixedClock($written)))
                 ->set(CachingProgramProvider::LIST_KEY, [
-                    'sections' => $stub->getSections(),
-                    'programmes' => $stub->getPrograms(),
+                    // the entry as the decorator stores it: rows, sections keyed by id
+                    'sections' => array_map(static fn(Section $section): array => $section->toArray(), $stub->getSections()),
+                    'programmes' => array_map(static fn(Programme $programme): array => $programme->toArray(), $stub->getPrograms()),
                     // obrok19 has no registration.json: no window
                     'registration' => ['start' => null, 'end' => null],
                 ]);

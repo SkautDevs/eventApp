@@ -74,9 +74,7 @@ final class ModuleRegistry
     {
         $enabled = [];
         foreach ($event->features as $feature) {
-            $enabled[] = is_string($feature)
-                ? self::classFor($feature)
-                : throw new \RuntimeException(sprintf('Unknown module: a feature of type %s', get_debug_type($feature)));
+            $enabled[] = self::classFor($feature);
         }
         if (in_array(PushModule::class, $enabled, true)) {
             $enabled[] = AdminModule::class;

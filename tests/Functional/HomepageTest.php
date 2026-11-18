@@ -143,7 +143,7 @@ final class HomepageTest extends AppTestCase
     public function testALoggedOutReaderIsAskedToLogInInEveryPhase(string $slug): void
     {
         $html = (string) $this->request($this->fixture($slug), 'GET', '/')->getBody();
-        $name = \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug)->get('shortName') ?? \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug)->name;
+        $name = \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug)->shortName ?? \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug)->name;
 
         self::assertStringContainsString(self::PAIR_CARD . '<h2>Už jsi registrovaný na ' . htmlspecialchars($name) . '?</h2><p>Přihlas se údaji ze své registrace, ať nepřijdeš o novinky, výběr programů a upozornění v průběhu akce!</p><a class="btn btn-primary" href="/' . $slug . '/profil">Přihlásit se</a></section>', $html);
         // under the logo
@@ -164,7 +164,7 @@ final class HomepageTest extends AppTestCase
     {
         $html = (string) $this->request($this->fixture($slug), 'GET', '/')->getBody();
         $config = \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug);
-        $name = $config->get('shortName') ?? $config->name;
+        $name = $config->shortName ?? $config->name;
 
         self::assertStringContainsString('<section class="install-card" aria-label="Instalace" data-install-card="home">', $html);
         self::assertStringContainsString('<h2>Ulož si ' . htmlspecialchars($name) . ' na plochu</h2>', $html);

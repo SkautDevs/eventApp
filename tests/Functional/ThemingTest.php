@@ -134,8 +134,8 @@ final class ThemingTest extends AppTestCase
 
         $event = \App\EventConfig::load($this->eventsDir(), 'obrok19');
         $html = (string) $this->request($this->createApp('obrok19'), 'GET', '/')->getBody();
-        self::assertArrayNotHasKey('bar', $event->roles['light'] ?? []);
-        $expected = isset($event->roles['dark']) ? ($event->roles['light']['structure'] ?? $event->colors['base']) : $event->colors['base'];
+        self::assertArrayNotHasKey('bar', $event->roles->toArray()['light'] ?? []);
+        $expected = isset($event->roles->toArray()['dark']) ? ($event->roles->toArray()['light']['structure'] ?? $event->colors['base']) : $event->colors['base'];
         self::assertStringContainsString('<meta name="theme-color" content="' . $expected . '"', $html);
     }
 
@@ -271,7 +271,7 @@ final class ThemingTest extends AppTestCase
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
             $css = $this->cssOfEvent($slug);
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 foreach (array_keys($set) as $name) {
                     self::assertStringContainsString('var(--role-' . $name . ',', $css, sprintf('%s/%s declares an unread role "%s"', $slug, $mode, $name));
                 }
@@ -282,7 +282,7 @@ final class ThemingTest extends AppTestCase
     /** Light and dark are two hand-authored sets of the same roles, not a derivation. */
     public function testLightAndDarkDeclareTheSameRoles(): void
     {
-        $roles = \App\EventConfig::load($this->eventsDir(), 'obrok27')->roles;
+        $roles = \App\EventConfig::load($this->eventsDir(), 'obrok27')->roles->toArray();
 
         self::assertNotEmpty($roles['light']);
         self::assertSame(array_keys($roles['light']), array_keys($roles['dark']));
@@ -378,7 +378,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 foreach ($areas as $name) {
                     if (!isset($set[$name]) || preg_match('/^#[0-9a-f]{6}$/i', (string) $set[$name]) !== 1) {
                         continue;
@@ -429,7 +429,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 self::assertArrayHasKey('state', $set, sprintf('%s/%s declares no active-tab chip', $slug, $mode));
                 self::assertArrayHasKey('on-state', $set, sprintf('%s/%s: the chip has no ink', $slug, $mode));
                 $checked++;
@@ -495,7 +495,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 foreach (['grid', 'grid-structure', 'hairline'] as $name) {
                     self::assertMatchesRegularExpression('/^#[0-9a-f]{6}$/i', (string) ($set[$name] ?? ''), sprintf('%s/%s: "%s" is not a measurable value', $slug, $mode, $name));
                 }
@@ -546,7 +546,7 @@ final class ThemingTest extends AppTestCase
             foreach (glob($dir . '/*/config.php') ?: [] as $path) {
                 $slug = basename(dirname($path));
                 $event = \App\EventConfig::load($dir, $slug);
-                if ($event->roles !== []) {
+                if ($event->roles->toArray() !== []) {
                     continue; // an event with roles states its own structure pair below
                 }
 
@@ -573,7 +573,7 @@ final class ThemingTest extends AppTestCase
         $events = [];
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 $events[$slug] = true;
                 foreach ($set as $name => $value) {
                     $ink = $set['on-' . $name] ?? null;
@@ -703,7 +703,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 self::assertArrayHasKey('structure', $set, $slug . '/' . $mode);
                 self::assertArrayHasKey('on-structure', $set, $slug . '/' . $mode);
                 $checked++;
@@ -764,7 +764,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 if (!isset($set['registered-bg'])) {
                     continue;
                 }
@@ -783,7 +783,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 foreach (['heading', 'emphasis', 'action-link'] as $ink) {
                     foreach (['surface', 'ground', 'sheet'] as $ground) {
                         if (!isset($set[$ink], $set[$ground]) || !preg_match('/^#[0-9a-f]{6}$/i', $set[$ink]) || !preg_match('/^#[0-9a-f]{6}$/i', $set[$ground])) {
@@ -811,7 +811,7 @@ final class ThemingTest extends AppTestCase
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
             $event = \App\EventConfig::load($this->eventsDir(), $slug);
-            $sets = $event->roles !== [] ? $event->roles : ['palette' => ['action' => $event->colors['primary'], 'on-action' => $event->colors['text-invert']]];
+            $sets = $event->roles->toArray() !== [] ? $event->roles->toArray() : ['palette' => ['action' => $event->colors['primary'], 'on-action' => $event->colors['text-invert']]];
             foreach ($sets as $mode => $set) {
                 $fill = $set['now'] ?? $set['action'];
                 $checked++;
@@ -849,7 +849,7 @@ final class ThemingTest extends AppTestCase
         $checked = 0;
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles as $mode => $set) {
+            foreach (\App\EventConfig::load($this->eventsDir(), $slug)->roles->toArray() as $mode => $set) {
                 $alpha = $opacities['.pl-item.is-dimmed'];
                 $checked++;
                 self::assertGreaterThanOrEqual(
@@ -883,7 +883,7 @@ final class ThemingTest extends AppTestCase
         self::assertStringContainsString('background-color: var(--state)', $rules);
         self::assertStringContainsString('border: var(--edge-width) solid var(--edge)', $rules);
 
-        $set = \App\EventConfig::load($this->eventsDir(), 'obrok27')->roles['light'];
+        $set = \App\EventConfig::load($this->eventsDir(), 'obrok27')->roles->toArray()['light'];
         self::assertLessThan(1.3, self::contrast($set['state'], $set['ground']), 'the case this exists for');
         self::assertNotSame('0px', $set['edge-width']);
         self::assertGreaterThanOrEqual(3.0, self::contrast($set['edge'], $set['ground']));
@@ -906,7 +906,7 @@ final class ThemingTest extends AppTestCase
     {
         $root = dirname(__DIR__, 2);
         $css = (string) file_get_contents($root . '/www/style.css');
-        $own = \App\EventConfig::load($this->eventsDir(), $slug)->get('assets', [])['stylesheet'] ?? null;
+        $own = \App\EventConfig::load($this->eventsDir(), $slug)->assets->stylesheet;
 
         return is_string($own) && $own !== '' ? $css . "\n" . file_get_contents($root . '/www/' . $own) : $css;
     }
@@ -917,7 +917,7 @@ final class ThemingTest extends AppTestCase
         $found = [];
         foreach (glob($this->eventsDir() . '/*/config.php') ?: [] as $path) {
             $slug = basename(dirname($path));
-            $own = \App\EventConfig::load($this->eventsDir(), $slug)->get('assets', [])['stylesheet'] ?? null;
+            $own = \App\EventConfig::load($this->eventsDir(), $slug)->assets->stylesheet;
             if (is_string($own) && $own !== '') {
                 $found[] = [$slug, dirname(__DIR__, 2) . '/www/' . $own];
             }

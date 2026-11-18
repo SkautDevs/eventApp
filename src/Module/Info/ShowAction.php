@@ -6,8 +6,10 @@ namespace App\Module\Info;
 
 use App\Auth\CurrentParticipant;
 use App\EventConfig;
+use App\Module\Info\View\InfoPage;
 use App\Push\MessageRepository;
 use App\Push\NotificationList;
+use App\View\TemplateContext;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -44,14 +46,16 @@ final class ShowAction
         // programme id => its current name, for the participant's own programmes only
         $mine = [];
         foreach ($this->participant->read()->participant->programmes ?? [] as $program) {
-            $mine[(int) $program['id']] = (string) ($program['name'] ?? '');
+            $mine[$program->id] = $program->name;
         }
 
-        return $this->twig->render($response, 'info.twig', [
+        $page = new InfoPage(
             // optional: an event without content/emergency.php shows no contact
-            'emergency' => $event->content('emergency'),
-            'groups' => NotificationList::groups(NotificationList::items($messages, $mine, $now)),
-            'links' => $event->content('links'),
-        ]);
+            emergency: $event->emergency(),
+            groups: NotificationList::groups(NotificationList::items($messages, $mine, $now)),
+            links: $event->links(),
+        );
+
+        return $this->twig->render($response, 'info.twig', TemplateContext::of($page));
     }
 }

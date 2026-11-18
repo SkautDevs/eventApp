@@ -9,6 +9,11 @@ use App\Module\Programs\RegistrationWriter;
 use App\Module\Programs\ScheduleBuilder;
 use App\Module\Programs\TimelineBuilder;
 use App\Module\Programs\Times;
+use App\Module\Programs\View\Card;
+use App\Module\Programs\View\Schedule;
+use App\Module\Programs\View\TimelinePage;
+use App\Program\Programme;
+use App\Program\Section;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -62,7 +67,7 @@ final class ProgramsModuleTest extends TestCase
         self::assertNoOverlap($tracks);
         self::assertCount(2, $tracks, 'the widened bar and its neighbour were packed into one track');
         // the widened bar is a full minute wide, which is what makes the two collide
-        self::assertSame(round(60 / 3600, 4), $tracks[0][0]['span']);
+        self::assertSame(round(60 / 3600, 4), $tracks[0][0]->span);
     }
 
     /**
@@ -77,7 +82,7 @@ final class ProgramsModuleTest extends TestCase
         self::assertSame(['2027-06-03', '2027-06-04', '2027-06-05'], array_column($segments, 'day'));
         self::assertSame(
             [['2027-06-03 10:00', '2027-06-04 00:00'], ['2027-06-04 00:00', '2027-06-05 00:00'], ['2027-06-05 00:00', '2027-06-05 08:00']],
-            array_map(static fn(array $s): array => [date('Y-m-d H:i', $s['start']), date('Y-m-d H:i', $s['end'])], $segments),
+            array_map(static fn(array $s): array => [Times::at($s['start'])->format('Y-m-d H:i'), Times::at($s['end'])->format('Y-m-d H:i')], $segments),
         );
     }
 
@@ -87,7 +92,7 @@ final class ProgramsModuleTest extends TestCase
         $segments = self::call('segments', self::program(1, '2027-06-03 23:45:00', '2027-06-04 00:00:00'));
 
         self::assertSame(['2027-06-03'], array_column($segments, 'day'));
-        self::assertSame(strtotime('2027-06-04 00:00:00'), $segments[0]['end']);
+        self::assertSame(self::prague('2027-06-04 00:00:00')->getTimestamp(), $segments[0]['end']);
     }
 
     /** A record of no length is still drawn once, on its day. */
@@ -119,25 +124,25 @@ final class ProgramsModuleTest extends TestCase
         $long = self::program(1, '2027-06-03 20:00:00', '2027-06-05 02:00:00');
         $model = self::buildViewModel([$long, self::program(2, '2027-06-04 09:00:00', '2027-06-04 10:00:00')], [$long]);
 
-        self::assertSame(['page-20270603', 'page-20270604', 'page-20270605'], array_column($model['pages'], 'key'));
-        self::assertSame([1, 2], array_column($model['details'], 'id'));
-        self::assertSame('page-20270603', $model['details'][0]['page']);
+        self::assertSame(['page-20270603', 'page-20270604', 'page-20270605'], array_column($model->pages, 'key'));
+        self::assertSame([1, 2], array_column($model->details, 'id'));
+        self::assertSame('page-20270603', $model->details[0]->page);
 
-        $cards = array_values(array_filter(self::cardsOf($model['pages']), static fn(array $c): bool => $c['id'] === 1));
+        $cards = array_values(array_filter(self::cardsOf($model->pages), static fn(Card $c): bool => $c->id === 1));
         self::assertCount(3, $cards);
         foreach ($cards as $card) {
-            self::assertSame('čt 3. 6. 20:00 – so 5. 6. 2:00', $card['time']);
-            self::assertTrue($card['registered']);
-            self::assertFalse($card['dimmed']);
+            self::assertSame('čt 3. 6. 20:00 – so 5. 6. 2:00', $card->time);
+            self::assertTrue($card->registered);
+            self::assertFalse($card->dimmed);
         }
         // each piece is clipped to its own day, so no page's axis runs past midnight
-        self::assertSame(['20:00', '00:00', '00:00'], array_map(static fn(array $p): string => $p['ruler'][0]['label'], $model['pages']));
-        self::assertSame([4, 24, 2], array_column($model['pages'], 'hours'));
+        self::assertSame(['20:00', '00:00', '00:00'], array_map(static fn(TimelinePage $p): string => $p->ruler[0]->label, $model->pages));
+        self::assertSame([4, 24, 2], array_column($model->pages, 'hours'));
 
         // the list keeps it once, under the day it starts on, and names the day it ends on
-        self::assertSame(['day-20270603'], array_column($model['days'], 'key'));
-        self::assertSame(['20:00'], array_column($model['days'][0]['items'], 'time'));
-        self::assertSame(['do so 5. 6. 2:00'], array_column($model['days'][0]['items'], 'until'));
+        self::assertSame(['day-20270603'], array_column($model->days, 'key'));
+        self::assertSame(['20:00'], array_column($model->days[0]->items, 'time'));
+        self::assertSame(['do so 5. 6. 2:00'], array_column($model->days[0]->items, 'until'));
     }
 
     /**
@@ -172,18 +177,18 @@ final class ProgramsModuleTest extends TestCase
         ], [3 => true], true);
 
         self::assertSame(['day-20270603', 'day-20270604'], array_column($days, 'key'));
-        self::assertSame(['Ráno', 'Odpoledne'], array_column($days[0]['items'], 'name'));
-        self::assertSame('čt 3. 6.', $days[0]['label']);
-        $first = $days[0]['items'][0];
-        self::assertSame('8:00', $first['time']);
-        self::assertSame('do 9:00', $first['until']);
-        self::assertSame('8:00–9:00', $first['range']);
-        self::assertSame('Louka', $first['location']);
-        self::assertTrue($first['registered']);
-        self::assertFalse($first['dimmed']);
+        self::assertSame(['Ráno', 'Odpoledne'], array_column($days[0]->items, 'name'));
+        self::assertSame('čt 3. 6.', $days[0]->label);
+        $first = $days[0]->items[0];
+        self::assertSame('8:00', $first->time);
+        self::assertSame('do 9:00', $first->until);
+        self::assertSame('8:00–9:00', $first->range);
+        self::assertSame('Louka', $first->location);
+        self::assertTrue($first->registered);
+        self::assertFalse($first->dimmed);
         // with the personal list read, what is not the participant's steps back
-        self::assertFalse($days[0]['items'][1]['registered']);
-        self::assertTrue($days[0]['items'][1]['dimmed']);
+        self::assertFalse($days[0]->items[1]->registered);
+        self::assertTrue($days[0]->items[1]->dimmed);
     }
 
     /**
@@ -193,15 +198,15 @@ final class ProgramsModuleTest extends TestCase
      */
     public function testAPreregisteredProgrammeIsNeverDimmed(): void
     {
-        $fixed = self::program(1, '2027-06-03 08:00:00', '2027-06-03 09:00:00') + ['preregistered' => true];
-        $free = self::program(2, '2027-06-03 10:00:00', '2027-06-03 11:00:00') + ['preregistered' => false];
+        $fixed = self::programme(self::row(1, '2027-06-03 08:00:00', '2027-06-03 09:00:00') + ['preregistered' => true]);
+        $free = self::programme(self::row(2, '2027-06-03 10:00:00', '2027-06-03 11:00:00') + ['preregistered' => false]);
 
-        $model = self::call('buildViewModel', [1 => ['id' => 1, 'title' => 'Blok']], [$fixed, $free], [], true, new \DateTimeImmutable());
+        $model = self::call('buildViewModel', [1 => Section::fromArray(['id' => 1, 'title' => 'Blok'])], [$fixed, $free], [], true, new \DateTimeImmutable());
 
-        $dimmed = array_column($model['overview'][0]['items'], 'dimmed', 'id');
+        $dimmed = array_column($model->overview[0]->items, 'dimmed', 'id');
         self::assertSame([1 => false, 2 => true], $dimmed);
-        self::assertSame([1 => false, 2 => true], array_column(self::cardsOf($model['pages']), 'dimmed', 'id'));
-        self::assertSame([], $model['days']);
+        self::assertSame([1 => false, 2 => true], array_column(self::cardsOf($model->pages), 'dimmed', 'id'));
+        self::assertSame([], $model->days);
     }
 
     /** Without a personal list nothing is dimmed: "not yours" would be a guess. */
@@ -209,8 +214,8 @@ final class ProgramsModuleTest extends TestCase
     {
         $days = self::call('buildDays', [self::program(1, '2027-06-03 08:00:00', '2027-06-03 09:00:00')], [], false);
 
-        self::assertFalse($days[0]['items'][0]['registered']);
-        self::assertFalse($days[0]['items'][0]['dimmed']);
+        self::assertFalse($days[0]->items[0]->registered);
+        self::assertFalse($days[0]->items[0]->dimmed);
     }
 
     /**
@@ -223,34 +228,34 @@ final class ProgramsModuleTest extends TestCase
         $provider = new \App\Program\LocalProgramProvider($fixtures, sys_get_temp_dir() . '/eventapp-unused-' . bin2hex(random_bytes(4)));
         $all = $provider->getPrograms();
         $mineIds = json_decode((string) file_get_contents($fixtures . '/registered.json'), true)['1'];
-        $mine = array_values(array_filter($all, static fn(array $p): bool => in_array($p['id'], $mineIds, true)));
+        $mine = array_values(array_filter($all, static fn(Programme $p): bool => in_array($p->id, $mineIds, true)));
 
         $model = self::call('buildViewModel', $provider->getSections(), $all, $mine, true, new \DateTimeImmutable());
-        $preregistered = array_column(array_filter($all, static fn(array $p): bool => $p['preregistered']), 'id');
+        $preregistered = array_column(array_filter($all, static fn(Programme $p): bool => $p->preregistered), 'id');
         self::assertSame([3, 36, 51], $preregistered);
         self::assertSame([], array_intersect($preregistered, $mineIds), 'kissj lists no preregistered programme as anybody\'s');
 
         $overviewIds = [];
-        foreach ($model['overview'] as $day) {
-            foreach ($day['items'] as $item) {
-                $overviewIds[] = $item['id'];
+        foreach ($model->overview as $day) {
+            foreach ($day->items as $item) {
+                $overviewIds[] = $item->id;
                 // grouped under the day it starts on
-                self::assertSame($day['key'], 'day-' . (new \DateTimeImmutable($item['start']))->format('Ymd'), "programme {$item['id']}");
+                self::assertSame($day->key, 'day-' . (new \DateTimeImmutable($item->start))->format('Ymd'), "programme {$item->id}");
                 // a preregistered programme is everybody's as far as eventApp can tell: never dimmed
-                self::assertSame(!in_array($item['id'], $mineIds, true) && !in_array($item['id'], $preregistered, true), $item['dimmed'], "programme {$item['id']}");
-                self::assertSame(in_array($item['id'], $mineIds, true), $item['registered'], "programme {$item['id']}");
+                self::assertSame(!in_array($item->id, $mineIds, true) && !in_array($item->id, $preregistered, true), $item->dimmed, "programme {$item->id}");
+                self::assertSame(in_array($item->id, $mineIds, true), $item->registered, "programme {$item->id}");
             }
         }
         $allIds = array_column($all, 'id');
         sort($allIds);
         sort($overviewIds);
         self::assertSame($allIds, $overviewIds);
-        self::assertSame(['day-20260916', 'day-20260917', 'day-20260918', 'day-20260919', 'day-20260920'], array_column($model['overview'], 'key'));
-        self::assertSame('day-20260916', $model['activeOverview']);
+        self::assertSame(['day-20260916', 'day-20260917', 'day-20260918', 'day-20260919', 'day-20260920'], array_column($model->overview, 'key'));
+        self::assertSame('day-20260916', $model->activeOverview);
 
         $listIds = [];
-        foreach ($model['days'] as $day) {
-            array_push($listIds, ...array_column($day['items'], 'id'));
+        foreach ($model->days as $day) {
+            array_push($listIds, ...array_column($day->items, 'id'));
         }
         self::assertSame($mineIds, $listIds);
     }
@@ -260,8 +265,8 @@ final class ProgramsModuleTest extends TestCase
     public function testTheScreenOpensOnTodayWhileTheEventIsRunning(): void
     {
         $pages = [
-            ['key' => 'page-a', 'day' => date('Y-m-d', strtotime('-1 day'))],
-            ['key' => 'page-b', 'day' => date('Y-m-d')],
+            self::page('page-a', date('Y-m-d', strtotime('-1 day'))),
+            self::page('page-b', date('Y-m-d')),
         ];
 
         self::assertSame('page-b', self::call('activeKey', $pages, new \DateTimeImmutable()));
@@ -269,7 +274,7 @@ final class ProgramsModuleTest extends TestCase
 
     public function testTheScreenOpensOnItsFirstPageOutsideTheEvent(): void
     {
-        $pages = [['key' => 'page-a', 'day' => '2027-06-03'], ['key' => 'page-b', 'day' => '2027-06-04']];
+        $pages = [self::page('page-a', '2027-06-03'), self::page('page-b', '2027-06-04')];
 
         self::assertSame('page-a', self::call('activeKey', $pages, new \DateTimeImmutable()));
         self::assertNull(self::call('activeKey', [], new \DateTimeImmutable()));
@@ -291,24 +296,24 @@ final class ProgramsModuleTest extends TestCase
             self::program(4, 'není datum', 'taky ne', name: 'Nesmysl'),
         ]);
 
-        self::assertCount(1, $model['pages']);
-        self::assertSame('page-20270603', $model['activePage']);
-        self::assertSame([1], array_column($model['details'], 'id'));
+        self::assertCount(1, $model->pages);
+        self::assertSame('page-20270603', $model->activePage);
+        self::assertSame([1], array_column($model->details, 'id'));
     }
 
     /** The same guard is what keeps a null date from being a TypeError five frames in. */
     public function testANullDateIsADroppedRecordAndNotACrash(): void
     {
-        $broken = self::program(2, '2027-06-03 09:00:00', '2027-06-03 10:00:00');
+        $broken = self::row(2, '2027-06-03 09:00:00', '2027-06-03 10:00:00');
         $broken['start'] = null;
         unset($broken['end']);
 
         $model = self::buildViewModel([
             self::program(1, '2027-06-03 09:00:00', '2027-06-03 10:00:00'),
-            $broken,
+            self::programme($broken),
         ]);
 
-        self::assertSame([1], array_column($model['details'], 'id'));
+        self::assertSame([1], array_column($model->details, 'id'));
     }
 
     /**
@@ -323,9 +328,9 @@ final class ProgramsModuleTest extends TestCase
             self::program(7, '2027-06-03 11:00:00', '2027-06-03 12:00:00', name: 'Druhý'),
         ]);
 
-        self::assertCount(1, $model['details']);
-        self::assertSame('První', $model['details'][0]['name']);
-        self::assertSame(1, self::countCards($model['pages']));
+        self::assertCount(1, $model->details);
+        self::assertSame('První', $model->details[0]->name);
+        self::assertSame(1, self::countCards($model->pages));
     }
 
     // --- time ---------------------------------------------------------------
@@ -342,38 +347,50 @@ final class ProgramsModuleTest extends TestCase
 
         $models = [];
         foreach (['UTC', 'Europe/Prague', 'America/New_York'] as $zone) {
-            $models[$zone] = self::withTimezone($zone, static fn(): array => self::buildViewModel($programs, $programs));
+            $models[$zone] = self::withTimezone($zone, static fn(): Schedule => self::buildViewModel($programs, $programs));
         }
 
-        self::assertSame('9:00', $models['UTC']['days'][0]['items'][0]['time']);
-        self::assertSame('do 10:30', $models['UTC']['days'][0]['items'][0]['until']);
-        self::assertSame('čt 3. 6. 9:00–10:30', $models['UTC']['details'][0]['when']);
+        self::assertSame('9:00', $models['UTC']->days[0]->items[0]->time);
+        self::assertSame('do 10:30', $models['UTC']->days[0]->items[0]->until);
+        self::assertSame('čt 3. 6. 9:00–10:30', $models['UTC']->details[0]->when);
         // the axis handed to the client is an instant in the event's own zone
-        self::assertSame('2027-06-03T09:00:00+02:00', $models['UTC']['pages'][0]['axisStart']);
-        self::assertSame('2027-06-03T11:00:00+02:00', $models['UTC']['pages'][0]['axisEnd']);
-        self::assertSame($models['UTC'], $models['Europe/Prague']);
-        self::assertSame($models['UTC'], $models['America/New_York']);
+        self::assertSame('2027-06-03T09:00:00+02:00', $models['UTC']->pages[0]->axisStart);
+        self::assertSame('2027-06-03T11:00:00+02:00', $models['UTC']->pages[0]->axisEnd);
+        // serialize() tells 2 from 2.0, which assertEquals() does not
+        self::assertSame(serialize($models['UTC']), serialize($models['Europe/Prague']));
+        self::assertSame(serialize($models['UTC']), serialize($models['America/New_York']));
     }
 
     // --- helpers ------------------------------------------------------------
 
-    /** @return list<list<array>> */
+    /** @return list<list<Card>> */
     private static function pack(array $programs): array
     {
-        $segments = array_map(static fn(array $p): array => self::call('segments', $p)[0], $programs);
+        $segments = array_map(static fn(Programme $p): array => self::call('segments', $p)[0], $programs);
 
-        return self::call('packTracks', $segments, (int) strtotime('2027-06-03 00:00:00'), [], false);
+        return self::call('packTracks', $segments, self::prague('2027-06-03 00:00:00')->getTimestamp(), [], false);
     }
 
-    /** @return array<string, mixed> */
-    private static function buildViewModel(array $all, array $mine = []): array
+    private static function buildViewModel(array $all, array $mine = []): Schedule
     {
-        $sections = [1 => ['id' => 1, 'title' => 'Sekce', 'subTitle' => null]];
+        $sections = [1 => Section::fromArray(['id' => 1, 'title' => 'Sekce', 'subTitle' => null])];
 
         return self::call('buildViewModel', $sections, $all, $mine, $mine !== [], new \DateTimeImmutable());
     }
 
-    private static function program(int $id, string $start, string $end, string $location = 'Louka', string $name = 'Program'): array
+    /** A timeline page with only the key and the day activeKey() reads. */
+    private static function page(string $key, string $day): TimelinePage
+    {
+        return new TimelinePage($key, $day, '', 0, [], '', '', []);
+    }
+
+    private static function program(int $id, string $start, string $end, string $location = 'Louka', string $name = 'Program'): Programme
+    {
+        return self::programme(self::row($id, $start, $end, $location, $name));
+    }
+
+    /** A programme row in the shape programs.json stores. */
+    private static function row(int $id, string $start, string $end, string $location = 'Louka', string $name = 'Program'): array
     {
         return [
             'id' => $id,
@@ -385,16 +402,26 @@ final class ProgramsModuleTest extends TestCase
         ];
     }
 
+    private static function programme(array $row): Programme
+    {
+        return Programme::fromArray($row) ?? throw new \LogicException('not a programme row');
+    }
+
+    private static function prague(string $datetime): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($datetime, new \DateTimeZone('Europe/Prague'));
+    }
+
     /** No two cards in one track may cover the same stretch of the axis. */
     private static function assertNoOverlap(array $tracks): void
     {
         foreach ($tracks as $index => $cards) {
-            usort($cards, static fn(array $a, array $b): int => $a['offset'] <=> $b['offset']);
+            usort($cards, static fn(Card $a, Card $b): int => $a->offset <=> $b->offset);
             for ($i = 1; $i < count($cards); $i++) {
                 self::assertGreaterThanOrEqual(
-                    $cards[$i - 1]['offset'] + $cards[$i - 1]['span'],
-                    $cards[$i]['offset'],
-                    sprintf('track %d draws #%d on top of #%d', $index, $cards[$i]['id'], $cards[$i - 1]['id']),
+                    $cards[$i - 1]->offset + $cards[$i - 1]->span,
+                    $cards[$i]->offset,
+                    sprintf('track %d draws #%d on top of #%d', $index, $cards[$i]->id, $cards[$i - 1]->id),
                 );
             }
         }
@@ -405,13 +432,13 @@ final class ProgramsModuleTest extends TestCase
         return count(self::cardsOf($pages));
     }
 
-    /** @return list<array> every card on every page */
+    /** @return list<Card> every card on every page */
     private static function cardsOf(array $pages): array
     {
         $cards = [];
         foreach ($pages as $page) {
-            foreach ($page['rows'] as $row) {
-                foreach ($row['tracks'] as $track) {
+            foreach ($page->rows as $row) {
+                foreach ($row->tracks as $track) {
                     array_push($cards, ...$track);
                 }
             }

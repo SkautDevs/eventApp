@@ -5,9 +5,16 @@ declare(strict_types=1);
 namespace App\Module\Home;
 
 use App\EventConfig;
+use App\Module\Home\View\Countdown;
+use App\Module\Home\View\HomeView;
+use App\Module\Home\View\NextUpView;
+use App\Module\Home\View\WindowCard;
 use App\Module\Programs\NextUp;
 use App\Module\Programs\Times;
+use App\Program\Programme;
 use App\Program\RegistrationWindow;
+use App\Program\Section;
+use App\Push\Notification;
 use App\Push\NotificationList;
 use App\Time\Zone;
 
@@ -27,18 +34,9 @@ final class HomeModel
     ];
 
     /**
-     * @param list<array> $news NotificationList::items() of the messages this reader may see
-     * @param list<array> $mine the participant's programmes in the internal shape
-     * @param array<int, array{id: int, title: string, subTitle: ?string}> $sections getSections()
-     * @return array{
-     *     phase: 'before'|'during'|'after'|null,
-     *     todayLabel: string,
-     *     countdown: array{days: int, start: string, range: string}|null,
-     *     window: array{state: 'before'|'open', label: string}|null,
-     *     paired: bool,
-     *     news: list<array>,
-     *     nextUp: array{items: list<array>, index: ?int}|null,
-     * }
+     * @param list<Notification> $news NotificationList::items() of the messages this reader may see
+     * @param list<Programme> $mine the participant's programmes
+     * @param array<int, Section> $sections getSections()
      */
     public static function build(
         EventConfig $event,
@@ -48,24 +46,24 @@ final class HomeModel
         bool $paired,
         RegistrationWindow $window,
         \DateTimeImmutable $now,
-    ): array {
+    ): HomeView {
         $phase = self::phase($event, $now);
 
-        return [
-            'phase' => $phase,
-            'todayLabel' => self::todayLabel($now),
-            'countdown' => $phase === 'before' && $event->dates !== null
-                ? [
-                    'days' => self::daysUntil($event->dates['start'], $now),
-                    'start' => $event->dates['start'],
-                    'range' => self::range($event->dates['start'], $event->dates['end']),
-                ]
+        return new HomeView(
+            phase: $phase,
+            todayLabel: self::todayLabel($now),
+            countdown: $phase === 'before' && $event->dates !== null
+                ? new Countdown(
+                    days: self::daysUntil($event->dates->start, $now),
+                    start: $event->dates->start,
+                    range: self::range($event->dates->start, $event->dates->end),
+                )
                 : null,
-            'window' => self::window($window, $now),
-            'paired' => $paired,
-            'news' => NotificationList::today($news, $now),
-            'nextUp' => self::nextUp($mine, $sections, $now),
-        ];
+            window: self::window($window, $now),
+            paired: $paired,
+            news: NotificationList::today($news, $now),
+            nextUp: self::nextUp($mine, $sections, $now),
+        );
     }
 
     /**
@@ -80,11 +78,11 @@ final class HomeModel
             return null;
         }
         $today = self::prague($now)->format('Y-m-d');
-        if ($today < $event->dates['start']) {
+        if ($today < $event->dates->start) {
             return 'before';
         }
 
-        return $today <= $event->dates['end'] ? 'during' : 'after';
+        return $today <= $event->dates->end ? 'during' : 'after';
     }
 
     /** "Pátek 21. 5." */
@@ -133,12 +131,18 @@ final class HomeModel
         return intdiv($then->getTimestamp() - $today->getTimestamp(), 86400);
     }
 
-    /** @return array{state: 'before'|'open', label: string}|null */
-    private static function window(RegistrationWindow $window, \DateTimeImmutable $now): ?array
+    private static function window(RegistrationWindow $window, \DateTimeImmutable $now): ?WindowCard
     {
+        $start = $window->start;
+        $end = $window->end;
+        // a window with either end missing is 'none', which shows no card
+        if ($start === null || $end === null) {
+            return null;
+        }
+
         return match ($window->state($now)) {
-            'before' => ['state' => 'before', 'label' => self::prague($window->start)->format('j. n. Y · H:i')],
-            'open' => ['state' => 'open', 'label' => 'Do ' . self::prague($window->end)->format('j. n. Y')],
+            'before' => new WindowCard('before', self::prague($start)->format('j. n. Y · H:i')),
+            'open' => new WindowCard('open', 'Do ' . self::prague($end)->format('j. n. Y')),
             default => null,
         };
     }
@@ -149,32 +153,34 @@ final class HomeModel
      * as Times::CLOCK, like the Program screen), the place and
      * the title of its section. Null when the participant has no programme to show.
      *
-     * @param list<array> $mine
-     * @param array<int, array{id: int, title: string, subTitle: ?string}> $sections
-     * @return array{items: list<array>, index: ?int}|null
+     * @param list<Programme> $mine
+     * @param array<int, Section> $sections
      */
-    private static function nextUp(array $mine, array $sections, \DateTimeImmutable $now): ?array
+    private static function nextUp(array $mine, array $sections, \DateTimeImmutable $now): ?NextUpView
     {
         $nextUp = NextUp::nextUp($mine, $now->getTimestamp());
-        if ($nextUp['items'] === []) {
+        if ($nextUp->items === []) {
             return null;
         }
         $byId = [];
         foreach ($mine as $programme) {
-            $byId[$programme['id']] ??= $programme;
+            $byId[$programme->id] ??= $programme;
         }
-        foreach ($nextUp['items'] as $i => $item) {
-            $programme = $byId[$item['id']] ?? [];
-            $section = $sections[$programme['section']['id'] ?? -1] ?? null;
-            $location = $programme['location'] ?? null;
-            $nextUp['items'][$i] = [
-                'time' => self::prague(new \DateTimeImmutable($item['start']))->format(Times::CLOCK),
-                'until' => 'do ' . self::prague(new \DateTimeImmutable($item['end']))->format(Times::CLOCK),
-                'location' => is_string($location) && $location !== '' ? $location : null,
-                'section' => $section['title'] ?? null,
-            ] + $item;
+        $items = [];
+        foreach ($nextUp->items as $item) {
+            // every item is one of $mine
+            $programme = $byId[$item->id];
+            $section = $sections[$programme->sectionId] ?? null;
+            $location = $programme->location;
+            $items[] = $item->forCard(
+                time: self::prague(new \DateTimeImmutable($item->start))->format(Times::CLOCK),
+                until: 'do ' . self::prague(new \DateTimeImmutable($item->end))->format(Times::CLOCK),
+                // as given, untrimmed: only an empty place is none
+                location: $location !== null && $location !== '' ? $location : null,
+                section: $section?->title,
+            );
         }
 
-        return $nextUp;
+        return new NextUpView($items, $nextUp->index);
     }
 }

@@ -175,7 +175,7 @@ final class WebPushSenderTest extends TestCase
 
         $result = $this->sender([new Response(201)])->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
 
-        self::assertSame(['recipients' => 2, 'sent' => 1, 'removed' => 1, 'failed' => 0], $result);
+        self::assertSame(['recipients' => 2, 'sent' => 1, 'removed' => 1, 'failed' => 0], get_object_vars($result));
         self::assertCount(1, $this->history);
         self::assertSame('https://push.example/a', (string) $this->history[0]['request']->getUri());
         self::assertNull($this->repository->find('korbo26', 'https://intranet.example/hook'));
@@ -191,7 +191,7 @@ final class WebPushSenderTest extends TestCase
         $result = $this->sender([new Response(201), new Response(500), new Response(403)])
             ->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', participantIds: null);
 
-        self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], $result);
+        self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], get_object_vars($result));
         self::assertSame([], $this->reported, 'an HTTP answer is not an exception');
         self::assertSame([[
             'level' => 'warning',
@@ -218,7 +218,7 @@ final class WebPushSenderTest extends TestCase
         // not a Guzzle exception: the library's rejection handler cannot map it and flush() throws
         $result = $this->sender([new \RuntimeException('handler broke')])->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.', participantIds: [1]);
 
-        self::assertSame(['recipients' => 1, 'sent' => 0, 'removed' => 0, 'failed' => 1], $result);
+        self::assertSame(['recipients' => 1, 'sent' => 0, 'removed' => 0, 'failed' => 1], get_object_vars($result));
         self::assertCount(1, $this->reported);
         self::assertCount(1, $this->logger->records);
         self::assertSame(
@@ -238,7 +238,7 @@ final class WebPushSenderTest extends TestCase
 
         $result = $this->sender(array_fill(0, 5, new Response(201)))->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
 
-        self::assertSame(['recipients' => 6, 'sent' => 5, 'removed' => 1, 'failed' => 0], $result);
+        self::assertSame(['recipients' => 6, 'sent' => 5, 'removed' => 1, 'failed' => 0], get_object_vars($result));
         self::assertNull($this->repository->find('korbo26', 'https://push.example/poison'));
         self::assertCount(5, $this->history, 'the poisoned row was never sent');
     }
@@ -256,7 +256,7 @@ final class WebPushSenderTest extends TestCase
 
         $result = $this->sender(array_fill(0, 3, new Response(201)), checkKeys: false)->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
 
-        self::assertSame(['recipients' => 4, 'sent' => 3, 'removed' => 1, 'failed' => 0], $result);
+        self::assertSame(['recipients' => 4, 'sent' => 3, 'removed' => 1, 'failed' => 0], get_object_vars($result));
         self::assertNull($this->repository->find('korbo26', 'https://push.example/poison'));
         self::assertCount(3, $this->history);
         self::assertSame([], $this->reported, 'one unusable row is the row, not a fault');
@@ -271,7 +271,7 @@ final class WebPushSenderTest extends TestCase
 
         $result = $this->sender([], checkKeys: false)->sendToEvent('korbo26', 'Korbo', 'Nástup v 8:00.');
 
-        self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], $result);
+        self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], get_object_vars($result));
         self::assertSame(2, $this->repository->count('korbo26'));
         self::assertCount(1, $this->reported);
         self::assertSame([], $this->history);
@@ -320,7 +320,7 @@ final class WebPushSenderTest extends TestCase
         $down = static fn(RequestInterface $r): \Throwable => new ConnectException('no route to host', $r);
         for ($i = 1; $i <= WebPushSender::MAX_FAILURES + 1; $i++) {
             $result = $this->sender($down)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
-            self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], $result);
+            self::assertSame(['recipients' => 2, 'sent' => 0, 'removed' => 0, 'failed' => 2], get_object_vars($result));
         }
 
         self::assertSame(2, $this->repository->count('korbo26'));
@@ -335,7 +335,7 @@ final class WebPushSenderTest extends TestCase
         $appleDown = static fn(RequestInterface $r): Response => new Response($r->getUri()->getHost() === 'apple.push.example' ? 503 : 201);
         for ($i = 1; $i <= WebPushSender::MAX_FAILURES + 1; $i++) {
             $result = $this->sender($appleDown)->sendToEvent('korbo26', 'Korbo', 'Zpráva ' . $i);
-            self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], $result);
+            self::assertSame(['recipients' => 3, 'sent' => 1, 'removed' => 0, 'failed' => 2], get_object_vars($result));
         }
 
         self::assertSame(3, $this->repository->count('korbo26'));

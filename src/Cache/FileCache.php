@@ -19,12 +19,12 @@ final class FileCache
 {
     private const string KEY = '/^[a-z0-9-]+$/';
 
-    /** @var \Closure(resource, int, mixed): bool flock(), or a stand-in with its signature */
+    /** @var \Closure(resource, int<0, 7>, 0|1|null &$wouldBlock=): bool flock(), or a stand-in with its signature */
     private readonly \Closure $flock;
 
     /**
      * @param ClockInterface $clock stamps every entry's fetchedAt; tests pass a fixed one
-     * @param (\Closure(resource, int, mixed): bool)|null $flock flock(); tests pass a filesystem that cannot lock
+     * @param (\Closure(resource, int<0, 7>, 0|1|null &$wouldBlock=): bool)|null $flock flock(); tests pass a filesystem that cannot lock
      */
     public function __construct(
         private readonly string $dir,

@@ -7,6 +7,9 @@ namespace App;
 use DI\ContainerBuilder;
 use Psr\Clock\ClockInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Log\LoggerInterface;
 use Slim\App;
 use Slim\Factory\AppFactory;
 use Slim\Views\Twig;
@@ -20,6 +23,8 @@ final class Kernel
     /**
      * The front door. The first path segment names the event; anything else — `/`,
      * an unknown slug — is the instance app. The only place `.env` is read.
+     *
+     * @return App<ContainerInterface|null>
      */
     public static function boot(string $uri, ?string $eventsDir = null): App
     {
@@ -42,16 +47,20 @@ final class Kernel
      * Error pages: details only under APP_DEBUG, every real error filed with Sentry and
      * logged, a 404 or 405 not. HTML errors are rendered by $template (TwigErrorRenderer);
      * a client that asks for JSON or XML keeps Slim's own renderer.
+     *
+     * @param App<ContainerInterface|null> $app
      */
     private static function addErrorHandling(App $app, ContainerInterface $container, string $template, bool $debug): void
     {
         $middleware = $app->addErrorMiddleware(displayErrorDetails: $debug, logErrors: true, logErrorDetails: true);
-        $handler = new QuietErrorHandler(
-            $app->getCallableResolver(),
-            $app->getResponseFactory(),
-            $container->get(self::ERRORS_LOGGER),
-        );
-        $renderer = new Http\TwigErrorRenderer($container->get(Twig::class), $template);
+        $logger = $container->get(self::ERRORS_LOGGER);
+        // Definitions defines it as a logger in both containers (errorsLogger())
+        \assert($logger instanceof LoggerInterface);
+        $handler = new QuietErrorHandler($app->getCallableResolver(), $app->getResponseFactory(), $logger);
+        $twig = $container->get(Twig::class);
+        // Definitions defines it as Twig in both containers
+        \assert($twig instanceof Twig);
+        $renderer = new Http\TwigErrorRenderer($twig, $template);
         $handler->registerErrorRenderer('text/html', $renderer);
         // Accept: */* (and a fragment request) picks the default, which is the page too
         $handler->setDefaultErrorRenderer('text/html', $renderer);
@@ -66,6 +75,9 @@ final class Kernel
     /**
      * The app for everything that is not an event: the picker at `/`, Slim's own 404
      * for the rest. It knows no event, so its container holds nothing event-shaped.
+     *
+     * @param array<string, mixed> $containerOverrides
+     * @return App<ContainerInterface|null>
      */
     public static function createInstance(EventCatalog $catalog, \DateTimeImmutable $today, array $containerOverrides = []): App
     {
@@ -92,19 +104,19 @@ final class Kernel
         $app->add(new Telemetry\RouteNameMiddleware(null));
         $app->addRoutingMiddleware();
         self::addErrorHandling($app, $container, 'instance-error.twig', $environment->debug());
+        // the container's, so an override reaches the picker too
+        $twig = $container->get(Twig::class);
+        \assert($twig instanceof Twig);
         $app->add(new Http\SecurityHeadersMiddleware());
         // after the security headers, so it too is outside the error middleware
-        $app->add(new Http\CspMiddleware($container->get(Twig::class)));
+        $app->add(new Http\CspMiddleware($twig));
         // Last of all, so it is outermost: the error middleware's 500 is measured too.
         // Keep it the final $app->add() — anything added after it would go unmeasured.
         $app->add(new Telemetry\TransactionMiddleware());
 
-        // the container's, so an override reaches the picker too
-        $twig = $container->get(Twig::class);
-        \assert($twig instanceof Twig);
         $events = $container->get(EventCatalog::class);
         \assert($events instanceof EventCatalog);
-        $app->get('/', function ($request, $response) use ($today, $twig, $events) {
+        $app->get('/', function (ServerRequestInterface $request, ResponseInterface $response) use ($today, $twig, $events): ResponseInterface {
             return $twig->render($response, 'picker.twig', $events->listed($today));
         })->setName('picker');
 
@@ -112,9 +124,12 @@ final class Kernel
         // asks it one question; it migrates nothing, logs nothing and reports nothing (the
         // transaction middleware skips the path and any failure is answered right here).
         $dbPath = $environment->pushDbPath($root);
-        $app->get('/health', function ($request, $response) use ($dbPath) {
+        $app->get('/health', function (ServerRequestInterface $request, ResponseInterface $response) use ($dbPath): ResponseInterface {
             try {
-                Storage\Database::open($dbPath)->query('SELECT 1')->fetchColumn();
+                $statement = Storage\Database::open($dbPath)->query('SELECT 1');
+                // the connection throws on a failed query (Database::open() sets ERRMODE_EXCEPTION)
+                \assert($statement instanceof \PDOStatement);
+                $statement->fetchColumn();
                 $status = 200;
                 $body = ['ok' => true];
             } catch (\Throwable) {
@@ -132,6 +147,10 @@ final class Kernel
         return $app;
     }
 
+    /**
+     * @param array<string, mixed> $containerOverrides
+     * @return App<ContainerInterface|null>
+     */
     public static function create(EventConfig $event, array $containerOverrides = []): App
     {
         $root = dirname(__DIR__);
@@ -214,6 +233,8 @@ final class Kernel
     /**
      * Every module of the event registers its routes, in ModuleRegistry::ORDER, and the tab
      * bar is their menu items in their own order.
+     *
+     * @param App<ContainerInterface|null> $app
      */
     private static function registerModules(App $app, Twig $twig, Module\Modules $modules): void
     {

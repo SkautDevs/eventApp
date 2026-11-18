@@ -33,10 +33,10 @@ final class ManifestTest extends AppTestCase
             foreach ($manifest['icons'] as $icon) {
                 self::assertFileExists($root . '/www' . $icon['src'], $slug . ' ' . $icon['src']);
             }
-            $assets = \App\EventConfig::load($root . '/events', $slug)->get('assets') ?? [];
+            $assets = \App\EventConfig::load($root . '/events', $slug)->assets;
             $defaults = ['favicon16' => 'favicon-16x16.png', 'favicon32' => 'favicon-32x32.png', 'appleTouch' => 'apple-touch-icon.png'];
             foreach ($defaults as $key => $name) {
-                $path = $assets[$key] ?? 'events/' . $slug . '/' . $name;
+                $path = $assets->{$key} ?? 'events/' . $slug . '/' . $name;
                 self::assertStringStartsWith('events/' . $slug . '/', $path, $slug . ' ' . $key);
                 self::assertFileExists($root . '/www/' . $path, $slug . ' ' . $key);
             }
@@ -112,7 +112,7 @@ final class ManifestTest extends AppTestCase
         $named = [];
         foreach (glob($root . '/events/*/config.php') ?: [] as $config) {
             $slug = basename(dirname($config));
-            $pinned = \App\EventConfig::load($root . '/events', $slug)->get('assets')['pinnedTab'] ?? null;
+            $pinned = \App\EventConfig::load($root . '/events', $slug)->assets->pinnedTab;
             $html = (string) $this->request($this->createApp($slug), 'GET', '/')->getBody();
             if ($pinned === null) {
                 self::assertStringNotContainsString('rel="mask-icon"', $html, $slug);

@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace App\Module\Profile;
 
 use App\Auth\Authenticator;
+use App\Auth\IdentityView;
 use App\Auth\PairingState;
+use App\Module\Profile\View\PairingView;
+use App\Module\Profile\View\ProfilePage;
 use App\Toast\Toasts;
+use App\View\TemplateContext;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
@@ -32,18 +36,14 @@ final class ShowAction
         // a login's or a logout's, once
         $toast = $this->toasts->take($request);
 
-        return $this->toasts->mark($this->twig->render($response, 'profile.twig', [
-            'identity' => $identity === null ? null : [
-                'displayName' => $identity->displayName(),
-                'initials' => $identity->initials(),
-            ],
-            'pairing' => $pairing === null ? null : [
-                'userCode' => $pairing->formattedUserCode(),
-                'verificationUrl' => $pairing->verificationUrl,
-            ],
+        $page = new ProfilePage(
+            identity: $identity === null ? null : IdentityView::of($identity),
+            pairing: $pairing === null ? null : new PairingView($pairing->formattedUserCode(), $pairing->verificationUrl),
             // the start's, the poll's or a session's outcome, on every read while it lasts
-            'outcome' => $this->pairingState->outcomeLine(),
-            'toast' => $toast,
-        ]), $toast);
+            outcome: $this->pairingState->outcomeLine(),
+            toast: $toast,
+        );
+
+        return $this->toasts->mark($this->twig->render($response, 'profile.twig', TemplateContext::of($page)), $toast);
     }
 }

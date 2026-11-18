@@ -71,7 +71,7 @@ final class DefinitionsTest extends TestCase
         $env = new TwigFactory($event, $environment, self::ROOT)->create($container)->getEnvironment();
 
         $globals = $env->getGlobals();
-        self::assertSame('obrok19', $globals['event']['slug']);
+        self::assertSame('obrok19', $globals['event']->slug);
         self::assertSame('/obrok19', $globals['base']);
         self::assertFalse($globals['fragment']);
         self::assertSame('/', $globals['screenPath']);

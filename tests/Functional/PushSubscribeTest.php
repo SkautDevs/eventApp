@@ -88,7 +88,7 @@ final class PushSubscribeTest extends AppTestCase
 
         $this->request($app, 'POST', '/push/subscribe', self::SUB);
 
-        self::assertSame(1, $this->repo()->forEvent('obrok19')[0]['participantId']);
+        self::assertSame(1, $this->repo()->forEvent('obrok19')[0]->participantId);
     }
 
     public function testABodyCannotChooseItsParticipant(): void
@@ -97,7 +97,7 @@ final class PushSubscribeTest extends AppTestCase
 
         $this->request($app, 'POST', '/push/subscribe', self::SUB + ['participantId' => 1, 'participant_id' => 1]);
 
-        self::assertNull($this->repo()->forEvent('obrok19')[0]['participantId']);
+        self::assertNull($this->repo()->forEvent('obrok19')[0]->participantId);
     }
 
     public function testThePageTellsPushJsWhoIsLoggedIn(): void
@@ -183,9 +183,9 @@ final class PushSubscribeTest extends AppTestCase
     public function testASenderThatThrowsIsAFailedWelcome(): void
     {
         $sender = new class implements \App\Push\PushSenderInterface {
-            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $participantIds = null, ?int $programme = null): array
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $participantIds = null, ?int $programme = null): \App\Push\SendResult
             {
-                return ['sent' => 0, 'removed' => 0];
+                return new \App\Push\SendResult(0, 0, 0, 0);
             }
 
             public function sendToSubscription(string $event, string $endpoint, string $title, string $body, ?string $icon = null, ?string $url = null): \App\Push\SendOutcome

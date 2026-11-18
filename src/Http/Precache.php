@@ -43,8 +43,8 @@ final class Precache
         if ($event->isEnabled('map')) {
             $scripts[] = 'map.js';
         }
-        $stylesheet = $event->get('assets', [])['stylesheet'] ?? null;
-        if (is_string($stylesheet) && $stylesheet !== '') {
+        $stylesheet = $event->assets->stylesheet;
+        if ($stylesheet !== null && $stylesheet !== '') {
             // versioned so a changed sheet reaches installed apps
             $scripts[] = $stylesheet;
         }
@@ -57,19 +57,17 @@ final class Precache
         foreach (self::EVENT_FILES as $name) {
             $files[] = 'events/' . $event->slug . '/' . $name;
         }
-        foreach ((array) $event->get('assets', []) as $key => $path) {
-            if ($key !== 'stylesheet' && is_string($path) && $path !== '') {
-                $files[] = $path;
-            }
+        foreach ($event->assets->paths() as $path) {
+            $files[] = $path;
         }
-        $homepage = $event->get('homepage');
-        if (is_array($homepage) && is_string($homepage['footerLogo'] ?? null) && $homepage['footerLogo'] !== '') {
-            $files[] = $homepage['footerLogo'];
+        $footerLogo = $event->homepage->footerLogo;
+        if ($footerLogo !== null && $footerLogo !== '') {
+            $files[] = $footerLogo;
         }
-        $map = $event->get('map');
-        if (is_array($map) && is_string($map['image'] ?? null) && $map['image'] !== '') {
+        $plan = $event->map?->image;
+        if ($plan !== null && $plan !== '') {
             // the plan is the map that works offline, so it is part of the offline copy
-            $files[] = $map['image'];
+            $files[] = $plan;
         }
         // the fonts and icons the event renders with, so an installed app keeps its look offline
         foreach (Fonts::files($event->fontFamilies()) as $font) {
@@ -77,7 +75,7 @@ final class Precache
         }
         $manifest = json_decode((string) @file_get_contents($docroot . '/events/' . $event->slug . '/site.webmanifest'), true);
         foreach (is_array($manifest) && is_array($manifest['icons'] ?? null) ? $manifest['icons'] : [] as $icon) {
-            if (is_string($icon['src'] ?? null)) {
+            if (is_array($icon) && is_string($icon['src'] ?? null)) {
                 $files[] = $icon['src'];
             }
         }
@@ -91,8 +89,8 @@ final class Precache
         $assets = array_values(array_unique($assets));
 
         $optional = [];
-        $handbook = $event->get('handbook');
-        if ($event->isEnabled('handbook') && is_string($handbook['file'] ?? null) && is_file($docroot . '/' . $handbook['file'])) {
+        $handbook = $event->handbook;
+        if ($event->isEnabled('handbook') && $handbook !== null && is_file($docroot . '/' . $handbook->file)) {
             $optional[] = $routes->urlFor('handbook-download');
         }
 

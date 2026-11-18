@@ -12,9 +12,11 @@ use App\Program\PairingPoll;
 use App\Program\PairingStatus;
 use App\Program\Participant;
 use App\Program\ProgramDataException;
+use App\Program\Programme;
 use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationRefusedException;
 use App\Program\RegistrationWindow;
+use App\Program\Section;
 use App\Program\SessionExpiredException;
 use App\Program\ProgramUnavailableException;
 use PHPUnit\Framework\TestCase;
@@ -30,13 +32,13 @@ final class CachingProgramProviderTest extends TestCase
     private const array PROGRAMMES = [[
         'id' => 5, 'name' => 'Ukázková vycházka', 'section' => ['id' => 10],
         'start' => ['date' => '2027-06-03 08:00:00'], 'end' => ['date' => '2027-06-03 12:00:00'],
-        'lector' => null, 'location' => 'Sraz u brány', 'perex' => null, 'tools' => null,
+        'lector' => null, 'location' => 'Sraz u brány', 'perex' => null, 'tools' => null, 'preregistered' => false,
     ]];
 
     private const array OLD_PROGRAMMES = [[
         'id' => 5, 'name' => 'Včerejší vycházka', 'section' => ['id' => 10],
         'start' => ['date' => '2027-06-03 08:00:00'], 'end' => ['date' => '2027-06-03 12:00:00'],
-        'lector' => null, 'location' => 'Sraz u brány', 'perex' => null, 'tools' => null,
+        'lector' => null, 'location' => 'Sraz u brány', 'perex' => null, 'tools' => null, 'preregistered' => false,
     ]];
 
     private const array REGISTRATION = ['start' => '2027-03-15T18:00:00+01:00', 'end' => '2027-05-19T00:00:00+02:00'];
@@ -115,10 +117,28 @@ final class CachingProgramProviderTest extends TestCase
         return ['id' => 1, 'nickname' => 'Jana', 'programmes' => $programmes];
     }
 
-    /** @return list<array> the programmes of the participant behind TOKEN, through $provider */
+    /** @return list<array> the programmes of the participant behind TOKEN, through $provider, as rows */
     private static function mine(CachingProgramProvider $provider): array
     {
-        return $provider->getParticipant(self::TOKEN)->programmes;
+        return self::rows($provider->getParticipant(self::TOKEN)->programmes);
+    }
+
+    /**
+     * @param list<Programme> $programmes
+     * @return list<array<string, mixed>> the rows they are stored as
+     */
+    private static function rows(array $programmes): array
+    {
+        return array_map(static fn(Programme $programme): array => $programme->toArray(), $programmes);
+    }
+
+    /**
+     * @param array<int, Section> $sections
+     * @return array<int, array<string, mixed>> the rows they are stored as, keys kept
+     */
+    private static function sectionRows(array $sections): array
+    {
+        return array_map(static fn(Section $section): array => $section->toArray(), $sections);
     }
 
     private static function down(): ProgramUnavailableException
@@ -133,8 +153,8 @@ final class CachingProgramProviderTest extends TestCase
 
         $provider = $this->provider($inner);
 
-        self::assertSame(self::OLD_PROGRAMMES, $provider->getPrograms());
-        self::assertSame(self::SECTIONS, $provider->getSections());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
         self::assertSame(0, $inner->listCalls);
     }
 
@@ -143,8 +163,8 @@ final class CachingProgramProviderTest extends TestCase
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $provider = $this->provider($inner);
 
-        self::assertSame(self::PROGRAMMES, $provider->getPrograms());
-        self::assertSame(self::SECTIONS, $provider->getSections());
+        self::assertSame(self::PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
 
         // one fetch is getSections() + getPrograms() + getRegistrationWindow() on the inner provider
         self::assertSame(2, $inner->listCalls);
@@ -159,7 +179,7 @@ final class CachingProgramProviderTest extends TestCase
         $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 301);
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
 
-        self::assertSame(self::PROGRAMMES, $this->provider($inner)->getPrograms());
+        self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner)->getPrograms()));
 
         self::assertSame(2, $inner->listCalls);
         self::assertSame(self::PROGRAMMES, $this->cache()->get(CachingProgramProvider::LIST_KEY)->data['programmes']);
@@ -175,8 +195,8 @@ final class CachingProgramProviderTest extends TestCase
         $provider = $this->provider($inner);
 
         // however old: Tuesday's schedule beats an empty grid on Thursday
-        self::assertSame(self::OLD_PROGRAMMES, $provider->getPrograms());
-        self::assertSame(self::SECTIONS, $provider->getSections());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
         self::assertCount(1, $this->reported);
         self::assertSame($inner->failure, $this->reported[0]);
     }
@@ -187,7 +207,7 @@ final class CachingProgramProviderTest extends TestCase
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
         $inner->failure = new ProgramDataException('kissj sent no list of programmes for v3/programme/list');
 
-        self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner)->getPrograms());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($this->provider($inner)->getPrograms()));
         self::assertCount(1, $this->reported);
         self::assertInstanceOf(ProgramDataException::class, $this->reported[0]);
     }
@@ -288,7 +308,7 @@ final class CachingProgramProviderTest extends TestCase
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
 
         $participant = $this->provider($inner)->getParticipant(self::TOKEN);
-        self::assertSame([1, 'Jana', self::PROGRAMMES], [$participant->id, $participant->nickname, $participant->programmes]);
+        self::assertSame([1, 'Jana', self::PROGRAMMES], [$participant->id, $participant->nickname, self::rows($participant->programmes)]);
 
         $expected = 'session-' . substr(hash('sha256', self::TOKEN), 0, 32);
         self::assertSame($expected, CachingProgramProvider::sessionKey(self::TOKEN));
@@ -305,7 +325,7 @@ final class CachingProgramProviderTest extends TestCase
 
         $participant = $this->provider($inner)->getParticipant(self::TOKEN);
 
-        self::assertSame([4711, null, self::OLD_PROGRAMMES], [$participant->id, $participant->nickname, $participant->programmes]);
+        self::assertSame([4711, null, self::OLD_PROGRAMMES], [$participant->id, $participant->nickname, self::rows($participant->programmes)]);
         self::assertSame(0, $inner->identityCalls);
     }
 
@@ -403,7 +423,7 @@ final class CachingProgramProviderTest extends TestCase
             $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
             $inner->writeFailure = new RegistrationRefusedException($code);
             $provider = $this->provider($inner);
-            self::assertSame(self::OLD_PROGRAMMES, $provider->getPrograms(), $code);
+            self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()), $code);
 
             try {
                 $provider->register(self::TOKEN, 5);
@@ -414,10 +434,10 @@ final class CachingProgramProviderTest extends TestCase
 
             if ($forgets) {
                 self::assertNull($this->cache()->get(CachingProgramProvider::LIST_KEY), $code . ': the list entry is gone');
-                self::assertSame(self::PROGRAMMES, $provider->getPrograms(), $code . ': the memo is gone too');
+                self::assertSame(self::PROGRAMMES, self::rows($provider->getPrograms()), $code . ': the memo is gone too');
                 self::assertSame(1, $inner->windowCalls, $code . ': the window was asked again with the list');
             } else {
-                self::assertSame(self::OLD_PROGRAMMES, $provider->getPrograms(), $code);
+                self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()), $code);
                 self::assertSame(0, $inner->listCalls, $code);
             }
         }
@@ -501,10 +521,10 @@ final class CachingProgramProviderTest extends TestCase
         $provider = $this->provider($inner, $freshness);
 
         $provider->getPrograms();
-        self::assertSame(['fetchedAt' => '2026-10-04T11:58:20+02:00', 'stale' => false], $freshness->forView(), 'a fresh hit alone');
+        self::assertSame(['fetchedAt' => '2026-10-04T11:58:20+02:00', 'stale' => false], get_object_vars($freshness->forView()), 'a fresh hit alone');
 
         self::mine($provider);
-        self::assertSame(['fetchedAt' => '2026-10-04T11:53:20+02:00', 'stale' => true], $freshness->forView(), 'the oldest, and stale');
+        self::assertSame(['fetchedAt' => '2026-10-04T11:53:20+02:00', 'stale' => true], get_object_vars($freshness->forView()), 'the oldest, and stale');
     }
 
     public function testTtlZeroRefetchesYetServesStaleOnError(): void
@@ -513,11 +533,11 @@ final class CachingProgramProviderTest extends TestCase
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
 
         // written this very second, and still asked again
-        self::assertSame(self::PROGRAMMES, $this->provider($inner, ttl: 0)->getPrograms());
+        self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner, ttl: 0)->getPrograms()));
         self::assertSame(2, $inner->listCalls);
 
         $inner->failure = self::down();
-        self::assertSame(self::PROGRAMMES, $this->provider($inner, ttl: 0)->getPrograms(), 'the entry written above covers the outage');
+        self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner, ttl: 0)->getPrograms()), 'the entry written above covers the outage');
         self::assertCount(1, $this->reported);
     }
 
@@ -553,8 +573,8 @@ final class CachingProgramProviderTest extends TestCase
         $provider = $this->provider($inner, $freshness);
 
         self::assertSame(self::OLD_PROGRAMMES, self::mine($provider));
-        self::assertSame(self::OLD_PROGRAMMES, $provider->getPrograms());
-        self::assertSame(self::SECTIONS, $provider->getSections());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
 
         self::assertSame(1, $inner->identityCalls + $inner->listCalls);
         self::assertSame([$inner->failure], $this->reported, 'the one failure, reported once');
@@ -578,8 +598,8 @@ final class CachingProgramProviderTest extends TestCase
         }
         self::assertSame($inner->identityFailure, $thrown);
 
-        self::assertSame(self::OLD_PROGRAMMES, $provider->getPrograms());
-        self::assertSame(self::SECTIONS, $provider->getSections());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
         self::assertSame(1, $inner->identityCalls);
         self::assertSame(0, $inner->listCalls);
         self::assertTrue($freshness->isStale());
@@ -603,7 +623,7 @@ final class CachingProgramProviderTest extends TestCase
         // past the breaker: within it the expired entry would be served without asking
         $this->setNow($this->now->modify(sprintf('+%d seconds', CachingProgramProvider::BREAKER_SECONDS + 1)));
         $freshness->reset($this->now);
-        self::assertSame(self::PROGRAMMES, $provider->getPrograms());
+        self::assertSame(self::PROGRAMMES, self::rows($provider->getPrograms()));
         self::assertSame(2, $inner->listCalls, 'kissj is asked again on the next request');
         self::assertFalse($freshness->isStale());
     }
@@ -625,7 +645,7 @@ final class CachingProgramProviderTest extends TestCase
         }
         self::assertSame($inner->identityFailure, $thrown);
 
-        self::assertSame(self::PROGRAMMES, $provider->getPrograms());
+        self::assertSame(self::PROGRAMMES, self::rows($provider->getPrograms()));
         self::assertSame(2, $inner->listCalls);
         self::assertSame([], $this->reported);
     }
@@ -638,7 +658,7 @@ final class CachingProgramProviderTest extends TestCase
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
         $provider = $this->provider($inner);
 
-        self::assertSame(self::SECTIONS, $provider->getSections());
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
         self::assertSame(self::PROGRAMMES, self::mine($provider));
         self::assertSame(2, $inner->listCalls);
         self::assertSame(1, $inner->identityCalls);
@@ -648,6 +668,55 @@ final class CachingProgramProviderTest extends TestCase
         $inner->failure = self::down();
         $this->expectException(ProgramUnavailableException::class);
         $this->provider($inner)->getPrograms();
+    }
+
+    /**
+     * Every stored section is keyed by its id. One stored under a name could never be looked up
+     * by a programme's sectionId, so it is left out; the rest of the entry is served as it is.
+     */
+    public function testASectionStoredUnderANameIsLeftOut(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, ['sections' => self::SECTIONS + ['putovani' => self::SECTIONS[10]]] + self::listEntry(self::OLD_PROGRAMMES), 10);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $provider = $this->provider($inner);
+
+        self::assertSame(self::SECTIONS, self::sectionRows($provider->getSections()));
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame(0, $inner->listCalls);
+    }
+
+    /** A stored row that gives no Programme (no integer id) makes the whole entry the wrong shape: a miss. */
+    public function testAnEntryWithARowThatIsNoProgrammeIsTreatedAsMissing(): void
+    {
+        foreach ([
+            'list' => [CachingProgramProvider::LIST_KEY, self::listEntry([...self::OLD_PROGRAMMES, ['id' => '6', 'name' => 'x']])],
+            'session' => [CachingProgramProvider::sessionKey(self::TOKEN), self::sessionEntry([...self::OLD_PROGRAMMES, 'x'])],
+        ] as $label => [$key, $entry]) {
+            $this->tearDown();
+            $this->seed($key, $entry, 10);
+            $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
+            $provider = $this->provider($inner);
+
+            self::assertSame(self::PROGRAMMES, $label === 'list' ? self::rows($provider->getPrograms()) : self::mine($provider), $label);
+            self::assertSame(1, $label === 'list' ? $inner->windowCalls : $inner->identityCalls, $label);
+        }
+    }
+
+    /** Entries written by the release before the Programme objects read as they did, row for row. */
+    public function testEntriesOfThePreviousReleaseAreRead(): void
+    {
+        $list = json_decode('{"sections":{"10":{"id":10,"title":"Putování","subTitle":null},"1":{"id":1,"title":"Hlavní program","subTitle":null}},"programmes":[{"id":5,"name":"Včerejší vycházka","section":{"id":10},"start":{"date":"2027-06-03 08:00:00"},"end":{"date":"2027-06-03 12:00:00"},"lector":null,"location":"Sraz u brány","perex":null,"tools":null,"preregistered":false}],"registration":{"start":"2027-03-15T18:00:00+01:00","end":"2027-05-19T00:00:00+02:00"}}', true);
+        $session = json_decode('{"id":1,"nickname":"Jana","programmes":[{"id":5,"name":"Včerejší vycházka","section":{"id":10},"start":{"date":"2027-06-03 08:00:00"},"end":{"date":"2027-06-03 12:00:00"},"lector":null,"location":"Sraz u brány","perex":null,"tools":null,"preregistered":false}]}', true);
+        $this->seed(CachingProgramProvider::LIST_KEY, $list, 10);
+        $this->seed(CachingProgramProvider::sessionKey(self::TOKEN), $session, 10);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, mine: self::PROGRAMMES);
+        $provider = $this->provider($inner);
+
+        self::assertSame($list['programmes'], self::rows($provider->getPrograms()));
+        self::assertSame($list['sections'], self::sectionRows($provider->getSections()));
+        self::assertSame([10, 1], array_keys($provider->getSections()));
+        self::assertSame($session['programmes'], self::mine($provider));
+        self::assertSame([0, 0], [$inner->listCalls, $inner->identityCalls]);
     }
 
     /** A list entry from before the window was cached, or one whose window is not two instants, is a miss. */
@@ -662,7 +731,7 @@ final class CachingProgramProviderTest extends TestCase
             $this->seed(CachingProgramProvider::LIST_KEY, $entry, 10);
             $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
 
-            self::assertSame(self::PROGRAMMES, $this->provider($inner)->getPrograms(), $label);
+            self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner)->getPrograms()), $label);
             self::assertSame(1, $inner->windowCalls, $label);
         }
     }
@@ -675,7 +744,7 @@ final class CachingProgramProviderTest extends TestCase
             $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
             $provider = $this->provider($inner, cache: new FileCache($blocker . '/cache', $this->clock));
 
-            self::assertSame(self::PROGRAMMES, $provider->getPrograms());
+            self::assertSame(self::PROGRAMMES, self::rows($provider->getPrograms()));
             self::assertCount(1, $this->reported);
             self::assertInstanceOf(\RuntimeException::class, $this->reported[0]);
         } finally {
@@ -692,7 +761,7 @@ final class CachingProgramProviderTest extends TestCase
         $freshness = new Freshness(new FixedClock($this->now));
 
         try {
-            self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
+            self::assertSame(self::OLD_PROGRAMMES, self::rows($this->provider($inner, $freshness)->getPrograms()));
             self::assertSame(0, $inner->listCalls, 'another request is fetching it right now');
             self::assertFalse($freshness->isStale(), 'being refreshed is not kissj failing');
         } finally {
@@ -708,7 +777,7 @@ final class CachingProgramProviderTest extends TestCase
 
         try {
             $start = microtime(true);
-            self::assertSame(self::PROGRAMMES, $this->provider($inner, lockWait: 0.2)->getPrograms());
+            self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner, lockWait: 0.2)->getPrograms()));
             self::assertGreaterThanOrEqual(0.2, microtime(true) - $start);
             // one inner call is getSections() + getPrograms()
             self::assertSame(2, $inner->listCalls);
@@ -724,7 +793,7 @@ final class CachingProgramProviderTest extends TestCase
         $inner->failure = self::down();
         $freshness = new Freshness(new FixedClock($this->now));
 
-        self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($this->provider($inner, $freshness)->getPrograms()));
         self::assertSame(1, $inner->listCalls);
         self::assertTrue($freshness->isStale());
 
@@ -732,14 +801,14 @@ final class CachingProgramProviderTest extends TestCase
         $this->setNow($start->modify('+30 seconds'));
         $freshness->reset($this->now);
         $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
-        self::assertSame(self::OLD_PROGRAMMES, $this->provider($healthy, $freshness)->getPrograms());
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($this->provider($healthy, $freshness)->getPrograms()));
         self::assertSame(0, $healthy->listCalls, 'the breaker is open');
         self::assertTrue($freshness->isStale());
 
         $this->setNow($start->modify('+61 seconds'));
         $freshness->reset($this->now);
         $healthy = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
-        self::assertSame(self::PROGRAMMES, $this->provider($healthy, $freshness)->getPrograms());
+        self::assertSame(self::PROGRAMMES, self::rows($this->provider($healthy, $freshness)->getPrograms()));
         self::assertSame(2, $healthy->listCalls, 'one inner fetch: getSections() + getPrograms()');
         self::assertSame(self::PROGRAMMES, $this->cache()->get(CachingProgramProvider::LIST_KEY)->data['programmes']);
         self::assertFalse($freshness->isStale());
@@ -782,7 +851,7 @@ final class CachingProgramProviderTest extends TestCase
             $this->setNow($start->modify(sprintf('+%d seconds', $offset)));
             $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
             $inner->failure = self::down();
-            self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner)->getPrograms());
+            self::assertSame(self::OLD_PROGRAMMES, self::rows($this->provider($inner)->getPrograms()));
             self::assertSame(1, $inner->listCalls, sprintf('asked at +%d s', $offset));
         }
         self::assertCount(1, $this->reported);
@@ -829,7 +898,7 @@ final class CachingProgramProviderTest extends TestCase
         $freshness = new Freshness(new FixedClock($this->now));
 
         try {
-            self::assertSame(self::OLD_PROGRAMMES, $this->provider($inner, $freshness)->getPrograms());
+            self::assertSame(self::OLD_PROGRAMMES, self::rows($this->provider($inner, $freshness)->getPrograms()));
             self::assertSame(0, $inner->listCalls);
             self::assertTrue($freshness->isStale(), 'the probe holding the lock may well fail too');
         } finally {
@@ -877,7 +946,7 @@ final class CachingProgramProviderTest extends TestCase
         $cache = $this->contendedCache(static function (): void {});
         $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
 
-        self::assertSame(self::PROGRAMMES, $this->provider($inner, cache: $cache)->getPrograms());
+        self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner, cache: $cache)->getPrograms()));
         self::assertSame(2, $inner->listCalls, 'one inner fetch: getSections() + getPrograms()');
     }
 }
@@ -918,6 +987,11 @@ final class FakeProgramProvider implements ProgramProviderInterface
     /** run by getParticipant() after it has its answer: what another request does meanwhile */
     public ?\Closure $duringIdentity = null;
 
+    /**
+     * @param array<int, array> $sections section rows, keyed by id
+     * @param list<array> $programmes programme rows, as the decorator stores them
+     * @param list<array> $mine the participant's programme rows
+     */
     public function __construct(
         private readonly array $sections = [],
         private readonly array $programmes = [],
@@ -931,7 +1005,7 @@ final class FakeProgramProvider implements ProgramProviderInterface
             throw $this->failure;
         }
 
-        return $this->programmes;
+        return array_values(array_filter(array_map(Programme::fromArray(...), $this->programmes)));
     }
 
     public function getSections(): array
@@ -941,7 +1015,7 @@ final class FakeProgramProvider implements ProgramProviderInterface
             throw $this->failure;
         }
 
-        return $this->sections;
+        return array_map(Section::fromArray(...), $this->sections);
     }
 
     public function getRegistrationWindow(): RegistrationWindow
@@ -963,7 +1037,7 @@ final class FakeProgramProvider implements ProgramProviderInterface
         if ($this->identityFailure !== null) {
             throw $this->identityFailure;
         }
-        $answer = new Participant(1, 'Jana', $this->mine);
+        $answer = new Participant(1, 'Jana', array_values(array_filter(array_map(Programme::fromArray(...), $this->mine))));
         if ($this->duringIdentity !== null) {
             ($this->duringIdentity)();
         }

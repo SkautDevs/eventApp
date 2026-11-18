@@ -33,7 +33,7 @@ final class MessageRepositoryTest extends TestCase
             'id' => $id, 'event' => 'korbo26', 'sentAt' => '2026-10-02 14:05:00', 'programmeId' => 42,
             'targetLabel' => 'Vodní hrátky', 'title' => 'Změna', 'body' => "Řádek 1\nŘádek 2", 'signature' => 'Lung',
             'sent' => 3, 'removed' => 1, 'failed' => null, 'unreached' => 5, 'hidden' => false, 'toggledAt' => null, 'toggledBy' => null,
-        ]], $repo->page('korbo26', 1));
+        ]], array_map(get_object_vars(...), $repo->page('korbo26', 1)));
     }
 
     public function testPagesAreNewestFirstAndPerEvent(): void
@@ -58,13 +58,13 @@ final class MessageRepositoryTest extends TestCase
         self::assertTrue($repo->setHidden('korbo26', $id, true, 'Jana', $this->at('2026-10-02 15:00:00')));
         self::assertSame([], $repo->visible('korbo26'));
         $row = $repo->page('korbo26', 1)[0];
-        self::assertTrue($row['hidden']);
-        self::assertSame('Jana', $row['toggledBy']);
-        self::assertSame('2026-10-02 15:00:00', $row['toggledAt']);
+        self::assertTrue($row->hidden);
+        self::assertSame('Jana', $row->toggledBy);
+        self::assertSame('2026-10-02 15:00:00', $row->toggledAt);
 
         self::assertTrue($repo->setHidden('korbo26', $id, false, 'Lung'));
         self::assertSame(['Překlep'], array_column($repo->visible('korbo26'), 'title'));
-        self::assertSame('Lung', $repo->page('korbo26', 1)[0]['toggledBy']);
+        self::assertSame('Lung', $repo->page('korbo26', 1)[0]->toggledBy);
     }
 
     public function testAddRecordsTheFailedCountWhenGiven(): void
@@ -72,7 +72,7 @@ final class MessageRepositoryTest extends TestCase
         $repo = $this->repo();
         $repo->add('korbo26', null, 'Všem', 'Změna', 'text', 'Lung', 3, 1, null, failed: 2);
 
-        self::assertSame(2, $repo->page('korbo26', 1)[0]['failed']);
+        self::assertSame(2, $repo->page('korbo26', 1)[0]->failed);
     }
 
     public function testBeginLogsTheMessageWithoutCounts(): void
@@ -81,9 +81,9 @@ final class MessageRepositoryTest extends TestCase
         $id = $repo->begin('korbo26', 42, 'Vodní hrátky', 'Změna', 'text', 'Lung', $this->at('2026-10-02 14:05:00'));
 
         $row = $repo->page('korbo26', 1)[0];
-        self::assertSame($id, $row['id']);
-        self::assertSame(['2026-10-02 14:05:00', 42, 'Vodní hrátky', 'Změna', 'Lung'], [$row['sentAt'], $row['programmeId'], $row['targetLabel'], $row['title'], $row['signature']]);
-        self::assertSame([null, null, null, null], [$row['sent'], $row['removed'], $row['failed'], $row['unreached']]);
+        self::assertSame($id, $row->id);
+        self::assertSame(['2026-10-02 14:05:00', 42, 'Vodní hrátky', 'Změna', 'Lung'], [$row->sentAt, $row->programmeId, $row->targetLabel, $row->title, $row->signature]);
+        self::assertSame([null, null, null, null], [$row->sent, $row->removed, $row->failed, $row->unreached]);
         self::assertSame(['Změna'], array_column($repo->visible('korbo26'), 'title'), 'readers see it before the send returns');
     }
 
@@ -95,7 +95,7 @@ final class MessageRepositoryTest extends TestCase
         $repo->finish('korbo26', $id, 3, 1, 2, 4);
 
         $row = $repo->page('korbo26', 1)[0];
-        self::assertSame([3, 1, 2, 4], [$row['sent'], $row['removed'], $row['failed'], $row['unreached']]);
+        self::assertSame([3, 1, 2, 4], [$row->sent, $row->removed, $row->failed, $row->unreached]);
     }
 
     public function testFinishWithAnotherEventChangesNothing(): void
@@ -106,6 +106,6 @@ final class MessageRepositoryTest extends TestCase
         $repo->finish('obrok27', $id, 3, 1, 2, 4);
 
         $row = $repo->page('korbo26', 1)[0];
-        self::assertSame([null, null, null, null], [$row['sent'], $row['removed'], $row['failed'], $row['unreached']]);
+        self::assertSame([null, null, null, null], [$row->sent, $row->removed, $row->failed, $row->unreached]);
     }
 }

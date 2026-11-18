@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Push;
 
+use App\Storage\Row;
 use App\Time\SystemClock;
 use Psr\Clock\ClockInterface;
 
@@ -28,22 +29,19 @@ final class SubscriptionRepository
      * proves the browser is alive, not that its endpoint is deliverable, and anyone can
      * re-post a body. Only new keys — a different subscription behind the same URL —
      * start the count again.
+     *
+     * @param array<mixed> $subscription the request body: `endpoint` and `keys.p256dh`, `keys.auth`
      */
     public function save(array $subscription, string $event, ?int $participantId = null): void
     {
-        if (!isset($subscription['endpoint'], $subscription['keys']['p256dh'], $subscription['keys']['auth'])) {
+        $keys = $subscription['keys'] ?? null;
+        if (!isset($subscription['endpoint']) || !is_array($keys) || !isset($keys['p256dh'], $keys['auth'])) {
             throw new \InvalidArgumentException('Invalid push subscription shape');
         }
 
-        $endpoint = $subscription['endpoint'];
-        $publicKey = $subscription['keys']['p256dh'];
-        $authToken = $subscription['keys']['auth'];
-
-        foreach (['endpoint' => $endpoint, 'p256dh' => $publicKey, 'auth' => $authToken] as $field => $value) {
-            if (!is_string($value) || $value === '' || strlen($value) > self::MAX_FIELD_LENGTH) {
-                throw new \InvalidArgumentException(sprintf('Push subscription field %s is not a string of plausible length', $field));
-            }
-        }
+        $endpoint = self::field('endpoint', $subscription['endpoint']);
+        $publicKey = self::field('p256dh', $keys['p256dh']);
+        $authToken = self::field('auth', $keys['auth']);
 
         if (filter_var($endpoint, \FILTER_VALIDATE_URL) === false || !str_starts_with(strtolower($endpoint), 'https://')) {
             throw new \InvalidArgumentException('Push subscription endpoint is not an https URL');
@@ -71,10 +69,20 @@ final class SubscriptionRepository
         ]);
     }
 
+    /** One field of the body as the string it must be, or the reason it is not. */
+    private static function field(string $field, mixed $value): string
+    {
+        if (!is_string($value) || $value === '' || strlen($value) > self::MAX_FIELD_LENGTH) {
+            throw new \InvalidArgumentException(sprintf('Push subscription field %s is not a string of plausible length', $field));
+        }
+
+        return $value;
+    }
+
     /**
      * @param list<int>|null $participantIds null for every subscriber of the event; a list for
      *                                       only those saved by a session of one of these participants
-     * @return list<array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}>
+     * @return list<Subscription>
      */
     public function forEvent(string $event, ?array $participantIds = null): array
     {
@@ -91,17 +99,16 @@ final class SubscriptionRepository
         $statement = $this->pdo->prepare($sql);
         $statement->execute($params);
 
-        return array_map(self::row(...), $statement->fetchAll(\PDO::FETCH_ASSOC));
+        return array_map(Subscription::fromRow(...), Row::all($statement->fetchAll(\PDO::FETCH_ASSOC)));
     }
 
-    /** @return array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}|null */
-    public function find(string $event, string $endpoint): ?array
+    public function find(string $event, string $endpoint): ?Subscription
     {
         $statement = $this->pdo->prepare('SELECT endpoint, public_key, auth_token, participant_id FROM subscriptions WHERE event = ? AND endpoint = ?');
         $statement->execute([$event, $endpoint]);
         $row = $statement->fetch(\PDO::FETCH_ASSOC);
 
-        return $row === false ? null : self::row($row);
+        return $row === false ? null : Subscription::fromRow($row);
     }
 
     /** @return list<int> the distinct participants this event's subscribers are logged in as */
@@ -110,21 +117,7 @@ final class SubscriptionRepository
         $statement = $this->pdo->prepare('SELECT DISTINCT participant_id FROM subscriptions WHERE event = :event AND participant_id IS NOT NULL');
         $statement->execute(['event' => $event]);
 
-        return array_map('intval', $statement->fetchAll(\PDO::FETCH_COLUMN));
-    }
-
-    /**
-     * @param array{endpoint: string, public_key: string, auth_token: string, participant_id: int|string|null} $row
-     * @return array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}
-     */
-    private static function row(array $row): array
-    {
-        return [
-            'endpoint' => $row['endpoint'],
-            'publicKey' => $row['public_key'],
-            'authToken' => $row['auth_token'],
-            'participantId' => $row['participant_id'] === null ? null : (int) $row['participant_id'],
-        ];
+        return array_values(array_map(Row::toInt(...), $statement->fetchAll(\PDO::FETCH_COLUMN)));
     }
 
     /** Scoped to the event: the same browser may be subscribed to two events, and each keeps its row. */
@@ -176,7 +169,12 @@ final class SubscriptionRepository
     public function count(?string $event = null): int
     {
         if ($event === null) {
-            return (int) $this->pdo->query('SELECT COUNT(*) FROM subscriptions')->fetchColumn();
+            $statement = $this->pdo->query('SELECT COUNT(*) FROM subscriptions');
+            // PDO throws on a failed query unless told otherwise (ERRMODE_EXCEPTION, PHP 8's
+            // default, and the one Database::open() sets), so false never comes back
+            \assert($statement instanceof \PDOStatement);
+
+            return (int) $statement->fetchColumn();
         }
         $statement = $this->pdo->prepare('SELECT COUNT(*) FROM subscriptions WHERE event = :event');
         $statement->execute(['event' => $event]);

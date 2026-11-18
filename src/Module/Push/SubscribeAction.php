@@ -113,7 +113,7 @@ final class SubscribeAction
                     endpoint: $endpoint,
                     title: $event->name,
                     body: 'Notifikace jsou zapnuté. Další notifikace z akce ti budou chodit sem.',
-                    icon: $event->get('assets')['notificationIcon'] ?? null,
+                    icon: $event->assets->notificationIcon,
                     url: RouteContext::fromRequest($request)->getBasePath() . '/informace',
                 );
             } catch (\Throwable) {
@@ -133,7 +133,6 @@ final class SubscribeAction
             // reaches it or removes it the way every send does. The reader is told only what is true.
             return self::json($response, 201, ['saved' => true, 'welcome' => $outcome === SendOutcome::Delivered]);
         });
-        \assert($answer instanceof ResponseInterface);
 
         return $answer;
     }

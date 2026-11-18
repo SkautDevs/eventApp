@@ -24,15 +24,24 @@ final class DownloadAction
     /** @param array<string, string> $args */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        $handbook = $this->event->get('handbook');
-        $file = $this->paths->www . '/' . $handbook['file'];
+        $handbook = $this->event->handbook;
+        if ($handbook === null) {
+            return $response->withStatus(404);
+        }
+        $file = $this->paths->www . '/' . $handbook->file;
         if (!is_file($file)) {
             return $response->withStatus(404);
         }
 
+        $handle = fopen($file, 'rb');
+        if ($handle === false) {
+            // the file was there a moment ago; a Stream of false refused it with this exception too
+            throw new \InvalidArgumentException('The handbook could not be opened');
+        }
+
         return $response
             ->withHeader('Content-Type', 'application/pdf')
-            ->withHeader('Content-Disposition', 'attachment;filename="' . $handbook['downloadName'] . '"')
-            ->withBody(new Stream(fopen($file, 'rb')));
+            ->withHeader('Content-Disposition', 'attachment;filename="' . $handbook->downloadName . '"')
+            ->withBody(new Stream($handle));
     }
 }

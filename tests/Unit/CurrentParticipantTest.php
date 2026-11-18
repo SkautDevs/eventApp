@@ -13,6 +13,7 @@ use App\Program\Pairing;
 use App\Program\PairingPoll;
 use App\Program\Participant;
 use App\Program\ProgramProviderInterface;
+use App\Program\Programme;
 use App\Program\ProgramUnavailableException;
 use App\Program\RegistrationWindow;
 use App\Program\SessionExpiredException;
@@ -53,7 +54,7 @@ final class CurrentParticipantTest extends TestCase
                     throw $this->failure;
                 }
 
-                return new Participant(1, 'Jana', [['id' => 7, 'name' => 'Lanové centrum']]);
+                return new Participant(1, 'Jana', [Programme::fromArray(['id' => 7, 'name' => 'Lanové centrum']) ?? throw new \LogicException('not a programme row')]);
             }
 
             public function getPrograms(): array
@@ -127,7 +128,7 @@ final class CurrentParticipantTest extends TestCase
 
         self::assertNotNull($read->participant);
         self::assertSame(1, $read->participant->id);
-        self::assertSame([['id' => 7, 'name' => 'Lanové centrum']], $read->participant->programmes);
+        self::assertEquals([Programme::fromArray(['id' => 7, 'name' => 'Lanové centrum'])], $read->participant->programmes);
         self::assertFalse($read->gone);
         self::assertFalse($read->unavailable);
         self::assertTrue($this->auth->isLogged());

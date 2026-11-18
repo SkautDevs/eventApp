@@ -19,7 +19,7 @@ final class FreshnessTest extends TestCase
     {
         $freshness = new Freshness(new FixedClock(new \DateTimeImmutable('2026-10-04 10:00:00', new \DateTimeZone('UTC'))));
 
-        self::assertSame(['fetchedAt' => '2026-10-04T12:00:00+02:00', 'stale' => false], $freshness->forView());
+        self::assertSame(['fetchedAt' => '2026-10-04T12:00:00+02:00', 'stale' => false], get_object_vars($freshness->forView()));
         self::assertNull($freshness->fetchedAt());
     }
 
@@ -31,7 +31,7 @@ final class FreshnessTest extends TestCase
         $freshness->note(self::prague('2026-10-04 09:00:00'), true);
         $freshness->note(self::prague('2026-10-04 11:59:00'), false);
 
-        self::assertSame(['fetchedAt' => '2026-10-04T09:00:00+02:00', 'stale' => true], $freshness->forView());
+        self::assertSame(['fetchedAt' => '2026-10-04T09:00:00+02:00', 'stale' => true], get_object_vars($freshness->forView()));
         self::assertTrue($freshness->isStale());
     }
 
@@ -43,7 +43,7 @@ final class FreshnessTest extends TestCase
 
         $freshness->reset(self::prague('2026-10-04 12:05:00'));
 
-        self::assertSame(['fetchedAt' => '2026-10-04T12:05:00+02:00', 'stale' => false], $freshness->forView());
+        self::assertSame(['fetchedAt' => '2026-10-04T12:05:00+02:00', 'stale' => false], get_object_vars($freshness->forView()));
         self::assertNull($freshness->fetchedAt());
         self::assertFalse($freshness->isStale());
         self::assertNotSame($before, $freshness->generation());

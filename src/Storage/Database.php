@@ -16,7 +16,10 @@ final class Database
         $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
         // WAL lets readers carry on while one worker writes. ':memory:' answers 'memory'
         // instead, which is fine: nothing else can share an in-memory database anyway.
-        $pdo->query('PRAGMA journal_mode=WAL')->fetchColumn();
+        $statement = $pdo->query('PRAGMA journal_mode=WAL');
+        // ERRMODE_EXCEPTION, set just above: a failed query throws instead of returning false
+        \assert($statement instanceof \PDOStatement);
+        $statement->fetchColumn();
         // a second worker waits for the write lock instead of failing at once
         $pdo->exec('PRAGMA busy_timeout=5000');
         $pdo->exec('PRAGMA foreign_keys=ON');

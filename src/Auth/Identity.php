@@ -52,7 +52,11 @@ final readonly class Identity
         ];
     }
 
-    /** Null for anything that is not a paired identity, one stored before pairing included. */
+    /**
+     * Null for anything that is not a paired identity, one stored before pairing included.
+     *
+     * @param array<mixed> $data
+     */
     public static function fromArray(array $data): ?self
     {
         $participantId = $data['participantId'] ?? null;

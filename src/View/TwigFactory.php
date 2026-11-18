@@ -53,13 +53,9 @@ final readonly class TwigFactory
             'auto_reload' => true,
         ]);
         $env = $twig->getEnvironment();
-        // 'theme' and 'roles' are spread in explicitly so they are arrays even for
-        // an event whose config never mentions them — the layout iterates them unguarded
-        $env->addGlobal('event', $event->raw + [
-            'slug' => $event->slug,
-            'theme' => $event->theme,
-            'roles' => $event->roles,
-        ]);
+        // the typed config itself: `theme` and both role sets are arrays even for an event
+        // whose config never mentions them, because the layout iterates them unguarded
+        $env->addGlobal('event', $event);
         $env->addGlobal('base', '/' . $event->slug);
         $env->addGlobal('vapidPublicKey', $environment->vapid()['public']);
         // Registered here so the per-request middleware (ScreenMiddleware) can *update* them:
@@ -77,14 +73,13 @@ final readonly class TwigFactory
         // never reaches a template.
         $env->addFunction(new \Twig\TwigFunction(
             'auth_identity',
-            function () use ($c): ?array {
-                $identity = $c->get(Auth\Authenticator::class)->identity();
+            function () use ($c): ?Auth\IdentityView {
+                $auth = $c->get(Auth\Authenticator::class);
+                // the event container autowires the class under its own name (Definitions::forEvent())
+                \assert($auth instanceof Auth\Authenticator);
+                $identity = $auth->identity();
 
-                return $identity === null ? null : [
-                    'participantId' => $identity->participantId,
-                    'displayName' => $identity->displayName(),
-                    'initials' => $identity->initials(),
-                ];
+                return $identity === null ? null : Auth\IdentityView::of($identity);
             },
         ));
         // The age of the provider data on this screen. A function rather than a
@@ -92,16 +87,28 @@ final readonly class TwigFactory
         // it runs, before the layout renders.
         $env->addFunction(new \Twig\TwigFunction(
             'data_freshness',
-            fn(): array => $c->get(Program\Freshness::class)->forView(),
+            function () use ($c): Program\FreshnessView {
+                $freshness = $c->get(Program\Freshness::class);
+                // the event container builds the class under its own name (Definitions::forEvent())
+                \assert($freshness instanceof Program\Freshness);
+
+                return $freshness->forView();
+            },
         ));
         // `style.css` → `style.css?v=<first 8 hex of its sha256>`: the URL changes
         // exactly when the bytes do, so nothing is bumped by hand
         $env->addFunction(new \Twig\TwigFunction(
             'asset_version',
-            fn(string $path): string => $c->get(Http\AssetVersion::class)->url($path),
+            function (string $path) use ($c): string {
+                $assets = $c->get(Http\AssetVersion::class);
+                // the event container builds the class under its own name (Definitions::forEvent())
+                \assert($assets instanceof Http\AssetVersion);
+
+                return $assets->url($path);
+            },
         ));
-        $env->addFilter(new TwigFilter('dateToCzechDayName', function (array $datetimeArray): string {
-            return HomeModel::WEEKDAYS[(int) (new \DateTime($datetimeArray['date']))->format('N')];
+        $env->addFilter(new TwigFilter('dateToCzechDayName', function (\DateTimeInterface $datetime): string {
+            return HomeModel::WEEKDAYS[(int) $datetime->format('N')];
         }));
 
         return $twig;

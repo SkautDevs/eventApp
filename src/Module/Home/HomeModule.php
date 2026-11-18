@@ -24,7 +24,7 @@ final class HomeModule implements ModuleInterface
 
     public function menuItem(): MenuItem
     {
-        return new MenuItem('homepage', $this->event->get('shortName') ?? $this->event->name, 'homepage', 'fas fa-home', 0);
+        return new MenuItem('homepage', $this->event->shortName ?? $this->event->name, 'homepage', 'fas fa-home', 0);
     }
 
     /** @param App<\Psr\Container\ContainerInterface|null> $app */

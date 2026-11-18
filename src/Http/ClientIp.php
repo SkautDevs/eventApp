@@ -85,7 +85,10 @@ final readonly class ClientIp
         }
         $packed = self::unmapIpv4($packed) ?? $packed;
         if (strlen($packed) === 4) {
-            $n = unpack('N', $packed)[1];
+            $unpacked = unpack('N', $packed);
+            // four bytes always unpack to one unsigned 32-bit integer under key 1
+            \assert(is_array($unpacked) && is_int($unpacked[1]));
+            $n = $unpacked[1];
 
             return ($n >> 24) === 127 || ($n >> 24) === 10 || ($n >> 20) === 0xAC1 || ($n >> 16) === 0xC0A8;
         }

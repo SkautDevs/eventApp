@@ -132,7 +132,7 @@ final class Session
      * returns. The handler's lock is held for exactly this long, so a check-and-consume
      * (the admin form's one-time nonce) cannot succeed twice in parallel requests.
      *
-     * @param \Closure(array<string, mixed>&): mixed $change
+     * @param \Closure(array<mixed>&): mixed $change
      */
     public function transact(\Closure $change): mixed
     {
@@ -142,6 +142,8 @@ final class Session
                 return $change($_SESSION);
             }
             $_SESSION[$this->namespace] ??= [];
+            // only this class writes an event's slot, and always as an array
+            \assert(is_array($_SESSION[$this->namespace]));
 
             return $change($_SESSION[$this->namespace]);
         } finally {
@@ -167,7 +169,10 @@ final class Session
         $this->open(true);
         try {
             session_regenerate_id(false);
-            $this->stored = session_id();
+            $id = session_id();
+            // without an argument session_id() never fails: false answers only an ID being set
+            \assert($id !== false);
+            $this->stored = $id;
         } finally {
             $this->close();
         }
@@ -272,7 +277,7 @@ final class Session
         return @touch($file, $now);
     }
 
-    /** @return array<string, mixed> this event's values; reading never starts a session the browser has no cookie for */
+    /** @return array<mixed> this event's values; reading never starts a session the browser has no cookie for */
     private function view(): array
     {
         if (!$this->loaded) {
@@ -294,8 +299,14 @@ final class Session
             }
         }
         $all = $_SESSION ?? [];
+        if ($this->namespace === '') {
+            return $all;
+        }
+        $values = $all[$this->namespace] ?? [];
+        // only this class writes an event's slot, and always as an array
+        \assert(is_array($values));
 
-        return $this->namespace === '' ? $all : ($all[$this->namespace] ?? []);
+        return $values;
     }
 
     /**
@@ -340,7 +351,12 @@ final class Session
             return;
         }
         // a plain start sent the cookie for whatever ID it settled on, and the write stores it
-        $this->stored ??= session_id();
+        if ($this->stored === null) {
+            $id = session_id();
+            // without an argument session_id() never fails: false answers only an ID being set
+            \assert($id !== false);
+            $this->stored = $id;
+        }
         session_write_close();
         ini_set('session.use_cookies', '1');
     }
@@ -397,7 +413,7 @@ final class Session
         Collector::collect(new \RuntimeException($message));
     }
 
-    /** @return array{path: string, domain: string, secure: bool, httponly: bool, samesite: string} */
+    /** @return array{path: string, domain: string, secure: bool, httponly: bool, samesite: 'Lax'} */
     private static function cookieOptions(): array
     {
         return [

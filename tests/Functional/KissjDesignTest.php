@@ -21,8 +21,8 @@ final class KissjDesignTest extends AppTestCase
     {
         $event = \App\EventConfig::load($this->eventsDir(), $slug);
 
-        self::assertSame($light, $event->roles['light']['state']);
-        self::assertSame($dark, $event->roles['dark']['state']);
+        self::assertSame($light, $event->roles->light['state']);
+        self::assertSame($dark, $event->roles->dark['state']);
         self::assertSame('6px', $event->theme['radius']);
     }
 
@@ -49,9 +49,9 @@ final class KissjDesignTest extends AppTestCase
     {
         // navigamus27's home tab shows the house icon: its N27 mark is on the app bar instead
         foreach (['korbo26' => ['menuLogo', 'mainLogo'], 'navigamus27' => ['appBarLogo', 'mainLogo', 'mainLogoDark']] as $slug => $keys) {
-            $assets = \App\EventConfig::load($this->eventsDir(), $slug)->get('assets');
+            $assets = \App\EventConfig::load($this->eventsDir(), $slug)->assets;
             foreach ($keys as $key) {
-                self::assertFileExists(dirname(__DIR__, 2) . '/www/' . $assets[$key], $slug . ' ' . $key);
+                self::assertFileExists(dirname(__DIR__, 2) . '/www/' . $assets->{$key}, $slug . ' ' . $key);
             }
         }
     }

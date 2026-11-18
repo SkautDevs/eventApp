@@ -8,10 +8,12 @@ use App\Auth\Authenticator;
 use App\EventConfig;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
+use App\Program\Programme;
 use App\Program\ProgramUnavailableException;
 use App\Program\RegistrationRefusedException;
 use App\Program\SessionExpiredException;
 use App\Telemetry\Collector;
+use App\Time\Zone;
 use App\Toast\Toasts;
 
 /**
@@ -93,7 +95,7 @@ final class RegistrationWriter
                 $provider->unregister($identity->sessionToken, $programmeId);
             }
             $programme = $this->programme($programmeId);
-            $name = $programme === null ? null : (string) $programme['name'];
+            $name = $programme?->name;
             if ($register) {
                 $toasts->put($name === null ? 'Přihlášen' : 'Přihlášen: ' . $name, $programme === null ? null : self::toastLine($programme), $tag);
             } else {
@@ -119,7 +121,8 @@ final class RegistrationWriter
             $toasts->put(self::WRITE_FAILED[$register], null);
         }
 
-        $sectionId = (int) ($this->programme($programmeId)['section']['id'] ?? 0);
+        $programme = $this->programme($programmeId);
+        $sectionId = $programme === null ? 0 : $programme->sectionId;
 
         return '/' . $this->event->slug . '/programy#section-' . $sectionId . '-program-' . $programmeId;
     }
@@ -127,26 +130,26 @@ final class RegistrationWriter
     /**
      * When and where, as the register toast's second line: "Pá 21. 5. · 9:00–12:30 ·
      * Žlutý les". A programme running past midnight names its start day only; the place
-     * only when there is one.
+     * only when there is one. A date the programme lacks reads as the epoch, as it always has.
      */
-    public static function toastLine(array $program): string
+    public static function toastLine(Programme $program): string
     {
-        $start = Times::ts($program['start'] ?? null);
-        $end = Times::ts($program['end'] ?? null);
-        $day = Times::SHORT_DAY_NAMES[(int) date('N', $start)];
-        $line = mb_strtoupper(mb_substr($day, 0, 1)) . mb_substr($day, 1) . ' ' . date('j. n.', $start)
-            . ' · ' . date(Times::CLOCK, $start) . '–' . date(Times::CLOCK, $end);
-        $location = trim((string) ($program['location'] ?? ''));
+        $start = self::orEpoch($program->start);
+        $end = self::orEpoch($program->end);
+        $day = Times::SHORT_DAY_NAMES[(int) $start->format('N')];
+        $line = mb_strtoupper(mb_substr($day, 0, 1)) . mb_substr($day, 1) . ' ' . $start->format('j. n.')
+            . ' · ' . $start->format(Times::CLOCK) . '–' . $end->format(Times::CLOCK);
+        $location = $program->location === null ? '' : trim($program->location);
 
         return $location === '' ? $line : $line . ' · ' . $location;
     }
 
     /** The programme with this id from the provider's list, or null when it is not there or the list cannot be read. */
-    private function programme(int $id): ?array
+    private function programme(int $id): ?Programme
     {
         try {
             foreach ($this->provider->getPrograms() as $programme) {
-                if (is_array($programme) && ($programme['id'] ?? null) === $id) {
+                if ($programme->id === $id) {
                     return $programme;
                 }
             }
@@ -155,5 +158,11 @@ final class RegistrationWriter
         }
 
         return null;
+    }
+
+    /** A programme's time, or the Unix epoch in Prague for one it lacks. */
+    private static function orEpoch(?\DateTimeImmutable $at): \DateTimeImmutable
+    {
+        return $at instanceof \DateTimeImmutable ? $at : (new \DateTimeImmutable('@0'))->setTimezone(Zone::prague());
     }
 }

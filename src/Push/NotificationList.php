@@ -23,39 +23,39 @@ final class NotificationList
      * A message for everyone is every reader's; a message for one programme only a reader
      * registered for it. Order is kept: MessageRepository::visible() is newest first.
      *
-     * @param list<array> $messages MessageRepository::visible() rows, newest first
+     * @param list<Message> $messages MessageRepository::visible() rows, newest first
      * @param array<int, string> $mine programme id => name, of the reader's registrations
      * `when` is the server's relative time and `at` the same instant as DATE_ATOM, from which
      * www/shell.js redraws `when` on the device clock: a copy read later or offline must not
      * keep saying "právě teď".
      *
-     * @return list<array{id: int, when: string, at: string, sentAt: \DateTimeImmutable, title: string, body: string, programme: ?string}>
+     * @return list<Notification>
      */
     public static function items(array $messages, array $mine, \DateTimeImmutable $now): array
     {
         $items = [];
         foreach ($messages as $message) {
-            $programmeId = $message['programmeId'];
+            $programmeId = $message->programmeId;
             if ($programmeId !== null && !array_key_exists($programmeId, $mine)) {
                 continue;
             }
-            $sentAt = self::sentAt((string) $message['sentAt']);
+            $sentAt = self::sentAt($message->sentAt);
             if ($sentAt === null) {
                 // the repository writes every stamp itself, so this is a row edited by hand;
                 // without a time it belongs to no day group
                 continue;
             }
-            $items[] = [
-                'id' => (int) $message['id'],
-                'when' => self::relative($sentAt, $now),
-                'at' => $sentAt->format(\DATE_ATOM),
-                'sentAt' => $sentAt,
-                'title' => (string) $message['title'],
-                'body' => (string) $message['body'],
-                'programme' => $programmeId === null
+            $items[] = new Notification(
+                id: $message->id,
+                when: self::relative($sentAt, $now),
+                at: $sentAt->format(\DATE_ATOM),
+                sentAt: $sentAt,
+                title: $message->title,
+                body: $message->body,
+                programme: $programmeId === null
                     ? null
-                    : ($mine[$programmeId] !== '' ? $mine[$programmeId] : (string) $message['targetLabel']),
-            ];
+                    : ($mine[$programmeId] !== '' ? $mine[$programmeId] : $message->targetLabel),
+            );
         }
 
         return $items;
@@ -104,32 +104,34 @@ final class NotificationList
      * Items grouped by the Prague day they were sent on, in the order they come (newest
      * first). The key is the morph's handle on a group: a new day arrives at the top.
      *
-     * @param list<array{sentAt: \DateTimeImmutable}> $items items()
-     * @return list<array{key: string, label: string, items: list<array>}>
+     * @param list<Notification> $items items()
+     * @return list<NotificationGroup>
      */
     public static function groups(array $items): array
     {
         $zone = Zone::prague();
-        $groups = [];
+        $labels = [];
+        $byDay = [];
         foreach ($items as $item) {
-            $day = $item['sentAt']->setTimezone($zone);
+            $day = $item->sentAt->setTimezone($zone);
             $key = 'news-' . $day->format('Ymd');
-            $groups[$key] ??= [
-                'key' => $key,
-                'label' => self::SHORT_WEEKDAYS[(int) $day->format('N')] . ' ' . $day->format('j. n.'),
-                'items' => [],
-            ];
-            $groups[$key]['items'][] = $item;
+            $labels[$key] ??= self::SHORT_WEEKDAYS[(int) $day->format('N')] . ' ' . $day->format('j. n.');
+            $byDay[$key][] = $item;
         }
 
-        return array_values($groups);
+        $groups = [];
+        foreach ($byDay as $key => $dayItems) {
+            $groups[] = new NotificationGroup($key, $labels[$key], $dayItems);
+        }
+
+        return $groups;
     }
 
     /**
      * The items sent on now's Prague calendar day.
      *
-     * @param list<array{sentAt: \DateTimeImmutable}> $items items()
-     * @return list<array>
+     * @param list<Notification> $items items()
+     * @return list<Notification>
      */
     public static function today(array $items, \DateTimeImmutable $now): array
     {
@@ -138,7 +140,7 @@ final class NotificationList
 
         return array_values(array_filter(
             $items,
-            static fn(array $item): bool => $item['sentAt']->setTimezone($zone)->format('Y-m-d') === $today,
+            static fn(Notification $item): bool => $item->sentAt->setTimezone($zone)->format('Y-m-d') === $today,
         ));
     }
 }

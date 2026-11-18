@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Push\Message;
 use App\Push\NotificationList;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -47,15 +48,20 @@ final class NotificationListTest extends TestCase
         self::assertSame('včera 22:00', NotificationList::relative($at, $now));
     }
 
-    /** @return list<array> MessageRepository::visible() rows, newest first */
+    /** @return list<Message> MessageRepository::visible() rows, newest first */
     private static function messages(): array
     {
         return [
-            ['id' => 4, 'sentAt' => '2027-05-21 00:05:00', 'programmeId' => null, 'targetLabel' => 'Všem', 'title' => 'Po půlnoci', 'body' => 'd'],
-            ['id' => 3, 'sentAt' => '2027-05-20 23:50:00', 'programmeId' => 7, 'targetLabel' => 'Raft', 'title' => 'Pro raft', 'body' => 'c'],
-            ['id' => 2, 'sentAt' => '2027-05-20 08:00:00', 'programmeId' => 9, 'targetLabel' => 'Cizí', 'title' => 'Cizí', 'body' => 'b'],
-            ['id' => 1, 'sentAt' => '2027-05-19 12:00:00', 'programmeId' => null, 'targetLabel' => 'Všem', 'title' => 'První', 'body' => 'a'],
+            self::message(4, '2027-05-21 00:05:00', null, 'Všem', 'Po půlnoci', 'd'),
+            self::message(3, '2027-05-20 23:50:00', 7, 'Raft', 'Pro raft', 'c'),
+            self::message(2, '2027-05-20 08:00:00', 9, 'Cizí', 'Cizí', 'b'),
+            self::message(1, '2027-05-19 12:00:00', null, 'Všem', 'První', 'a'),
         ];
+    }
+
+    private static function message(int $id, string $sentAt, ?int $programmeId, string $targetLabel, string $title, string $body): Message
+    {
+        return new Message($id, 'korbo26', $sentAt, $programmeId, $targetLabel, $title, $body, 'Lung', null, null, null, null, false, null, null);
     }
 
     public function testItemsKeepEverybodysMessagesAndTheReadersProgrammes(): void
@@ -63,21 +69,21 @@ final class NotificationListTest extends TestCase
         $items = NotificationList::items(self::messages(), [7 => 'Raft na Labi'], self::prague('2027-05-21 00:10:00'));
 
         self::assertSame([4, 3, 1], array_column($items, 'id'));
-        self::assertSame('před 5 min', $items[0]['when']);
-        self::assertSame('před 20 min', $items[1]['when']);
-        self::assertSame('20. 5.', $items[1]['sentAt']->format('j. n.'));
+        self::assertSame('před 5 min', $items[0]->when);
+        self::assertSame('před 20 min', $items[1]->when);
+        self::assertSame('20. 5.', $items[1]->sentAt->format('j. n.'));
         // the programme's current name, not the label it was sent under
-        self::assertSame('Raft na Labi', $items[1]['programme']);
-        self::assertNull($items[0]['programme']);
-        self::assertSame('Po půlnoci', $items[0]['title']);
-        self::assertSame('d', $items[0]['body']);
+        self::assertSame('Raft na Labi', $items[1]->programme);
+        self::assertNull($items[0]->programme);
+        self::assertSame('Po půlnoci', $items[0]->title);
+        self::assertSame('d', $items[0]->body);
     }
 
     public function testAProgrammeWithoutANameFallsBackToItsTargetLabel(): void
     {
         $items = NotificationList::items(self::messages(), [7 => ''], self::prague('2027-05-21 00:10:00'));
 
-        self::assertSame('Raft', $items[1]['programme']);
+        self::assertSame('Raft', $items[1]->programme);
     }
 
     /** The 23:50 message is "před 20 min" at 00:10, and still in its own day's group. */
@@ -87,9 +93,9 @@ final class NotificationListTest extends TestCase
 
         self::assertSame(['news-20270521', 'news-20270520', 'news-20270519'], array_column($groups, 'key'));
         self::assertSame(['Pá 21. 5.', 'Čt 20. 5.', 'St 19. 5.'], array_column($groups, 'label'));
-        self::assertSame([4], array_column($groups[0]['items'], 'id'));
-        self::assertSame([3, 2], array_column($groups[1]['items'], 'id'));
-        self::assertSame([1], array_column($groups[2]['items'], 'id'));
+        self::assertSame([4], array_column($groups[0]->items, 'id'));
+        self::assertSame([3, 2], array_column($groups[1]->items, 'id'));
+        self::assertSame([1], array_column($groups[2]->items, 'id'));
     }
 
     public function testNoItemsNoGroups(): void

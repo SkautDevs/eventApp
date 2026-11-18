@@ -6,6 +6,8 @@ This document covers Domů, the event's first screen, in each phase of the event
 
 **Domů** (`GET /`, `templates/homepage.twig`) is built by `Module\Home\HomeModel::build()` from the event's `dates`, read on the Prague calendar: `phase` is `before`, `during` or `after` (`null` for an event without dates, rendered as during). Logged out, in every phase, a `.pair-card` at the top (`Už jsi registrovaný na <event>?` … `Přihlásit se`, linking to Profil).
 
+`HomeModel::build()` returns a `Home\View\HomeView`, readonly like its parts under `src/Module/Home/View/`: the `phase` (a string, because the template compares it with one), the date heading, the `Countdown` (before the start only) and the `WindowCard` (only while the registration window is ahead or open), whether the reader is paired, today's notifications, and the `NextUpView` of `NextItem` cards. `Home\ShowAction` renders it with the quick links and the toast as the `HomePage`.
+
 ## Before the start
 
 **Before the start**: the install card, then `Co tě čeká` — a window card driven by the provider's `getRegistrationWindow()` (`Přihlašování na programy` with the opening date and time before the window, `Výběr programů` / `Do <end date>` while it is open, with a `Vybrat programy` button when paired and the line `Výběr programů je otevřený. Programy si můžeš prohlédnout v sekci Program.` when not; none without a window) and the countdown `Potkáme se už za N dní` with the event's range (`HomeModel::range()`, `19.–23. 5. 2027`).

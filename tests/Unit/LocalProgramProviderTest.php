@@ -8,6 +8,7 @@ use App\Program\PairingStatus;
 use App\Program\RegistrationRefusedException;
 use App\Program\SessionExpiredException;
 use App\Program\LocalProgramProvider;
+use App\Program\Section;
 use PHPUnit\Framework\TestCase;
 
 final class LocalProgramProviderTest extends TestCase
@@ -68,14 +69,14 @@ final class LocalProgramProviderTest extends TestCase
         $programs = $this->provider->getPrograms();
 
         self::assertNotEmpty($programs);
-        self::assertArrayHasKey('name', $programs[0]);
-        self::assertArrayHasKey('id', $programs[0]['section']);
+        self::assertArrayHasKey('name', $programs[0]->toArray());
+        self::assertArrayHasKey('id', $programs[0]->toArray()['section']);
     }
 
     /** The fixture is the kissj list's own `sections`, so the stub maps it the same way. */
     public function testGetSectionsIsKeyedByIdInFixtureOrder(): void
     {
-        $sections = $this->provider->getSections();
+        $sections = array_map(static fn(Section $section): array => $section->toArray(), $this->provider->getSections());
 
         self::assertSame([10, 12, 13, 1, 2, 11, 14, 15, 16, 3, 4, 17, 18], array_keys($sections));
         self::assertSame(['id' => 10, 'title' => 'Putování', 'subTitle' => null], $sections[10]);
@@ -93,9 +94,9 @@ final class LocalProgramProviderTest extends TestCase
     {
         $preregistered = [];
         foreach ($this->korbo()->getPrograms() as $programme) {
-            self::assertIsBool($programme['preregistered']);
-            if ($programme['preregistered']) {
-                $preregistered[] = $programme['id'];
+            self::assertIsBool($programme->toArray()['preregistered']);
+            if ($programme->preregistered) {
+                $preregistered[] = $programme->id;
             }
         }
 
@@ -177,8 +178,8 @@ final class LocalProgramProviderTest extends TestCase
         self::assertSame(1, $participant->id);
         self::assertSame('Jana Nováková', $participant->nickname);
         self::assertSame(self::KORBO_MINE, array_column($participant->programmes, 'id'));
-        self::assertSame('Volejbal', $provider->getPrograms()[0]['name'], 'the programmes are in the internal shape');
-        self::assertArrayHasKey('preregistered', $participant->programmes[0]);
+        self::assertSame('Volejbal', $provider->getPrograms()[0]->name, 'the programmes are in the internal shape');
+        self::assertArrayHasKey('preregistered', $participant->programmes[0]->toArray());
     }
 
     public function testAnEventWithoutNicknamesHasNone(): void

@@ -4,8 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Program\LocalProgramProvider;
+use App\Program\ProgramProviderInterface;
+use App\Program\Programme;
 use App\Push\MessageRepository;
 use App\Push\PushSenderInterface;
+use Psr\Clock\ClockInterface;
+use Tests\FixedClock;
 
 final class AdminNotifyTest extends AppTestCase
 {
@@ -375,8 +380,8 @@ final class AdminNotifyTest extends AppTestCase
         self::assertCount(7, $this->sender->calls[0]);
         self::assertNull($this->sender->calls[0][6], 'a message for everyone names no programme');
         $logged = $this->messages->page('korbo26', 1)[0];
-        self::assertSame(['Změna', 'Lung', null, 'Všem'], [$logged['title'], $logged['signature'], $logged['programmeId'], $logged['targetLabel']]);
-        self::assertNull($logged['unreached']);
+        self::assertSame(['Změna', 'Lung', null, 'Všem'], [$logged->title, $logged->signature, $logged->programmeId, $logged->targetLabel]);
+        self::assertNull($logged->unreached);
         $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('Odesláno: 2', $html);
         self::assertStringNotContainsString('přihlášených bez notifikací', $html);
@@ -399,10 +404,10 @@ final class AdminNotifyTest extends AppTestCase
         self::assertCount(7, $this->sender->calls[0]);
         self::assertSame($programme['id'], $this->sender->calls[0][6], 'the payload names the programme');
         $logged = $this->messages->page('korbo26', 1)[0];
-        self::assertSame($programme['id'], $logged['programmeId']);
-        self::assertSame($programme['name'], $logged['targetLabel']);
+        self::assertSame($programme['id'], $logged->programmeId);
+        self::assertSame($programme['name'], $logged->targetLabel);
         // the in-memory subscription store is empty, so every registered participant is unreached
-        self::assertSame(count($this->sender->calls[0][5]), $logged['unreached']);
+        self::assertSame(count($this->sender->calls[0][5]), $logged->unreached);
         self::assertStringContainsString('přihlášených bez notifikací', (string) $this->request($app, 'GET', '/admin/notify')->getBody());
     }
 
@@ -434,6 +439,20 @@ final class AdminNotifyTest extends AppTestCase
         $csrf = $this->logIn($app, 'korbo-token');
 
         $response = $this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => '999999', 'csrf' => $csrf]);
+
+        self::assertSame(422, $response->getStatusCode());
+        self::assertStringContainsString('Vybraný program neexistuje.', (string) $response->getBody());
+        self::assertSame([], $this->sender->calls);
+        self::assertSame(0, $this->messages->count('korbo26'));
+    }
+
+    /** An array is not "everyone": the target reads as 'Array', a programme that does not exist. */
+    public function testAnArrayTargetIsRejectedAsAForgedProgramme(): void
+    {
+        $app = $this->korbo();
+        $csrf = $this->logIn($app, 'korbo-token');
+
+        $response = @$this->request($app, 'POST', '/admin/notify', self::SEND + ['target' => ['1'], 'csrf' => $csrf]);
 
         self::assertSame(422, $response->getStatusCode());
         self::assertStringContainsString('Vybraný program neexistuje.', (string) $response->getBody());
@@ -571,6 +590,45 @@ final class AdminNotifyTest extends AppTestCase
         // korbo26 opens on Wednesday 16. 9. 2026 with Volejbal at 08:00
         self::assertStringContainsString('label="středa 16. 9."', $html);
         self::assertStringContainsString('08:00 Volejbal – Volejbalové hřiště', $html);
+    }
+
+    /**
+     * No fixture has a programme without a start in an event with push, so the picker's rule
+     * for one is pinned here: it is listed first (an empty start sorts before every date),
+     * under the day of the injected clock's now (never the real time), and the place follows
+     * a dash only when there is one.
+     */
+    public function testAProgrammeWithoutAStartIsOfferedUnderTodayAndSortedFirst(): void
+    {
+        $clock = new FixedClock(new \DateTimeImmutable('2027-05-21 10:00:00', new \DateTimeZone('Europe/Prague')));
+        $provider = $this->providerWith([
+            ['id' => 9, 'name' => 'Bez času', 'section' => ['id' => 1], 'start' => ['date' => ''], 'end' => ['date' => ''], 'lector' => null, 'location' => null, 'perex' => null, 'tools' => null, 'preregistered' => false],
+            ['id' => 4, 'name' => 'Lanovka', 'section' => ['id' => 1], 'start' => ['date' => '2027-05-22 09:00:00'], 'end' => ['date' => '2027-05-22 12:00:00'], 'lector' => null, 'location' => 'Žlutý les', 'perex' => null, 'tools' => null, 'preregistered' => false],
+        ]);
+        $app = $this->korbo([ProgramProviderInterface::class => $provider, ClockInterface::class => $clock]);
+        $this->logIn($app, 'korbo-token');
+        $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
+
+        self::assertLessThan(strpos($html, 'Lanovka'), strpos($html, 'Bez času'));
+        self::assertMatchesRegularExpression('#<optgroup label="pátek 21\. 5\.">\s*<option value="9">10:00 Bez času</option>#', $html);
+        self::assertStringContainsString('<optgroup label="sobota 22. 5.">', $html);
+        self::assertStringContainsString('09:00 Lanovka – Žlutý les', $html);
+    }
+
+    /** The local korbo26 provider, with these rows as its programme list. */
+    private function providerWith(array $rows): ProgramProviderInterface
+    {
+        return new class (new LocalProgramProvider(dirname(__DIR__, 2) . '/events/korbo26/fixtures', $this->stubState), $rows) extends DelegatingProvider {
+            public function __construct(ProgramProviderInterface $inner, private readonly array $rows)
+            {
+                parent::__construct($inner);
+            }
+
+            public function getPrograms(): array
+            {
+                return array_map(static fn(array $row): Programme => Programme::fromArray($row) ?? throw new \LogicException('not a programme row'), $this->rows);
+            }
+        };
     }
 
     public function testTheLogPagesByFifty(): void
@@ -762,7 +820,7 @@ final class AdminNotifyTest extends AppTestCase
     {
         $pdo = AppTestCase::memoryDb();
         $throwing = new class implements \App\Push\PushSenderInterface {
-            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $participantIds = null, ?int $programme = null): array
+            public function sendToEvent(string $event, string $title, string $body, ?string $icon = null, ?string $url = null, ?array $participantIds = null, ?int $programme = null): \App\Push\SendResult
             {
                 throw new \RuntimeException('push service exploded');
             }
@@ -783,7 +841,7 @@ final class AdminNotifyTest extends AppTestCase
         self::assertStringContainsString('Něco se pokazilo', (string) $response->getBody());
         $log = (new \App\Push\MessageRepository($pdo))->page('korbo26', 1);
         self::assertCount(1, $log, 'on News even though the send blew up');
-        self::assertNull($log[0]['sent']);
+        self::assertNull($log[0]->sent);
         self::assertStringContainsString('Odesláno: –', (string) $this->request($app, 'GET', '/admin/notify')->getBody());
     }
 
@@ -791,13 +849,13 @@ final class AdminNotifyTest extends AppTestCase
     {
         $app = $this->korbo();
         $csrf = $this->logIn($app, 'korbo-token');
-        $this->sender->result = ['recipients' => 5, 'sent' => 2, 'removed' => 1, 'failed' => 2];
+        $this->sender->result = new \App\Push\SendResult(5, 2, 1, 2);
         $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $this->nonceOnPage($app)]);
         $html = (string) $this->request($app, 'GET', '/admin/notify')->getBody();
         self::assertStringContainsString('nedoručeno: 2', $html);
-        self::assertSame(2, $this->messages->page('korbo26', 1)[0]['failed']);
+        self::assertSame(2, $this->messages->page('korbo26', 1)[0]->failed);
 
-        $this->sender->result = ['recipients' => 3, 'sent' => 2, 'removed' => 1, 'failed' => 0];
+        $this->sender->result = new \App\Push\SendResult(3, 2, 1, 0);
         $this->request($app, 'POST', '/admin/notify', self::SEND + ['csrf' => $csrf, 'target' => '', 'nonce' => $this->nonceOnPage($app)]);
         // the newest result line carries no "nedoručeno"; the older log entry still does
         self::assertSame(1, substr_count((string) $this->request($app, 'GET', '/admin/notify')->getBody(), 'nedoručeno:'));
@@ -832,7 +890,7 @@ final class AdminNotifyTest extends AppTestCase
 
             public function getPrograms(): array
             {
-                return [$this->programme];
+                return [Programme::fromArray($this->programme) ?? throw new \LogicException('not a programme row')];
             }
 
             public function getSections(): array

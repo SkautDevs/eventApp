@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Admin;
 
 use App\EventConfig;
+use App\Http\FormField;
 use App\Push\MessageRepository;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -20,7 +21,7 @@ final class HideAction
     public function __construct(
         private readonly EventConfig $event,
         private readonly AdminSession $admin,
-        private readonly AdminPage $page,
+        private readonly AdminPageRenderer $page,
         private readonly MessageRepository $messages,
     ) {}
 
@@ -31,15 +32,15 @@ final class HideAction
         if (!$this->admin->isOpen() || !$this->admin->csrfMatches($body['csrf'] ?? null)) {
             return $this->page->refused($request->withParsedBody([]), $response);
         }
-        $signature = trim((string) ($body['signature'] ?? ''));
-        if (!AdminPage::signatureValid($signature)) {
-            return $this->page->render($request, $response->withStatus(422), ['errors' => [AdminPage::SIGNATURE_ERROR]]);
+        $signature = trim(FormField::text($body, 'signature'));
+        if (!AdminPageRenderer::signatureValid($signature)) {
+            return $this->page->render($request, $response->withStatus(422), errors: [AdminPageRenderer::SIGNATURE_ERROR]);
         }
 
         $changed = $this->messages->setHidden(
             $this->event->slug,
             (int) $args['id'],
-            (string) ($body['hidden'] ?? '') === '1',
+            FormField::text($body, 'hidden') === '1',
             $signature,
         );
         if (!$changed) {
@@ -47,7 +48,7 @@ final class HideAction
         }
 
         $location = RouteContext::fromRequest($request)->getRouteParser()->urlFor('admin-notify', [], [
-            'page' => max(1, (int) ($body['page'] ?? 1)),
+            'page' => (string) max(1, FormField::int($body, 'page', 1)),
         ]);
 
         return $response->withHeader('Location', $location)->withStatus(303);

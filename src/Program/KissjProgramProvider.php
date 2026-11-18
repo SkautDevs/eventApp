@@ -28,7 +28,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
     public const string SESSION_HEADER = 'X-Kissj-Device-Session';
 
     /**
-     * @var array{sections: array<int, array>, programmes: list<array>, registration: RegistrationWindow}|null
+     * @var array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow}|null
      *      the list response, fetched once
      */
     private ?array $list = null;
@@ -220,7 +220,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
      * asks for all of them, so the list is fetched and validated once, as a whole, for
      * the provider's lifetime — which is one request.
      *
-     * @return array{sections: array<int, array>, programmes: list<array>, registration: RegistrationWindow}
+     * @return array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow}
      */
     private function list(): array
     {
@@ -254,9 +254,10 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
+     * @param array<mixed> $data
      * @param string $where what the error message names: the endpoint, never a path or a token
      *
-     * @return list<array>
+     * @return list<Programme>
      */
     private function programmes(array $data, string $where): array
     {
@@ -284,7 +285,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
      * @param string                    $where       what an error message names: the endpoint, in words
      * @param bool                      $refusable   whether a `400 {"error": code}` is the contract's refusal
      *
-     * @return array<string, mixed>
+     * @return array<mixed> the decoded object: its keys are its names, a numeric name an integer key
      */
     private function request(
         string $method,
@@ -331,7 +332,11 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return $decoded;
     }
 
-    /** A write and the revoke answer `{"ok": true}`; anything else is not the contract. */
+    /**
+     * A write and the revoke answer `{"ok": true}`; anything else is not the contract.
+     *
+     * @param array<mixed> $data
+     */
     private static function requireOk(array $data, string $where): void
     {
         if (($data['ok'] ?? null) !== true) {
@@ -339,6 +344,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
         }
     }
 
+    /** @param array<mixed> $data */
     private static function requiredString(array $data, string $key, string $where): string
     {
         $value = $data[$key] ?? null;
@@ -370,12 +376,12 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * Maps one kissj programme onto our internal program shape — see docs/kissj-contract.md.
+     * Maps one kissj programme onto a Programme — see docs/kissj-contract.md.
      * Fields the contract does not map (`targetRoles`, whatever comes later) are ignored.
      *
      * @param mixed $kissj one element of whatever kissj sent, trusted for nothing
      */
-    private function normalize(mixed $kissj): array
+    private function normalize(mixed $kissj): Programme
     {
         if (!is_array($kissj)) {
             throw new ProgramDataException('kissj program record is not an object');
@@ -395,18 +401,18 @@ final class KissjProgramProvider implements ProgramProviderInterface
             throw new ProgramDataException('kissj program record has an isPreregistered that is not a boolean');
         }
 
-        return [
-            'id' => (int) $kissj['id'],
-            'name' => (string) $kissj['name'],
-            'section' => ['id' => $kissj['sectionId']],
-            'start' => ['date' => $this->toLocal($kissj['start'] ?? null)],
-            'end' => ['date' => $this->toLocal($kissj['end'] ?? null)],
-            'lector' => null,
-            'location' => $this->optionalText($kissj['place'] ?? null),
-            'perex' => $this->optionalText($kissj['description'] ?? null),
-            'tools' => null,
-            'preregistered' => $preregistered,
-        ];
+        return new Programme(
+            id: (int) $kissj['id'],
+            name: (string) $kissj['name'],
+            sectionId: $kissj['sectionId'],
+            start: $this->toLocal($kissj['start'] ?? null),
+            end: $this->toLocal($kissj['end'] ?? null),
+            lector: null,
+            location: $this->optionalText($kissj['place'] ?? null),
+            perex: $this->optionalText($kissj['description'] ?? null),
+            tools: null,
+            preregistered: $preregistered,
+        );
     }
 
     /** kissj sends an empty string for "none"; the screen tests for null. */
@@ -422,10 +428,11 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return (string) $value;
     }
 
-    private function toLocal(mixed $iso): string
+    /** A programme's time in Europe/Prague, to the second; a missing or empty one is null. */
+    private function toLocal(mixed $iso): ?\DateTimeImmutable
     {
         if ($iso === null || $iso === '') {
-            return '';
+            return null;
         }
         if (!is_string($iso)) {
             throw new ProgramDataException('kissj sent a datetime that is not a string');
@@ -440,6 +447,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
             throw new ProgramDataException(sprintf('kissj sent an unparseable datetime: %s', $iso), previous: $e);
         }
 
-        return $parsed->setTimezone($prague)->format('Y-m-d H:i:s');
+        // whole seconds, as the stored row (Programme::toArray()) keeps it
+        return (new \DateTimeImmutable('@' . $parsed->getTimestamp()))->setTimezone($prague);
     }
 }

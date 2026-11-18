@@ -44,17 +44,17 @@ final class EventCatalog
         $upcoming = $past = [];
         foreach (glob($this->eventsDir . '/*/config.php') ?: [] as $file) {
             $event = $this->load(basename(dirname($file)));
-            if (!$event->listed) {
+            if (!$event->listed || $event->dates === null) {
                 continue;
             }
-            if ($event->dates['end'] >= $day) {
+            if ($event->dates->end >= $day) {
                 $upcoming[] = $event;
             } else {
                 $past[] = $event;
             }
         }
-        usort($upcoming, static fn($a, $b) => $a->dates['start'] <=> $b->dates['start']);
-        usort($past, static fn($a, $b) => $b->dates['start'] <=> $a->dates['start']);
+        usort($upcoming, static fn(EventConfig $a, EventConfig $b): int => $a->dates?->start <=> $b->dates?->start);
+        usort($past, static fn(EventConfig $a, EventConfig $b): int => $b->dates?->start <=> $a->dates?->start);
 
         return ['upcoming' => $upcoming, 'past' => $past];
     }

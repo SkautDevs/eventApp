@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 namespace App\Module\Programs;
 
+use App\Module\Programs\View\Card;
+use App\Module\Programs\View\RulerTick;
+use App\Module\Programs\View\StageRow;
+use App\Module\Programs\View\TimelinePage;
+use App\Program\Programme;
+use App\Time\Zone;
+
 /**
  * Harmonogram, the timeline: one page per calendar day, each with its hour ruler and one
  * stage row per location, split into tracks so that overlapping programmes never cover
@@ -33,10 +40,10 @@ final class TimelineBuilder
      * One timeline page: the hour ruler plus one stage row per location, each row split
      * into as many tracks as it takes for overlapping programmes not to cover each other.
      *
-     * @param list<array{program: array, day: string, start: int, end: int}> $segments this day's pieces
+     * @param non-empty-list<array{program: Programme, day: string, start: int, end: int}> $segments this day's pieces
      * @param array<int, true> $registeredIds
      */
-    public static function buildPage(string $day, array $segments, array $registeredIds, bool $mineRead): array
+    public static function buildPage(string $day, array $segments, array $registeredIds, bool $mineRead): TimelinePage
     {
         // the axis is measured against the ends the bars are actually drawn to, so a
         // programme running on past midnight widens this page no further than the day —
@@ -55,12 +62,12 @@ final class TimelineBuilder
         // scale (--hour-width), so every position is calc(--hour-width * offset).
         $ruler = [];
         for ($tick = $axisStart; $tick < $axisEnd; $tick += self::HOUR) {
-            $ruler[] = ['label' => date('H:i', $tick), 'offset' => self::hours($tick - $axisStart)];
+            $ruler[] = new RulerTick(Times::at($tick)->format('H:i'), self::hours($tick - $axisStart));
         }
 
         $byLocation = [];
         foreach ($segments as $segment) {
-            $location = trim((string) ($segment['program']['location'] ?? ''));
+            $location = trim($segment['program']->location ?? '');
             $byLocation[$location][] = $segment;
         }
         // stages read top to bottom in the order their first programme starts; no location goes last.
@@ -74,36 +81,36 @@ final class TimelineBuilder
 
         $rows = [];
         foreach ($byLocation as $location => $items) {
-            $rows[] = [
-                'location' => $location === '' ? self::NO_LOCATION_LABEL : $location,
-                'tracks' => self::packTracks($items, $axisStart, $registeredIds, $mineRead),
-            ];
+            $rows[] = new StageRow(
+                location: $location === '' ? self::NO_LOCATION_LABEL : (string) $location,
+                tracks: self::packTracks($items, $axisStart, $registeredIds, $mineRead),
+            );
         }
         // the unlocated stage sorts by time like the rest, but it belongs at the bottom
-        usort($rows, static fn(array $a, array $b): int => ($a['location'] === self::NO_LOCATION_LABEL ? 1 : 0)
-            <=> ($b['location'] === self::NO_LOCATION_LABEL ? 1 : 0));
+        usort($rows, static fn(StageRow $a, StageRow $b): int => ($a->location === self::NO_LOCATION_LABEL ? 1 : 0)
+            <=> ($b->location === self::NO_LOCATION_LABEL ? 1 : 0));
 
-        return [
-            'key' => 'page-' . date('Ymd', strtotime($day)),
-            'day' => $day,
-            'label' => Times::dayLabel($day),
-            'hours' => count($ruler),
-            'ruler' => $ruler,
+        return new TimelinePage(
+            key: 'page-' . (new \DateTimeImmutable($day))->format('Ymd'),
+            day: $day,
+            label: Times::dayLabel($day),
+            hours: count($ruler),
+            ruler: $ruler,
             // the axis as instants, so the client can place "now" on it whatever
             // time zone the phone is set to
-            'axisStart' => Times::instant($axisStart),
-            'axisEnd' => Times::instant($axisEnd),
-            'rows' => $rows,
-        ];
+            axisStart: Times::instant(Times::at($axisStart)),
+            axisEnd: Times::instant(Times::at($axisEnd)),
+            rows: $rows,
+        );
     }
 
     /**
      * Greedy interval packing: a programme goes into the first track whose previous
      * programme has already ended, so nothing is ever drawn on top of anything else.
      *
-     * @param list<array{program: array, day: string, start: int, end: int}> $items
+     * @param list<array{program: Programme, day: string, start: int, end: int}> $items
      * @param array<int, true> $registeredIds
-     * @return list<list<array>>
+     * @return list<list<Card>>
      */
     private static function packTracks(array $items, int $axisStart, array $registeredIds, bool $mineRead): array
     {
@@ -131,31 +138,31 @@ final class TimelineBuilder
      * One card: a programme's piece of one day. Every piece of a programme carries the
      * same id, label and state, so each opens the same sheet and says the same thing.
      *
-     * @param array{program: array, day: string, start: int, end: int} $segment
+     * @param array{program: Programme, day: string, start: int, end: int} $segment
      * @param array<int, true> $registeredIds
      */
-    private static function buildCard(array $segment, int $axisStart, array $registeredIds, bool $mineRead): array
+    private static function buildCard(array $segment, int $axisStart, array $registeredIds, bool $mineRead): Card
     {
         $program = $segment['program'];
         $start = $segment['start'];
         $end = self::barEnd($segment);
-        $registered = isset($registeredIds[$program['id']]);
-        $preregistered = SheetBuilder::preregistered($program);
+        $registered = isset($registeredIds[$program->id]);
+        $preregistered = $program->preregistered;
 
-        return [
-            'id' => $program['id'],
-            'name' => $program['name'],
+        return new Card(
+            id: $program->id,
+            name: $program->name,
             // the label keeps the true times, like the sheet — only the bar is clipped
-            'time' => Times::timeRange($program),
+            time: Times::timeRange($program),
             // both in hours from the axis start; the template turns them into pixels
-            'offset' => self::hours($start - $axisStart),
-            'span' => self::hours($end - $start),
-            'registered' => $registered,
+            offset: self::hours($start - $axisStart),
+            span: self::hours($end - $start),
+            registered: $registered,
             // with the personal list read, the programmes that are not yours step back so
             // yours stand out — never a preregistered one, which kissj leaves out of the
             // personal list and which is, as far as eventApp can tell, everybody's
-            'dimmed' => $mineRead && !$registered && !$preregistered,
-        ];
+            dimmed: $mineRead && !$registered && !$preregistered,
+        );
     }
 
     /**
@@ -164,23 +171,25 @@ final class TimelineBuilder
      * and the next midnight. The day it starts on always has a piece, even a record of
      * no length; any later day only if the programme is still running into it, so an
      * end at exactly midnight leaves no zero-width card on the next day. Only the bars
-     * are cut — SheetBuilder::buildDetail() reads $program['end'] directly, so the sheet
-     * keeps the true time.
+     * are cut — SheetBuilder::buildDetail() reads the programme's end directly, so the sheet
+     * keeps the true time. The pieces' start and end are Unix timestamps; the days are
+     * Prague calendar days.
      *
-     * @return list<array{program: array, day: string, start: int, end: int}>
+     * @return list<array{program: Programme, day: string, start: int, end: int}>
      */
-    public static function segments(array $program): array
+    public static function segments(Programme $program): array
     {
-        $start = Times::ts($program['start']);
-        $end = max(Times::ts($program['end']), $start);
-        $day = date('Y-m-d', $start);
+        $start = Times::start($program)->getTimestamp();
+        $end = max(Times::end($program)->getTimestamp(), $start);
+        $day = Times::dayOf($program);
+        $prague = Zone::prague();
 
         $segments = [];
         do {
             // by the calendar rather than by 86400 seconds, which a DST change would break
-            $dayStart = (int) strtotime($day);
-            $nextDay = date('Y-m-d', (int) strtotime($day . ' +1 day'));
-            $dayEnd = (int) strtotime($nextDay);
+            $dayStart = (new \DateTimeImmutable($day, $prague))->getTimestamp();
+            $nextDay = (new \DateTimeImmutable($day . ' +1 day', $prague))->format('Y-m-d');
+            $dayEnd = (new \DateTimeImmutable($nextDay, $prague))->getTimestamp();
             $segments[] = ['program' => $program, 'day' => $day, 'start' => max($start, $dayStart), 'end' => min($end, $dayEnd)];
             $day = $nextDay;
         } while ($end > $dayEnd && count($segments) < self::MAX_DRAWN_DAYS);

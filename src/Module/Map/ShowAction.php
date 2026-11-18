@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Module\Map;
 
 use App\EventConfig;
+use App\Module\Map\View\MapPage;
+use App\View\TemplateContext;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
@@ -24,9 +26,8 @@ final class ShowAction
     /** @param array<string, string> $args */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        $map = $this->event->get('map') ?? [];
-        $map = is_array($map) ? $map : [];
-        $embedUrl = is_string($map['embedUrl'] ?? null) ? $map['embedUrl'] : null;
+        $map = $this->event->map;
+        $embedUrl = $map?->embedUrl;
 
         // A config still carrying the REPLACE-ME placeholder would embed a Google 404.
         // Say so instead — the organisers have not published the map yet.
@@ -35,13 +36,11 @@ final class ShowAction
         }
         // the handbook's own drawing, self-hosted so it works offline; an <img>, so an
         // SVG is shown and never run
-        $image = is_string($map['image'] ?? null) && $map['image'] !== '' ? '/' . ltrim($map['image'], '/') : null;
-        $imageAlt = is_string($map['imageAlt'] ?? null) && $map['imageAlt'] !== '' ? $map['imageAlt'] : 'Plán areálu';
+        $image = $map?->image;
+        $image = $image !== null && $image !== '' ? '/' . ltrim($image, '/') : null;
+        $imageAlt = $map?->imageAlt;
+        $imageAlt = $imageAlt !== null && $imageAlt !== '' ? $imageAlt : 'Plán areálu';
 
-        return $this->twig->render($response, 'map.twig', [
-            'embedUrl' => $embedUrl,
-            'image' => $image,
-            'imageAlt' => $imageAlt,
-        ]);
+        return $this->twig->render($response, 'map.twig', TemplateContext::of(new MapPage($embedUrl, $image, $imageAlt)));
     }
 }

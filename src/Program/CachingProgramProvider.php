@@ -84,7 +84,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
     /** @var \Closure(\Throwable): void */
     private readonly \Closure $report;
 
-    /** @var array<string, array{generation: int, data: array}> what this request already resolved */
+    /** @var array<string, array{generation: int, data: array<mixed>}> what this request already resolved */
     private array $memo = [];
 
     /**
@@ -125,12 +125,23 @@ final class CachingProgramProvider implements ProgramProviderInterface
 
     public function getPrograms(): array
     {
-        return $this->list()['programmes'];
+        return self::programmes($this->list()['programmes']);
     }
 
     public function getSections(): array
     {
-        return $this->list()['sections'];
+        $sections = [];
+        foreach ($this->list()['sections'] as $id => $row) {
+            // the usable check in list(), or the fetch that built the rows from Sections
+            \assert(is_array($row), 'the entry was checked as usable');
+            // An entry this class wrote is keyed by the sections' ids. Every reader looks a
+            // section up by a programme's integer sectionId, so a name could never be found.
+            if (is_int($id)) {
+                $sections[$id] = Section::fromArray($row);
+            }
+        }
+
+        return $sections;
     }
 
     public function getRegistrationWindow(): RegistrationWindow
@@ -149,12 +160,13 @@ final class CachingProgramProvider implements ProgramProviderInterface
                 function () use ($sessionToken): array {
                     $participant = $this->inner->getParticipant($sessionToken);
 
-                    return ['id' => $participant->id, 'nickname' => $participant->nickname, 'programmes' => $participant->programmes];
+                    return ['id' => $participant->id, 'nickname' => $participant->nickname, 'programmes' => self::rows($participant->programmes)];
                 },
                 static fn(mixed $data): bool => is_array($data)
                     && is_int($data['id'] ?? null)
                     && array_key_exists('nickname', $data) && ($data['nickname'] === null || is_string($data['nickname']))
-                    && is_array($data['programmes'] ?? null) && array_is_list($data['programmes']),
+                    && is_array($data['programmes'] ?? null) && array_is_list($data['programmes'])
+                    && self::programmeRows($data['programmes']),
             );
         } catch (SessionExpiredException $e) {
             // An answer, not an outage: a stale entry here would keep a device kissj no
@@ -163,7 +175,12 @@ final class CachingProgramProvider implements ProgramProviderInterface
             throw $e;
         }
 
-        return new Participant($data['id'], $data['nickname'], $data['programmes']);
+        $id = $data['id'];
+        $nickname = $data['nickname'];
+        // the usable check above, or the fetch that built the entry from a Participant
+        \assert(is_int($id) && ($nickname === null || is_string($nickname)), 'the entry was checked as usable');
+
+        return new Participant($id, $nickname, self::programmes($data['programmes']));
     }
 
     /**
@@ -300,10 +317,52 @@ final class CachingProgramProvider implements ProgramProviderInterface
         return $value === null || (is_string($value) && \DateTimeImmutable::createFromFormat(\DATE_ATOM, $value) !== false);
     }
 
-    /** @return array{sections: array, programmes: list<array>, registration: array{start: ?string, end: ?string}} */
+    /**
+     * A stored entry keeps the programmes as their rows (Programme::toArray()) and the
+     * sections as theirs (Section::toArray()), keyed by id: the JSON the release before
+     * the objects wrote.
+     *
+     * @param list<Programme> $programmes
+     * @return list<array<string, mixed>>
+     */
+    private static function rows(array $programmes): array
+    {
+        return array_map(static fn(Programme $programme): array => $programme->toArray(), $programmes);
+    }
+
+    /**
+     * The stored rows as programmes; the entry's shape check made sure every one is one.
+     *
+     * @return list<Programme>
+     */
+    private static function programmes(mixed $rows): array
+    {
+        \assert(is_array($rows), 'the entry was checked as usable');
+        $programmes = [];
+        foreach ($rows as $row) {
+            $programme = is_array($row) ? Programme::fromArray($row) : null;
+            \assert($programme !== null, 'the entry was checked as usable');
+            $programmes[] = $programme;
+        }
+
+        return $programmes;
+    }
+
+    /**
+     * Whether every stored row is a programme: an entry in which one is not has the wrong
+     * shape, which counts as missing.
+     *
+     * @param array<mixed> $rows
+     */
+    private static function programmeRows(array $rows): bool
+    {
+        return array_all($rows, static fn(mixed $row): bool => is_array($row) && Programme::fromArray($row) !== null);
+    }
+
+    /** @return array{sections: array<mixed>, programmes: mixed, registration: array{start: ?string, end: ?string}} */
     private function list(): array
     {
-        return $this->read(
+        $list = $this->read(
             self::LIST_KEY,
             // the inner provider memoises its list response: one HTTP request for all three
             function (): array {
@@ -312,23 +371,36 @@ final class CachingProgramProvider implements ProgramProviderInterface
                 $window = $this->inner->getRegistrationWindow();
 
                 return [
-                    'sections' => $sections,
-                    'programmes' => $programmes,
+                    'sections' => array_map(static fn(Section $section): array => $section->toArray(), $sections),
+                    'programmes' => self::rows($programmes),
                     'registration' => ['start' => $window->start?->format(\DATE_ATOM), 'end' => $window->end?->format(\DATE_ATOM)],
                 ];
             },
             static fn(mixed $data): bool => is_array($data)
                 && is_array($data['sections'] ?? null)
-                && is_array($data['programmes'] ?? null)
+                && array_all($data['sections'], static fn(mixed $row): bool => is_array($row))
+                && is_array($data['programmes'] ?? null) && self::programmeRows($data['programmes'])
                 && is_array($data['registration'] ?? null)
                 && array_key_exists('start', $data['registration']) && self::storedInstant($data['registration']['start'])
                 && array_key_exists('end', $data['registration']) && self::storedInstant($data['registration']['end']),
         );
+        $sections = $list['sections'];
+        $registration = $list['registration'];
+        // the usable check above, or the fetch that built exactly this shape
+        \assert(is_array($sections) && is_array($registration), 'the entry was checked as usable');
+        $start = $registration['start'];
+        $end = $registration['end'];
+        // the usable check above (storedInstant()), or the fetch's DATE_ATOM or null
+        \assert(($start === null || is_string($start)) && ($end === null || is_string($end)), 'the entry was checked as usable');
+
+        return ['sections' => $sections, 'programmes' => $list['programmes'], 'registration' => ['start' => $start, 'end' => $end]];
     }
 
     /**
-     * @param \Closure(): array $fetch the inner call
+     * @param \Closure(): array<mixed> $fetch the inner call
      * @param \Closure(mixed): bool $usable whether a stored entry has the shape this key promises
+     *
+     * @return array<mixed>
      */
     private function read(string $key, \Closure $fetch, \Closure $usable): array
     {
@@ -350,7 +422,10 @@ final class CachingProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * @return array{data: array, result: 'hit'|'miss'|'stale'|'locked', age: ?int, fetchedAt: \DateTimeImmutable, stale: bool}
+     * @param \Closure(): array<mixed> $fetch
+     * @param \Closure(mixed): bool $usable
+     *
+     * @return array{data: array<mixed>, result: 'hit'|'miss'|'stale'|'locked', age: ?int, fetchedAt: \DateTimeImmutable, stale: bool}
      */
     private function resolve(string $key, \Closure $fetch, \Closure $usable): array
     {
@@ -430,6 +505,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
         }
     }
 
+    /** @param \Closure(mixed): bool $usable */
     private function usableEntry(string $key, \Closure $usable): ?CacheEntry
     {
         $entry = $this->cache->get($key);
@@ -487,7 +563,7 @@ final class CachingProgramProvider implements ProgramProviderInterface
      * It reaches Sentry at most once per request and once per REPORT_SECONDS overall, and only when an entry hid it — a rethrown one is the module's
      * notice.
      *
-     * @return array{data: array, result: string, age: int, fetchedAt: \DateTimeImmutable, stale: bool}
+     * @return array{data: array<mixed>, result: 'stale', age: int, fetchedAt: \DateTimeImmutable, stale: bool}
      */
     private function fallBack(?CacheEntry $entry, \DateTimeImmutable $now): array
     {
@@ -506,14 +582,21 @@ final class CachingProgramProvider implements ProgramProviderInterface
     }
 
     /**
+     * @template R of 'hit'|'stale'|'locked'
+     *
+     * @param R $result
      * @param bool|null $stale whether the reader is told it is an old copy; by default exactly when the result is `stale`
      *
-     * @return array{data: array, result: string, age: int, fetchedAt: \DateTimeImmutable, stale: bool}
+     * @return array{data: array<mixed>, result: R, age: int, fetchedAt: \DateTimeImmutable, stale: bool}
      */
     private static function served(CacheEntry $entry, string $result, \DateTimeImmutable $now, ?bool $stale = null): array
     {
+        $data = $entry->data;
+        // every entry served came through usableEntry(), and every usable check asks for an array
+        \assert(is_array($data));
+
         return [
-            'data' => $entry->data,
+            'data' => $data,
             'result' => $result,
             'age' => $entry->ageAt($now),
             'fetchedAt' => $entry->fetchedAt,

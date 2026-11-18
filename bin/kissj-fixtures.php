@@ -20,6 +20,7 @@
 declare(strict_types=1);
 
 use App\Program\KissjProgramProvider;
+use App\Program\Programme;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -57,7 +58,8 @@ $provider = new KissjProgramProvider(
     apiKey: 'unused',
 );
 
-$programs = $provider->getPrograms();
+// the rows programs.json stores, as the stub reads them back
+$programs = array_map(static fn(Programme $programme): array => $programme->toArray(), $provider->getPrograms());
 foreach (array_slice($argv, 2) as $arg) {
     $hour = '(?:[01]\d|2[0-3]):[0-5]\d';
     if (preg_match('/^--clamp-all-day=(' . $hour . ')-(' . $hour . ')$/', $arg, $m) !== 1) {
@@ -68,7 +70,7 @@ foreach (array_slice($argv, 2) as $arg) {
 $window = $provider->getRegistrationWindow();
 // the session endpoint is what the provider reads a participant through; the token is a dummy
 $participant = $provider->getParticipant('fixtures');
-$registered = array_column($participant->programmes, 'id');
+$registered = array_map(static fn(Programme $programme): int => $programme->id, $participant->programmes);
 // the stub reads a missing key as false, so only the true ones are spelled out
 $programs = array_map(static function (array $program): array {
     if ($program['preregistered'] !== true) {

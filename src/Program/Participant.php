@@ -10,7 +10,7 @@ final readonly class Participant
     /**
      * @param int $id kissj's participant id
      * @param string|null $nickname null when kissj has none
-     * @param list<array> $programmes in the internal shape
+     * @param list<Programme> $programmes
      */
     public function __construct(
         public int $id,

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Module\Admin;
 
 use App\EventConfig;
+use App\Http\FormField;
+use App\Module\Admin\View\FormValues;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
+use App\Program\Programme;
 use App\Program\ProgramUnavailableException;
 use App\Push\MessageRepository;
 use App\Push\PushSenderInterface;
@@ -36,7 +39,7 @@ final class SendAction
     public function __construct(
         private readonly EventConfig $event,
         private readonly AdminSession $admin,
-        private readonly AdminPage $page,
+        private readonly AdminPageRenderer $page,
         private readonly ProgramProviderInterface $provider,
         private readonly MessageRepository $messages,
         private readonly SubscriptionRepository $subscriptions,
@@ -51,34 +54,36 @@ final class SendAction
         if (!$this->admin->isOpen() || !$this->admin->csrfMatches($body['csrf'] ?? null)) {
             return $this->page->refused($request, $response);
         }
-        $values = [
-            'target' => trim((string) ($body['target'] ?? '')),
-            'title' => trim((string) ($body['title'] ?? '')),
-            'body' => trim((string) ($body['body'] ?? '')),
-            'signature' => trim((string) ($body['signature'] ?? '')),
-        ];
+        $values = new FormValues(
+            target: trim(FormField::text($body, 'target')),
+            title: trim(FormField::text($body, 'title')),
+            body: trim(FormField::text($body, 'body')),
+            signature: trim(FormField::text($body, 'signature')),
+        );
 
         $programmesById = [];
         foreach ($this->page->programmes()[0] as $programme) {
-            $programmesById[(string) $programme['id']] = $programme;
+            $programmesById[$programme->id] = $programme;
         }
         $errors = self::validate($values, $programmesById);
         if ($errors !== []) {
-            return $this->page->render($request, $response->withStatus(422), ['errors' => $errors, 'values' => $values]);
+            return $this->page->render($request, $response->withStatus(422), errors: $errors, values: $values);
         }
 
         $event = $this->event;
         $base = RouteContext::fromRequest($request)->getBasePath();
-        $programme = $programmesById[$values['target']] ?? null;
+        $programme = $programmesById[$values->target] ?? null;
         $participantIds = null;
         if ($programme !== null) {
             try {
-                $participantIds = $this->provider->getParticipantIdsForProgramme((int) $programme['id']);
+                $participantIds = $this->provider->getParticipantIdsForProgramme($programme->id);
             } catch (ProgramUnavailableException|ProgramDataException) {
-                return $this->page->render($request, $response->withStatus(502), [
-                    'errors' => ['Nepodařilo se načíst přihlášené z KissJ, nic nebylo odesláno.'],
-                    'values' => $values,
-                ]);
+                return $this->page->render(
+                    $request,
+                    $response->withStatus(502),
+                    errors: ['Nepodařilo se načíst přihlášené z KissJ, nic nebylo odesláno.'],
+                    values: $values,
+                );
             }
         }
 
@@ -88,11 +93,13 @@ final class SendAction
         if (!is_string($given) || !$this->admin->consumeNonce($given)) {
             // The form was sent already (a double tap, a retry after a timeout) or is from
             // before the session: nothing goes out, and the text comes back for a deliberate re-send.
-            return $this->page->render($request, $response->withStatus(409), [
-                'notice' => 'Tento formulář už byl jednou odeslán, nebo je zastaralý, a tentokrát se nic neodeslalo. '
+            return $this->page->render(
+                $request,
+                $response->withStatus(409),
+                values: $values,
+                notice: 'Tento formulář už byl jednou odeslán, nebo je zastaralý, a tentokrát se nic neodeslalo. '
                     . 'Pokud zpráva v seznamu níže chybí, lze ji odeslat znovu.',
-                'values' => $values,
-            ]);
+            );
         }
 
         // Logged before the send, so a send that dies half-way still leaves the message on
@@ -100,42 +107,42 @@ final class SendAction
         // error page, and the log shows the message without counts.
         $messageId = $this->messages->begin(
             event: $event->slug,
-            programmeId: $programme === null ? null : (int) $programme['id'],
-            targetLabel: $programme === null ? 'Všem' : (string) $programme['name'],
-            title: $values['title'],
-            body: $values['body'],
-            signature: $values['signature'],
+            programmeId: $programme?->id,
+            targetLabel: $programme === null ? 'Všem' : $programme->name,
+            title: $values->title,
+            body: $values->body,
+            signature: $values->signature,
         );
 
         $result = $this->sender->sendToEvent(
             event: $event->slug,
-            title: $values['title'],
-            body: $values['body'],
-            icon: $event->get('assets')['notificationIcon'] ?? null,
+            title: $values->title,
+            body: $values->body,
+            icon: $event->assets->notificationIcon,
             url: $programme === null
                 ? $base . '/informace'
-                : sprintf('%s/programy#section-%d-program-%d', $base, $programme['section']['id'] ?? 0, $programme['id']),
+                : sprintf('%s/programy#section-%d-program-%d', $base, $programme->sectionId, $programme->id),
             participantIds: $participantIds,
-            programme: $programme === null ? null : (int) $programme['id'],
+            programme: $programme?->id,
         );
         $unreached = $participantIds === null
             ? null
             : count(array_diff($participantIds, $this->subscriptions->subscribedParticipantIds($event->slug)));
-        $this->messages->finish($event->slug, $messageId, $result['sent'], $result['removed'], $result['failed'], $unreached);
+        $this->messages->finish($event->slug, $messageId, $result->sent, $result->removed, $result->failed, $unreached);
         // a record on stdout even with Sentry off; no participant id, no title, no body
         $this->logger->info('push.sent', [
             'event' => $event->slug,
-            'sent' => $result['sent'],
-            'removed' => $result['removed'],
-            'failed' => $result['failed'],
-            'programme' => $programme === null ? null : (int) $programme['id'],
+            'sent' => $result->sent,
+            'removed' => $result->removed,
+            'failed' => $result->failed,
+            'programme' => $programme?->id,
         ]);
 
         // Post/Redirect/Get: a refresh of the result must not send the message again. The
         // next message usually comes from the same person, so only Podpis is kept.
         $this->admin->flashResult(
-            ['sent' => $result['sent'], 'removed' => $result['removed'], 'failed' => $result['failed'], 'unreached' => $unreached],
-            $values['signature'],
+            ['sent' => $result->sent, 'removed' => $result->removed, 'failed' => $result->failed, 'unreached' => $unreached],
+            $values->signature,
         );
 
         return $response
@@ -144,23 +151,22 @@ final class SendAction
     }
 
     /**
-     * @param array{target: string, title: string, body: string, signature: string} $values
-     * @param array<string, array> $programmesById
+     * @param array<int, Programme> $programmesById
      * @return list<string> one Czech line per problem
      */
-    private static function validate(array $values, array $programmesById): array
+    private static function validate(FormValues $values, array $programmesById): array
     {
         $errors = [];
-        if ($values['title'] === '' || mb_strlen($values['title']) > 60) {
+        if ($values->title === '' || mb_strlen($values->title) > 60) {
             $errors[] = 'Titulek je povinný a smí mít nejvýš 60 znaků.';
         }
-        if ($values['body'] === '' || mb_strlen($values['body']) > 500) {
+        if ($values->body === '' || mb_strlen($values->body) > 500) {
             $errors[] = 'Zpráva je povinná a smí mít nejvýš 500 znaků.';
         }
-        if (!AdminPage::signatureValid($values['signature'])) {
-            $errors[] = AdminPage::SIGNATURE_ERROR;
+        if (!AdminPageRenderer::signatureValid($values->signature)) {
+            $errors[] = AdminPageRenderer::SIGNATURE_ERROR;
         }
-        if ($values['target'] !== '' && !isset($programmesById[$values['target']])) {
+        if ($values->target !== '' && !isset($programmesById[$values->target])) {
             $errors[] = 'Vybraný program neexistuje.';
         }
 

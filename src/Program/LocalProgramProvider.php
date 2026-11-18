@@ -26,6 +26,10 @@ use Psr\Clock\ClockInterface;
  *   is a LocalStateException, which callers treat as an outage.
  * - As in kissj, a preregistered programme is in no participant's list: it belongs to a
  *   role, which the app does not know.
+ *
+ * The state file as state() reads it; each participant's list is checked where it is used.
+ *
+ * @phpstan-type State array{registrations: array<mixed>, revoked: list<string>}
  */
 final class LocalProgramProvider implements ProgramProviderInterface
 {
@@ -35,10 +39,10 @@ final class LocalProgramProvider implements ProgramProviderInterface
 
     private const string TOKEN_PATTERN = '/^stub-(\d+)-[0-9a-f]{16}$/';
 
-    /** @var array<string, array> decoded fixtures, kept for the life of the request */
+    /** @var array<string, array<mixed>> decoded fixtures, kept for the life of the request */
     private array $decoded = [];
 
-    /** @var list<array>|null */
+    /** @var list<Programme>|null */
     private ?array $programs = null;
 
     public function __construct(
@@ -47,14 +51,20 @@ final class LocalProgramProvider implements ProgramProviderInterface
         private readonly ClockInterface $clock = new SystemClock(),
     ) {}
 
+    /** Every row of programs.json that is a programme; one without an integer id is left out. */
     public function getPrograms(): array
     {
-        return $this->programs ??= array_map(
-            static fn(mixed $program): mixed => is_array($program)
-                ? array_merge($program, ['preregistered' => ($program['preregistered'] ?? false) === true])
-                : $program,
-            array_values($this->readJson('programs.json')),
-        );
+        if ($this->programs === null) {
+            $this->programs = [];
+            foreach ($this->readJson('programs.json') as $row) {
+                $programme = is_array($row) ? Programme::fromArray($row) : null;
+                if ($programme !== null) {
+                    $this->programs[] = $programme;
+                }
+            }
+        }
+
+        return $this->programs;
     }
 
     /**
@@ -84,7 +94,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
             is_string($nickname) ? $nickname : null,
             array_values(array_filter(
                 $this->getPrograms(),
-                static fn(mixed $program): bool => is_array($program) && in_array($program['id'] ?? null, $ids, true),
+                static fn(Programme $program): bool => in_array($program->id, $ids, true),
             )),
         );
     }
@@ -160,7 +170,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
         }
         $programme = null;
         foreach ($this->getPrograms() as $candidate) {
-            if (is_array($candidate) && ($candidate['id'] ?? null) === $programmeId) {
+            if ($candidate->id === $programmeId) {
                 $programme = $candidate;
                 break;
             }
@@ -168,15 +178,14 @@ final class LocalProgramProvider implements ProgramProviderInterface
         if ($programme === null) {
             throw new RegistrationRefusedException('notFound');
         }
-        if ($programme['preregistered']) {
+        if ($programme->preregistered) {
             throw new RegistrationRefusedException('notPossible');
         }
 
-        $registeredIn = fn(array $state): array => $this->registrations($state)[$participantId] ?? [];
         // checked under the lock, so of a double tap the second one is refused; a refusal
         // throws out of the change, and mutate() then writes nothing
-        $this->mutate(static function (array $state) use ($participantId, $programmeId, $register, $registeredIn): array {
-            $mine = $registeredIn($state);
+        $this->mutate(function (array $state) use ($participantId, $programmeId, $register): array {
+            $mine = $this->registrations($state)[$participantId] ?? [];
             $has = in_array($programmeId, $mine, true);
             if ($register && $has) {
                 throw new RegistrationRefusedException('alreadyRegistered');
@@ -216,7 +225,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
      * registered.json, each participant's list replaced by the one in the state file when
      * the app has written one.
      *
-     * @param array{registrations: array<string, list<int>>, revoked: list<string>} $state
+     * @param State $state
      * @return array<int, list<int>>
      */
     private function registrations(array $state): array
@@ -225,8 +234,8 @@ final class LocalProgramProvider implements ProgramProviderInterface
         // so it is in nobody's list whatever a hand-edited fixture says
         $preregistered = [];
         foreach ($this->getPrograms() as $program) {
-            if (is_array($program) && $program['preregistered'] && is_int($program['id'] ?? null)) {
-                $preregistered[$program['id']] = true;
+            if ($program->preregistered) {
+                $preregistered[$program->id] = true;
             }
         }
         $registrations = [];
@@ -244,7 +253,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
         return $registrations;
     }
 
-    /** @return array{registrations: array<string, list<int>>, revoked: list<string>} */
+    /** @return State */
     private function readState(): array
     {
         $json = @file_get_contents($this->statePath());
@@ -256,7 +265,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
      * Read, change and write the state file under one exclusive lock, so two workers
      * writing at once (a double tap) each see the other's write.
      *
-     * @param \Closure(array{registrations: array<string, list<int>>, revoked: list<string>}): array $change
+     * @param \Closure(State): State $change
      */
     private function mutate(\Closure $change): void
     {
@@ -273,7 +282,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
             }
             $state = $change(self::state((string) stream_get_contents($handle)));
             $json = json_encode(
-                ['registrations' => (object) $state['registrations'], 'revoked' => array_values($state['revoked'])],
+                ['registrations' => (object) $state['registrations'], 'revoked' => $state['revoked']],
                 JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
             );
             if (!ftruncate($handle, 0) || !rewind($handle) || @fwrite($handle, $json . "\n") === false || !fflush($handle)) {
@@ -285,7 +294,7 @@ final class LocalProgramProvider implements ProgramProviderInterface
         }
     }
 
-    /** @return array{registrations: array<string, list<int>>, revoked: list<string>} */
+    /** @return State */
     private static function state(string $json): array
     {
         $state = json_decode($json, true);
@@ -322,6 +331,8 @@ final class LocalProgramProvider implements ProgramProviderInterface
      * Memoised: a logged-in request reads programs.json for the screen and again for the
      * participant, and the provider lives for exactly one request, so there is no
      * staleness to weigh against the saved read and decode.
+     *
+     * @return array<mixed>
      */
     private function readJson(string $file): array
     {

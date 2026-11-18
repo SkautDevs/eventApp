@@ -23,6 +23,14 @@ final class Tracer
      */
     public const string FROM_RESULT = '@result';
 
+    /**
+     * @template T
+     *
+     * @param callable(): T $fn
+     * @param array<string, mixed> $data span data; FROM_RESULT's closure adds to it
+     *
+     * @return T
+     */
     public static function span(string $op, string $description, callable $fn, array $data = []): mixed
     {
         $hub = SentrySdk::getCurrentHub();
@@ -42,7 +50,7 @@ final class Tracer
         try {
             $result = $fn();
             if ($fromResult instanceof \Closure) {
-                $data = $fromResult($result) + $data;
+                $data = self::resultData($fromResult($result)) + $data;
             }
             $span->setStatus(SpanStatus::ok());
 
@@ -55,6 +63,28 @@ final class Tracer
             $span->finish();
             $hub->setSpan($parent);
         }
+    }
+
+    /**
+     * What a FROM_RESULT closure returned, as span data. Anything but an array is the
+     * closure's mistake and fails as `$extra + $data` always failed it; a key that is not a
+     * name is left out, as the SDK's span data is keyed by name.
+     *
+     * @return array<string, mixed>
+     */
+    private static function resultData(mixed $extra): array
+    {
+        if (!is_array($extra)) {
+            throw new \TypeError(sprintf('Unsupported operand types: %s + array', get_debug_type($extra)));
+        }
+        $named = [];
+        foreach ($extra as $key => $value) {
+            if (is_string($key)) {
+                $named[$key] = $value;
+            }
+        }
+
+        return $named;
     }
 
     /**

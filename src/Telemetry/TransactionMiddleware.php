@@ -26,7 +26,8 @@ final class TransactionMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $hub = SentrySdk::getCurrentHub();
-        if ($hub->getClient() === null || $request->getUri()->getPath() === '/health') {
+        $client = $hub->getClient();
+        if ($client === null || $request->getUri()->getPath() === '/health') {
             return $handler->handle($request);
         }
 
@@ -43,7 +44,7 @@ final class TransactionMiddleware implements MiddlewareInterface
         } finally {
             $transaction->finish();
             $hub->setSpan(null);
-            $hub->getClient()?->flush();
+            $client->flush();
         }
     }
 

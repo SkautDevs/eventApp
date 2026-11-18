@@ -58,9 +58,20 @@ final class Migrator
         }
     }
 
+    /**
+     * Read anew on every call: the migration re-reads it under the write lock, after
+     * another worker may have moved it.
+     *
+     * @phpstan-impure
+     */
     public static function version(\PDO $pdo): int
     {
-        return (int) $pdo->query('PRAGMA user_version')->fetchColumn();
+        $statement = $pdo->query('PRAGMA user_version');
+        // PDO throws on a failed query unless told otherwise (ERRMODE_EXCEPTION, PHP 8's
+        // default, and the one Database::open() sets), so false never comes back
+        \assert($statement instanceof \PDOStatement);
+
+        return Row::toInt($statement->fetchColumn());
     }
 
     /**

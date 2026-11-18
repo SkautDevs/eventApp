@@ -6,7 +6,10 @@ namespace App\Push;
 
 use App\Telemetry\Collector;
 use App\Telemetry\Tracer;
-use Minishlink\WebPush\Subscription;
+use GuzzleHttp\Promise\PromiseInterface;
+use Minishlink\WebPush\Subscription as WebPushSubscription;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -37,7 +40,8 @@ final class WebPushSender implements PushSenderInterface
      * @param \Closure(): SubscriptionRepository $repository resolved on the first send, so
      *        building the sender — which Kernel does at boot for every push event — opens
      *        no database
-     * @param array<string, mixed> $clientOptions extra Guzzle options; tests pass a mock handler
+     * @param array{handler?: callable(RequestInterface, array<array-key, mixed>): PromiseInterface<ResponseInterface, mixed>} $clientOptions
+     *        extra Guzzle options; tests pass a mock handler
      * @param LoggerInterface $logger where a batch with failures leaves its one warning
      * @param (\Closure(\Throwable): void)|null $report where a swallowed throwable goes; Sentry by default
      * @param bool $checkKeys @internal a test seam: false lets a row whose key is unusable
@@ -69,7 +73,7 @@ final class WebPushSender implements PushSenderInterface
         ?string $url = null,
         ?array $participantIds = null,
         ?int $programme = null,
-    ): array {
+    ): SendResult {
         $rows = $this->repository()->forEvent($event, $participantIds);
 
         $result = Tracer::span(
@@ -104,7 +108,7 @@ final class WebPushSender implements PushSenderInterface
             ],
         );
 
-        return ['recipients' => count($rows)] + $result;
+        return new SendResult(count($rows), $result['sent'], $result['removed'], $result['failed']);
     }
 
     public function sendToSubscription(
@@ -133,7 +137,7 @@ final class WebPushSender implements PushSenderInterface
      * is a warning, passes the filter and reaches Sentry as one.
      *
      * @param array{subject: string, publicKey: string, privateKey: string} $vapid
-     * @param array<string, mixed> $clientOptions
+     * @param array{handler?: callable(RequestInterface, array<array-key, mixed>): PromiseInterface<ResponseInterface, mixed>} $clientOptions
      */
     public static function webPush(array $vapid, array $clientOptions = [], LoggerInterface $logger = new NullLogger()): IsolatingWebPush
     {
@@ -183,7 +187,7 @@ final class WebPushSender implements PushSenderInterface
 
     /**
      * @param string $event every row belongs to it, and a dead row is removed from it only
-     * @param list<array{endpoint: string, publicKey: string, authToken: string, participantId: ?int}> $rows
+     * @param list<Subscription> $rows
      *
      * @return array{sent: int, removed: int, failed: int} failed: neither delivered nor
      *         removed — a refusal other than 404/410 (a VAPID mismatch is a 403), or a throw
@@ -208,18 +212,18 @@ final class WebPushSender implements PushSenderInterface
             // dropped, before it is ever queued. So is a row whose host is not a known
             // push service: rows saved before the allow-list existed may name any URL,
             // and the server must not POST to it.
-            if (!$this->endpoints->allows($row['endpoint']) || ($this->checkKeys && !self::isDeliverable($row))) {
-                $this->repository()->delete($event, $row['endpoint']);
+            if (!$this->endpoints->allows($row->endpoint) || ($this->checkKeys && !self::isDeliverable($row))) {
+                $this->repository()->delete($event, $row->endpoint);
                 $removed++;
                 continue;
             }
 
             try {
                 $webPush->queueNotification(
-                    Subscription::create([
-                        'endpoint' => $row['endpoint'],
-                        'publicKey' => $row['publicKey'],
-                        'authToken' => $row['authToken'],
+                    WebPushSubscription::create([
+                        'endpoint' => $row->endpoint,
+                        'publicKey' => $row->publicKey,
+                        'authToken' => $row->authToken,
                     ]),
                     $payload,
                 );
@@ -357,11 +361,10 @@ final class WebPushSender implements PushSenderInterface
      * an auth secret of 16 bytes. Every real browser subscription has it; a row that does
      * not can never receive a notification, so it is dead weight rather than a subscriber.
      *
-     * @param array{endpoint: string, publicKey: string, authToken: string} $row
      */
-    private static function isDeliverable(array $row): bool
+    private static function isDeliverable(Subscription $row): bool
     {
-        return SubscriptionKeys::valid($row['publicKey'], $row['authToken']);
+        return SubscriptionKeys::valid($row->publicKey, $row->authToken);
     }
 
     /** 65 bytes, a leading 0x04: the shape of the VAPID public key. */

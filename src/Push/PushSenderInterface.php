@@ -14,12 +14,11 @@ interface PushSenderInterface
      * @param int|null $programme the programme a message is about, or null; it travels in
      *                            the payload so the open app can refresh that screen too
      *
-     * @return array{recipients: int, sent: int, removed: int, failed: int} recipients: the
-     *         rows the send was addressed to; removed: rows found dead and deleted (a 404 or
-     *         410, an unusable key, a host off the allow-list, or the last of
-     *         WebPushSender::MAX_FAILURES failures in a row — that one counts as failed, not
-     *         removed); failed: neither delivered nor removed (a refusal other than 404/410,
-     *         a timeout, a throw)
+     * @return SendResult recipients: the rows the send was addressed to; removed: rows
+     *         found dead and deleted (a 404 or 410, an unusable key, a host off the
+     *         allow-list, or the last of WebPushSender::MAX_FAILURES failures in a row — that
+     *         one counts as failed, not removed); failed: neither delivered nor removed (a
+     *         refusal other than 404/410, a timeout, a throw)
      */
     public function sendToEvent(
         string $event,
@@ -29,7 +28,7 @@ interface PushSenderInterface
         ?string $url = null,
         ?array $participantIds = null,
         ?int $programme = null,
-    ): array;
+    ): SendResult;
 
     /**
      * One notification to one stored subscription of the event — the welcome a browser gets

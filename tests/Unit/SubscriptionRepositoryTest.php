@@ -26,7 +26,7 @@ final class SubscriptionRepositoryTest extends TestCase
         $repo->save(['endpoint' => 'https://push.example/abc', 'keys' => ['p256dh' => 'PK2', 'auth' => 'AT2']], 'obrok19');
 
         self::assertSame(1, $repo->count());
-        self::assertSame('PK2', $repo->forEvent('obrok19')[0]['publicKey']);
+        self::assertSame('PK2', $repo->forEvent('obrok19')[0]->publicKey);
     }
 
     public function testFindLooksUpOneEndpointWithinItsEvent(): void
@@ -36,7 +36,7 @@ final class SubscriptionRepositoryTest extends TestCase
 
         self::assertSame(
             ['endpoint' => 'https://push.example/abc', 'publicKey' => 'PK', 'authToken' => 'AT', 'participantId' => 7],
-            $repo->find('obrok19', 'https://push.example/abc'),
+            get_object_vars($repo->find('obrok19', 'https://push.example/abc')),
         );
         self::assertNull($repo->find('obrok27', 'https://push.example/abc'));
         self::assertNull($repo->find('obrok19', 'https://push.example/other'));
@@ -72,10 +72,10 @@ final class SubscriptionRepositoryTest extends TestCase
         $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k2', 'auth' => 'a2']], 'obrok27');
 
         self::assertSame(2, $repo->count());
-        self::assertSame(1, $repo->find('korbo26', 'https://push.example/a')['participantId']);
-        self::assertNull($repo->find('obrok27', 'https://push.example/a')['participantId']);
-        self::assertSame('k2', $repo->find('obrok27', 'https://push.example/a')['publicKey']);
-        self::assertSame('k1', $repo->find('korbo26', 'https://push.example/a')['publicKey'], 'saving in one event replaces nothing in another');
+        self::assertSame(1, $repo->find('korbo26', 'https://push.example/a')->participantId);
+        self::assertNull($repo->find('obrok27', 'https://push.example/a')->participantId);
+        self::assertSame('k2', $repo->find('obrok27', 'https://push.example/a')->publicKey);
+        self::assertSame('k1', $repo->find('korbo26', 'https://push.example/a')->publicKey, 'saving in one event replaces nothing in another');
     }
 
     public function testInvalidShapeThrows(): void
@@ -100,16 +100,16 @@ final class SubscriptionRepositoryTest extends TestCase
         $sub = ['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'k', 'auth' => 'a']];
 
         $repo->save($sub, 'korbo26');
-        self::assertNull($repo->forEvent('korbo26')[0]['participantId']);
+        self::assertNull($repo->forEvent('korbo26')[0]->participantId);
 
         $repo->save($sub, 'korbo26', 1);
-        self::assertSame(1, $repo->forEvent('korbo26')[0]['participantId']);
+        self::assertSame(1, $repo->forEvent('korbo26')[0]->participantId);
 
         $repo->save($sub, 'korbo26', 2);
-        self::assertSame(2, $repo->forEvent('korbo26')[0]['participantId']);
+        self::assertSame(2, $repo->forEvent('korbo26')[0]->participantId);
 
         $repo->save($sub, 'korbo26', null);
-        self::assertNull($repo->forEvent('korbo26')[0]['participantId']);
+        self::assertNull($repo->forEvent('korbo26')[0]->participantId);
         self::assertSame(1, $repo->count('korbo26'));
     }
 
@@ -188,11 +188,11 @@ final class SubscriptionRepositoryTest extends TestCase
 
         $repo->save($sub, 'korbo26', 1);
         self::assertSame(3, $failures(), 'same keys: the count stays');
-        self::assertSame(1, $repo->find('korbo26', 'https://push.example/a')['participantId'], 'the rest of the row is updated');
+        self::assertSame(1, $repo->find('korbo26', 'https://push.example/a')->participantId, 'the rest of the row is updated');
 
         $repo->save(['endpoint' => 'https://push.example/a', 'keys' => ['p256dh' => 'PK2', 'auth' => 'AT']], 'korbo26');
         self::assertSame(0, $failures(), 'new keys: the count starts again');
         self::assertSame(1, $repo->count('korbo26'));
-        self::assertNull($repo->find('korbo26', 'https://push.example/a')['participantId'], 'a logged-out re-send clears the participant, as before');
+        self::assertNull($repo->find('korbo26', 'https://push.example/a')->participantId, 'a logged-out re-send clears the participant, as before');
     }
 }

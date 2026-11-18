@@ -214,8 +214,9 @@ final class ServiceWorkerTest extends AppTestCase
         $stub = new \App\Program\LocalProgramProvider(dirname(__DIR__, 2) . '/events/obrok19/fixtures', $this->stubState);
         $at = new \DateTimeImmutable($written, new \DateTimeZone('Europe/Prague'));
         (new \App\Cache\FileCache($dir, new \Tests\FixedClock($at)))->set(\App\Program\CachingProgramProvider::LIST_KEY, [
-            'sections' => $stub->getSections(),
-            'programmes' => $stub->getPrograms(),
+            // the entry as the decorator stores it: rows, sections keyed by id
+            'sections' => array_map(static fn(\App\Program\Section $section): array => $section->toArray(), $stub->getSections()),
+            'programmes' => array_map(static fn(\App\Program\Programme $programme): array => $programme->toArray(), $stub->getPrograms()),
             'registration' => ['start' => null, 'end' => null],
         ]);
         $down = new ThrowingProgramProvider(programsException: new \App\Program\ProgramUnavailableException('down'));

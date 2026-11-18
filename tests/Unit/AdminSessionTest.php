@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\Environment;
 use App\EventConfig;
 use App\Module\Admin\AdminSession;
+use App\Module\Admin\View\NotifyResult;
 use App\Session;
 use PHPUnit\Framework\TestCase;
 use Tests\FixedClock;
@@ -113,5 +114,19 @@ final class AdminSessionTest extends TestCase
             $admin->takeResult(),
         );
         self::assertNull($admin->takeResult());
+    }
+
+    /** The page reads the flashed result back through NotifyResult::fromArray(): the stored shape above, pinned. */
+    public function testTheFlashedResultIsReadAsANotifyResult(): void
+    {
+        $result = NotifyResult::fromArray(['sent' => 1, 'removed' => 0, 'failed' => 0, 'unreached' => null]);
+
+        self::assertSame(1, $result->sent);
+        self::assertSame(0, $result->removed);
+        self::assertSame(0, $result->failed);
+        self::assertNull($result->unreached);
+
+        // a programme send flashes the registered participants it could not reach
+        self::assertSame(3, NotifyResult::fromArray(['sent' => 2, 'removed' => 1, 'failed' => 0, 'unreached' => 3])->unreached);
     }
 }

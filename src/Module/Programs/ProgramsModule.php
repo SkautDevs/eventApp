@@ -26,7 +26,7 @@ final class ProgramsModule implements ModuleInterface
         return 'programs';
     }
 
-    public function menuItem(): ?MenuItem
+    public function menuItem(): MenuItem
     {
         return new MenuItem(self::key(), 'Program', 'programs', 'far fa-calendar-alt', 10);
     }
