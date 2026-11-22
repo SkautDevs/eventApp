@@ -15,7 +15,7 @@ function init(root) {
 	}
 	root.dataset.mapReady = '1';
 	const slug = root.dataset.mapEvent || '';
-	setupViews(root, slug, setupPlan(root, slug));
+	setupViews(root, setupPlan(root, slug));
 }
 
 function initAll(scope) {

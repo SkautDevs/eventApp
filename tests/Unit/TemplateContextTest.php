@@ -12,9 +12,9 @@ final class TemplateContextTest extends TestCase
 {
     public function testAPageIsItsPublicPropertiesByName(): void
     {
-        $page = new MapPage('https://www.google.com/maps/d/embed?mid=x', null, 'Plán areálu');
+        $page = new MapPage('google', 'https://www.google.com/maps/d/embed?mid=x', null, 'Plán areálu');
 
         self::assertSame(get_object_vars($page), TemplateContext::of($page));
-        self::assertSame(['embedUrl' => 'https://www.google.com/maps/d/embed?mid=x', 'image' => null, 'imageAlt' => 'Plán areálu'], TemplateContext::of($page));
+        self::assertSame(['view' => 'google', 'embedUrl' => 'https://www.google.com/maps/d/embed?mid=x', 'image' => null, 'imageAlt' => 'Plán areálu'], TemplateContext::of($page));
     }
 }

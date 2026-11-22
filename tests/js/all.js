@@ -15,5 +15,6 @@ import './mode.test.js';
 import './push.test.js';
 import './map.test.js';
 import './programs.test.js';
+import './write.test.js';
 
 finish();

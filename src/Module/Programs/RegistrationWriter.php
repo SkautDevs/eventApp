@@ -20,7 +20,8 @@ use App\Toast\Toasts;
  * One register or unregister from a programme's sheet, for a paired reader
  * (RegisterAction and UnregisterAction check the origin and the pairing first): the
  * provider's answer becomes the session toast, and write() names the programme's deep
- * link, where the redirect lands and its sheet reopens under that toast. A repeat's
+ * link on the view the write was sent from, where the redirect lands and its sheet reopens
+ * under that toast. A repeat's
  * refusal (`alreadyRegistered` after a register, `notRegistered` after an unregister) does
  * not replace the same write's success toast still waiting unseen
  * (`Toasts::putUnlessPending()`, matched by the `tag` `register:<id>`/`unregister:<id>`
@@ -59,6 +60,12 @@ final class RegistrationWriter
      */
     private const array REPEATED = [true => 'alreadyRegistered', false => 'notRegistered'];
 
+    /**
+     * The path under `/<slug>` of each view a write can be sent from (the forms' `pohled`
+     * field); any other value, and none, is Harmonogram's, the screen's own path.
+     */
+    private const array VIEW_PATHS = ['overview' => '/programy/prehled', 'list' => '/programy/moje', 'timeline' => '/programy'];
+
     /** The sheet's line, the toast's second line and the 403 page's message for a reader who is not paired. */
     public const string NOT_PAIRED = 'Pro zápis na programy se přihlas kódem z KissJ';
 
@@ -71,14 +78,18 @@ final class RegistrationWriter
 
     /**
      * One register or unregister: the provider's answer becomes the session toast, and the
-     * reader goes back to the programme. Only a cross-site form or a reader who is not
-     * paired gets a page of its own (403), which the actions render before calling this.
-     * Toasts stamps the toast from the clock when it is left, i.e. after the provider has
-     * answered.
+     * reader goes back to the programme on the view it was sent from. Only a cross-site form
+     * or a reader who is not paired gets a page of its own (403), which the actions render
+     * before calling this. Toasts stamps the toast from the clock when it is left, i.e.
+     * after the provider has answered.
      *
-     * @return string the redirect target, `/<slug>/programy#section-<sectionId>-program-<id>`
+     * @param ?string $view the form's `pohled` field: `overview`, `list` or `timeline`; anything
+     *                      else, an empty one (a page cached before the field) and null are `timeline`
+     *
+     * @return string the redirect target: `/<slug>/programy/prehled#section-<sectionId>-program-<id>`
+     *                for `overview`, `/<slug>/programy/moje#…` for `list`, `/<slug>/programy#…` otherwise
      */
-    public function write(bool $register, int $programmeId): string
+    public function write(bool $register, int $programmeId, ?string $view = null): string
     {
         $auth = $this->auth;
         $identity = $auth->identity()
@@ -124,7 +135,9 @@ final class RegistrationWriter
         $programme = $this->programme($programmeId);
         $sectionId = $programme === null ? 0 : $programme->sectionId;
 
-        return '/' . $this->event->slug . '/programy#section-' . $sectionId . '-program-' . $programmeId;
+        $path = self::VIEW_PATHS[$view ?? 'timeline'] ?? self::VIEW_PATHS['timeline'];
+
+        return '/' . $this->event->slug . $path . '#section-' . $sectionId . '-program-' . $programmeId;
     }
 
     /**

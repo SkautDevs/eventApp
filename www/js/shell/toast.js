@@ -78,6 +78,11 @@ export function showToast(title, line) {
 	armToast(toast);
 }
 
+/** The toast of a write that could not leave: no signal, so nothing was changed. */
+export function showOfflineToast() {
+	showToast('Akci není možné provést, protože jsi offline.', 'Zkus to znovu až najdeš místo se signálem.');
+}
+
 document.addEventListener('click', event => {
 	const close = event.target.closest ? event.target.closest('[data-toast-close]') : null;
 	const toast = close ? close.closest('[data-toast]') : null;
@@ -86,12 +91,13 @@ document.addEventListener('click', event => {
 	}
 });
 
-// A write tapped with no signal: the worker answered it with a redirect back here plus
-// #offline (www/sw.js), and the hash is said once and then taken away, so a reload or a
-// shared link does not say it again. The loader's state object is passed through.
+// A write tapped with no signal: the worker answered it with this page plus #offline
+// (www/sw.js: a redirect for a plain form, `{"next"}` for shell/write.js), and the hash is
+// said once and then taken away, so a reload or a shared link does not say it again. The
+// loader's state object is passed through.
 document.addEventListener('DOMContentLoaded', () => {
 	if (location.hash === '#offline') {
-		showToast('Akci není možné provést, protože jsi offline.', 'Zkus to znovu až najdeš místo se signálem.');
+		showOfflineToast();
 		history.replaceState(history.state, '', location.pathname + location.search);
 	}
 });

@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Module\Programs;
 
 use App\Auth\Authenticator;
+use App\Http\FormField;
 use App\Http\RefusalPage;
 use App\Http\SameOrigin;
+use App\Http\WriteResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Routing\RouteContext;
@@ -14,7 +16,8 @@ use Slim\Routing\RouteContext;
 /**
  * POST /programy/{id}/prihlasit, the sheet's register form. A cross-site form or a reader
  * who is not paired gets a page of its own (403); otherwise RegistrationWriter writes and
- * leaves the toast, and the reader is sent back to the programme's deep link.
+ * leaves the toast, and the reader is sent back to the programme's deep link on the view
+ * the form's `pohled` field names (WriteResponse: a redirect, or `{"next"}` for the script).
  */
 final class RegisterAction
 {
@@ -39,8 +42,6 @@ final class RegisterAction
             return $this->refusal->render($response, RegistrationWriter::NOT_PAIRED . '.', $base . '/profil', 'Přihlásit se');
         }
 
-        return $response
-            ->withHeader('Location', $this->writer->write(true, (int) $args['id']))
-            ->withStatus(302);
+        return WriteResponse::redirect($request, $response, $this->writer->write(true, (int) $args['id'], FormField::text((array) $request->getParsedBody(), 'pohled')));
     }
 }

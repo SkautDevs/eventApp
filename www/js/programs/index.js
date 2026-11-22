@@ -17,7 +17,7 @@ import {nextTabIndex} from '../ui/tabs.js';
 import {setup as setupChips} from './chips.js';
 import {isList, LIST_KINDS, setup as setupDaylist} from './daylist.js';
 import {setup as setupDeeplink} from './deeplink.js';
-import {hashTarget} from './maths.js';
+import {hashTarget, legacyTarget, viewFromPath} from './maths.js';
 import {setup as setupNowline} from './nowline.js';
 import {setup as setupSheet} from './sheet.js';
 import {setup as setupTimeline} from './timeline.js';
@@ -31,20 +31,26 @@ export function init(root) {
 	root.dataset.pgReady = '1';
 
 	const cssPx = name => parseFloat(getComputedStyle(root).getPropertyValue(name)) || 0;
+	const section = root.closest('[data-screen]');
+	// the screen's own path; its views' addresses are built on it (maths.js, viewPath())
+	const screen = section ? section.dataset.screen : '';
 	const ctx = {
 		root,
 		slug: root.dataset.pgEvent || '',
+		screen,
 		cssPx,
 		stageWidth: cssPx('--tl-stage-width'),
 		// What the reader owns rather than the server: which view is up and which page
 		// the timeline is on. Held here as well as in the DOM, because a background
 		// morph rewrites the DOM back to the server's defaults and this is what puts
-		// the reader's own state back on top of it.
-		view: root.dataset.view || 'timeline',
+		// the reader's own state back on top of it. The view is the address's: an offline
+		// copy of the screen is stored once for all three addresses, so its data-view may
+		// be another view's.
+		view: viewFromPath(location.pathname, screen) ?? (root.dataset.view || 'timeline'),
 		pageKey: null,
 		hourWidth: cssPx('--hour-width'),
-		// a deep link opens the timeline; Moje is put on the same programme so that
-		// switching to it lands on the programme rather than at the top
+		// the programme Moje lands on when it is next entered: a deep link's, or one
+		// opened on Harmonogram, so that switching to Moje lands on it rather than at the top
 		pendingListTarget: null,
 	};
 
@@ -63,7 +69,7 @@ export function init(root) {
 		const data = el.dataset;
 
 		if (data.pgView !== undefined) {
-			ctx.showView(data.pgView);
+			ctx.selectView(data.pgView);
 		} else if (data.pgPage !== undefined) {
 			if (isList(data.pgKind)) {
 				ctx.scrollToDay(data.pgKind, data.pgPage);
@@ -110,7 +116,7 @@ export function init(root) {
 			const list = ctx.viewTabs();
 			const next = nextTabIndex(event.key, list.indexOf(tab), list.length);
 			event.preventDefault();
-			ctx.showView(list[next].dataset.pgView);
+			ctx.selectView(list[next].dataset.pgView);
 			list[next].focus();
 			return;
 		}
@@ -165,11 +171,23 @@ export function init(root) {
 	});
 	ctx.showView(ctx.view);
 	ctx.updateNow();
-	// a deep link names its own page; only a plain landing goes to "now"
-	if (hashTarget(location.hash) === null) {
+	// a deep link (or an old Moje hash) names its own place; only a plain landing goes to "now"
+	if (hashTarget(location.hash) === null && legacyTarget(location.hash) === null) {
 		ctx.openOnNow();
 	}
 	ctx.fromHash();
+
+	// A screen already wired reads its address again each time it is shown: a tab tap
+	// comes back to the address the screen was left on, Back from another screen to a
+	// sheet's entry opens that sheet, and the loader's deep link (Domů's next-programme
+	// card) pushes its address and dispatches no hashchange.
+	// Registered here, while the root is being wired, so the screen:shown that wires it,
+	// if any, does not reach it: the wiring above has read the address itself.
+	onScreenShown(target => {
+		if (target.contains && target.contains(root)) {
+			ctx.syncFromUrl();
+		}
+	});
 }
 
 /** Wires every Program screen inside `scope`; safe to call repeatedly on the same screen. */

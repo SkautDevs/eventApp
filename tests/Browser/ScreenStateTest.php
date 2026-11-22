@@ -48,6 +48,31 @@ final class ScreenStateTest extends BrowserTestCase
         self::assertSame(1, self::script('return window.__noReload;'));
     }
 
+    /**
+     * Landed on a view address, the Program tab still names the screen, and the screen is
+     * filed once, under that name: the warm-up does not fetch it a second time. Leaving the
+     * screen and tapping its tab comes back to the address the reader was on, which the
+     * loader keeps itself; the tab's href is never rewritten.
+     */
+    public function testATabHrefIsTheScreenNotTheAlias(): void
+    {
+        self::visit('/korbo26/programy/moje');
+        self::script('window.__noReload = 1;');
+        $tab = '.tabbar a[data-screen-aliases]';
+        self::assertSame('/korbo26/programy', self::script('return document.querySelector(arguments[0]).getAttribute("href");', [$tab]));
+
+        self::tap('.tabbar a[href="/korbo26/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
+        self::tap($tab);
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/programy"]\'); return s && !s.hidden;');
+
+        self::assertSame('/korbo26/programy/moje', self::script('return location.pathname;'), 'the tab comes back to the address the screen was left on');
+        self::assertSame('/korbo26/programy', self::script('return document.querySelector(arguments[0]).getAttribute("href");', [$tab]));
+        self::assertSame('page', self::script('return document.querySelector(arguments[0]).getAttribute("aria-current");', [$tab]));
+        self::assertSame(1, self::script('return document.querySelectorAll(\'main [data-screen="/korbo26/programy"]\').length;'));
+        self::assertSame(1, self::script('return window.__noReload;'));
+    }
+
     /** korbo26 has no map; obrok19 is the event whose map is published. */
     public function testTheMapKeepsItsFrame(): void
     {

@@ -30,7 +30,7 @@
 			<article class="link-card"><h3>Přihlašování na programy</h3><p>{{ home.window.label }}</p></article>
 		{% elseif home.window and home.window.state == 'open' %}
 			{% if home.paired %}
-				<article class="link-card"><h3>Výběr programů</h3><p>{{ home.window.label }}</p><a class="btn btn-primary" href="{{ url_for('programs') }}">Vybrat programy</a></article>
+				<article class="link-card"><h3>Výběr programů</h3><p>{{ home.window.label }}</p><a class="btn btn-primary" href="{{ url_for('programs-overview') }}">Vybrat programy</a></article>
 			{% else %}
 				<article class="link-card"><h3>Výběr programů</h3><p>{{ home.window.label }}</p><p>Výběr programů je otevřený. Programy si můžeš prohlédnout v sekci Program.</p></article>
 			{% endif %}
@@ -71,7 +71,7 @@
 			<section class="next-up" aria-label="Tvůj program" data-next-up{% if home.nextUp.index is null %} hidden{% endif %}>
 				<h2>Můj program</h2>
 				{% for item in home.nextUp.items %}
-					<a class="link-card is-highlight next-card" href="{{ url_for('programs') }}#muj-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-time="{{ item.time }}" data-until="{{ item.until }}"{% if item.location %} data-location="{{ item.location }}"{% endif %} data-deep-link hidden>
+					<a class="link-card is-highlight next-card" href="{{ url_for('programs-mine') }}#section-{{ item.sectionId }}-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-time="{{ item.time }}" data-until="{{ item.until }}"{% if item.location %} data-location="{{ item.location }}"{% endif %} data-deep-link hidden>
 						<div class="link-card-text">
 							<p class="next-name">{{ item.name }}</p>
 							<p class="next-lead" data-next-lead></p>

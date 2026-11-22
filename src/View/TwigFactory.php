@@ -17,8 +17,8 @@ use Twig\TwigFilter;
 
 /**
  * An event's Twig environment, with the globals the layout reads (`event`, `base`,
- * `vapidPublicKey`, the script entries `scripts`, and `fragment`, `screenPath` and
- * `cspNonce`, which the per-request middlewares overwrite), the functions `auth_identity`,
+ * `vapidPublicKey`, the script entries `scripts`, and `fragment`, `screenPath`,
+ * `pageAddress` and `cspNonce`, which the per-request middlewares overwrite), the functions `auth_identity`,
  * `data_freshness`, `asset_version`, `script_url` and `script_preloads` (the files the
  * entries import) and the `dateToCzechDayName` filter. The instance
  * app's plain one is InstanceTwigFactory's.
@@ -65,8 +65,11 @@ final readonly class TwigFactory
         // it is happy to overwrite one that already exists. screenPath is the
         // path the screen was served from — not get_uri(), whose runtime slim/
         // twig-view resolves once and then keeps for the life of the app.
+        // pageAddress is the address itself, path and query, which a view address
+        // (/programy/moje) keeps while screenPath names its screen (/programy).
         $env->addGlobal('fragment', false);
         $env->addGlobal('screenPath', '/');
+        $env->addGlobal('pageAddress', '/');
         // CspMiddleware writes the request's nonce here; every inline <script> carries it
         $env->addGlobal('cspNonce', '');
         // the app bar shows who is paired. It has to be a function, not a global: a

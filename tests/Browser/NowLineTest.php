@@ -112,7 +112,7 @@ final class NowLineTest extends BrowserTestCase
     {
         self::pair();
         self::pinClock('2026-09-19T14:30:00+02:00');
-        self::visit('/korbo26/programy#muj-program');
+        self::visit('/korbo26/programy/moje');
         self::waitFor('return document.querySelectorAll(\'.pl-item[data-now="next"]\').length === 1;');
         self::assertSame('day-20260919', self::script('return document.querySelector(\'.pl-item[data-now="next"]\').closest(".pl-day").dataset.key;'));
         self::assertSame('50', self::script('return document.querySelector(\'.pl-item[data-now="next"]\').dataset.key;'));

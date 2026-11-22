@@ -41,7 +41,7 @@ final class NextUpTest extends BrowserTestCase
     {
         self::waitFor('return document.querySelector(".sheet.is-open") !== null;');
         self::assertSame(1, self::script('return window.__noReload;'));
-        self::assertSame('/korbo26/programy#muj-program-31', self::script('return location.pathname + location.hash;'));
+        self::assertSame('/korbo26/programy/moje#section-3-program-31', self::script('return location.pathname + location.hash;'));
         self::assertSame('list', self::script('return document.querySelector("[data-pg-root]").dataset.view;'));
         self::assertTrue(self::script('return document.querySelector(\'[data-pg-detail="31"]\').classList.contains("is-open");'));
         // a dialog that opens holds the focus, or a screen reader keeps reading behind it

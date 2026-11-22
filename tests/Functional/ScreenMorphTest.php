@@ -58,7 +58,7 @@ final class ScreenMorphTest extends AppTestCase
             (int) preg_match_all('/<button type="button" class="tl-card[^"]*" data-key="\d+"/', $html),
         );
         self::assertMatchesRegularExpression('/<button type="button" class="tl-card[^"]*" data-key="\d+"/', $html);
-        self::assertMatchesRegularExpression('/<div class="sheet-body" data-key="\d+"/', $html);
+        self::assertMatchesRegularExpression('/<div class="sheet-body" id="section-\d+-program-\d+" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<article class="pl-item[^"]*" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<section class="tl-page[^"]*"[^>]* data-key="page-\d{8}"/', $html);
         self::assertMatchesRegularExpression('/<section class="pl-day" data-key="day-\d+"/', $html);
@@ -140,6 +140,35 @@ final class ScreenMorphTest extends AppTestCase
         self::assertDoesNotMatchRegularExpression('/<section class="tl-page[^>]*\sdata-now[\s=>]/', $html);
         self::assertStringNotContainsString('--now-offset', $html);
         self::assertStringContainsString("from.getAttribute('data-morph-keep')", $this->morph());
+    }
+
+    /**
+     * Each Program address paints its own view first: the root's data-view and the pill
+     * the reader sees selected. data-view stays in data-morph-keep, so a background
+     * morph from another address never moves the reader off the view on show.
+     */
+    public function testEachProgramAddressPaintsItsView(): void
+    {
+        $app = $this->createApp('korbo26');
+
+        foreach (['/programy' => 'timeline', '/programy/prehled' => 'overview', '/programy/moje' => 'list'] as $path => $view) {
+            $html = (string) $this->request($app, 'GET', $path)->getBody();
+
+            self::assertMatchesRegularExpression('/<div class="pg" data-pg-root [^>]*data-view="' . $view . '"/', $html, $path);
+            foreach (['overview', 'timeline', 'list'] as $pill) {
+                self::assertMatchesRegularExpression(
+                    '/<button type="button" class="tabs-tab" role="tab" [^>]*aria-selected="' . ($pill === $view ? 'true' : 'false') . '"[^>]*data-pg-view="' . $pill . '"/',
+                    $html,
+                    $path . ' ' . $pill,
+                );
+                // the selected pill is the one tab stop of the bar
+                self::assertStringContainsString(
+                    $pill === $view ? 'aria-selected="true" data-pg-view="' . $pill . '"' : 'aria-selected="false" tabindex="-1" data-pg-view="' . $pill . '"',
+                    $html,
+                    $path . ' ' . $pill,
+                );
+            }
+        }
     }
 
     /** The map's view is the reader's: a morph must not put the screen back on Google's. */

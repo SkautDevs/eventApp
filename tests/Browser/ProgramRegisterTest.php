@@ -8,9 +8,10 @@ use Facebook\WebDriver\WebDriverKeys;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * Registration from the sheet, in a real Chrome on korbo26, paired: the form posts, the
- * server redirects to the programme's deep link, and the document that lands reopens the
- * sheet under the toast that says what happened — on the view the reader acted from. The
+ * Registration from the sheet, in a real Chrome on korbo26, paired: shell/write.js sends
+ * the form, the server answers with the programme's deep link on the view the reader acted
+ * from (the form's `pohled` field), and the document that lands in place of the sheet's
+ * entry reopens the sheet under the toast that says what happened. The
  * toast stays usable over the open sheet, by pointer and by keyboard, and the sheet's own
  * close button stays clear of it.
  *
@@ -193,12 +194,10 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::waitForLanding('Zapsáno: ');
         self::assertSame('overview', self::script('return document.querySelector("[data-pg-root]").dataset.view;'));
         self::assertSame('true', self::script('return document.querySelector(\'[data-pg-view="overview"]\').getAttribute("aria-selected");'));
-        self::assertStringContainsString('#section-1-program-1', self::script('return location.href;'));
+        self::assertSame('/korbo26/programy/prehled#section-1-program-1', self::script('return location.pathname + location.hash;'));
         // the row is on screen under the sheet, and says it is the reader's now
         self::waitFor('const r = document.querySelector(\'.view-overview .pl-item[data-key="' . self::ID . '"]\').getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight;');
         self::assertStringContainsString('is-registered', self::script('return document.querySelector(\'.view-overview .pl-item[data-key="' . self::ID . '"]\').className;'));
-        // the note is taken once: it is gone from the session
-        self::assertNull(self::script('return sessionStorage.getItem("pgReturn:korbo26");'));
     }
 
     /** Acted from Moje: the landing is Moje again, with the sheet open on the programme just left. */
@@ -214,6 +213,7 @@ final class ProgramRegisterTest extends BrowserTestCase
         self::tap('.sheet-body.is-open .sheet-footer button');
         self::tap('.sheet-body.is-open .sheet-footer button');
         self::waitForLanding('Zápis zrušen: ', self::MINE);
+        self::assertSame('/korbo26/programy/moje', self::script('return location.pathname;'));
         self::assertSame('list', self::script('return document.querySelector("[data-pg-root]").dataset.view;'));
         self::assertSame('true', self::script('return document.querySelector(\'[data-pg-view="list"]\').getAttribute("aria-selected");'));
         // it has left Moje, and the sheet now offers the registration back
@@ -222,28 +222,63 @@ final class ProgramRegisterTest extends BrowserTestCase
     }
 
     /**
-     * A second tap while the POST is on its way would send it twice: the button is disabled
-     * on submit (the navigation is held back here so the page can be looked at), and a page
-     * shown again from the back-forward cache gets it working again.
+     * Review Focus: a write that does not reload. shell/write.js sends the form with
+     * `X-Write: 1` and lands on the answer's `next`, here the sheet's own address: a new
+     * document (the marker set before the tap is gone) on the sheet's entry, replaced, not
+     * one more. Back closes the sheet onto the screen under it, which says the programme is
+     * the reader's now: no stale `Zapsat program` from before the write.
      */
-    public function testTheButtonIsDisabledOnSubmitAndEnabledOnPageshow(): void
+    public function testRegisteringReplacesTheEntryAndBackShowsNoStaleSheet(): void
+    {
+        self::pair();
+        self::openProgramScreen();
+        $n = self::script('return history.length;');
+        self::script('document.querySelector(\'.tl-card[data-key="' . self::ID . '"]\').click();');
+        self::waitForSheet(self::ID);
+        self::script('window.__old = true;');
+
+        self::tap('.sheet-body.is-open .sheet-footer button');
+        self::waitForLanding('Zapsáno: ');
+        self::assertNull(self::script('return window.__old === undefined ? null : window.__old;'), 'the write did not load a new document');
+        self::assertSame($n + 1, self::script('return history.length;'), 'the write added a history entry of its own');
+        self::assertSame('/korbo26/programy#section-1-program-1', self::script('return location.pathname + location.hash;'));
+
+        self::script('history.back();');
+        self::waitFor('return document.readyState === "complete" && location.hash === "" && document.querySelector(".sheet.is-open") === null && document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
+        self::assertSame('/korbo26/programy', self::script('return location.pathname;'));
+        self::assertSame('Zrušit zápis', self::script('return document.querySelector(\'.sheet-body[data-pg-detail="' . self::ID . '"] .sheet-footer button\').textContent;'));
+    }
+
+    /**
+     * A second tap while the write is on its way would send it twice: the button is
+     * disabled until the answer, the form carries the view on show, and a write that cannot
+     * leave (the fetch rejects: no worker, no network) gets the button back with the offline
+     * toast. A page shown again from the back-forward cache leaves it working.
+     */
+    public function testTheButtonIsDisabledWhileTheWriteIsOnItsWayAndEnabledOnFailure(): void
     {
         self::pair();
         self::openSheet();
-        // after the screen's own submit handler, which is on the Program root
-        self::script('document.addEventListener("submit", function (event) { event.preventDefault(); window.__held = true; });');
+        // only the write is held: the loader's warm-up may fetch meanwhile
+        self::script('const original = window.fetch; window.fetch = (input, init) => (init && init.method === "POST" ? new Promise((_, reject) => { window.__reject = reject; }) : original(input, init));');
+        $button = '.sheet-body.is-open .sheet-footer button';
 
-        self::tap('.sheet-body.is-open .sheet-footer button');
-        self::waitFor('return window.__held === true;');
-        self::assertTrue(self::script('return document.querySelector(".sheet-body.is-open .sheet-footer button").disabled;'));
-        self::assertSame(
-            ['id' => self::ID, 'view' => 'timeline'],
-            self::script('const n = JSON.parse(sessionStorage.getItem("pgReturn:korbo26")); return {id: n.id, view: n.view};'),
+        self::tap($button);
+        self::waitFor('return typeof window.__reject === "function";');
+        self::assertTrue(self::script('return document.querySelector(arguments[0]).disabled;', [$button]));
+        // the form carries the view on show, for the answer's next
+        self::assertSame('timeline', self::script('return document.querySelector(\'.sheet-body.is-open input[name="pohled"]\').value;'));
+
+        self::script('window.__reject(new TypeError("offline"));');
+        self::waitFor(
+            'const t = document.querySelector("[data-toast] strong"); return !document.querySelector(arguments[0]).disabled && t !== null && t.textContent === arguments[1];',
+            [$button, 'Akci není možné provést, protože jsi offline.'],
         );
+        // still the same document, on the sheet
+        self::assertNotNull(self::script('return document.querySelector(".sheet.is-open");'));
 
         self::script('window.dispatchEvent(new PageTransitionEvent("pageshow", {persisted: true}));');
-        self::assertFalse(self::script('return document.querySelector(".sheet-body.is-open .sheet-footer button").disabled;'));
-        self::script('sessionStorage.removeItem("pgReturn:korbo26");');
+        self::assertFalse(self::script('return document.querySelector(arguments[0]).disabled;', [$button]));
     }
 
     /**

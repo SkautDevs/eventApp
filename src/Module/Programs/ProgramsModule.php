@@ -9,7 +9,8 @@ use App\Module\ModuleInterface;
 use Slim\App;
 
 /**
- * The single Program screen (/programy).
+ * The single Program screen (/programy, with /programy/prehled and /programy/moje as
+ * the addresses of its other two views).
  *
  * The screen renders three views into one page and switches between them client side:
  * Přehled, a list of everything by day; Harmonogram, a Gantt-style timeline of
@@ -28,7 +29,7 @@ final class ProgramsModule implements ModuleInterface
 
     public function menuItem(): MenuItem
     {
-        return new MenuItem(self::key(), 'Program', 'programs', 'far fa-calendar-alt', 10);
+        return new MenuItem(self::key(), 'Program', 'programs', 'far fa-calendar-alt', 10, ['programs-overview', 'programs-mine']);
     }
 
     public function script(): string
@@ -44,7 +45,15 @@ final class ProgramsModule implements ModuleInterface
     /** @param App<\Psr\Container\ContainerInterface|null> $app */
     public function registerRoutes(App $app): void
     {
-        $app->get('/programy', ShowAction::class)->setName('programs');
+        // One screen, three addresses: each view has a path of its own, and the view it
+        // names is the one the page paints first. `screen` names the screen the other two
+        // are views of (ScreenAliasMiddleware), so all three render as /programy.
+        $app->get('/programy', ShowAction::class)->setName('programs')
+            ->setArgument('view', 'timeline');
+        $app->get('/programy/prehled', ShowAction::class)->setName('programs-overview')
+            ->setArgument('view', 'overview')->setArgument('screen', '/programy');
+        $app->get('/programy/moje', ShowAction::class)->setName('programs-mine')
+            ->setArgument('view', 'list')->setArgument('screen', '/programy');
 
         // Registration from the sheet: a plain form POST, so the worker's purge-on-write and
         // the loader's "every non-GET is a navigation" keep every screen consistent. The

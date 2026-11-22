@@ -20,9 +20,15 @@
  *
  * startLoader() files the first screen as it was served, so it must run before any
  * other module draws into that screen: a later revalidation compares against this copy.
+ *
+ * One screen can have several addresses: a tab's data-screen-aliases are the paths of
+ * its screen's views (Program's /programy/prehled and /programy/moje). Every map,
+ * comparison and fetch here is keyed by the screen (screenOf()), while the history
+ * entries carry the real address, and a tab tap returns to the address its screen was
+ * last on.
  */
 
-import {emitScreenFreshness, emitScreenHidden, emitScreenLoaded, emitScreenLoading, emitScreenMorphed, emitScreenShown, onScreenShown} from '../events.js';
+import {emitScreenFreshness, emitScreenHidden, emitScreenLoaded, emitScreenLoading, emitScreenMorphed, emitScreenShown} from '../events.js';
 import {captureFocus, morphChildren, patchAttributes, restoreFocus} from './morph.js';
 
 const root = document.documentElement;
@@ -35,9 +41,17 @@ const LOAD_TIMEOUT = 8000;
 
 /** <main>, once startLoader() found it. */
 let main = null;
-/** path -> {section, html, fetchedAt, shownAt, scrollTop, pending, checking} */
+/** screen path -> {section, html, fetchedAt, shownAt, scrollTop, pending, checking} */
 const screens = new Map();
+/** The screen on show, always a screen path, never an alias. */
 let currentPath = null;
+/** alias pathname -> screen path, read off the tabs' data-screen-aliases. */
+const aliases = new Map();
+/**
+ * screen path -> the pathname it was last on. A tab tap goes back to it, so a reader who
+ * left the Program screen on Moje finds Moje again; the tab's href stays the screen's.
+ */
+const lastAddress = new Map();
 /** Paths the worker reported as changed before the loader had them (see the messages below). */
 const staleOnArrival = new Set();
 /**
@@ -74,6 +88,42 @@ let wantedPath = null;
 
 function pathOf(href) {
 	return new URL(href, location.href).pathname;
+}
+
+/** A space-separated data-screen-aliases value as pathnames, resolved against `base`. */
+export function parseAliases(value, base) {
+	return value
+		.split(/\s+/)
+		.filter(entry => entry !== '')
+		.map(entry => new URL(entry, base).pathname);
+}
+
+/** The screen an alias belongs to; anything that is not an alias is its own screen. */
+export function resolveScreen(map, pathname) {
+	return map.get(pathname) || pathname;
+}
+
+/** The screen a pathname shows, over the aliases the tab bar declared. */
+export function screenOf(pathname) {
+	return resolveScreen(aliases, pathname);
+}
+
+/**
+ * Whether Domů goes under the first entry, so that Back from a screen the reader landed
+ * on from outside the event (a notification, a shared link, a bookmark) stays in the app.
+ * Only a fresh navigation counts: a reload or a traversal already has its entries, an
+ * entry with state is one the loader wrote before, and a link from inside the event left
+ * its own page under this one.
+ */
+export function shouldInsertHome({screen, home, navigationType, state, referrer, eventUrl}) {
+	return screen !== home && navigationType === 'navigate' && (state === null || state === undefined) && !referrer.startsWith(eventUrl);
+}
+
+/** Records the current address as the one its screen was last on, when it is that screen's. */
+function noteAddress() {
+	if (currentPath !== null && screenOf(location.pathname) === currentPath) {
+		lastAddress.set(currentPath, location.pathname);
+	}
 }
 
 // --- fetching ---------------------------------------------------------
@@ -306,7 +356,7 @@ function dressShell(section) {
 	document.body.className = 'screen-' + (tab !== '' ? tab : 'other');
 	// the app bar's profile link is lit like a tab while Profil is shown
 	document.querySelectorAll('.tabbar .tab, .appbar-profile').forEach(link => {
-		const active = pathOf(link.href) === currentPath;
+		const active = screenOf(pathOf(link.href)) === currentPath;
 		link.classList.toggle('is-active', active);
 		// The fill is pixels and .is-active is a class name; aria-current is the
 		// only thing that names the current tab to a screen reader. The server
@@ -381,6 +431,7 @@ function show(path, entry) {
 		entry.section.hidden = false;
 		entry.shownAt = Date.now();
 		currentPath = path;
+		noteAddress();
 		dressShell(entry.section);
 		window.scrollTo(0, entry.scrollTop || 0);
 		// A morph deferred from last time lands here rather than a few lines up,
@@ -400,24 +451,31 @@ function show(path, entry) {
 	revalidate(path, entry);
 }
 
-function go(path, push) {
+/**
+ * Shows `screen`, fetching it first if it is not here yet. With `push` the entry is
+ * written for `url`, the address the reader asked for (the screen itself, or one of its
+ * aliases); a second tap on the destination already asked for writes none. A screen that
+ * cannot be fetched falls back to a plain load of `url`, or with `url` null (an entry
+ * already written for the address, hash and all) to a reload of the current entry.
+ */
+function go(screen, push, url = screen) {
 	const token = ++navigation;
-	if (push && path !== wantedPath) {
-		history.pushState({screen: path}, '', path);
+	if (push && (screen !== wantedPath || url !== location.pathname)) {
+		history.pushState({screen: screen}, '', url);
 	}
-	wantedPath = path;
-	const entry = screens.get(path);
+	wantedPath = screen;
+	const entry = screens.get(screen);
 	if (entry) {
 		// an earlier tap may still be loading; this one is not, so the bar goes
 		emitScreenLoaded();
-		show(path, entry);
+		show(screen, entry);
 
 		return;
 	}
 	// the loading bar (shell/progress.js): only for a fetch the reader is waiting for,
 	// never for a background revalidation
 	emitScreenLoading();
-	load(path).then(loaded => {
+	load(screen).then(loaded => {
 		// An overtaken screen that did arrive is kept: it is a warm cache entry
 		// either way, and the next visit to it is then instant. It is only not
 		// shown, and not pushed, because the reader is somewhere else now.
@@ -429,11 +487,15 @@ function go(path, push) {
 			// The fallback throws the whole app away — the cache, the map's live
 			// iframe, the timeline's zoom — so it may only fire for the
 			// navigation the reader is actually waiting for.
-			location.href = path;
+			if (url === null) {
+				location.reload();
+			} else {
+				location.href = url;
+			}
 
 			return;
 		}
-		show(path, loaded);
+		show(screen, loaded);
 	});
 }
 
@@ -483,6 +545,9 @@ function listenToTheWorker() {
 // --- links ------------------------------------------------------------
 
 function onClick(event) {
+	// first, before anything returns: a screen's own handler may have just pushed an
+	// address of this screen (a view pill), and the click is the moment to learn it
+	noteAddress();
 	if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
 		return;
 	}
@@ -503,56 +568,65 @@ function onClick(event) {
 		return;
 	}
 	const url = new URL(link.href);
-	// The tab you are already on: a native app does not reload the screen, it scrolls
-	// it back to the top. A plain navigation here would throw the live app away.
-	if (url.pathname === currentPath && url.search === '' && url.hash === '') {
+	const screen = screenOf(url.pathname);
+	const isTab = link.matches('.tabbar .tab, .appbar-profile');
+	if (screen === currentPath && url.search === '' && url.hash === '') {
 		event.preventDefault();
-		const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-		window.scrollTo({top: 0, behavior: still ? 'auto' : 'smooth'});
+		// The tab you are already on, or the very address you are on: a native app does
+		// not reload the screen, it scrolls it back to the top. A plain navigation here
+		// would throw the live app away.
+		if (isTab || url.pathname === location.pathname) {
+			const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+			window.scrollTo({top: 0, behavior: still ? 'auto' : 'smooth'});
+
+			return;
+		}
+		// Another address of this screen (a link to Přehled while on Moje): the entry is
+		// pushed and announced as Back would announce it, and the screen's own popstate
+		// listener switches the view.
+		history.pushState({screen: currentPath}, '', url.pathname);
+		window.dispatchEvent(new PopStateEvent('popstate', {state: history.state}));
 
 		return;
 	}
 	// A deep link the page marks for it (the homepage's next-programme card) stays in
-	// the app: the entry is pushed with its hash, and the screen reads the hash itself
-	// — on its first wiring when it is new, on hashchange when it is already here.
-	if (link.hasAttribute('data-deep-link') && url.search === '' && url.hash !== '' && url.pathname !== currentPath && order.indexOf(url.pathname) >= 0) {
+	// the app: the entry is pushed with its hash, and the screen reads the address
+	// itself — on its first wiring when it is new, on screen:shown when it is already
+	// here. Nothing dispatches a hashchange for it. A screen that cannot be fetched
+	// reloads that pushed entry, so the plain load keeps the address, hash and all.
+	if (link.hasAttribute('data-deep-link') && url.search === '' && url.hash !== '' && screen !== currentPath && order.indexOf(screen) >= 0) {
 		event.preventDefault();
-		const known = screens.get(url.pathname);
-		history.pushState({screen: url.pathname}, '', url.pathname + url.hash);
-		wantedPath = url.pathname;
-		// A screen ignores a hash while it is hidden, and with motion the swap waits
-		// for the view transition, so the hash goes out once the screen is shown.
-		if (known) {
-			const stop = onScreenShown(target => {
-				if (target === known.section) {
-					stop();
-					window.dispatchEvent(new HashChangeEvent('hashchange'));
-				}
-			});
-		}
-		go(url.pathname, false);
+		history.pushState({screen: screen}, '', url.pathname + url.search + url.hash);
+		wantedPath = screen;
+		go(screen, false, null);
 
 		return;
 	}
-	// same screen with a hash, a query string, a cross-screen deep link, or a
-	// destination that is not a screen: all of those stay exactly what they were
-	if (url.pathname === currentPath || url.search !== '' || url.hash !== '' || order.indexOf(url.pathname) < 0) {
+	// same screen with a hash or a query string, a link with a query string or a hash to
+	// another screen, or a destination that is not a screen: all of those stay exactly
+	// what they were
+	if (screen === currentPath || url.search !== '' || url.hash !== '' || order.indexOf(screen) < 0) {
 		return;
 	}
 	event.preventDefault();
-	go(url.pathname, true);
+	// a tab goes back to the address its screen was left on; any other link to its own
+	go(screen, true, isTab ? lastAddress.get(screen) || url.pathname : url.pathname);
 }
 
 // Back is a navigation like any other, so it takes the next token too — which is
 // what stops a tap still in flight from undoing it once its fetch lands.
 function onPopstate() {
-	const path = location.pathname;
-	if (order.indexOf(path) < 0) {
+	const screen = screenOf(location.pathname);
+	if (order.indexOf(screen) < 0) {
 		location.reload();
 
 		return;
 	}
-	go(path, false);
+	// the current screen returns early in show(); its own popstate listener reads the
+	// address. A screen that cannot be fetched falls back to a plain load of the address
+	// Back landed on, without its hash, which a same-document hash change would not reload.
+	go(screen, false, location.pathname + location.search);
+	noteAddress();
 }
 
 /**
@@ -568,10 +642,13 @@ export function startLoader() {
 		return false;
 	}
 	main = found;
-	currentPath = first.dataset.screen || location.pathname;
 
 	document.querySelectorAll('.tabbar .tab').forEach(tab => {
-		order.push(pathOf(tab.href));
+		const screen = pathOf(tab.href);
+		order.push(screen);
+		parseAliases(tab.dataset.screenAliases || '', document.baseURI).forEach(alias => {
+			aliases.set(alias, screen);
+		});
 	});
 	const profileLink = document.querySelector('.appbar-profile');
 	if (profileLink) {
@@ -579,6 +656,8 @@ export function startLoader() {
 	}
 	order = order.filter((path, i) => order.indexOf(path) === i);
 
+	// filed under the screen it names, which on an alias route is not the address
+	currentPath = first.dataset.screen || screenOf(location.pathname);
 	screens.set(currentPath, {
 		section: first,
 		html: first.innerHTML,
@@ -588,8 +667,32 @@ export function startLoader() {
 		pending: null,
 		checking: false,
 	});
-	history.replaceState({screen: currentPath}, '');
+
+	// Domů underneath: Back from a screen opened from outside the event lands on Domů,
+	// which onPopstate() then fetches like any other screen. Otherwise the entry keeps
+	// whatever state it has (a reloaded sheet's pgOverlay) and gains its screen.
+	const home = order[0];
+	const base = document.querySelector('meta[name="event-base"]');
+	const timing = performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : undefined;
+	const insert =
+		home !== undefined &&
+		shouldInsertHome({
+			screen: currentPath,
+			home: home,
+			navigationType: timing ? timing.type : undefined,
+			state: history.state,
+			referrer: document.referrer,
+			eventUrl: location.origin + (base ? base.getAttribute('content') : '/'),
+		});
+	if (insert) {
+		const address = location.href;
+		history.replaceState({screen: home}, '', home);
+		history.pushState({screen: currentPath}, '', address);
+	} else {
+		history.replaceState({...history.state, screen: currentPath}, '');
+	}
 	wantedPath = currentPath;
+	noteAddress();
 
 	listenToTheWorker();
 	document.addEventListener('click', onClick);

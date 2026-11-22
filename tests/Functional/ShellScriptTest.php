@@ -222,6 +222,32 @@ final class ShellScriptTest extends AppTestCase
         self::assertStringNotContainsString('drawSentAt', $home);
     }
 
+    /** The offline toast's two sentences are shell/toast.js's, said by a write that cannot leave and by the #offline landing. */
+    public function testTheOfflineToastIsTheToastModules(): void
+    {
+        $js = self::js('shell/toast.js');
+
+        self::assertStringContainsString('export function showOfflineToast() {', $js);
+        self::assertStringContainsString("showToast('Akci není možné provést, protože jsi offline.', 'Zkus to znovu až najdeš místo se signálem.');", $js);
+    }
+
+    /** A write is sent by shell/write.js with the header the server answers with `{"next"}`. */
+    public function testAWriteIsSentWithTheWriteHeader(): void
+    {
+        $js = self::js('shell/write.js');
+
+        self::assertStringContainsString("'X-Write': '1'", $js);
+        self::assertStringContainsString("closest('form[data-write]')", $js);
+        // after the toast it uses, before the confirmations, whose first tap stops at click
+        $index = self::js('shell/index.js');
+        $toast = strpos($index, "import './toast.js';");
+        $write = strpos($index, "import './write.js';");
+        $confirm = strpos($index, "import './confirm.js';");
+        self::assertNotFalse($toast);
+        self::assertGreaterThan($toast, $write);
+        self::assertGreaterThan($write, $confirm);
+    }
+
     /** A toast is the shell's: one at a time, gone after 6 s or on its close button. */
     public function testTheToastIsShownOnceAndLeavesByItself(): void
     {

@@ -1,6 +1,7 @@
 import './worker.js';
 import './netstate.js';
 import './toast.js';
+import './write.js';
 import './confirm.js';
 import './progress.js';
 import './install.js';

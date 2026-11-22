@@ -25,20 +25,43 @@ final class MapViewsTest extends BrowserTestCase
         self::waitFor('const root = ' . self::ROOT . '; return root !== null && root.dataset.mapReady === "1";');
     }
 
-    public function testThePillSwitchesToThePlanAndRemembersIt(): void
+    /** The plan has an address of its own: the pill pushes it, and Back walks the views. */
+    public function testThePillPushesThePlanAndBackReturnsToTheMap(): void
     {
         self::openMap();
         self::assertSame('google', self::script('return ' . self::ROOT . '.dataset.view;'));
+        $length = self::script('return history.length;');
 
         self::tap('[role="tab"][data-map-view="plan"]');
         self::waitFor('return ' . self::ROOT . '.dataset.view === "plan"'
             . ' && document.querySelector("[data-plan-img]").getBoundingClientRect().width > 0;');
+        self::assertSame('/obrok19/mapa/plan', self::script('return location.pathname;'));
+        self::assertSame($length + 1, self::script('return history.length;'), 'one entry for the plan');
+        self::assertEquals(['screen' => '/obrok19/mapa', 'mapView' => 'plan'], self::script('return history.state;'));
         self::assertSame('true', self::script('return document.querySelector(\'[role="tab"][data-map-view="plan"]\').getAttribute("aria-selected");'));
         // the Google pane is hidden, not gone: its iframe keeps running behind the plan
         self::assertSame(1, self::script('return document.querySelectorAll("[data-map] iframe").length;'));
 
-        self::visit('/obrok19/mapa');
+        // the view already on show pushes nothing
+        self::tap('[role="tab"][data-map-view="plan"]');
+        self::assertSame($length + 1, self::script('return history.length;'));
+
+        self::$browser->back();
+        self::waitFor('return location.pathname === "/obrok19/mapa" && ' . self::ROOT . '.dataset.view === "google";');
+        self::assertSame('true', self::script('return document.querySelector(\'[role="tab"][data-map-view="google"]\').getAttribute("aria-selected");'));
+        self::assertNull(self::script('return sessionStorage.getItem("mapView:obrok19");'));
+    }
+
+    /** A landing on the plan's address opens the plan, and an arrow key pushes the map's. */
+    public function testThePlanAddressOpensThePlanAndAnArrowKeyPushes(): void
+    {
+        self::visit('/obrok19/mapa/plan');
         self::waitFor('const root = ' . self::ROOT . '; return root !== null && root.dataset.mapReady === "1" && root.dataset.view === "plan";');
+
+        self::script('document.querySelector(\'[role="tab"][data-map-view="plan"]\').focus();'
+            . ' document.activeElement.dispatchEvent(new KeyboardEvent("keydown", {key: "ArrowLeft", bubbles: true}));');
+        self::waitFor('return location.pathname === "/obrok19/mapa" && ' . self::ROOT . '.dataset.view === "google";');
+        self::assertSame('map-tab-google', self::script('return document.activeElement.id;'));
     }
 
     public function testZoomWidensThePlanAndStopsAtTheEnds(): void
@@ -70,8 +93,8 @@ final class MapViewsTest extends BrowserTestCase
         self::tap('[data-plan-zoom="in"]');
         self::waitFor('return sessionStorage.getItem("planZoom:obrok19") !== null;');
 
-        self::visit('/obrok19/mapa');
-        self::waitFor('const root = ' . self::ROOT . '; return root !== null && root.dataset.view === "plan";');
+        self::visit('/obrok19/mapa/plan');
+        self::waitFor('const root = ' . self::ROOT . '; return root !== null && root.dataset.mapReady === "1" && root.dataset.view === "plan";');
         self::assertEqualsWithDelta($box * 1.4, (float) self::script('return document.querySelector("[data-plan-img]").getBoundingClientRect().width;'), 2.0);
     }
 
@@ -128,5 +151,6 @@ final class MapViewsTest extends BrowserTestCase
         self::assertTrue(self::script('return document.querySelector(\'[data-screen="/obrok19/mapa"]\').hidden;'));
         self::tap('.tabbar a[href="/obrok19/mapa"]');
         self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/mapa"]\'); return s && !s.hidden && ' . self::ROOT . '.dataset.view === "plan";');
+        self::assertSame('/obrok19/mapa/plan', self::script('return location.pathname;'));
     }
 }

@@ -42,6 +42,7 @@ final class NextUp
                     end: $item->end,
                     location: $item->location,
                     section: null,
+                    sectionId: 0,
                     perex: $item->perex,
                     registered: $item->registered,
                     dimmed: $item->dimmed,

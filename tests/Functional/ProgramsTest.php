@@ -270,6 +270,18 @@ final class ProgramsTest extends AppTestCase
         }
     }
 
+    /**
+     * Every sheet carries the programme's deep link id, section and programme, so a link
+     * to `#section-<section>-program-<id>` lands on the sheet it names.
+     */
+    public function testEverySheetBodyCarriesItsDeepLinkId(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/programy')->getBody();
+
+        self::assertStringContainsString('<div class="sheet-body" id="section-1-program-1" data-key="1" data-pg-detail="1"', $html);
+        self::assertSame(substr_count($html, 'class="sheet-body"'), preg_match_all('/<div class="sheet-body" id="section-\d+-program-(\d+)" data-key="\1"/', $html));
+    }
+
     /** The sheet is named by the programme it shows, not by a constant. */
     public function testTheSheetIsLabelledByAProgrammeName(): void
     {

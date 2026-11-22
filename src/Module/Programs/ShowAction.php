@@ -23,8 +23,9 @@ use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
 
 /**
- * GET /programy: the three views of the programme (ScheduleBuilder), every sheet with its
- * footer (SheetBuilder::footer()) and the organisers' messages about it, and the toast a
+ * GET /programy, /programy/prehled and /programy/moje: the three views of the programme
+ * (ScheduleBuilder), the one the route's `view` argument names painted first, every
+ * sheet with its footer (SheetBuilder::footer()) and the organisers' messages about it, and the toast a
  * register or unregister left. The paired reader's own programmes are read best effort: a
  * session kissj no longer knows logs the reader out, and this very page says why; an
  * outage leaves a notice.
@@ -123,6 +124,7 @@ final class ShowAction
         }
 
         $page = new ProgramsPage(
+            view: self::view($args),
             pages: $schedule->pages,
             activePage: $schedule->activePage,
             overview: $schedule->overview,
@@ -138,5 +140,21 @@ final class ShowAction
         );
 
         return $toasts->mark($this->twig->render($response, 'programs.twig', TemplateContext::of($page)), $toast);
+    }
+
+    /**
+     * The view the route names (ProgramsModule), Harmonogram for a route that names none.
+     *
+     * @param array<string, string> $args
+     * @return 'overview'|'timeline'|'list'
+     */
+    private static function view(array $args): string
+    {
+        $view = $args['view'] ?? 'timeline';
+
+        return match ($view) {
+            'overview', 'list' => $view,
+            default => 'timeline',
+        };
     }
 }

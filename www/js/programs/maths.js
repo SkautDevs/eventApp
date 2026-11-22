@@ -1,13 +1,12 @@
 /**
  * The Program screen's arithmetic, with no DOM: the zoom and its anchor, the ruler's
  * density, the now-line, the scroll a landing and a chip need, Moje's marks, the deep
- * links, the view a write returns to, and the event's day and clock.
+ * links (the sheet's address and the two old Moje hashes), the view each address names, and
+ * the event's day and clock.
  */
 
-import {isList} from './daylist.js';
-
-/** How long the note of the view a write was sent from stays good. */
-const RETURN_MS = 60000;
+/** The path each view has under its screen's: Harmonogram is the screen's own. */
+const VIEW_PATHS = {timeline: '', overview: '/prehled', list: '/moje'};
 
 export function clampZoom(value, min, max) {
 	return Math.min(Math.max(value, min), max);
@@ -95,15 +94,10 @@ export function listMarks(items, ms, todayKey) {
 }
 
 /**
- * The deep link into one programme: #muj-program-<id> (the homepage's next-programme card,
- * on Můj program) as {mine: true, id}, #section-<s>-program-<id> as {section, id}; null for
- * any other hash.
+ * The deep link into one programme, the open sheet's address: #section-<s>-program-<id> as
+ * {section, id}; null for any other hash.
  */
 export function hashTarget(hash) {
-	const mine = hash.match(/^#muj-program-(\d+)$/);
-	if (mine) {
-		return {mine: true, id: Number(mine[1])};
-	}
 	const matches = hash.match(/^#section-(\d+)-program-(\d+)$/);
 	if (matches) {
 		return {section: Number(matches[1]), id: Number(matches[2])};
@@ -112,15 +106,38 @@ export function hashTarget(hash) {
 }
 
 /**
- * The view a write for programme `id` was sent from, from the stored note: null without a
- * note, for another programme, for one older than a minute, or for a view that is none.
+ * The two old Moje hashes, which still land on Moje: #muj-program (where a login from the
+ * list's own form landed) as {id: null}, #muj-program-<id> (Domů's card, before the sheet had
+ * an address) as {id}; null for any other hash.
  */
-export function returnView(note, id, nowMs) {
-	if (!note || note.id !== String(id) || !(nowMs - note.at < RETURN_MS)) {
+export function legacyTarget(hash) {
+	if (hash === '#muj-program') {
+		return {id: null};
+	}
+	const matches = hash.match(/^#muj-program-(\d+)$/);
+	if (matches) {
+		return {id: Number(matches[1])};
+	}
+	return null;
+}
+
+/**
+ * The view the address `pathname` names on the Program screen `screen`: the screen's own
+ * path is Harmonogram, `/prehled` under it Přehled and `/moje` Moje; null for any other
+ * path, and for a root that is in no screen.
+ */
+export function viewFromPath(pathname, screen) {
+	if (!screen) {
 		return null;
 	}
+	const view = Object.keys(VIEW_PATHS).find(key => screen + VIEW_PATHS[key] === pathname);
 
-	return isList(note.view) || note.view === 'timeline' ? note.view : null;
+	return view === undefined ? null : view;
+}
+
+/** The address of `view` on the Program screen `screen`, the inverse of viewFromPath(). */
+export function viewPath(view, screen) {
+	return screen + (VIEW_PATHS[view] ?? '');
 }
 
 let dayFormat = null;

@@ -190,8 +190,12 @@ final class Kernel
         // '/obrok19' is what people type; the homepage route is '/obrok19/'
         $app->redirect('', $base . '/', 301);
         $app->addBodyParsingMiddleware();
-        // before the routing middleware means inside it: it runs once the route is known
+        $twig = $container->get(Twig::class);
+        \assert($twig instanceof Twig);
+        // before the routing middleware means inside it: they run once the route is known
         $app->add(new Telemetry\RouteNameMiddleware($event->slug));
+        // a view address (/programy/moje) renders as its screen (/programy)
+        $app->add(new Http\ScreenAliasMiddleware($twig));
         $app->addRoutingMiddleware();
         $app->add(TwigMiddleware::createFromContainer($app, Twig::class));
         self::addErrorHandling($app, $container, 'error.twig', $environment->debug());
@@ -203,8 +207,6 @@ final class Kernel
         // the container's clock, for the screen middleware; each request reads it once
         $clock = $container->get(ClockInterface::class);
         \assert($clock instanceof ClockInterface);
-        $twig = $container->get(Twig::class);
-        \assert($twig instanceof Twig);
         $freshness = $container->get(Program\Freshness::class);
         \assert($freshness instanceof Program\Freshness);
         // Added after the error middleware, so it sits outside it rather than inside it;

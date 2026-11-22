@@ -51,7 +51,7 @@ final class RenderGate extends BrowserTestCase
     private const string POLL_PATTERN = '*/profil/propojit/stav';
 
     /** The open sheet's write button, as a JS expression (undefined when there is none). */
-    private const string SHEET_WRITE = 'Array.from(document.querySelectorAll("[data-screen]:not([hidden]) [data-pg-sheet].is-open form[data-pg-write] button"))'
+    private const string SHEET_WRITE = 'Array.from(document.querySelectorAll("[data-screen]:not([hidden]) [data-pg-sheet].is-open form[data-write] button"))'
         . '.find(button => button.getClientRects().length > 0)';
 
     /**

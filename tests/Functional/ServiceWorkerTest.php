@@ -150,9 +150,47 @@ final class ServiceWorkerTest extends AppTestCase
         self::assertStringContainsString('if (self.navigator.onLine === false) {', $sw);
         self::assertStringContainsString("match(SCOPE + 'offline')", $sw);
         self::assertStringContainsString("if (request.mode === 'navigate') {", $sw);
-        // a 5xx never beats a saved copy; without one it passes through, not /offline
+        // a 5xx never beats a saved copy (the address's, else its screen's); without one it
+        // passes through, not /offline
         self::assertStringContainsString('if (result.response.status >= 500) {', $sw);
-        self::assertStringContainsString('match(key).then(hit => finish(hit || result.response), () => finish(result.response));', $sw);
+        self::assertStringContainsString('cachedCopy().then(hit => finish(hit || result.response), () => finish(result.response));', $sw);
+    }
+
+    /**
+     * Review Focus 3: a view address (/programy/moje) or one with a query (?den=…) offline is
+     * answered from its screen's stored copy, the alias resolved through the stored list and
+     * the query dropped, and only a miss on both is /offline.
+     */
+    public function testPagesLookAnAliasUpUnderItsScreen(): void
+    {
+        $sw = $this->source();
+
+        self::assertStringContainsString('list.aliases', $sw);
+        self::assertStringContainsString('function screenKey(', $sw);
+        self::assertStringContainsString('function aliasesOf(', $sw);
+
+        $page = strpos($sw, 'function page(event) {');
+        self::assertNotFalse($page);
+        $end = strpos($sw, "\n}\n", $page);
+        self::assertNotFalse($end);
+        $body = substr($sw, $page, $end - $page);
+        $screenKey = strpos($body, 'screenKey(');
+        $offline = strpos($body, "SCOPE + 'offline'");
+        self::assertNotFalse($screenKey, 'page() resolves the screen key');
+        self::assertNotFalse($offline);
+        self::assertLessThan($offline, $screenKey);
+        // the exact address first, then its screen
+        self::assertStringContainsString('match(exact).then(hit => hit || screen.then(', $body);
+        // the timer and a 5xx try both copies, and neither falls through to /offline
+        self::assertSame(1, substr_count($body, "SCOPE + 'offline'"));
+        self::assertStringContainsString('setTimeout(() => cachedCopy().then(hit => {', $body);
+        // the cache read never holds the reader's answer back, and a failed read is no aliases
+        self::assertStringContainsString('const network = fetch(request).then(response => {', $body);
+        self::assertStringNotContainsString('Promise.all([fetch(request), screen])', $body);
+        self::assertStringContainsString('.then(aliases => screenKey(request, aliases)).catch(() => screenKey(request, {}));', $body);
+        // no ES2022 built-in in the worker
+        self::assertStringNotContainsString('Object.hasOwn(', $sw);
+        self::assertStringContainsString("if (Object.keys(aliases).includes(url.pathname) && typeof aliases[url.pathname] === 'string') {", $sw);
     }
 
     public function testAPushTellsTheOpenAppAboutTheNews(): void
@@ -256,9 +294,12 @@ final class ServiceWorkerTest extends AppTestCase
         $sw = $this->source();
 
         self::assertStringContainsString("return response.ok && response.type === 'basic' && !response.redirected;", $sw);
-        self::assertStringContainsString('Promise.all([toasted(response) ? null : putHtml(generation, key, response.clone()), response.clone().text()])', $sw);
+        // both copies taken before the page reads the body; a page with a toast is not kept
+        self::assertStringContainsString('const kept = toasted(response) ? null : response.clone();', $sw);
+        self::assertStringContainsString('const html = response.clone().text();', $sw);
+        self::assertStringContainsString('Promise.all([kept && putHtml(generation, key, kept), html])', $sw);
         // a page for another identity in the cache means a login the worker never saw
-        self::assertStringContainsString('.then(([, html]) => reconcile(key, html, !toasted(response)))', $sw);
+        self::assertStringContainsString('.then(([, text]) => reconcile(key, text, kept !== null))', $sw);
         self::assertStringContainsString('.then(refill)', $sw);
         self::assertStringContainsString('identities.some(other => other !== null && other !== who) ? purgeHtml() : null', $sw);
         self::assertStringContainsString('function refill() {', $sw);
@@ -289,6 +330,19 @@ final class ServiceWorkerTest extends AppTestCase
         self::assertStringNotContainsString('OFFLINE_WRITE', $sw);
         self::assertStringNotContainsString('offlineAnswer', $sw);
         self::assertStringNotContainsString('Přihlášení potřebuje signál.', $sw);
+    }
+
+    /**
+     * A write sent by shell/write.js (`X-Write: 1`) cannot follow a redirect without a history
+     * step: offline, it gets the same target as JSON, which the script then lands on.
+     */
+    public function testAnOfflineScriptedWriteGetsAJsonNext(): void
+    {
+        $sw = $this->source();
+
+        self::assertStringContainsString("request.headers.get('X-Write') === '1'", $sw);
+        self::assertStringContainsString("JSON.stringify({next: target + '#offline'})", $sw);
+        self::assertStringContainsString("headers: {'Content-Type': 'application/json'}", $sw);
     }
 
     /** A push without a title is a notification, not "news": the word readers see is notifikace. */

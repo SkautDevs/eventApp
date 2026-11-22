@@ -8,7 +8,8 @@ namespace App\Module\Home\View;
  * One card of Domů's "Můj program": a Moje list row with the day it is listed under
  * (NextUp::nextUp()), then rewritten by HomeModel with what the card says (forCard()): the
  * start and the end as Prague wall-clock times, the place as given (only an empty one is
- * none) and the title of its section. `start` and `end` are DATE_ATOM instants.
+ * none), the title of its section and the section's id, which the card's deep link names
+ * (0 for none). `start` and `end` are DATE_ATOM instants.
  */
 final readonly class NextItem
 {
@@ -23,13 +24,14 @@ final readonly class NextItem
         public string $end,
         public ?string $location,
         public ?string $section,
+        public int $sectionId,
         public ?string $perex,
         public bool $registered,
         public bool $dimmed,
     ) {}
 
     /** A copy with what Domů's card says in place of the list row's. */
-    public function forCard(string $time, string $until, ?string $location, ?string $section): self
+    public function forCard(string $time, string $until, ?string $location, ?string $section, int $sectionId): self
     {
         return new self(
             $this->id,
@@ -42,6 +44,7 @@ final readonly class NextItem
             $this->end,
             $location,
             $section,
+            $sectionId,
             $this->perex,
             $this->registered,
             $this->dimmed,

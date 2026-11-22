@@ -22,7 +22,7 @@
 			<a class="btn btn-primary" href="{{ pairing.verificationUrl }}" target="_blank" rel="noopener">Otevřít KissJ ↗</a>
 			{# not .push-status: www/js/push/ hides every one of those while it has no push status #}
 			<p class="pairing-status" role="status" data-pairing-status>Čekám na potvrzení v KissJ…</p>
-			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form">
+			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form" data-write>
 				<button type="submit" class="btn">Začít znovu</button>
 			</form>
 		{% else %}
@@ -31,7 +31,7 @@
 				<p class="notice">{{ outcome }}</p>
 			{% endif %}
 			<p>Obsah můžeš jen prohlížet. Pro výběr programů a další akce je třeba být registrovaným účastníkem této akce a přihlásit se:</p>
-			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form">
+			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form" data-write>
 				<button type="submit" class="btn btn-primary">Přihlásit kódem z KissJ</button>
 			</form>
 		{% endif %}
@@ -50,7 +50,7 @@
 	{% endif %}
 	{% if identity %}
 		{# the first tap asks, the second submits (www/js/shell/confirm.js) #}
-		<form method="post" action="{{ url_for('pairing-revoke') }}" class="stacked-form profile-logout">
+		<form method="post" action="{{ url_for('pairing-revoke') }}" class="stacked-form profile-logout" data-write>
 			<button type="submit" class="btn" data-confirm="Opravdu odhlásit?">Odhlásit se z aplikace</button>
 		</form>
 	{% endif %}

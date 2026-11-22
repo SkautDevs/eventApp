@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Auth\Authenticator;
 use App\Auth\PairingState;
+use App\Http\ScreenAliasMiddleware;
 use App\Http\ScreenMiddleware;
 use App\Http\SecurityHeadersMiddleware;
 use App\Http\SessionCookieMiddleware;
@@ -15,12 +16,16 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Slim\Factory\AppFactory;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Views\Twig;
 use Tests\FixedClock;
 
-/** The three middlewares outside the error middleware, each on its own. */
+/**
+ * The three middlewares outside the error middleware, each on its own, and the alias
+ * middleware inside the routing middleware that renames a view address's screen.
+ */
 final class ShellMiddlewareTest extends TestCase
 {
     public function testSecurityHeadersAreAddedAndARoutesOwnValueIsKept(): void
@@ -73,6 +78,48 @@ final class ShellMiddlewareTest extends TestCase
         self::assertFalse($json->hasHeader('Cache-Control'));
         self::assertSame('X-Screen', $json->getHeaderLine('Vary'));
         self::assertFalse($twig->getEnvironment()->getGlobals()['fragment']);
+    }
+
+    public function testScreenMiddlewareSetsThePageAddressWithItsQuery(): void
+    {
+        $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
+        $twig->getEnvironment()->addGlobal('screenPath', '/');
+        $twig->getEnvironment()->addGlobal('pageAddress', '/');
+        $clock = new FixedClock(new \DateTimeImmutable('2027-05-21T09:00:00+02:00'));
+        $middleware = new ScreenMiddleware($twig, new Freshness($clock), $clock);
+
+        $middleware->process($this->request('/x/programy?den=20260916'), $this->handler(new ResponseFactory()->createResponse()));
+        $globals = $twig->getEnvironment()->getGlobals();
+        self::assertSame('/x/programy', $globals['screenPath']);
+        self::assertSame('/x/programy?den=20260916', $globals['pageAddress']);
+
+        // no query, no question mark
+        $middleware->process($this->request('/x/programy'), $this->handler(new ResponseFactory()->createResponse()));
+        self::assertSame('/x/programy', $twig->getEnvironment()->getGlobals()['pageAddress']);
+    }
+
+    /**
+     * Through a real Slim app, because the route is only known inside the routing
+     * middleware: a route that names its screen renames screenPath, one that does not
+     * leaves whatever ScreenMiddleware set.
+     */
+    public function testTheAliasMiddlewareNamesTheRoutesScreen(): void
+    {
+        $twig = Twig::create(dirname(__DIR__, 2) . '/templates');
+        $twig->getEnvironment()->addGlobal('screenPath', '/untouched');
+        $app = AppFactory::create();
+        $app->setBasePath('/x');
+        $ok = fn(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface => $response;
+        $app->get('/programy/moje', $ok)->setName('programs-mine')->setArgument('screen', '/programy');
+        $app->get('/informace', $ok);
+        $app->add(new ScreenAliasMiddleware($twig));
+        $app->addRoutingMiddleware();
+
+        $app->handle($this->request('/x/informace'));
+        self::assertSame('/untouched', $twig->getEnvironment()->getGlobals()['screenPath']);
+
+        $app->handle($this->request('/x/programy/moje'));
+        self::assertSame('/x/programy', $twig->getEnvironment()->getGlobals()['screenPath']);
     }
 
     /**

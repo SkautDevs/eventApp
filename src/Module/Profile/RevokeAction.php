@@ -8,6 +8,7 @@ use App\Auth\Authenticator;
 use App\Auth\PairingState;
 use App\Http\RefusalPage;
 use App\Http\SameOrigin;
+use App\Http\WriteResponse;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
 use App\Telemetry\Collector;
@@ -62,6 +63,6 @@ final class RevokeAction
             $this->toasts->loggedOut();
         }
 
-        return $response->withHeader('Location', $base . '/profil')->withStatus(302);
+        return WriteResponse::redirect($request, $response, $base . '/profil');
     }
 }

@@ -23,14 +23,21 @@ final class Precache
     /**
      * @param list<string> $stylesheets the core sheets the layout links, in its order (Modules::sheets())
      * @param list<MenuItem> $menu the tab bar, in its order, Domů first
-     * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>}
+     * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>, aliases: array<string, string>}
      */
     public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $stylesheets, array $menu, string $docroot): array
     {
-        // every tab, Domů first, then Profil and the offline page
+        // every tab, Domů first, then Profil and the offline page; a tab's other addresses
+        // (MenuItem::$aliases) are no documents of their own: the worker finds them under
+        // the tab's own copy
         $documents = [];
+        $aliases = [];
         foreach ($menu as $item) {
-            $documents[] = $routes->urlFor($item->route);
+            $screen = $routes->urlFor($item->route);
+            $documents[] = $screen;
+            foreach ($item->aliases as $alias) {
+                $aliases[$routes->urlFor($alias)] = $screen;
+            }
         }
         $documents[] = $routes->urlFor('profile');
         $documents[] = $routes->urlFor('offline');
@@ -95,29 +102,37 @@ final class Precache
         }
 
         return [
-            'version' => self::version(array_values(array_unique($documents)), $assets, $optional),
+            'version' => self::version(array_values(array_unique($documents)), $assets, $optional, $aliases),
             'documents' => array_values(array_unique($documents)),
             'assets' => $assets,
             'optional' => $optional,
+            'aliases' => $aliases,
         ];
     }
 
     /**
-     * First 8 hex of sha256 over the three lists, each sorted, one URL per line and an
-     * empty line between the lists. The documents and the optional entries count as much
-     * as the assets: a tab enabled or a handbook added is a new list, which the worker
+     * First 8 hex of sha256 over the four lists, each sorted, one entry per line and an
+     * empty line between the lists; an alias is the line "<alias> <screen>". The documents,
+     * the optional entries and the aliases count as much as the assets: a tab enabled, a
+     * handbook added or a view given an address of its own is a new list, which the worker
      * picks up only through a new version.
      *
      * @param list<string> $documents
      * @param list<string> $assets
      * @param list<string> $optional
+     * @param array<string, string> $aliases alias URL => its screen's URL
      */
-    public static function version(array $documents, array $assets, array $optional): string
+    public static function version(array $documents, array $assets, array $optional, array $aliases = []): string
     {
         sort($documents);
         sort($assets);
         sort($optional);
+        $lines = [];
+        foreach ($aliases as $alias => $screen) {
+            $lines[] = $alias . ' ' . $screen;
+        }
+        sort($lines);
 
-        return substr(hash('sha256', implode("\n", [...$documents, '', ...$assets, '', ...$optional])), 0, 8);
+        return substr(hash('sha256', implode("\n", [...$documents, '', ...$assets, '', ...$optional, '', ...$lines])), 0, 8);
     }
 }

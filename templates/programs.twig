@@ -34,10 +34,11 @@
 
 {% block content %}
 	{% import _self as pg %}
-	{# data-morph-keep names the attributes on this element that belong to the reader
-	   rather than to the server: a background morph must not put the screen back on the
-	   timeline because that is what a fresh render defaults to. #}
-	<div class="pg" data-pg-root data-morph-keep="data-view data-step" data-pg-event="{{ event.slug }}" data-view="timeline" data-step="next">
+	{# data-view is the view the address names (/programy, /programy/prehled,
+	   /programy/moje), painted first. data-morph-keep names the attributes on this
+	   element that belong to the reader rather than to the server: a background morph
+	   must not move the screen off the view the reader switched to. #}
+	<div class="pg" data-pg-root data-morph-keep="data-view data-step" data-pg-event="{{ event.slug }}" data-view="{{ view }}" data-step="next">
 		{# what a register or unregister said, over the sheet its deep link reopens #}
 		{% if toast %}{% include '_toast.twig' with {title: toast.title, line: toast.line} %}{% endif %}
 		{% if notice %}
@@ -140,18 +141,19 @@
 			{% endif %}
 		</div>
 
-		{# the three views are named at once, in a bar docked on top of the main tab bar #}
+		{# the three views are named at once, in a bar docked on top of the main tab bar;
+		   the pill of the view painted first is selected and the bar's one tab stop #}
 		<div class="tabs-wrap" data-key="tabs">
 			<div class="tabs" role="tablist" aria-label="Zobrazení programu">
 				<span class="tabs-indicator" aria-hidden="true"></span>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-overview" aria-controls="pg-view-overview" aria-selected="false" tabindex="-1" data-pg-view="overview"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span></button>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="true" data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></button>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="false" tabindex="-1" data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span></button>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-overview" aria-controls="pg-view-overview" aria-selected="{{ view == 'overview' ? 'true' : 'false' }}"{% if view != 'overview' %} tabindex="-1"{% endif %} data-pg-view="overview"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span></button>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="{{ view == 'timeline' ? 'true' : 'false' }}"{% if view != 'timeline' %} tabindex="-1"{% endif %} data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></button>
+				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="{{ view == 'list' ? 'true' : 'false' }}"{% if view != 'list' %} tabindex="-1"{% endif %} data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span></button>
 			</div>
 		</div>
 
-		{# the programme detail, as a bottom sheet #}
-		<div class="sheet" data-key="sheet" data-pg-sheet aria-hidden="true">
+		{# the programme detail, as a bottom sheet; closed, CSS hides it (visibility), from assistive technology too #}
+		<div class="sheet" data-key="sheet" data-pg-sheet>
 			<div class="sheet-backdrop" data-pg-close></div>
 			{# The server names the first programme so the dialog is never nameless, and
 			   openSheet() points it at the open one. A background morph rewrites it only
@@ -160,8 +162,9 @@
 				<div class="sheet-scroll" data-pg-sheet-scroll>
 					{% for detail in details %}
 						{# data-key is the morph's handle on this row: a programme added to the
-						   middle of the day must not shift every detail after it #}
-						<div class="sheet-body" data-key="{{ detail.id }}" data-pg-detail="{{ detail.id }}" data-page="{{ detail.page }}">
+						   middle of the day must not shift every detail after it. The id is the
+						   programme's deep link, section and programme. #}
+						<div class="sheet-body" id="section-{{ detail.sectionId }}-program-{{ detail.id }}" data-key="{{ detail.id }}" data-pg-detail="{{ detail.id }}" data-page="{{ detail.page }}">
 							<div class="sheet-head">
 								<h2 class="sheet-name" id="sheet-name-{{ detail.id }}">{{ detail.name }}</h2>
 								{% if detail.section %}<span class="sheet-chip">{{ detail.section }}</span>{% endif %}
@@ -193,11 +196,11 @@
 									{%- elseif detail.footer.state in ['before', 'after', 'none'] -%}
 										<p class="sheet-line" data-key="{{ detail.footer.state }}">{{ detail.footer.line }}</p>
 									{%- elseif detail.footer.state == 'register' -%}
-										{#- data-pg-write: www/js/programs/deeplink.js disables the button on submit and notes the view it was sent from -#}
-										<form method="post" action="{{ url_for('program-register', {id: detail.id}) }}" data-key="register" data-pg-write="{{ detail.id }}"><button class="btn btn-primary">Zapsat program</button></form>
+										{#- data-write: www/js/shell/write.js sends it and lands on its answer in place of the entry; www/js/programs/deeplink.js first writes the view on show into pohled, which the answer lands on -#}
+										<form method="post" action="{{ url_for('program-register', {id: detail.id}) }}" data-key="register" data-write><input type="hidden" name="pohled" value="{{ view }}"><button class="btn btn-primary">Zapsat program</button></form>
 									{%- elseif detail.footer.state == 'unregister' -%}
 										{#- the first tap asks, the second submits (www/js/shell/confirm.js) -#}
-										<form method="post" action="{{ url_for('program-unregister', {id: detail.id}) }}" data-key="unregister" data-pg-write="{{ detail.id }}"><button class="btn" data-confirm="Opravdu zrušit zápis?">Zrušit zápis</button></form>
+										<form method="post" action="{{ url_for('program-unregister', {id: detail.id}) }}" data-key="unregister" data-write><input type="hidden" name="pohled" value="{{ view }}"><button class="btn" data-confirm="Opravdu zrušit zápis?">Zrušit zápis</button></form>
 									{%- endif -%}
 								{%- endif -%}
 							</div>

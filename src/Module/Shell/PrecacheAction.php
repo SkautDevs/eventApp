@@ -16,7 +16,7 @@ use Slim\Routing\RouteContext;
 
 /**
  * GET /precache.json: what the service worker keeps (Http\Precache). no-cache: the worker
- * must see a new list the moment an asset changes.
+ * must see a new list the moment an asset changes. `aliases` is always a JSON object.
  */
 final class PrecacheAction
 {
@@ -40,6 +40,8 @@ final class PrecacheAction
             $this->modules->menu(),
             $this->paths->www,
         );
+        // the worker reads `aliases` as an object: none is {}, never []
+        $body['aliases'] = (object) $body['aliases'];
         $response->getBody()->write((string) json_encode($body, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR));
 
         return $response

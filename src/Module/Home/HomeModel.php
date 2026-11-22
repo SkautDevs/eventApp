@@ -150,8 +150,8 @@ final class HomeModel
     /**
      * NextUp::nextUp() as the Program screen's list builds it, each item extended
      * with what its card says: the start and end as Prague wall-clock times (written
-     * as Times::CLOCK, like the Program screen), the place and
-     * the title of its section. Null when the participant has no programme to show.
+     * as Times::CLOCK, like the Program screen), the place,
+     * the title of its section and the section's id for the card's deep link. Null when the participant has no programme to show.
      *
      * @param list<Programme> $mine
      * @param array<int, Section> $sections
@@ -178,6 +178,7 @@ final class HomeModel
                 // as given, untrimmed: only an empty place is none
                 location: $location !== null && $location !== '' ? $location : null,
                 section: $section?->title,
+                sectionId: $programme->sectionId,
             );
         }
 

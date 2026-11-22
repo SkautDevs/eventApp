@@ -97,7 +97,7 @@ final class ProgramRegistrationTest extends AppTestCase
      */
     private static function sheet(string $html, int $id): string
     {
-        self::assertSame(1, preg_match('#<div class="sheet-body" data-key="' . $id . '" data-pg-detail="' . $id . '".*?<div class="sheet-footer">(.*?)</div>#s', $html, $m), "no footer for {$id}");
+        self::assertSame(1, preg_match('#<div class="sheet-body" id="section-\d+-program-' . $id . '" data-key="' . $id . '" data-pg-detail="' . $id . '".*?<div class="sheet-footer">(.*?)</div>#s', $html, $m), "no footer for {$id}");
 
         return $m[1];
     }
@@ -119,9 +119,10 @@ final class ProgramRegistrationTest extends AppTestCase
         self::fail("no programme {$id}");
     }
 
-    private function post(App $app, int $id, string $action = 'prihlasit', array $headers = []): ResponseInterface
+    /** @param array<string, string> $body */
+    private function post(App $app, int $id, string $action = 'prihlasit', array $headers = [], array $body = []): ResponseInterface
     {
-        return $this->request($app, 'POST', '/programy/' . $id . '/' . $action, [], $headers);
+        return $this->request($app, 'POST', '/programy/' . $id . '/' . $action, $body, $headers);
     }
 
     public function testARegistrationRedirectsToTheDeepLinkAndSaysSoOnce(): void
@@ -151,6 +152,87 @@ final class ProgramRegistrationTest extends AppTestCase
         $again = $this->request($app, 'GET', '/programy');
         self::assertNull(self::toast((string) $again->getBody()));
         self::assertSame('', $again->getHeaderLine('X-Toast'));
+    }
+
+    /** The `pohled` field names the view the write was sent from, and the redirect lands on its address. */
+    public function testTheRedirectLandsOnTheViewItWasSentFrom(): void
+    {
+        $app = $this->korbo();
+        $this->pair($app);
+
+        foreach (
+            [
+                'overview' => '/korbo26/programy/prehled#section-1-program-1',
+                'list' => '/korbo26/programy/moje#section-1-program-1',
+                'timeline' => '/korbo26/programy#section-1-program-1',
+                'nonsense' => '/korbo26/programy#section-1-program-1',
+            ] as $view => $location
+        ) {
+            $response = $this->post($app, self::FREE, body: ['pohled' => $view]);
+            self::assertSame(302, $response->getStatusCode(), $view);
+            self::assertSame($location, $response->getHeaderLine('Location'), $view);
+        }
+        // no field, as from a page cached before the field existed
+        self::assertSame('/korbo26/programy#section-1-program-1', $this->post($app, self::FREE)->getHeaderLine('Location'));
+        self::assertSame('/korbo26/programy/moje#section-6-program-5', $this->post($app, self::MINE, 'odhlasit', body: ['pohled' => 'list'])->getHeaderLine('Location'));
+    }
+
+    /**
+     * shell/write.js sends the form with `X-Write: 1` and lands on the answer's `next`
+     * without a history step of its own; the toast waits in the session as after a redirect.
+     */
+    public function testAScriptedWriteGetsItsNextAsJson(): void
+    {
+        $app = $this->korbo();
+        $this->pair($app);
+
+        $response = $this->post($app, self::FREE, headers: ['X-Write' => '1'], body: ['pohled' => 'list']);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        self::assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+        self::assertSame('', $response->getHeaderLine('Location'));
+        self::assertSame('{"next":"/korbo26/programy/moje#section-1-program-1"}', (string) $response->getBody());
+
+        self::assertStringContainsString('Zapsáno: ', (string) self::toast($this->html($app, '/programy/moje')));
+    }
+
+    /** Without the header (no JavaScript, or its fallback after a failed answer) the write still redirects. */
+    public function testAPlainWriteStillRedirects(): void
+    {
+        $app = $this->korbo();
+        $this->pair($app);
+
+        $response = $this->post($app, self::FREE, body: ['pohled' => 'list']);
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/korbo26/programy/moje#section-1-program-1', $response->getHeaderLine('Location'));
+    }
+
+    /** Both sheet forms are shell/write.js's. */
+    public function testTheSheetFormsCarryDataWrite(): void
+    {
+        $app = $this->korbo();
+        $this->pair($app);
+        $html = $this->html($app);
+
+        self::assertStringContainsString(' data-write', self::sheet($html, self::FREE));
+        self::assertStringContainsString(' data-write', self::sheet($html, self::MINE));
+        self::assertStringNotContainsString('data-pg-write', $html);
+    }
+
+    /** The forms carry the view the server rendered, so a write without JavaScript keeps it too. */
+    public function testTheFormsCarryTheRenderedView(): void
+    {
+        $app = $this->korbo();
+        $this->pair($app);
+
+        self::assertStringContainsString(
+            '<input type="hidden" name="pohled" value="list">',
+            self::sheet($this->html($app, '/programy/moje'), self::FREE),
+        );
+        self::assertStringContainsString(
+            '<input type="hidden" name="pohled" value="overview">',
+            self::sheet($this->html($app, '/programy/prehled'), self::MINE),
+        );
     }
 
     public function testAFragmentBetweenTheRedirectAndTheDocumentLeavesTheToast(): void
@@ -197,11 +279,11 @@ final class ProgramRegistrationTest extends AppTestCase
         $html = $this->html($app);
 
         self::assertSame(
-            '<form method="post" action="/korbo26/programy/1/prihlasit" data-key="register" data-pg-write="1"><button class="btn btn-primary">Zapsat program</button></form>',
+            '<form method="post" action="/korbo26/programy/1/prihlasit" data-key="register" data-write><input type="hidden" name="pohled" value="timeline"><button class="btn btn-primary">Zapsat program</button></form>',
             self::sheet($html, self::FREE),
         );
         self::assertSame(
-            '<form method="post" action="/korbo26/programy/5/odhlasit" data-key="unregister" data-pg-write="5"><button class="btn" data-confirm="Opravdu zrušit zápis?">Zrušit zápis</button></form>',
+            '<form method="post" action="/korbo26/programy/5/odhlasit" data-key="unregister" data-write><input type="hidden" name="pohled" value="timeline"><button class="btn" data-confirm="Opravdu zrušit zápis?">Zrušit zápis</button></form>',
             self::sheet($html, self::MINE),
         );
         // a preregistered programme shows no button, and is not dimmed
@@ -335,7 +417,7 @@ final class ProgramRegistrationTest extends AppTestCase
     public function testAClosedWindowIsSaidWithoutATrailingPeriod(RegistrationWindow $window, string $state, string $line): void
     {
         $footer = static fn(array $detail): ?SheetFooter => (new \ReflectionMethod(SheetBuilder::class, 'footer'))
-            ->invoke(null, new Sheet(1, 'Program', '', null, null, null, null, null, null, $detail['registered'], $detail['preregistered']), true, true, $window, new \DateTimeImmutable('2026-11-17T12:00:00+01:00'));
+            ->invoke(null, new Sheet(1, 'Program', '', null, null, null, null, null, null, 0, $detail['registered'], $detail['preregistered']), true, true, $window, new \DateTimeImmutable('2026-11-17T12:00:00+01:00'));
 
         self::assertSame(['state' => $state, 'line' => $line], get_object_vars($footer(['preregistered' => false, 'registered' => false])));
         self::assertSame(['state' => $state, 'line' => $line], get_object_vars($footer(['preregistered' => true, 'registered' => true])));

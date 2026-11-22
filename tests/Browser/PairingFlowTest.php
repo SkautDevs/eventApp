@@ -8,7 +8,8 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * The pairing as a reader goes through it: Profil, "Přihlásit kódem z KissJ", the code on
- * the screen, and the page's own poll logging the app in — no reload by hand. The local
+ * the screen, and the page's own poll logging the app in — no reload by hand, and no
+ * history entry of its own: the start and the approval each replace Profil's. The local
  * source approves on the first poll, so the poll is held back in the page until the code
  * has been seen.
  */
@@ -78,6 +79,34 @@ final class PairingFlowTest extends BrowserTestCase
         // the participant's programmes are marked on Program
         self::tap('.tabbar a[href="/korbo26/programy"]');
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/programy"]\'); return s && !s.hidden && s.querySelector(".tl-card.is-registered") !== null;');
+    }
+
+    /**
+     * The start and the approval each replace their entry: Back from the paired Profil goes
+     * to the screen before it, never to a Profil still showing a code.
+     */
+    public function testTheApprovalReplacesTheWaitingProfil(): void
+    {
+        // logged out, whatever ran before
+        self::visit('/korbo26/');
+        self::$browser->manage()->deleteAllCookies();
+        self::visit('/korbo26/');
+        self::waitFor('return document.readyState === "complete" && document.querySelector(".appbar-avatar") === null;');
+
+        self::tap('.appbar-profile');
+        $start = '[data-screen="/korbo26/profil"] form[action="/korbo26/profil/propojit"] button.btn-primary';
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/profil"]\'); return s !== null && !s.hidden && document.querySelector(arguments[0]) !== null;', [$start]);
+        self::assertSame('/korbo26/profil', self::script('return location.pathname;'));
+        $n = self::script('return history.length;');
+
+        self::tap($start);
+        self::waitFor('return document.readyState === "complete" && document.querySelector(".profile-who") !== null;', [], 20);
+        self::assertSame($n, self::script('return history.length;'), 'the start or the approval added a history entry');
+
+        self::script('history.back();');
+        self::waitFor('return location.pathname === "/korbo26/" && document.readyState === "complete";');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/"]\'); return s !== null && !s.hidden;');
+        self::assertNull(self::script('return document.querySelector("[data-pairing-poll]");'), 'Back showed a Profil with a code');
     }
 
     /** The logout asks first: the first tap turns the button into the question, the second logs out. */

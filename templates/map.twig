@@ -33,8 +33,9 @@
 {% block content %}
 	{% if embedUrl and image %}
 		{# two views of one place, switched like the Program screen's: the interactive
-		   map and the handbook's drawing. data-view is the reader's, not the server's. #}
-		<div class="mapview" data-map-root data-map-event="{{ event.slug }}" data-view="google" data-morph-keep="data-view">
+		   map (/mapa) and the handbook's drawing (/mapa/plan). The server paints the view
+		   the address names; after that data-view is the reader's, not the server's. #}
+		<div class="mapview" data-map-root data-map-event="{{ event.slug }}" data-view="{{ view }}" data-morph-keep="data-view">
 			<div class="map-pane map-pane-google" id="map-view-google" role="tabpanel" aria-labelledby="map-tab-google">
 				{{ _self.google(embedUrl, true) }}
 			</div>
@@ -44,8 +45,8 @@
 			<div class="tabs-wrap" data-key="tabs">
 				<div class="tabs" role="tablist" aria-label="Zobrazení mapy">
 					<span class="tabs-indicator" aria-hidden="true"></span>
-					<button type="button" class="tabs-tab" role="tab" id="map-tab-google" aria-controls="map-view-google" aria-selected="true" data-map-view="google"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> <span class="tabs-label">Mapa</span></button>
-					<button type="button" class="tabs-tab" role="tab" id="map-tab-plan" aria-controls="map-view-plan" aria-selected="false" tabindex="-1" data-map-view="plan"><i class="far fa-map" aria-hidden="true"></i> <span class="tabs-label">Plán</span></button>
+					<button type="button" class="tabs-tab" role="tab" id="map-tab-google" aria-controls="map-view-google" aria-selected="{{ view == 'google' ? 'true' : 'false' }}"{% if view != 'google' %} tabindex="-1"{% endif %} data-map-view="google"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> <span class="tabs-label">Mapa</span></button>
+					<button type="button" class="tabs-tab" role="tab" id="map-tab-plan" aria-controls="map-view-plan" aria-selected="{{ view == 'plan' ? 'true' : 'false' }}"{% if view != 'plan' %} tabindex="-1"{% endif %} data-map-view="plan"><i class="far fa-map" aria-hidden="true"></i> <span class="tabs-label">Plán</span></button>
 				</div>
 			</div>
 		</div>

@@ -7,7 +7,8 @@ namespace App\Module\Programs\View;
 /**
  * One programme's sheet (SheetBuilder::buildDetail()): its name, Kdy, the place as given,
  * the perex, the lector and what to bring, the section's title, the timeline page its deep
- * link opens, and whether it is the participant's or preregistered. ScheduleBuilder leaves
+ * link opens, the section it belongs to (the deep link's `section-<sectionId>-program-<id>`,
+ * 0 when the record names none), and whether it is the participant's or preregistered. ScheduleBuilder leaves
  * `messages` empty and `footer` null; ShowAction then makes the completed() copy with the
  * organisers' messages and what the footer offers.
  */
@@ -24,6 +25,7 @@ final readonly class Sheet
         public ?string $tools,
         public ?string $section,
         public ?string $page,
+        public int $sectionId,
         public bool $registered,
         public bool $preregistered,
         public array $messages = [],
@@ -47,6 +49,7 @@ final readonly class Sheet
             $this->tools,
             $this->section,
             $this->page,
+            $this->sectionId,
             $this->registered,
             $this->preregistered,
             $messages,

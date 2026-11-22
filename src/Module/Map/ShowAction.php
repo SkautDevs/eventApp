@@ -12,9 +12,11 @@ use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
 
 /**
- * GET /mapa: the event config's `map` — the Google My Maps embed (`embedUrl`, none while it
- * still carries the REPLACE-ME placeholder), the self-hosted site plan (`image`, a path
- * under www/) and its alt text (`imageAlt`, default `Plán areálu`).
+ * GET /mapa and /mapa/plan: the view the route's `view` argument names, painted first,
+ * unless the event has only the other pane, which then shows on either address; and the
+ * event config's `map` — the Google My Maps embed (`embedUrl`, none while it still
+ * carries the REPLACE-ME placeholder), the self-hosted site plan (`image`, a path under
+ * www/) and its alt text (`imageAlt`, default `Plán areálu`).
  */
 final class ShowAction
 {
@@ -41,6 +43,14 @@ final class ShowAction
         $imageAlt = $map?->imageAlt;
         $imageAlt = $imageAlt !== null && $imageAlt !== '' ? $imageAlt : 'Plán areálu';
 
-        return $this->twig->render($response, 'map.twig', TemplateContext::of(new MapPage($embedUrl, $image, $imageAlt)));
+        // the requested view, or the only pane there is: /mapa/plan with no plan shows the map
+        $view = ($args['view'] ?? 'google') === 'plan' ? 'plan' : 'google';
+        if ($image === null && $embedUrl !== null) {
+            $view = 'google';
+        } elseif ($embedUrl === null && $image !== null) {
+            $view = 'plan';
+        }
+
+        return $this->twig->render($response, 'map.twig', TemplateContext::of(new MapPage($view, $embedUrl, $image, $imageAlt)));
     }
 }

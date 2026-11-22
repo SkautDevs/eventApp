@@ -8,8 +8,9 @@ use App\Toast\Toast;
 
 /**
  * Everything templates/programs.twig is rendered with, one property per template variable:
- * the schedule's (Schedule) with every sheet completed, the notice of what could not be
- * read, whether the programme list could not be read at all, whether the reader is paired
+ * the view the address names (`overview`, `timeline` or `list`), which the page paints
+ * first, the schedule's (Schedule) with every sheet completed, the notice of what could
+ * not be read, whether the programme list could not be read at all, whether the reader is paired
  * and whether their own list was read, and the toast a register or unregister left.
  * ShowAction renders get_object_vars() of it. The lists stay PHP lists: the template asks
  * whether they are empty.
@@ -17,12 +18,14 @@ use App\Toast\Toast;
 final readonly class ProgramsPage
 {
     /**
+     * @param 'overview'|'timeline'|'list' $view
      * @param list<TimelinePage> $pages
      * @param list<Day> $overview
      * @param list<Day> $days
      * @param list<Sheet> $details
      */
     public function __construct(
+        public string $view,
         public array $pages,
         public ?string $activePage,
         public array $overview,

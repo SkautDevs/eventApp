@@ -87,4 +87,41 @@ final class MapTest extends AppTestCase
         self::assertStringNotContainsString('<iframe', $html);
         self::assertStringNotContainsString('role="tablist"', $html);
     }
+
+    /**
+     * Mapa and Plán have an address each, /mapa and /mapa/plan, and each paints its own
+     * view first: the root's data-view and the selected pill.
+     */
+    public function testThePlanAddressPaintsThePlan(): void
+    {
+        $app = $this->createApp('map-plan', fixtureEvent: true);
+
+        $google = (string) $this->request($app, 'GET', '/mapa')->getBody();
+        self::assertStringContainsString('data-view="google"', $google);
+        self::assertMatchesRegularExpression('/id="map-tab-google" [^>]*aria-selected="true" data-map-view="google"/', $google);
+        self::assertMatchesRegularExpression('/id="map-tab-plan" [^>]*aria-selected="false" tabindex="-1" data-map-view="plan"/', $google);
+
+        $response = $this->request($app, 'GET', '/mapa/plan');
+        self::assertSame(200, $response->getStatusCode());
+        $plan = (string) $response->getBody();
+        self::assertStringContainsString('data-view="plan"', $plan);
+        self::assertStringNotContainsString('data-view="google"', $plan);
+        self::assertMatchesRegularExpression('/id="map-tab-plan" [^>]*aria-selected="true" data-map-view="plan"/', $plan);
+        self::assertMatchesRegularExpression('/id="map-tab-google" [^>]*aria-selected="false" tabindex="-1" data-map-view="google"/', $plan);
+    }
+
+    /** An event with one pane shows it on either address: the other view does not exist there. */
+    public function testEitherAddressShowsTheOnlyPane(): void
+    {
+        $planOnly = $this->createApp('map-plan-only', fixtureEvent: true);
+        foreach (['/mapa/plan', '/mapa'] as $path) {
+            $response = $this->request($planOnly, 'GET', $path);
+            self::assertSame(200, $response->getStatusCode(), $path);
+            self::assertStringContainsString('data-view="plan"', (string) $response->getBody(), $path);
+        }
+
+        $response = $this->request($this->createApp('map-embed', fixtureEvent: true), 'GET', '/mapa/plan');
+        self::assertSame(200, $response->getStatusCode());
+        self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe #', (string) $response->getBody());
+    }
 }

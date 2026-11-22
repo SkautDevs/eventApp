@@ -101,6 +101,50 @@ final class PairingTest extends AppTestCase
         self::assertStringContainsString('<title>Profil · ', $html);
     }
 
+    /** shell/write.js sends the start and the logout with `X-Write: 1`: the answer is the address to land on. */
+    public function testTheStartAndTheLogoutAnswerAScriptedWriteWithJson(): void
+    {
+        $app = $this->korbo();
+
+        $start = $this->request($app, 'POST', '/profil/propojit', [], ['X-Write' => '1']);
+        self::assertSame(200, $start->getStatusCode());
+        self::assertSame('application/json', $start->getHeaderLine('Content-Type'));
+        self::assertSame('no-store', $start->getHeaderLine('Cache-Control'));
+        self::assertSame('{"next":"/korbo26/profil"}', (string) $start->getBody());
+        self::assertStringContainsString('483 291', $this->html($app, '/profil'));
+
+        self::assertSame(['status' => 'approved'], $this->poll($app));
+        $logout = $this->request($app, 'POST', '/profil/odpojit', [], ['X-Write' => '1']);
+        self::assertSame(200, $logout->getStatusCode());
+        self::assertSame('{"next":"/korbo26/profil"}', (string) $logout->getBody());
+        self::assertStringContainsString('Nejsi přihlášen', $this->html($app, '/profil'));
+    }
+
+    /** Logged out, pending and paired: every write form on Profil is shell/write.js's. */
+    public function testEveryProfilWriteFormCarriesDataWrite(): void
+    {
+        $app = $this->korbo();
+        $forms = static function (string $html): array {
+            preg_match_all('#<form method="post" action="/korbo26/profil/(?:propojit|odpojit)"[^>]*>#', $html, $m);
+
+            return $m[0];
+        };
+
+        $loggedOut = $forms($this->html($app, '/profil'));
+        $this->request($app, 'POST', '/profil/propojit');
+        $pending = $forms($this->html($app, '/profil'));
+        $this->poll($app);
+        $paired = $forms($this->html($app, '/profil'));
+
+        foreach (['logged out' => $loggedOut, 'pending' => $pending, 'paired' => $paired] as $state => $tags) {
+            self::assertCount(1, $tags, $state);
+            foreach ($tags as $tag) {
+                self::assertMatchesRegularExpression('#\sdata-write[\s>]#', $tag, $state);
+            }
+        }
+        self::assertStringContainsString('/profil/odpojit', $paired[0]);
+    }
+
     public function testProfilLinksNoEventWebsite(): void
     {
         $html = $this->html($this->createApp('obrok27'), '/profil');

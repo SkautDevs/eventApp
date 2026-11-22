@@ -13,7 +13,7 @@ use App\Module\Modules;
 /** What the service worker keeps, as the server says it. */
 final class PrecacheTest extends AppTestCase
 {
-    /** @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>} */
+    /** @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>, aliases: array<string, string>} */
     private function listFor(string $slug, bool $fixtureEvent = false): array
     {
         $response = $this->request($this->createApp($slug, fixtureEvent: $fixtureEvent), 'GET', '/precache.json');
@@ -32,6 +32,57 @@ final class PrecacheTest extends AppTestCase
             ['/korbo26/', '/korbo26/programy', '/korbo26/informace', '/korbo26/profil', '/korbo26/offline'],
             $this->listFor('korbo26')['documents'],
         );
+    }
+
+    /** A screen's other addresses lead to its stored copy; they are not documents of their own. */
+    public function testTheListMapsEveryAliasToItsScreen(): void
+    {
+        self::assertSame(
+            [
+                '/obrok19/programy/prehled' => '/obrok19/programy',
+                '/obrok19/programy/moje' => '/obrok19/programy',
+                '/obrok19/mapa/plan' => '/obrok19/mapa',
+            ],
+            $this->listFor('obrok19')['aliases'],
+        );
+
+        // korbo26 has no Místa: only the two Program aliases, and still one document per screen
+        $korbo26 = $this->listFor('korbo26');
+        self::assertSame(
+            ['/korbo26/programy/prehled' => '/korbo26/programy', '/korbo26/programy/moje' => '/korbo26/programy'],
+            $korbo26['aliases'],
+        );
+        self::assertSame(['/korbo26/', '/korbo26/programy', '/korbo26/informace', '/korbo26/profil', '/korbo26/offline'], $korbo26['documents']);
+    }
+
+    public function testTheAliasesCountInTheVersion(): void
+    {
+        $documents = ['/x/', '/x/programy', '/x/profil', '/x/offline'];
+        $assets = ['/style.css?v=00000000'];
+        $aliases = ['/x/programy/prehled' => '/x/programy', '/x/programy/moje' => '/x/programy'];
+
+        self::assertNotSame(
+            Precache::version($documents, $assets, [], ['/x/programy/moje' => '/x/programy']),
+            Precache::version($documents, $assets, [], []),
+        );
+        self::assertSame(
+            Precache::version($documents, $assets, [], $aliases),
+            Precache::version($documents, $assets, [], array_reverse($aliases, true)),
+            'order does not matter',
+        );
+        // an alias is not the same entry as a document
+        self::assertNotSame(
+            Precache::version(['/x/programy/moje', '/x/programy'], $assets, []),
+            Precache::version([], $assets, [], ['/x/programy/moje' => '/x/programy']),
+        );
+    }
+
+    /** The worker reads `aliases` as an object, so an event without any sends {}, never []. */
+    public function testAnEventWithoutAliasesSendsAnObject(): void
+    {
+        $response = $this->request($this->createApp('minimal', fixtureEvent: true), 'GET', '/precache.json');
+
+        self::assertStringContainsString('"aliases":{}', (string) $response->getBody());
     }
 
     public function testEveryScriptAndTheStylesheetCarryTheirContentHash(): void
@@ -198,8 +249,8 @@ final class PrecacheTest extends AppTestCase
 
         self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
         self::assertSame('no-cache', $response->getHeaderLine('Cache-Control'));
-        self::assertSame(['version', 'documents', 'assets', 'optional'], array_keys($body));
-        self::assertSame(Precache::version($body['documents'], $body['assets'], $body['optional']), $body['version']);
+        self::assertSame(['version', 'documents', 'assets', 'optional', 'aliases'], array_keys($body));
+        self::assertSame(Precache::version($body['documents'], $body['assets'], $body['optional'], $body['aliases']), $body['version']);
         self::assertStringNotContainsString('\/', (string) $response->getBody());
     }
 

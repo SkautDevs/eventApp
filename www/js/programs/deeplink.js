@@ -1,63 +1,57 @@
 /**
- * The deep links into one programme, and the view a write was sent from.
+ * The address on the way in, and the view a write was sent from.
  *
- * The old deep link into a single programme keeps working, and opens its detail. A
- * register or unregister is a form POST, and its redirect lands on the programme's plain
- * deep link, which opens the timeline. The view the reader acted from is noted here on
- * submit (pgReturn:<slug>) and taken once on landing, so the reader comes back to Přehled
- * or Moje with the sheet open again. A deep link without the note, or with one for another
- * programme or older than a minute, behaves as it always did.
+ * The path decides the view, the hash decides the programme: ctx.fromHash() opens the sheet
+ * `#section-<s>-program-<id>` names on the view the path names (views.js has already shown
+ * it), and closes any open sheet when the hash names none. It runs at the wiring, on
+ * screen:shown (ctx.syncFromUrl) and, through sheet.js, on popstate (which a same-document
+ * hash change fires too); nothing listens for hashchange. The two old Moje hashes on the screen's own path (`#muj-program`,
+ * `#muj-program-<id>`) are rewritten to Moje's address first.
+ *
+ * A register or unregister form carries `pohled`, the view the server rendered; on submit it
+ * is overwritten with the view on show, and the write lands on that view's address (sent by
+ * shell/write.js, which also disables the button while it is on its way).
  */
 
-import {hashTarget, returnView} from './maths.js';
+import {hashTarget, legacyTarget, viewPath} from './maths.js';
 
 export function setup(ctx) {
 	const {root} = ctx;
-	const returnKey = 'pgReturn:' + ctx.slug;
 
-	ctx.noteReturn = id => {
-		try {
-			sessionStorage.setItem(returnKey, JSON.stringify({id: String(id), view: ctx.view, at: Date.now()}));
-		} catch (_e) {
-			// private browsing: the landing opens the timeline, as a plain deep link does
+	/** The id of programme `id`'s sheet body, which is its sheet's hash; null for no such programme. */
+	function bodyIdOf(id) {
+		const body = root.querySelector('.sheet-body[data-pg-detail="' + id + '"]');
+
+		return body ? body.id : null;
+	}
+
+	/**
+	 * An old Moje hash on Harmonogram's path: the entry becomes Moje's address, with the
+	 * sheet's hash for a programme the screen has, and Moje is shown.
+	 */
+	function fromLegacyHash() {
+		const legacy = legacyTarget(location.hash);
+		if (legacy === null || ctx.view !== 'timeline' || !ctx.screen) {
+			return;
 		}
-	};
-
-	function takeReturn(id) {
-		let note = null;
-		try {
-			note = JSON.parse(sessionStorage.getItem(returnKey) || 'null');
-			sessionStorage.removeItem(returnKey);
-		} catch (_e) {
-			note = null;
-		}
-
-		return returnView(note, id, Date.now());
+		const bodyId = legacy.id === null ? null : bodyIdOf(legacy.id);
+		history.replaceState(history.state, '', viewPath('list', ctx.screen) + location.search + (bodyId ? '#' + bodyId : ''));
+		ctx.showView('list');
 	}
 
 	ctx.fromHash = () => {
-		if (location.hash === '#muj-program') {
-			// where a login from the list's own form lands
-			ctx.showView('list');
-			return;
-		}
+		fromLegacyHash();
 		const target = hashTarget(location.hash);
 		if (!target) {
+			ctx.closeSheet(true);
 			return;
 		}
-		// the homepage's next-programme card: Můj program, on that programme, open;
-		// otherwise the redirect after a register or unregister: back on the view it was sent from
-		const view = target.mine ? 'list' : takeReturn(target.id);
-		if (view === 'list') {
+		if (ctx.view === 'list') {
+			// Moje lands on the programme, under its sheet
 			ctx.pendingListTarget = target.id;
-			if (ctx.view === 'list') {
-				ctx.enterList('list', false);
-			} else {
-				ctx.showView('list');
-			}
+			ctx.enterList('list', false);
 			ctx.openSheet(target.id, false, null);
-		} else if (view === 'overview') {
-			ctx.showView('overview');
+		} else if (ctx.view === 'overview') {
 			ctx.scrollToItem('overview', target.id);
 			ctx.openSheet(target.id, false, null);
 		} else {
@@ -65,28 +59,13 @@ export function setup(ctx) {
 		}
 	};
 
-	// A double tap must not send the write twice: the button goes disabled on submit.
-	// A page restored from the back-forward cache keeps its disabled button, so it is
-	// enabled again on pageshow, as the admin form's is.
+	// A register or unregister form carries the view on show: the answer lands on its address.
+	// This listener on the root runs before shell/write.js's on the document, which sends it.
 	root.addEventListener('submit', event => {
-		const form = event.target.closest ? event.target.closest('[data-pg-write]') : null;
-		if (!form) {
-			return;
-		}
-		ctx.noteReturn(form.dataset.pgWrite);
-		form.querySelectorAll('button').forEach(button => {
-			button.disabled = true;
-		});
-	});
-	window.addEventListener('pageshow', () => {
-		root.querySelectorAll('[data-pg-write] button[disabled]').forEach(button => {
-			button.disabled = false;
-		});
-	});
-
-	window.addEventListener('hashchange', () => {
-		if (document.contains(root) && !root.closest('[data-screen][hidden]')) {
-			ctx.fromHash();
+		const form = event.target.closest ? event.target.closest('form[data-write]') : null;
+		const view = form ? form.querySelector('input[name="pohled"]') : null;
+		if (view) {
+			view.value = ctx.view;
 		}
 	});
 }

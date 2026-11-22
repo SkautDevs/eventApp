@@ -8,10 +8,12 @@ import {
 	holdsNow,
 	hourStep,
 	landingScroll,
+	legacyTarget,
 	listMarks,
 	nowOffset,
-	returnView,
 	tickThreshold,
+	viewFromPath,
+	viewPath,
 	zoomScroll,
 } from '/js/programs/maths.js';
 import {assert, test} from './harness.js';
@@ -82,23 +84,31 @@ test('listMarks marks what runs and the next start of today only', () => {
 	assert.deepEqual(listMarks(items.slice(4), ms, today), [null]);
 });
 
-test('hashTarget reads the two deep links and nothing else', () => {
-	assert.deepEqual(hashTarget('#muj-program-7'), {mine: true, id: 7});
+test('hashTarget reads the section deep link and nothing else', () => {
 	assert.deepEqual(hashTarget('#section-2-program-7'), {section: 2, id: 7});
-	assert.equal(hashTarget('#x'), null);
-	assert.equal(hashTarget('#muj-program'), null);
+	assert.equal(hashTarget('#muj-program-7'), null);
+	assert.equal(hashTarget('#den-20260916'), null);
 	assert.equal(hashTarget(''), null);
 });
 
-test('returnView takes a note for the same programme younger than a minute', () => {
-	const now = Date.parse('2026-09-17T10:00:00+02:00');
-	assert.equal(returnView({id: '7', view: 'list', at: now - 59000}, 7, now), 'list');
-	assert.equal(returnView({id: '7', view: 'overview', at: now - 59000}, '7', now), 'overview');
-	assert.equal(returnView({id: '7', view: 'list', at: now - 60000}, 7, now), null);
-	assert.equal(returnView({id: '8', view: 'list', at: now - 1000}, 7, now), null);
-	assert.equal(returnView({id: '7', view: 'list'}, 7, now), null);
-	assert.equal(returnView({id: '7', view: 'nonsense', at: now - 1000}, 7, now), null);
-	assert.equal(returnView(null, 7, now), null);
+test('legacyTarget reads the two old Moje hashes', () => {
+	assert.deepEqual(legacyTarget('#muj-program'), {id: null});
+	assert.deepEqual(legacyTarget('#muj-program-7'), {id: 7});
+	assert.equal(legacyTarget('#section-2-program-7'), null);
+});
+
+test('viewFromPath reads the three addresses of one screen', () => {
+	assert.equal(viewFromPath('/k/programy', '/k/programy'), 'timeline');
+	assert.equal(viewFromPath('/k/programy/prehled', '/k/programy'), 'overview');
+	assert.equal(viewFromPath('/k/programy/moje', '/k/programy'), 'list');
+	assert.equal(viewFromPath('/k/mapa', '/k/programy'), null);
+	assert.equal(viewFromPath('/k/programy/harmonogram', '/k/programy'), null);
+});
+
+test('viewPath is its inverse', () => {
+	['timeline', 'overview', 'list'].forEach(view => {
+		assert.equal(viewFromPath(viewPath(view, '/k/programy'), '/k/programy'), view);
+	});
 });
 
 test('formatDay and formatNow read the Prague day and clock, not UTC', () => {
@@ -124,10 +134,17 @@ test('two Program screens in one page do not share their state', () => {
 		init(second);
 		assert.equal(first.dataset.pgReady, '1');
 		assert.equal(second.dataset.pgReady, '1');
+		const address = location.href;
 		first.querySelector('[data-pg-view="overview"]').click();
 		assert.equal(first.dataset.view, 'overview');
 		assert.equal(second.dataset.view, 'timeline');
 		assert.equal(second.querySelector('[data-pg-view="timeline"]').getAttribute('aria-selected'), 'true');
+		// the shown view's pill is the current page, and only that one
+		assert.equal(first.querySelector('[data-pg-view="overview"]').getAttribute('aria-current'), 'page');
+		assert.equal(first.querySelector('[data-pg-view="timeline"]').hasAttribute('aria-current'), false);
+		assert.equal(second.querySelector('[data-pg-view="timeline"]').getAttribute('aria-current'), 'page');
+		// a root in no screen has no address of its own to push
+		assert.equal(location.href, address);
 	} finally {
 		host.remove();
 	}

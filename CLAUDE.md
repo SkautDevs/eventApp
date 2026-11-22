@@ -85,6 +85,6 @@ One row per screen, as the code stands on 2026-11-18. A screen is one name in th
 - Insert a screen, show it, and only then initialise it, since a hidden subtree measures as zero. See `docs/architecture/shell-and-loader.md`.
 - Keep a `data-key` or id on every child the morph must match, and list client-owned attributes in `data-morph-keep`. See `docs/architecture/shell-and-loader.md`.
 - Inline scripts need `nonce="{{ cspNonce }}"`, and no element may have an `on*=` attribute. See `docs/architecture/http.md`.
-- A write is a plain form POST and a full navigation, which lets the worker purge stored pages. See `docs/architecture/service-worker.md`.
+- A write is a POST the worker sees, then a full navigation that replaces the entry, which lets the worker purge stored pages. See `docs/architecture/service-worker.md`.
 - No secret in an exception message, since Sentry sends messages unscrubbed. See `docs/architecture/telemetry.md`.
 - Once deployed, a migration step is never edited; append a new one. See `docs/architecture/push.md`.

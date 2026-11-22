@@ -112,8 +112,9 @@
    navigation is through everything above it — on /mapa that is a dozen tab stops
    inside Google's iframe before the tab bar is reached. It targets <main> rather
    than a screen, because <main> is the one anchor that survives a screen swap. The href
-   carries the current path because <base href="/"> would send a bare "#obsah" to the picker. #}
-<a class="skip-link" href="{{ screenPath }}#obsah">Přeskočit na obsah</a>
+   carries the current address (pageAddress, path and query) because <base href="/"> would
+   send a bare "#obsah" to the picker, and a view address (/programy/moje) stays itself. #}
+<a class="skip-link" href="{{ pageAddress }}#obsah">Přeskočit na obsah</a>
 <header class="appbar">
 	<a class="appbar-brand" href="{{ url_for('homepage') }}">
 		{# the logo is decorative and the title names the screen: without this the link to the homepage is announced as the current screen #}
@@ -192,7 +193,9 @@
 	{# aria-current is the only thing that tells a screen reader which of the four you
 	   are on: the fill and the chip are pixels, and .is-active is a class name. Every tab
 	   is an item of the menu, Domů first; Domů draws its own mark and the event's short
-	   name. The ~ on the loop's tags keeps the bar's whitespace what it always was. #}
+	   name. A tab's data-screen-aliases are its other addresses, the views of its screen
+	   with a path of their own (MenuItem::$aliases), which belong to this tab as well.
+	   The ~ on the loop's tags keeps the bar's whitespace what it always was. #}
 	{%~ for item in menu %}
 	{%~ if item.key == 'homepage' %}
 	<a class="tab{{ activeTab == 'homepage' ? ' is-active' }}" href="{{ url_for('homepage') }}"{% if activeTab == 'homepage' %} aria-current="page"{% endif %}>
@@ -215,7 +218,7 @@
 		<span>{{ event.shortName|default(event.name) }}</span>
 	</a>
 	{% else %}
-		<a class="tab{{ activeTab == item.key ? ' is-active' }}" href="{{ url_for(item.route) }}"{% if activeTab == item.key %} aria-current="page"{% endif %}>
+		<a class="tab{{ activeTab == item.key ? ' is-active' }}" href="{{ url_for(item.route) }}"{% if item.aliases is not empty %} data-screen-aliases="{% for alias in item.aliases %}{{ url_for(alias) }}{{ not loop.last ? ' ' }}{% endfor %}"{% endif %}{% if activeTab == item.key %} aria-current="page"{% endif %}>
 			<i class="{{ item.icon }}" aria-hidden="true"></i>
 			<span>{{ item.label }}</span>
 		</a>

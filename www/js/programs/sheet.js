@@ -1,9 +1,14 @@
 /**
  * The programme sheet, the screen's one dialog: opening and closing it, its focus trap,
  * and the history entry that lets Back close it. The three share the dialog's state.
+ *
+ * The open sheet has an address: its entry is the view's path with the body's id as the
+ * hash (`/programy/moje#section-<s>-program-<id>`). Back and Forward onto such an entry
+ * open that sheet again, onto any other entry close it; a reload of it reopens it.
  */
 
 import {emitSheetClosed, onScreenHidden} from '../events.js';
+import {hashTarget, legacyTarget} from './maths.js';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -119,17 +124,28 @@ export function setup(ctx) {
 	// back only once the traversal has finished restoring nothing.
 	let savedRestoration = null;
 
-	function enterOverlay() {
+	/**
+	 * The sheet's entry, with `hash` (the body's id) on the address. An overlay entry already
+	 * up (a sheet open, a reload of one, Back or Forward onto one) is rewritten in place.
+	 * Otherwise the entry under the sheet is first stripped of a programme hash it carries
+	 * (a landing on a deep link, an old hash rewritten): Back onto it would open the sheet
+	 * again. Then the sheet's entry is pushed.
+	 */
+	function enterOverlay(hash) {
 		if (savedRestoration === null && 'scrollRestoration' in history) {
 			savedRestoration = history.scrollRestoration;
 			history.scrollRestoration = 'manual';
 		}
-		const state = Object.assign({}, history.state || {}, {pgOverlay: true});
+		const address = location.pathname + location.search;
 		if (history.state && history.state.pgOverlay) {
-			history.replaceState(state, '');
-		} else {
-			history.pushState(state, '');
+			history.replaceState(history.state, '', address + hash);
+
+			return;
 		}
+		if (hashTarget(location.hash) !== null) {
+			history.replaceState(history.state, '', address);
+		}
+		history.pushState({...history.state, screen: ctx.screen, pgOverlay: true}, '', address + hash);
 	}
 
 	function restoreScrollRestoration() {
@@ -197,8 +213,8 @@ export function setup(ctx) {
 		// the dialog is named by the programme it shows, not by a constant
 		parts.card.setAttribute('aria-labelledby', 'sheet-name-' + id);
 		parts.card.removeAttribute('aria-label');
+		// the path decides the view; on Harmonogram the timeline goes to the programme's page
 		if (followPage && body.dataset.page) {
-			ctx.showView('timeline');
 			ctx.showPageByKey('timeline', body.dataset.page);
 			// and the personal list is put on the same programme, so that opening
 			// Můj program after a deep link lands on it rather than at the top
@@ -206,8 +222,7 @@ export function setup(ctx) {
 		}
 		opener = trigger || null;
 		parts.sheet.classList.add('is-open');
-		enterOverlay();
-		parts.sheet.setAttribute('aria-hidden', 'false');
+		enterOverlay('#' + body.id);
 		if (parts.scroll) {
 			parts.scroll.scrollTop = 0;
 		}
@@ -221,7 +236,6 @@ export function setup(ctx) {
 			return;
 		}
 		parts.sheet.classList.remove('is-open');
-		parts.sheet.setAttribute('aria-hidden', 'true');
 		// the shell's two-tap confirmation withdraws a question the sheet's unregister button was asking
 		emitSheetClosed(parts.sheet);
 		// before the focus goes back: an inert element cannot take it
@@ -235,12 +249,39 @@ export function setup(ctx) {
 		}
 	};
 
-	// Back (or Forward) on any entry: whatever is open closes and the trap lets go —
-	// also the backstop for an entry this screen did not push.
+	/** Whether programme `id`'s sheet is the one open. */
+	function showing(id) {
+		const parts = sheetParts();
+		const body = root.querySelector('[data-pg-detail="' + id + '"]');
+
+		return !!(parts.sheet && body && parts.sheet.classList.contains('is-open') && body.classList.contains('is-open'));
+	}
+
+	// Back (or Forward) on any entry, and a same-document hash change (a notification's
+	// client.navigate() to the screen already on show): an entry whose hash names a
+	// programme of this screen, or is an old Moje hash, is read as the wiring reads it
+	// (ctx.fromHash(): the timeline's page, Moje's target, the old hash rewritten), and the
+	// sheet opens on that very entry (enterOverlay() rewrites an overlay entry rather than
+	// pushing). Any other entry closes whatever is open and lets the trap go — also the
+	// backstop for an entry this screen did not push. Only while the screen is on show: on
+	// a Back from another screen its screen:shown (ctx.syncFromUrl) reads the address, and a
+	// sheet that already shows the programme is left alone, so it opens once.
 	window.addEventListener('popstate', () => {
 		leaving = false;
-		ctx.closeSheet(true);
-		restoreScrollRestoration();
+		const target = hashTarget(location.hash);
+		const visible = document.contains(root) && !root.closest('[data-screen][hidden]');
+		const named = target !== null && root.querySelector('[data-pg-detail="' + target.id + '"]') !== null;
+		if (visible && (named || legacyTarget(location.hash) !== null)) {
+			if (!named || !showing(target.id)) {
+				ctx.fromHash();
+			}
+		} else {
+			ctx.closeSheet(true);
+		}
+		// an open sheet keeps owning the scroll; a closed one hands it back
+		if (!ctx.trapped()) {
+			restoreScrollRestoration();
+		}
 		const run = afterLeave;
 		afterLeave = null;
 		if (run) {

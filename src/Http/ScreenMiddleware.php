@@ -19,10 +19,15 @@ use Slim\Views\Twig;
  * request is byte-identical to what it was before this existed, which is what keeps
  * deep links, crawlers and a no-JS reader working.
  *
- * Next to `fragment` the middleware sets `screenPath`, which exists because
- * slim/twig-view resolves `get_uri()`'s runtime exactly once and then keeps it for the
- * life of the `App` — the path would be stale from the second request on, which no
- * single-request web server notices and every test does. It also sets
+ * Next to `fragment` the middleware sets `screenPath`, the path that names the screen,
+ * a global because slim/twig-view resolves `get_uri()`'s runtime exactly once and then
+ * keeps it for the life of the `App` — the path would be stale from the second request
+ * on, which no single-request web server notices and every test does. On a view address
+ * (/programy/moje) ScreenAliasMiddleware, inside the routing middleware, then renames it
+ * to the screen's own path (/programy). The third global, `pageAddress`, is the address
+ * itself, path and query (`/obrok19/programy?den=20260916`), and nothing renames it: the
+ * skip link uses it, so it stays on the address the page was served for, where
+ * `<base href="/">` would send a bare `#…` to the picker. It also sets
  * `Cache-Control: PAGE_CACHE_CONTROL`, `no-store, no-cache, must-revalidate`, on every
  * HTML page and fragment that states no policy of its own, cookie or not.
  *
@@ -50,7 +55,10 @@ final readonly class ScreenMiddleware implements MiddlewareInterface
     {
         $env = $this->twig->getEnvironment();
         $env->addGlobal('fragment', $request->getHeaderLine('X-Screen') === '1');
-        $env->addGlobal('screenPath', $request->getUri()->getPath());
+        $uri = $request->getUri();
+        $env->addGlobal('screenPath', $uri->getPath());
+        $query = $uri->getQuery();
+        $env->addGlobal('pageAddress', $uri->getPath() . ($query === '' ? '' : '?' . $query));
         // Request-scoped: in a long-lived app the container, and this one instance with
         // it, outlives the request, and a stale flag must not leak into the next screen.
         $this->freshness->reset($this->clock->now());

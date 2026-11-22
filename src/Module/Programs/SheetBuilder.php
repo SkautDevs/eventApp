@@ -39,6 +39,7 @@ final class SheetBuilder
             tools: $program->tools,
             section: $section === null ? null : self::sectionTitle($section),
             page: $pageOfProgram[$program->id] ?? null,
+            sectionId: $program->sectionId,
             registered: isset($registeredIds[$program->id]),
             // kissj's isPreregistered: fixed for its roles, never in a participant's own list
             preregistered: $program->preregistered,

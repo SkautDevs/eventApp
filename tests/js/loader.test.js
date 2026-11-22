@@ -1,5 +1,5 @@
 import {SCREEN_FRESHNESS} from '/js/events.js';
-import {syncFreshness} from '/js/loader/loader.js';
+import {parseAliases, resolveScreen, shouldInsertHome, syncFreshness} from '/js/loader/loader.js';
 import {assert, test} from './harness.js';
 
 const section = attributes => {
@@ -58,4 +58,26 @@ test('syncFreshness reports a bubbling event', () => {
 	});
 	syncFreshness(from, section({'data-fetched-at': 'b'}));
 	assert.ok(seen === from);
+});
+
+test('parseAliases reads the space-separated paths', () => {
+	assert.deepEqual(parseAliases('/k/programy/prehled  /k/programy/moje', 'http://x/k/'), ['/k/programy/prehled', '/k/programy/moje']);
+	assert.deepEqual(parseAliases('', 'http://x/k/'), []);
+});
+
+test('resolveScreen maps an alias to its screen and anything else to itself', () => {
+	const map = new Map([['/k/programy/moje', '/k/programy']]);
+	assert.equal(resolveScreen(map, '/k/programy/moje'), '/k/programy');
+	assert.equal(resolveScreen(map, '/k/informace'), '/k/informace');
+});
+
+test('shouldInsertHome only on a fresh navigation from outside the event to another screen', () => {
+	const base = {screen: '/k/informace', home: '/k/', navigationType: 'navigate', state: null, referrer: '', eventUrl: 'http://x/k/'};
+	assert.ok(shouldInsertHome(base));
+	assert.ok(!shouldInsertHome({...base, screen: '/k/'}));
+	assert.ok(!shouldInsertHome({...base, navigationType: 'reload'}));
+	assert.ok(!shouldInsertHome({...base, navigationType: 'back_forward'}));
+	assert.ok(!shouldInsertHome({...base, state: {screen: '/k/informace'}}));
+	assert.ok(!shouldInsertHome({...base, referrer: 'http://x/k/programy'}));
+	assert.ok(shouldInsertHome({...base, referrer: 'http://x/other/'}));
 });

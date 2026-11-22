@@ -198,6 +198,8 @@ final class HomeModelTest extends TestCase
         // no location, no section; a section the event does not list is none
         self::assertSame(['20:00', 'do 22:00', null, null], [$byId[3]->time, $byId[3]->until, $byId[3]->location, $byId[3]->section]);
         self::assertNull($byId[4]->section);
+        // the section's id, for the card's deep link: 0 for none, and kept for one the event does not list
+        self::assertSame([1, 2, 0, 99], array_column($nextUp->items, 'sectionId'));
         // the instants the shell compares with the device clock stay
         self::assertSame('2027-05-21T11:00:00+02:00', $byId[1]->start);
         self::assertSame('2027-05-21T12:30:00+02:00', $byId[1]->end);

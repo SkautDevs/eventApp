@@ -118,6 +118,36 @@ function cacheKey(request) {
 }
 
 /**
+ * The stored list's aliases: a screen's other addresses (Program's /programy/moje, Místa's
+ * /mapa/plan), each mapped to its tab's address (App\Http\Precache). {} without a stored
+ * list, or with one from before the list had aliases.
+ */
+function aliasesOf() {
+	return currentCache()
+		.then(cache => cache && cache.match(SCOPE + 'precache.json'))
+		.then(stored => (stored ? stored.json() : null))
+		.then(list => (list && list.aliases && typeof list.aliases === 'object' ? list.aliases : {}));
+}
+
+/**
+ * The key of the screen a page or fragment shows, for every address: an alias resolved to
+ * its tab's address, any other path as it is, and the query dropped either way — /programy/moje
+ * and /programy?den=… both show the stored /programy. A fragment's key carries x-screen=1,
+ * as in cacheKey(). For an address that is a screen's own, without a query, it is the
+ * same key as cacheKey()'s.
+ */
+function screenKey(request, aliases) {
+	const url = new URL(request.url);
+	url.search = '';
+	// own keys only, and no ES2022 Object.hasOwn: the worker runs on Safari before 15.4 too
+	if (Object.keys(aliases).includes(url.pathname) && typeof aliases[url.pathname] === 'string') {
+		url.pathname = aliases[url.pathname];
+	}
+	if (request.headers.get('X-Screen') === '1') url.searchParams.set('x-screen', '1');
+	return new Request(url.href);
+}
+
+/**
  * A screen's page and its fragment, fetched with the reader's cookie and stored under their
  * keys. X-Worker-Fill says it is the worker asking, not the reader looking, so the server
  * leaves a pending toast for the reader's own next page (App\Toast\Toasts::take()).
@@ -423,7 +453,9 @@ function refill() {
  * strips. The page comes from the cache like any other offline navigation. Only a
  * same-origin referrer is a place to go back to (its own hash dropped); without one — or
  * with one from elsewhere — it is the event's home, never a bare "#offline" on nothing.
- * A 303, so the browser follows it with a GET.
+ * A plain form gets a 303, so the browser follows it with a GET. A write sent by
+ * www/js/shell/write.js (`X-Write: 1`) gets the target as `{"next"}`, as the server would
+ * answer it, and lands there in place of its entry.
  */
 function offlineRedirect(request) {
 	let target = SCOPE;
@@ -438,6 +470,9 @@ function offlineRedirect(request) {
 			// "about:client" or worse: home it is
 		}
 	}
+	if (request.headers.get('X-Write') === '1') {
+		return new Response(JSON.stringify({next: target + '#offline'}), {headers: {'Content-Type': 'application/json'}});
+	}
 	return Response.redirect(target + '#offline', 303);
 }
 
@@ -448,27 +483,48 @@ function offlineRedirect(request) {
  * copy, and a page never cached gets the offline page. A server error (5xx) gets the
  * cached copy too when there is one; a 4xx is an answer and passes through.
  *
+ * The cached copy is the one kept for the exact address, else the one kept for its screen
+ * (screenKey()): a view address such as /programy/moje is an alias of /programy, and an
+ * address with a query (/programy?den=…) shows the same screen as the one without. Only a
+ * failed fetch falls through to /offline; the timer and a 5xx try the two copies and
+ * otherwise keep waiting, or pass the server's error page through. An alias without a query
+ * is stored under its screen's key, so a visit to /programy/moje refreshes the /programy
+ * copy; an address with a query is stored under its own.
+ *
  * A page that carries a toast is shown and not stored (toasted()); reconcile() and refill()
  * still run, so the copy the offline cache gets is fetched again without it.
  */
 function page(event) {
 	const request = event.request;
-	const key = cacheKey(request);
+	const exact = cacheKey(request);
 	const generation = purges;
-	const fallback = () => match(key)
+	// never rejects: a stored list that cannot be read is a list without aliases
+	const screen = aliasesOf().then(aliases => screenKey(request, aliases)).catch(() => screenKey(request, {}));
+	const cachedCopy = () => match(exact).then(hit => hit || screen.then(key => (key.url === exact.url ? undefined : match(key))));
+	const fallback = () => cachedCopy()
 		.then(hit => hit || match(SCOPE + 'offline'))
 		.then(hit => hit || Response.error());
 	if (self.navigator.onLine === false) {
 		return fallback();
 	}
-	const network = fetch(request).then(response => ({
-		response,
-		stored: storable(response)
-			? Promise.all([toasted(response) ? null : putHtml(generation, key, response.clone()), response.clone().text()])
-				.then(([, html]) => reconcile(key, html, !toasted(response)))
-				.then(refill)
-			: Promise.resolve(),
-	}));
+	// the answer goes to the reader as soon as it arrives; only storing waits for the screen key
+	const network = fetch(request).then(response => {
+		if (!storable(response)) {
+			return {response, stored: Promise.resolve()};
+		}
+		// both copies taken now, before the page reads the body
+		const kept = toasted(response) ? null : response.clone();
+		const html = response.clone().text();
+		return {
+			response,
+			stored: screen.then(found => {
+				// for an address without a query the screen's key: itself, or the tab of an alias
+				const key = new URL(request.url).search === '' ? found : exact;
+				return Promise.all([kept && putHtml(generation, key, kept), html])
+					.then(([, text]) => reconcile(key, text, kept !== null));
+			}).then(refill),
+		};
+	});
 	event.waitUntil(network
 		.then(result => result.stored.catch(() => null).then(() => (storable(result.response) ? checkVersion() : null)))
 		.catch(() => null));
@@ -480,7 +536,7 @@ function page(event) {
 				resolve(value);
 			}
 		};
-		const timer = setTimeout(() => match(key).then(hit => {
+		const timer = setTimeout(() => cachedCopy().then(hit => {
 			if (hit) {
 				finish(hit);
 			}
@@ -491,7 +547,7 @@ function page(event) {
 				// the server is up but failing — php-fpm down, nginx's gateway error, an
 				// overload: a saved copy beats the error page. Without one the error page is
 				// the truth, so it passes through rather than /offline.
-				match(key).then(hit => finish(hit || result.response), () => finish(result.response));
+				cachedCopy().then(hit => finish(hit || result.response), () => finish(result.response));
 				return;
 			}
 			finish(result.response);

@@ -110,7 +110,7 @@ final class ScreenFragmentTest extends AppTestCase
 
         $loader = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/loader/loader.js');
         self::assertStringContainsString('if (!response.ok) {', $loader);
-        self::assertStringContainsString('location.href = path;', $loader);
+        self::assertStringContainsString('location.href = url;', $loader);
     }
 
     public function testTheProgramScreenCarriesNoInlineScriptAnyMore(): void
@@ -137,6 +137,63 @@ final class ScreenFragmentTest extends AppTestCase
             $this->assertSame(200, $fragment->getStatusCode(), $path);
             $this->assertStringContainsString('data-tab="' . $tab . '"', (string) $fragment->getBody(), $path);
         }
+    }
+
+    /**
+     * Přehled and Moje have addresses of their own, but they are views of the one Program
+     * screen: every address renders the screen under its tab's path, so the loader keeps
+     * one section for all three.
+     */
+    public function testTheThreeProgramAddressesAnswerOneScreen(): void
+    {
+        $app = $this->createApp('korbo26');
+
+        foreach (['/programy', '/programy/prehled', '/programy/moje'] as $path) {
+            foreach ([[], ['X-Screen' => '1']] as $headers) {
+                $response = $this->request($app, 'GET', $path, null, $headers);
+                $mode = $path . ($headers === [] ? ' (page)' : ' (fragment)');
+
+                self::assertSame(200, $response->getStatusCode(), $mode);
+                self::assertStringContainsString('data-screen="/korbo26/programy"', (string) $response->getBody(), $mode);
+            }
+        }
+    }
+
+    public function testBothMapAddressesAnswerOneScreen(): void
+    {
+        $app = $this->createApp();
+
+        foreach (['/mapa', '/mapa/plan'] as $path) {
+            foreach ([[], ['X-Screen' => '1']] as $headers) {
+                $response = $this->request($app, 'GET', $path, null, $headers);
+                $mode = $path . ($headers === [] ? ' (page)' : ' (fragment)');
+
+                self::assertSame(200, $response->getStatusCode(), $mode);
+                self::assertStringContainsString('data-screen="/obrok19/mapa"', (string) $response->getBody(), $mode);
+            }
+        }
+    }
+
+    /** The screen is named by its tab, but the skip link stays on the address it was served for. */
+    public function testTheSkipLinkKeepsTheAddressItWasServedFor(): void
+    {
+        $response = $this->request($this->createApp('korbo26'), 'GET', '/programy/moje');
+        $html = (string) $response->getBody();
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString('<a class="skip-link" href="/korbo26/programy/moje#obsah">', $html);
+    }
+
+    public function testTheProgramTabDeclaresItsAliases(): void
+    {
+        self::assertStringContainsString(
+            'href="/korbo26/programy" data-screen-aliases="/korbo26/programy/prehled /korbo26/programy/moje"',
+            (string) $this->request($this->createApp('korbo26'), 'GET', '/')->getBody(),
+        );
+        self::assertStringContainsString(
+            'href="/obrok19/mapa" data-screen-aliases="/obrok19/mapa/plan"',
+            (string) $this->request($this->createApp(), 'GET', '/')->getBody(),
+        );
     }
 
     /**

@@ -45,6 +45,50 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('return document.body.textContent.includes(arguments[0]);', ['Jsi offline a tahle stránka ještě není uložená.']);
     }
 
+    /**
+     * Review Focus 3: a view address is an alias of its screen, kept under the screen's own
+     * address, so with no server it opens from the stored Program screen, not /offline.
+     */
+    public function testAViewAddressOpensFromTheStoredScreen(): void
+    {
+        self::visit('/korbo26/');
+        self::waitForPrecache('korbo26');
+
+        self::stopServer();
+        try {
+            self::visit('/korbo26/programy/moje');
+            self::waitFor('return document.querySelector(\'[data-screen="/korbo26/programy"]\') !== null;');
+            self::assertNull(self::script('return document.querySelector(".offline");'));
+            // the stored copy is the screen's own, painted on Harmonogram: the view comes from the address
+            self::waitFor('const root = document.querySelector(\'[data-pg-root][data-pg-ready="1"]\'); return root !== null && root.dataset.view === "list";');
+            self::assertSame('true', self::script('return document.querySelector(\'[data-pg-view="list"]\').getAttribute("aria-selected");'));
+        } finally {
+            self::startServer();
+        }
+    }
+
+    /**
+     * The other way round: a visit to Moje stores Moje's markup under the screen's key, and
+     * the screen's own address, opened from that copy, is still Harmonogram.
+     */
+    public function testTheScreenAddressOpensOnItsOwnViewFromAnAliasCopy(): void
+    {
+        self::visit('/korbo26/');
+        $cache = self::waitForPrecache('korbo26');
+        self::visit('/korbo26/programy/moje');
+        self::waitForCachedPage($cache, '/korbo26/programy', 'data-view="list"');
+
+        self::stopServer();
+        try {
+            self::visit('/korbo26/programy');
+            self::waitFor('const root = document.querySelector(\'[data-pg-root][data-pg-ready="1"]\'); return root !== null && root.dataset.view === "timeline";');
+            self::assertSame('true', self::script('return document.querySelector(\'[data-pg-view="timeline"]\').getAttribute("aria-selected");'));
+            self::assertSame('false', self::script('return document.querySelector(\'[data-pg-view="list"]\').getAttribute("aria-selected");'));
+        } finally {
+            self::startServer();
+        }
+    }
+
     /** Review Focus 4: the crisis line is the one thing that must be there with no signal. */
     public function testTheCrisisContactIsThereWithoutTheServer(): void
     {
@@ -57,27 +101,72 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('return !!document.querySelector(".info-contact a.emergency-call[href=\'tel:+420704444015\']");');
     }
 
-    /** Google's map is a blank box with no signal, so Mapa opens on the plan, from the cache. */
+    /**
+     * Google's map is a blank box with no signal, so Mapa opens on the plan, from the cache,
+     * and the address says so: the bare /mapa is replaced by /mapa/plan, with no new step.
+     */
     public function testTheMapOpensOnThePlanWithoutTheServer(): void
     {
         self::visit('/obrok19/mapa');
         self::script('sessionStorage.clear();');
         self::waitForPrecache('obrok19');
+        $length = self::script('return history.length;');
 
         self::stopServer();
-        // a stopped server leaves navigator.onLine true; a phone with no signal does not
-        $devTools = self::devTools();
-        $devTools->execute('Network.enable');
-        $devTools->execute('Network.emulateNetworkConditions', ['offline' => true, 'latency' => 0, 'downloadThroughput' => -1, 'uploadThroughput' => -1]);
+        self::networkOffline(true);
         try {
             self::$browser->reload();
             self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/mapa"]\'); return s && !s.hidden;');
             self::assertFalse(self::script('return navigator.onLine;'));
             self::waitFor('const root = document.querySelector("[data-map-root]"); return root !== null && root.dataset.mapReady === "1" && root.dataset.view === "plan";');
             self::waitFor('const img = document.querySelector("[data-plan-img]"); return img.complete && img.naturalWidth > 0;');
+            self::assertSame('/obrok19/mapa/plan', self::script('return location.pathname;'));
+            self::assertSame($length, self::script('return history.length;'), 'the replace added no step');
         } finally {
-            $devTools->execute('Network.emulateNetworkConditions', ['offline' => false, 'latency' => 0, 'downloadThroughput' => -1, 'uploadThroughput' => -1]);
-            $devTools->execute('Network.disable');
+            self::networkOffline(false);
+        }
+    }
+
+    /** A Místa already wired, shown again on its bare address with no signal, moves to the plan too. */
+    public function testTheMapShownAgainWithoutSignalMovesToThePlan(): void
+    {
+        self::visit('/obrok19/mapa');
+        self::waitFor('const root = document.querySelector("[data-map-root]"); return root !== null && root.dataset.mapReady === "1" && root.dataset.view === "google";');
+        self::tap('.tabbar a[href="/obrok19/informace"]');
+        self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/informace"]\'); return s && !s.hidden;');
+
+        self::networkOffline(true);
+        try {
+            self::tap('.tabbar a[href="/obrok19/mapa"]');
+            self::waitFor('const s = document.querySelector(\'[data-screen="/obrok19/mapa"]\'); return s && !s.hidden'
+                . ' && location.pathname === "/obrok19/mapa/plan" && s.querySelector("[data-map-root]").dataset.view === "plan";');
+            self::assertSame('true', self::script('return document.querySelector(\'[role="tab"][data-map-view="plan"]\').getAttribute("aria-selected");'));
+        } finally {
+            self::networkOffline(false);
+        }
+    }
+
+    /**
+     * The worker keeps /mapa/plan's markup under /mapa, so a copy painted on the plan can
+     * answer the map's address: the view comes from the address, not the copy's data-view.
+     */
+    public function testTheMapAddressOpensOnTheMapFromAPlanCopy(): void
+    {
+        self::visit('/obrok19/mapa');
+        $cache = self::waitForPrecache('obrok19');
+        self::visit('/obrok19/mapa/plan');
+        self::waitForCachedPage($cache, '/obrok19/mapa', 'data-view="plan"');
+
+        self::stopServer();
+        try {
+            // a stopped server leaves navigator.onLine true: Google's view is still the one asked for
+            self::visit('/obrok19/mapa');
+            self::waitFor('const root = document.querySelector("[data-map-root]"); return root !== null && root.dataset.mapReady === "1";');
+            self::assertSame('google', self::script('return document.querySelector("[data-map-root]").dataset.view;'));
+            self::assertSame('true', self::script('return document.querySelector(\'[role="tab"][data-map-view="google"]\').getAttribute("aria-selected");'));
+            self::assertSame('/obrok19/mapa', self::script('return location.pathname;'));
+        } finally {
+            self::startServer();
         }
     }
 
@@ -102,8 +191,9 @@ final class OfflineTest extends BrowserTestCase
 
     /**
      * A login tapped with no signal goes back where the reader was: the worker answers the
-     * POST with a 303 to its referrer plus #offline, the page comes from the cache, and the
-     * shell says what happened in a toast and takes the hash away again. Logged out first,
+     * scripted POST with its referrer plus #offline as `{"next"}` (a plain form's gets a 303
+     * there), shell/write.js reloads that address in place of the entry, the page comes from
+     * the cache, and the shell says what happened in a toast and takes the hash away again. Logged out first,
      * whatever ran before: the start is only there for a reader who is not logged in.
      */
     public function testALoginWithoutTheServerGoesBackWithTheOfflineToast(): void
@@ -116,12 +206,13 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('return document.querySelector(arguments[0]) !== null;', [$start]);
         // A browser left logged in by an earlier test holds pages of that identity: this
         // visit makes the worker purge them and refill them logged out, in the background.
-        // The 303 the tap gets is answered from these two copies, so the server stays up
+        // The landing the tap gets is answered from these two copies, so the server stays up
         // until both are back, rendered logged out.
         foreach (['/korbo26/profil', '/korbo26/offline'] as $path) {
             self::waitForCachedPage($cache, $path, '<meta name="push-identity" content="">');
         }
         self::script('window.__before = 1;');
+        $n = self::script('return history.length;');
         self::stopServer();
 
         self::tap($start);
@@ -130,6 +221,9 @@ final class OfflineTest extends BrowserTestCase
         self::assertStringContainsString('Zkus to znovu až najdeš místo se signálem.', (string) self::script('return document.querySelector("[data-toast]").textContent;'));
         self::assertTrue(self::script('const t = document.querySelector("[data-toast]"); return t.closest("[data-screen]") === document.querySelector(\'[data-screen="/korbo26/profil"]\') && t.getClientRects().length > 0;'), 'on the visible Profil');
         self::assertStringEndsWith('/korbo26/profil', (string) self::script('return location.href;'), 'no #offline left behind');
+        // the landing replaced the entry the write was sent from
+        self::assertSame($n, self::script('return history.length;'));
+        self::assertSame('/korbo26/profil', self::script('return location.pathname;'));
         self::assertStringContainsString('Nejsi přihlášen', (string) self::script('return document.querySelector(\'[data-screen="/korbo26/profil"]\').textContent;'));
 
         // the close button takes it away
@@ -177,6 +271,19 @@ final class OfflineTest extends BrowserTestCase
     }
 
     /** Wait until the worker's cache $cache holds the page $path, and its HTML contains $needle. */
+    /** A stopped server leaves navigator.onLine true; a phone with no signal does not. */
+    private static function networkOffline(bool $offline): void
+    {
+        $devTools = self::devTools();
+        if ($offline) {
+            $devTools->execute('Network.enable');
+        }
+        $devTools->execute('Network.emulateNetworkConditions', ['offline' => $offline, 'latency' => 0, 'downloadThroughput' => -1, 'uploadThroughput' => -1]);
+        if (!$offline) {
+            $devTools->execute('Network.disable');
+        }
+    }
+
     private static function waitForCachedPage(string $cache, string $path, string $needle): void
     {
         self::waitForAsync(<<<'JS'

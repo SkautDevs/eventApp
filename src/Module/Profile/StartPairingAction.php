@@ -11,6 +11,7 @@ use App\EventConfig;
 use App\Http\ClientIp;
 use App\Http\RefusalPage;
 use App\Http\SameOrigin;
+use App\Http\WriteResponse;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\ProgramUnavailableException;
@@ -53,7 +54,7 @@ final class StartPairingAction
         $session = $this->session;
         // already paired: nothing to start, and no attempt to count
         if ($this->auth->isLogged()) {
-            return $response->withHeader('Location', $base . '/profil')->withStatus(302);
+            return WriteResponse::redirect($request, $response, $base . '/profil');
         }
 
         Tracer::span('auth.pairing', 'POST /profil/propojit', function () use ($request, $session): void {
@@ -80,6 +81,6 @@ final class StartPairingAction
             }
         });
 
-        return $response->withHeader('Location', $base . '/profil')->withStatus(302);
+        return WriteResponse::redirect($request, $response, $base . '/profil');
     }
 }

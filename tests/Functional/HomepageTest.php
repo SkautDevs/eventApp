@@ -93,7 +93,7 @@ final class HomepageTest extends AppTestCase
         $this->pair($app);
         $html = (string) $this->request($app, 'GET', '/')->getBody();
 
-        self::assertStringContainsString('<h3>Výběr programů</h3><p>Do 15. 4. 2097</p><a class="btn btn-primary" href="/window-open/programy">Vybrat programy</a>', $html);
+        self::assertStringContainsString('<h3>Výběr programů</h3><p>Do 15. 4. 2097</p><a class="btn btn-primary" href="/window-open/programy/prehled">Vybrat programy</a>', $html);
         self::assertStringNotContainsString('Výběr programů je otevřený.', $html);
         // before the start there is no programme of the day to show
         self::assertStringNotContainsString('data-next-up', $html);
@@ -190,13 +190,24 @@ final class HomepageTest extends AppTestCase
         // limitation: which ones are this participant's needs their role from kissj)
         self::assertSame(6, substr_count($html, 'class="link-card is-highlight next-card"'));
         self::assertSame(6, preg_match_all('#class="link-card is-highlight next-card"[^>]* data-deep-link hidden>#', $html));
-        self::assertStringNotContainsString('#muj-program-36"', $html);
-        self::assertStringNotContainsString('#muj-program-3"', $html);
+        // each card links to its programme's sheet in Moje, and 36 and 3 have none
+        preg_match_all('#class="link-card is-highlight next-card" href="([^"]*)"#', $html, $hrefs);
+        self::assertSame(
+            [
+                '/korbo26/programy/moje#section-6-program-5',
+                '/korbo26/programy/moje#section-1-program-10',
+                '/korbo26/programy/moje#section-1-program-26',
+                '/korbo26/programy/moje#section-3-program-31',
+                '/korbo26/programy/moje#section-3-program-45',
+                '/korbo26/programy/moje#section-1-program-50',
+            ],
+            $hrefs[1],
+        );
         // korbo26 is over: the server hides the box, the shell shows it for a clock in the camp
         self::assertStringContainsString('<section class="next-up" aria-label="Tvůj program" data-next-up hidden>', $html);
         self::assertStringContainsString('<h2>Můj program</h2>', $html);
         // 45: Street magic, 11:00–15:00 on 19 Sep at Nástěnka, in the section Kulturní
-        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/korbo26/programy\#muj-program-45" data-key="45" data-start="2026-09-19T11:00:00\+02:00" data-end="2026-09-19T15:00:00\+02:00" data-time="11:00" data-until="do 15:00" data-location="Nástěnka" data-deep-link hidden>#', $html);
+        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/korbo26/programy/moje\#section-3-program-45" data-key="45" data-start="2026-09-19T11:00:00\+02:00" data-end="2026-09-19T15:00:00\+02:00" data-time="11:00" data-until="do 15:00" data-location="Nástěnka" data-deep-link hidden>#', $html);
         self::assertMatchesRegularExpression('#data-key="45".*?<p class="next-lead" data-next-lead></p>.*?<p class="next-section">Kulturní</p>#s', $html);
         // 31 has no location: no attribute, so the shell leaves the place out
         self::assertMatchesRegularExpression('#data-key="31" data-start="[^"]+" data-end="[^"]+" data-time="14:00" data-until="do 15:00" data-deep-link hidden>#', $html);
