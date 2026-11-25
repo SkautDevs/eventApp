@@ -48,6 +48,8 @@ final class DayListBuilder
 
                     return new ListItem(
                         id: $p->id,
+                        // the sheet's hash the row links to, as Sheet::$sectionId has it
+                        sectionId: $p->sectionId,
                         name: $p->name,
                         time: $start->format(Times::CLOCK),
                         // a programme running into another day names the day it ends on,

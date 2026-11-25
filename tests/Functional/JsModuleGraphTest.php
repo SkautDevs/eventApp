@@ -83,6 +83,26 @@ final class JsModuleGraphTest extends AppTestCase
         self::assertSame([], glob(dirname(__DIR__, 2) . '/www/js/*.js') === false ? [] : array_map('basename', array_diff(glob(dirname(__DIR__, 2) . '/www/js/*.js'), [dirname(__DIR__, 2) . '/www/js/events.js'])));
     }
 
+    /**
+     * The scripts and the worker parse on Safari 11.1 (iOS 11.3, the oldest phones still in
+     * use): a syntax error kills a screen's whole module graph, and the no-JS fallback cannot
+     * catch it, since the head script has already added the `js` class. So nothing Safari 11.1
+     * lacks: no `??` or `?.` (Safari 13.1), no Object.fromEntries (12.1),
+     * no Object.hasOwn (15.4). Comments are stripped; strings are not, and none needs these.
+     */
+    public function testNothingNewerThanSafari11Parses(): void
+    {
+        $sources = self::scripts();
+        $sources['../sw.js'] = ScriptGraph::stripComments((string) file_get_contents(dirname(__DIR__, 2) . '/www/sw.js'));
+        foreach ($sources as $path => $source) {
+            self::assertStringNotContainsString('??', $source, $path . ' uses nullish coalescing');
+            // `?.5` is a ternary with a decimal, not optional chaining
+            self::assertDoesNotMatchRegularExpression('/\?\.(?!\d)/', $source, $path . ' uses optional chaining');
+            self::assertStringNotContainsString('Object.fromEntries(', $source, $path . ' uses Object.fromEntries');
+            self::assertStringNotContainsString('Object.hasOwn(', $source, $path . ' uses Object.hasOwn');
+        }
+    }
+
     public function testTheTestClockIsReadAtCallTime(): void
     {
         $clock = (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/ui/clock.js');

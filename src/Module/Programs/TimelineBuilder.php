@@ -151,6 +151,8 @@ final class TimelineBuilder
 
         return new Card(
             id: $program->id,
+            // the sheet's hash the card links to, as Sheet::$sectionId has it
+            sectionId: $program->sectionId,
             name: $program->name,
             // the label keeps the true times, like the sheet — only the bar is clipped
             time: Times::timeRange($program),

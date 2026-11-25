@@ -63,18 +63,19 @@
 			<p><a class="btn" href="{{ url_for('info') }}">Starší notifikace</a></p>
 		{% endif %}
 
-		{# The participant's programmes. Every one of theirs is here, hidden, and
-		   www/js/home/nextup.js shows the running one and the next two by the device clock and
-		   writes each lead line, so a copy cached days ago (or read offline) still names
-		   the right ones. The server hides the box only when everything is over. #}
+		{# The participant's programmes. Every one of theirs is here: the server shows the
+		   running one and the next two with their lead lines (HomeModel), which is what a reader
+		   without JavaScript sees, and hides the rest. www/js/home/nextup.js picks them again
+		   by the device clock and rewrites each lead, so a copy cached days ago (or read
+		   offline) still names the right ones. The server hides the box when everything is over. #}
 		{% if home.nextUp %}
 			<section class="next-up" aria-label="Tvůj program" data-next-up{% if home.nextUp.index is null %} hidden{% endif %}>
 				<h2>Můj program</h2>
 				{% for item in home.nextUp.items %}
-					<a class="link-card is-highlight next-card" href="{{ url_for('programs-mine') }}#section-{{ item.sectionId }}-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-time="{{ item.time }}" data-until="{{ item.until }}"{% if item.location %} data-location="{{ item.location }}"{% endif %} data-deep-link hidden>
+					<a class="link-card is-highlight next-card" href="{{ url_for('programs-mine') }}#section-{{ item.sectionId }}-program-{{ item.id }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-time="{{ item.time }}" data-until="{{ item.until }}"{% if item.location %} data-location="{{ item.location }}"{% endif %} data-deep-link{% if not item.shown %} hidden{% endif %}>
 						<div class="link-card-text">
 							<p class="next-name">{{ item.name }}</p>
-							<p class="next-lead" data-next-lead></p>
+							<p class="next-lead" data-next-lead>{{ item.lead }}</p>
 							{% if item.section %}<p class="next-section">{{ item.section }}</p>{% endif %}
 						</div>
 					</a>

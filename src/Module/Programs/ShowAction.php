@@ -9,6 +9,7 @@ use App\Auth\CurrentParticipant;
 use App\EventConfig;
 use App\Module\Programs\View\ProgramsPage;
 use App\Module\Programs\View\SheetMessage;
+use App\Module\Programs\View\TimelinePage;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\ProgramUnavailableException;
@@ -24,7 +25,8 @@ use Slim\Views\Twig;
 
 /**
  * GET /programy, /programy/prehled and /programy/moje: the three views of the programme
- * (ScheduleBuilder), the one the route's `view` argument names painted first, every
+ * (ScheduleBuilder), the one the route's `view` argument names painted first, the
+ * timeline on the page the query `den` names (a day chip's link) or today's, every
  * sheet with its footer (SheetBuilder::footer()) and the organisers' messages about it, and the toast a
  * register or unregister left. The paired reader's own programmes are read best effort: a
  * session kissj no longer knows logs the reader out, and this very page says why; an
@@ -126,7 +128,7 @@ final class ShowAction
         $page = new ProgramsPage(
             view: self::view($args),
             pages: $schedule->pages,
-            activePage: $schedule->activePage,
+            activePage: self::pageOf($request, $schedule->pages) ?? $schedule->activePage,
             overview: $schedule->overview,
             activeOverview: $schedule->activeOverview,
             days: $schedule->days,
@@ -140,6 +142,28 @@ final class ShowAction
         );
 
         return $toasts->mark($this->twig->render($response, 'programs.twig', TemplateContext::of($page)), $toast);
+    }
+
+    /**
+     * The timeline page the query `den` names: a Harmonogram chip's link without JavaScript
+     * (`?den=20260712`). Only an eight-digit date whose page exists counts; anything else,
+     * an array included, is null and leaves today's rule (ScheduleBuilder) in charge.
+     *
+     * @param list<TimelinePage> $pages
+     */
+    private static function pageOf(ServerRequestInterface $request, array $pages): ?string
+    {
+        $den = $request->getQueryParams()['den'] ?? null;
+        if (!\is_string($den) || preg_match('/^\d{8}$/', $den) !== 1) {
+            return null;
+        }
+        foreach ($pages as $page) {
+            if ($page->key === 'page-' . $den) {
+                return $page->key;
+            }
+        }
+
+        return null;
     }
 
     /**

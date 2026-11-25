@@ -245,6 +245,12 @@ main > .screen[hidden] {
 
 /* --- no-JS, install ------------------------------------------------------ */
 
+/* The head script puts `js` on the root before any sheet applies (_layout.twig), so
+   without JavaScript the root has no class to match. A rule for that reader only is
+   scoped `:root:not(.js) …`; a part only a script can drive is hidden by
+   `:root:not(.js) <selector> { display: none; }` next to its own rules, and a part
+   shown only without a script by `:root.js <selector> { display: none; }`. The
+   notice below says what is missing. */
 .noscript {
 	margin: 16px;
 	padding: 10px 18px;
@@ -331,6 +337,11 @@ main > .screen[hidden] {
 	font-family: inherit;
 	font-size: var(--fs-lg);
 	cursor: pointer;
+}
+
+/* nothing closes a toast without a script; it fades by itself instead (motion.css) */
+:root:not(.js) .toast-close {
+	display: none;
 }
 
 /* --- tab bar ------------------------------------------------------------- */
@@ -715,6 +726,13 @@ div.news {
 	   the ink it is painted with, not the ink it declares. 0.6 was 3.31:1 on
 	   obrok19's pale switcher. */
 	opacity: 0.75;
+}
+
+/* the view pills (Program's and Místa's) are links: shell.css's a:visited outranks
+   .tabs-tab, so the ink is said again for a visited one (the selected pill's rule below
+   still wins) */
+.tabs-tab:visited {
+	color: var(--on-structure);
 }
 
 /* the icon keeps its size; only the words give way on a narrow phone */

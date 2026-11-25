@@ -9,7 +9,8 @@ namespace App\Module\Home\View;
  * (NextUp::nextUp()), then rewritten by HomeModel with what the card says (forCard()): the
  * start and the end as Prague wall-clock times, the place as given (only an empty one is
  * none), the title of its section and the section's id, which the card's deep link names
- * (0 for none). `start` and `end` are DATE_ATOM instants.
+ * (0 for none), whether the server shows the card and its lead line. `start` and `end` are
+ * DATE_ATOM instants. A Moje row is not shown and has no lead until forCard() says otherwise.
  */
 final readonly class NextItem
 {
@@ -28,10 +29,12 @@ final readonly class NextItem
         public ?string $perex,
         public bool $registered,
         public bool $dimmed,
+        public bool $shown,
+        public string $lead,
     ) {}
 
     /** A copy with what Domů's card says in place of the list row's. */
-    public function forCard(string $time, string $until, ?string $location, ?string $section, int $sectionId): self
+    public function forCard(string $time, string $until, ?string $location, ?string $section, int $sectionId, bool $shown, string $lead): self
     {
         return new self(
             $this->id,
@@ -48,6 +51,8 @@ final readonly class NextItem
             $this->perex,
             $this->registered,
             $this->dimmed,
+            $shown,
+            $lead,
         );
     }
 }

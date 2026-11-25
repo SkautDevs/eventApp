@@ -36,6 +36,7 @@ final class RouteTableTest extends AppTestCase
             'GET /programy/prehled programs-overview',
             'POST /admin/notify -',
             'POST /admin/notify/{id:[0-9]+}/hidden admin-notify-hidden',
+            'POST /profil/kontrola pairing-check',
             'POST /profil/odpojit pairing-revoke',
             'POST /profil/propojit pairing-start',
             'POST /programy/{id:[0-9]+}/odhlasit program-unregister',

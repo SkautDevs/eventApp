@@ -127,7 +127,7 @@ final class ProgramsTest extends AppTestCase
         $html = (string) $this->request($this->createApp('programs', fixtureEvent: true), 'GET', '/programy')->getBody();
 
         // one card on the timeline, one row in Přehled, one sheet
-        self::assertSame(1, preg_match_all('/<button type="button" class="tl-card[^"]*" data-key="2"/', $html));
+        self::assertSame(1, preg_match_all('/<a class="tl-card[^"]*" href="[^"]*" data-key="2"/', $html));
         self::assertSame(1, preg_match_all('/<article class="pl-item[^"]*" data-key="2"/', $html));
         self::assertSame(1, substr_count($html, 'data-pg-detail="2"'));
         self::assertStringNotContainsString('Duplicitni id', $html);
@@ -282,6 +282,44 @@ final class ProgramsTest extends AppTestCase
         self::assertSame(substr_count($html, 'class="sheet-body"'), preg_match_all('/<div class="sheet-body" id="section-\d+-program-(\d+)" data-key="\1"/', $html));
     }
 
+    /**
+     * A programme's row and card are links to its sheet's hash on the address they are on,
+     * so without JavaScript the sheet opens on `:target`; the script intercepts them.
+     */
+    public function testProgrammesOpenByLinkToTheirSheet(): void
+    {
+        $app = $this->createApp('korbo26');
+        $this->loginAs($app, 1);
+
+        $mine = (string) $this->request($app, 'GET', '/programy/moje')->getBody();
+        self::assertStringContainsString('<a class="pl-open" href="/korbo26/programy/moje#section-6-program-5" data-pg-open="5">', $mine);
+
+        $timeline = (string) $this->request($app, 'GET', '/programy')->getBody();
+        self::assertMatchesRegularExpression('~<a class="tl-card[^"]*" href="/korbo26/programy#section-1-program-1" data-key="1" style="[^"]*" data-pg-open="1" aria-label="[^"]*">~', $timeline);
+        // every row and every card links to a sheet the page carries
+        preg_match_all('~<a class="(?:pl-open|tl-card[^"]*)" href="/korbo26/programy#(section-\d+-program-(\d+))"[^>]* data-pg-open="(\d+)"~', $timeline, $links, PREG_SET_ORDER);
+        self::assertNotEmpty($links);
+        foreach ($links as [, $hash, $linked, $opened]) {
+            self::assertSame($linked, $opened);
+            self::assertStringContainsString('<div class="sheet-body" id="' . $hash . '"', $timeline);
+        }
+    }
+
+    /**
+     * The close row and the backdrop are links to `#zavrit`, a hash that names nothing, so
+     * the `:target` sheet closes on the same address. The closed sheet is hidden by CSS,
+     * never by an aria-hidden in the markup.
+     */
+    public function testTheSheetClosesByLinkAndIsNotHiddenByMarkup(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/programy/prehled')->getBody();
+
+        self::assertStringContainsString('<a class="sheet-close" href="/korbo26/programy/prehled#zavrit" data-pg-close>✕ Zavřít</a>', $html);
+        self::assertStringContainsString('<a class="sheet-backdrop" href="/korbo26/programy/prehled#zavrit" data-pg-close aria-hidden="true" tabindex="-1"></a>', $html);
+        self::assertStringContainsString('<div class="sheet" data-key="sheet" data-pg-sheet>', $html);
+        self::assertStringNotContainsString('id="zavrit"', $html);
+    }
+
     /** The sheet is named by the programme it shows, not by a constant. */
     public function testTheSheetIsLabelledByAProgrammeName(): void
     {
@@ -394,5 +432,95 @@ final class ProgramsTest extends AppTestCase
         self::assertStringContainsString('data-pg-now-label', $html);
         // the server never marks "now": that is the reader's clock's business
         self::assertDoesNotMatchRegularExpression('#class="tl-page[^>]*\sdata-now[\s=>]#', $html);
+    }
+
+    /**
+     * A Harmonogram chip links `?den=<YYYYMMDD>`, which is how a reader without JavaScript
+     * pages the timeline: the page of that date is the active one, and its chip current.
+     */
+    public function testDenPicksTheTimelinePage(): void
+    {
+        $app = $this->createApp('korbo26');
+        $keys = self::pageKeys((string) $this->request($app, 'GET', '/programy')->getBody());
+        self::assertGreaterThan(1, count($keys), 'korbo26 has more than one day');
+        $second = $keys[1];
+        self::assertSame(1, preg_match('/^page-(\d{8})$/', $second, $date));
+
+        $html = (string) $this->request($app, 'GET', '/programy?den=' . $date[1])->getBody();
+
+        self::assertSame($second, self::activePage($html));
+        self::assertMatchesRegularExpression(
+            '~<a class="day-chip" href="/korbo26/programy\?den=' . $date[1] . '" data-key="' . $second . '" data-pg-page="' . $second . '" data-pg-kind="timeline" aria-current="true" data-morph-keep="aria-current">~',
+            $html,
+        );
+        self::assertSame(1, substr_count($html, 'data-pg-kind="timeline" aria-current="true"'), 'one chip is current');
+        // every timeline chip links its own date
+        preg_match_all('~<a class="day-chip" href="/korbo26/programy\?den=(\d{8})" data-key="page-(\d{8})"~', $html, $chips, PREG_SET_ORDER);
+        self::assertCount(count($keys), $chips);
+        foreach ($chips as [, $linked, $keyed]) {
+            self::assertSame($keyed, $linked);
+        }
+    }
+
+    /** A `den` that names no page, or is not a date at all, leaves today's rule in charge. */
+    public function testAnUnknownDenFallsBackToTodaysRule(): void
+    {
+        $app = $this->createApp('korbo26');
+        $default = self::activePage((string) $this->request($app, 'GET', '/programy')->getBody());
+        self::assertNotNull($default);
+
+        foreach (['?den=19000101', '?den%5B%5D=x', '?den=page-20260712', '?den=', '?den=2026071'] as $query) {
+            $response = $this->request($app, 'GET', '/programy' . $query);
+            self::assertSame(200, $response->getStatusCode(), $query);
+            self::assertSame($default, self::activePage((string) $response->getBody()), $query);
+        }
+    }
+
+    /**
+     * Přehled's and Moje's days are both in the document, so each list's days carry ids of
+     * their own (`den-`, `moje-den-`), and each strip's chips link to its own on this address.
+     */
+    public function testListDaysCarryTheirOwnIds(): void
+    {
+        $app = $this->createApp('korbo26');
+        $this->loginAs($app, 1);
+
+        $html = (string) $this->request($app, 'GET', '/programy/moje')->getBody();
+
+        self::assertSame(1, preg_match('~<div class="view view-overview"[^>]*>.*?<section class="pl-day" data-key="day-(\d{8})" id="den-(\d{8})"~s', $html, $overview));
+        self::assertSame($overview[2], $overview[1]);
+        self::assertSame(1, preg_match('~<div class="view view-list"[^>]*>.*?<section class="pl-day" data-key="day-(\d{8})" id="moje-den-(\d{8})"~s', $html, $mine));
+        self::assertSame($mine[2], $mine[1]);
+        self::assertStringContainsString(
+            '<a class="day-chip" href="/korbo26/programy/moje#moje-den-' . $mine[1] . '" data-key="day-' . $mine[1] . '" data-pg-page="day-' . $mine[1] . '" data-pg-kind="list"',
+            $html,
+        );
+        self::assertStringContainsString(
+            '<a class="day-chip" href="/korbo26/programy/moje#den-' . $overview[1] . '" data-key="day-' . $overview[1] . '" data-pg-page="day-' . $overview[1] . '" data-pg-kind="overview"',
+            $html,
+        );
+        // every list chip names a day the page carries
+        preg_match_all('~<a class="day-chip" href="/korbo26/programy/moje#((?:moje-)?den-\d{8})"~', $html, $links);
+        self::assertNotEmpty($links[1]);
+        foreach ($links[1] as $id) {
+            self::assertMatchesRegularExpression('~<section class="pl-day" data-key="day-\d{8}" id="' . $id . '"~', $html);
+        }
+    }
+
+    /** @return list<string> the timeline pages' keys, in order */
+    private static function pageKeys(string $html): array
+    {
+        preg_match_all('~<section class="tl-page[^"]*" data-morph-keep="class" data-pg-panel="timeline" data-key="([^"]+)"~', $html, $m);
+
+        return $m[1];
+    }
+
+    /** The key of the timeline page the server marked active, null for none. */
+    private static function activePage(string $html): ?string
+    {
+        preg_match_all('~<section class="tl-page is-active" data-morph-keep="class" data-pg-panel="timeline" data-key="([^"]+)"~', $html, $m);
+        self::assertLessThanOrEqual(1, count($m[1]), 'at most one page is active');
+
+        return $m[1][0] ?? null;
     }
 }

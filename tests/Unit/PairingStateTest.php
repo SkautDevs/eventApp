@@ -106,4 +106,42 @@ final class PairingStateTest extends TestCase
         $this->session->set('pairingOutcome', ['code' => 'nonsense', 'at' => $this->clock->now()->getTimestamp()]);
         self::assertNull($this->pairing->outcomeLine());
     }
+
+    public function testACheckChangesTheWaitingLineForAMinute(): void
+    {
+        $start = $this->clock->now();
+        self::assertSame(PairingState::WAITING, $this->pairing->waitingLine(), 'before any check');
+
+        $this->pairing->checked();
+        self::assertSame(PairingState::NOT_YET, $this->pairing->waitingLine());
+        $this->clock->set($start->modify('+59 seconds'));
+        self::assertSame(PairingState::NOT_YET, $this->pairing->waitingLine());
+        $this->clock->set($start->modify('+60 seconds'));
+        self::assertSame(PairingState::WAITING, $this->pairing->waitingLine());
+    }
+
+    public function testTheWaitingLinesAreThese(): void
+    {
+        self::assertSame('Čekám na potvrzení v KissJ…', PairingState::WAITING);
+        self::assertSame('Zatím nepotvrzeno, zkus to za chvilku.', PairingState::NOT_YET);
+    }
+
+    public function testTheCheckIsStoredAsATimestampAndClearedByBegin(): void
+    {
+        $this->pairing->checked();
+        // 2027-05-21T09:00:00+02:00, the fixed clock's time
+        self::assertSame(1810882800, $this->session->get('pairingChecked'));
+
+        $this->pairing->begin(new Pairing('d3v1c3', '483291', 'https://kissj.example/pair', new \DateTimeImmutable('2027-05-21T09:10:00+02:00'), 5));
+        self::assertFalse($this->session->has('pairingChecked'));
+    }
+
+    public function testAFailureAnApprovalAndALogoutClearTheCheckToo(): void
+    {
+        foreach (['fail' => fn() => $this->pairing->fail('expired'), 'approved' => fn() => $this->pairing->approved(), 'drop' => fn() => $this->pairing->drop()] as $what => $end) {
+            $this->pairing->checked();
+            $end();
+            self::assertFalse($this->session->has('pairingChecked'), $what);
+        }
+    }
 }

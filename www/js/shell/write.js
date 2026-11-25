@@ -60,7 +60,14 @@ export function reloadState(next, state) {
 		return state;
 	}
 
-	return Object.fromEntries(Object.entries(state).filter(([key]) => key !== 'pgOverlay'));
+	const kept = {};
+	for (const key of Object.keys(state)) {
+		if (key !== 'pgOverlay') {
+			kept[key] = state[key];
+		}
+	}
+
+	return kept;
 }
 
 /**

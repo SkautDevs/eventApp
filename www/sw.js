@@ -536,11 +536,12 @@ function page(event) {
 				resolve(value);
 			}
 		};
+		// a copy that cannot be read is no copy: the page keeps waiting for the network
 		const timer = setTimeout(() => cachedCopy().then(hit => {
 			if (hit) {
 				finish(hit);
 			}
-		}), NETWORK_TIMEOUT);
+		}, () => null), NETWORK_TIMEOUT);
 		network.then(result => {
 			clearTimeout(timer);
 			if (result.response.status >= 500) {

@@ -29,6 +29,37 @@ test('nextLead: no place, no separator for it', () => {
 	assert.equal(nextLead(soon, at('2027-05-20T12:00:00+02:00')), '14:00');
 });
 
+/**
+ * The same three cards at the same moment as HomeModelTest::testTheLeadLinesReadAsTheScriptWritesThem,
+ * which pins these three strings for the server: a reader without the script reads what the script writes.
+ */
+test('nextLead reads as HomeModel::lead at the same moment', () => {
+	const now = Date.parse('2026-09-19T10:30:00+02:00');
+	assert.equal(
+		nextLead({start: '2026-09-19T10:00:00+02:00', end: '2026-09-19T11:00:00+02:00', time: '10:00', until: 'do 11:00', location: 'Nástěnka'}, now),
+		'Právě · do 11:00 · Nástěnka',
+	);
+	assert.equal(nextLead({start: '2026-09-19T11:15:00+02:00', end: '2026-09-19T12:00:00+02:00', time: '11:15', until: 'do 12:00'}, now), 'Za 45 min · 11:15');
+	assert.equal(
+		nextLead({start: '2026-09-19T14:00:00+02:00', end: '2026-09-19T15:00:00+02:00', time: '14:00', until: 'do 15:00', location: 'Les'}, now),
+		'14:00 · Les',
+	);
+});
+
+/**
+ * The boundaries, pinned for the server by HomeModelTest::testTheLeadBoundariesMatchTheScript: a
+ * programme starting now runs, the minutes round up, and exactly an hour ahead is still within the hour.
+ */
+test('nextLead on the boundaries, as HomeModel::lead', () => {
+	const ten = {start: '2026-09-19T10:00:00+02:00', end: '2026-09-19T11:00:00+02:00', time: '10:00', until: 'do 11:00'};
+	assert.equal(nextLead(ten, at('2026-09-19T10:00:00+02:00')), 'Právě · do 11:00');
+	assert.equal(nextLead(ten, at('2026-09-19T09:59:59.500+02:00')), 'Za 1 min · 10:00');
+	assert.equal(nextLead(ten, at('2026-09-19T09:00:30+02:00')), 'Za 60 min · 10:00');
+	assert.equal(nextLead(ten, at('2026-09-19T09:00:00+02:00')), 'Za 60 min · 10:00');
+	assert.equal(nextLead(ten, at('2026-09-19T08:59:59+02:00')), '10:00');
+	assert.equal(nextLead({...ten, location: ''}, at('2026-09-19T08:00:00+02:00')), '10:00');
+});
+
 test('shownCards: the running one and the next two, never an ended one', () => {
 	const cards = [
 		card('2027-05-20T09:00:00+02:00', '2027-05-20T10:00:00+02:00'),

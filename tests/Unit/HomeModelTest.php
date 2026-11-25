@@ -234,4 +234,74 @@ final class HomeModelTest extends TestCase
         self::assertCount(4, $nextUp->items);
         self::assertNull($nextUp->index);
     }
+
+    // --- the server's pick and leads, as www/js/home/nextup.js draws them ----------
+
+    /** A card's lead line at $now, from its start, time, until and place. */
+    private static function lead(string $start, string $time, string $until, ?string $location, string $now): string
+    {
+        return HomeModel::lead(new \DateTimeImmutable($start), $time, $until, $location, new \DateTimeImmutable($now));
+    }
+
+    /**
+     * The same three cards at the same moment as tests/js/home.test.js's "nextLead reads as
+     * HomeModel::lead at the same moment", which pins these three strings for the script: the
+     * server's lead and the device clock's read alike.
+     */
+    public function testTheLeadLinesReadAsTheScriptWritesThem(): void
+    {
+        $now = '2026-09-19T10:30:00+02:00';
+
+        self::assertSame('Právě · do 11:00 · Nástěnka', self::lead('2026-09-19T10:00:00+02:00', '10:00', 'do 11:00', 'Nástěnka', $now));
+        self::assertSame('Za 45 min · 11:15', self::lead('2026-09-19T11:15:00+02:00', '11:15', 'do 12:00', null, $now));
+        self::assertSame('14:00 · Les', self::lead('2026-09-19T14:00:00+02:00', '14:00', 'do 15:00', 'Les', $now));
+    }
+
+    /**
+     * The boundaries, pinned for the script by tests/js/home.test.js's "nextLead on the
+     * boundaries, as HomeModel::lead": a programme starting now runs, the minutes round up,
+     * and exactly an hour ahead is still within the hour.
+     */
+    public function testTheLeadBoundariesMatchTheScript(): void
+    {
+        $start = '2026-09-19T10:00:00+02:00';
+
+        self::assertSame('Právě · do 11:00', self::lead($start, '10:00', 'do 11:00', null, '2026-09-19T10:00:00+02:00'));
+        self::assertSame('Za 1 min · 10:00', self::lead($start, '10:00', 'do 11:00', null, '2026-09-19T09:59:59.500+02:00'));
+        self::assertSame('Za 60 min · 10:00', self::lead($start, '10:00', 'do 11:00', null, '2026-09-19T09:00:30+02:00'));
+        self::assertSame('Za 60 min · 10:00', self::lead($start, '10:00', 'do 11:00', null, '2026-09-19T09:00:00+02:00'));
+        self::assertSame('10:00', self::lead($start, '10:00', 'do 11:00', null, '2026-09-19T08:59:59+02:00'));
+        // an empty place is none, as the script's falsy check
+        self::assertSame('10:00', self::lead($start, '10:00', 'do 11:00', '', '2026-09-19T08:00:00+02:00'));
+    }
+
+    public function testTheFirstThreeNotOverAreShown(): void
+    {
+        $programme = static fn(int $id, string $start, string $end): array => [
+            'id' => $id, 'name' => 'Programme ' . $id, 'section' => null,
+            'start' => ['date' => $start], 'end' => ['date' => $end], 'location' => null, 'perex' => null,
+        ];
+        $mine = [
+            $programme(1, '2027-05-21 08:00:00', '2027-05-21 09:00:00'),
+            $programme(2, '2027-05-21 09:30:00', '2027-05-21 10:30:00'),
+            $programme(3, '2027-05-21 11:00:00', '2027-05-21 12:00:00'),
+            $programme(4, '2027-05-21 14:00:00', '2027-05-21 15:00:00'),
+            $programme(5, '2027-05-21 16:00:00', '2027-05-21 17:00:00'),
+        ];
+        // 1 ends at 09:00, so it is over at now
+        $nextUp = self::build('2027-05-21 10:00:00', mine: $mine)->nextUp;
+
+        self::assertSame(3, HomeModel::NEXT_SHOWN);
+        self::assertSame([1, 2, 3, 4, 5], array_column($nextUp->items, 'id'));
+        self::assertSame([false, true, true, true, false], array_column($nextUp->items, 'shown'));
+        // each shown card has its lead, a hidden one none
+        self::assertSame(['', 'Právě · do 10:30', 'Za 60 min · 11:00', '14:00', ''], array_column($nextUp->items, 'lead'));
+    }
+
+    public function testEverythingOverShowsNoCard(): void
+    {
+        $nextUp = self::build('2027-05-22 12:00:00', mine: self::mine())->nextUp;
+
+        self::assertSame([false, false, false, false], array_column($nextUp->items, 'shown'));
+    }
 }

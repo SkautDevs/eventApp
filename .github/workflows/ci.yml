@@ -24,6 +24,10 @@ jobs:
           coverage: none
           tools: composer:v2
       - run: composer install --no-progress --prefer-dist --no-interaction
+      # libfaketime freezes the clock of the app's server in the browser tests:
+      # BrowserTestCase::freezeServerClock() preloads it into that server
+      - name: Install libfaketime
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends libfaketime
       # ubuntu-latest ships Chrome and a matching chromedriver; the browser suite runs in
       # local mode against it, and PANTHER_NO_SKIP turns a missing driver into a failure,
       # so the deploy gate (deploy.yml calls this workflow) never passes on skipped tests

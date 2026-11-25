@@ -17,9 +17,9 @@ final class NextUp
     /**
      * The homepage's "next programme" card: the participant's own programmes in order,
      * flattened from Moje's days, and the index of the first one not yet over at
-     * `$now` (null when everything is). Every card is rendered and the device clock picks
-     * the one to show (`www/js/home/nextup.js`), so a copy cached days ago is still right; the
-     * server's own pick is what a reader without JS sees.
+     * `$now` (null when everything is). Every card is rendered: HomeModel marks the ones the
+     * server shows, which is what a reader without JS sees, and the device clock picks them
+     * again (`www/js/home/nextup.js`), so a copy cached days ago is still right.
      *
      * Each item is a Moje row with its day's label; HomeModel then writes what the card says.
      *
@@ -46,6 +46,9 @@ final class NextUp
                     perex: $item->perex,
                     registered: $item->registered,
                     dimmed: $item->dimmed,
+                    // which cards show, and what they lead with, is HomeModel's call (forCard())
+                    shown: false,
+                    lead: '',
                 );
             }
         }

@@ -270,10 +270,34 @@ final class ScreenFragmentTest extends AppTestCase
         $app = $this->createApp();
 
         self::assertStringContainsString(
-            '<main id="obsah" tabindex="-1">' . "\n\t" . '<noscript><p class="noscript">Aplikace potřebuje zapnutý JavaScript.</p></noscript>',
+            '<main id="obsah" tabindex="-1">' . "\n\t" . '<noscript><p class="noscript">Bez JavaScriptu nefungují notifikace, offline režim, instalace ani volba vzhledu.</p></noscript>',
             (string) $this->request($app, 'GET', '/')->getBody(),
         );
         self::assertStringNotContainsString('<noscript>', (string) $this->request($app, 'GET', '/', null, ['X-Screen' => '1'])->getBody());
+    }
+
+    /**
+     * The head script marks the root with `js` before any stylesheet applies, so a rule
+     * scoped to `:root:not(.js)` never shows for a frame with JavaScript on. On obrok19 (no
+     * dark set) it is all the script does; on obrok27 the mode code follows in the same script.
+     */
+    public function testEveryPageMarksScriptsFirst(): void
+    {
+        foreach (['obrok19', 'obrok27'] as $slug) {
+            $html = (string) $this->request($this->createApp($slug), 'GET', '/')->getBody();
+            $head = substr($html, 0, (int) strpos($html, '</head>'));
+
+            $script = strpos($head, '<script');
+            $sheet = strpos($head, '<link rel="stylesheet"');
+            self::assertIsInt($script, $slug . ': no script in <head>');
+            self::assertIsInt($sheet, $slug . ': no stylesheet in <head>');
+            self::assertMatchesRegularExpression(
+                '~^<script nonce="[0-9a-f]{32}">document\.documentElement\.classList\.add\(\'js\'\);~',
+                substr($head, $script),
+                $slug,
+            );
+            self::assertLessThan($sheet, $script, $slug . ': the script comes after a stylesheet');
+        }
     }
 
     public function testTheTabBarCarriesTheLoadingBar(): void

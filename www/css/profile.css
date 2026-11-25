@@ -27,6 +27,11 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* Zkontrolovat přihlášení: the pairing wait without a script; with one the poll checks */
+:root.js .pairing-check {
+	display: none;
+}
+
 .profile-logout {
 	margin: 24px 0;
 }
@@ -87,4 +92,10 @@
 	outline: 2px solid var(--on-ground);
 	outline-offset: -2px;
 	box-shadow: inset 0 0 0 4px var(--ground);
+}
+
+/* the choice is stored and applied by a script (www/js/profile/mode.js and the head
+   script), so without one the device's own setting decides and there is nothing to offer */
+:root:not(.js) [data-mode-control] {
+	display: none;
 }

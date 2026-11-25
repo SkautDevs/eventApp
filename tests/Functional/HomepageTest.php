@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 use App\Push\MessageRepository;
+use Psr\Clock\ClockInterface;
 use Tests\CoreStylesheet;
+use Tests\FixedClock;
 
 /**
  * Domů. Which half of it a reader sees follows the event's dates, so every assertion that
@@ -179,9 +181,15 @@ final class HomepageTest extends AppTestCase
 
     // --- Můj program -------------------------------------------------------------
 
-    public function testAPairedParticipantsProgrammesWaitForTheDeviceClock(): void
+    /**
+     * The server picks the cards and writes their leads, so a reader without JavaScript sees
+     * the right ones; www/js/home/nextup.js draws them again from the device clock. At 13:30
+     * on 18 Sep, inside the camp: 5, 10 and 26 are over, 31 starts within the hour, 45 and 50
+     * come next.
+     */
+    public function testAPairedParticipantsNextProgrammesArePickedByTheServer(): void
     {
-        $app = $this->createApp('korbo26');
+        $app = $this->createApp('korbo26', [ClockInterface::class => new FixedClock(new \DateTimeImmutable('2026-09-18T13:30:00+02:00'))]);
         $this->pair($app);
         $html = (string) $this->request($app, 'GET', '/')->getBody();
 
@@ -189,7 +197,6 @@ final class HomepageTest extends AppTestCase
         // the preregistered 3 and 36 are in no participant's list kissj sends (a known
         // limitation: which ones are this participant's needs their role from kissj)
         self::assertSame(6, substr_count($html, 'class="link-card is-highlight next-card"'));
-        self::assertSame(6, preg_match_all('#class="link-card is-highlight next-card"[^>]* data-deep-link hidden>#', $html));
         // each card links to its programme's sheet in Moje, and 36 and 3 have none
         preg_match_all('#class="link-card is-highlight next-card" href="([^"]*)"#', $html, $hrefs);
         self::assertSame(
@@ -203,17 +210,41 @@ final class HomepageTest extends AppTestCase
             ],
             $hrefs[1],
         );
-        // korbo26 is over: the server hides the box, the shell shows it for a clock in the camp
-        self::assertStringContainsString('<section class="next-up" aria-label="Tvůj program" data-next-up hidden>', $html);
+        // the three not yet over are shown with their leads, the ones over stay hidden
+        preg_match_all('#data-key="(\d+)"[^>]*data-deep-link( hidden)?>.*?<p class="next-lead" data-next-lead>([^<]*)</p>#s', $html, $cards, PREG_SET_ORDER);
+        self::assertSame(
+            [
+                ['5', ' hidden', ''],
+                ['10', ' hidden', ''],
+                ['26', ' hidden', ''],
+                ['31', '', 'Za 30 min · 14:00'],
+                ['45', '', '11:00 · Nástěnka'],
+                ['50', '', '16:00'],
+            ],
+            array_map(static fn(array $card): array => [$card[1], $card[2], $card[3]], $cards),
+        );
+        self::assertStringContainsString('<section class="next-up" aria-label="Tvůj program" data-next-up>', $html);
         self::assertStringContainsString('<h2>Můj program</h2>', $html);
         // 45: Street magic, 11:00–15:00 on 19 Sep at Nástěnka, in the section Kulturní
-        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/korbo26/programy/moje\#section-3-program-45" data-key="45" data-start="2026-09-19T11:00:00\+02:00" data-end="2026-09-19T15:00:00\+02:00" data-time="11:00" data-until="do 15:00" data-location="Nástěnka" data-deep-link hidden>#', $html);
-        self::assertMatchesRegularExpression('#data-key="45".*?<p class="next-lead" data-next-lead></p>.*?<p class="next-section">Kulturní</p>#s', $html);
+        self::assertMatchesRegularExpression('#<a class="link-card is-highlight next-card" href="/korbo26/programy/moje\#section-3-program-45" data-key="45" data-start="2026-09-19T11:00:00\+02:00" data-end="2026-09-19T15:00:00\+02:00" data-time="11:00" data-until="do 15:00" data-location="Nástěnka" data-deep-link>#', $html);
+        self::assertMatchesRegularExpression('#data-key="45".*?<p class="next-lead" data-next-lead>11:00 · Nástěnka</p>.*?<p class="next-section">Kulturní</p>#s', $html);
         // 31 has no location: no attribute, so the shell leaves the place out
-        self::assertMatchesRegularExpression('#data-key="31" data-start="[^"]+" data-end="[^"]+" data-time="14:00" data-until="do 15:00" data-deep-link hidden>#', $html);
+        self::assertMatchesRegularExpression('#data-key="31" data-start="[^"]+" data-end="[^"]+" data-time="14:00" data-until="do 15:00" data-deep-link>#', $html);
         // after today's notifications, before the install card
         self::assertLessThan(strpos($html, 'data-install-card'), strpos($html, 'data-next-up'));
         self::assertGreaterThan(strpos($html, 'home-date'), strpos($html, 'data-next-up'));
+    }
+
+    public function testOnceEverythingIsOverTheBoxAndEveryCardWaitForTheDeviceClock(): void
+    {
+        $app = $this->createApp('korbo26');
+        $this->pair($app);
+        $html = (string) $this->request($app, 'GET', '/')->getBody();
+
+        // korbo26 is over: the server hides the box and every card, the shell shows them for a clock in the camp
+        self::assertStringContainsString('<section class="next-up" aria-label="Tvůj program" data-next-up hidden>', $html);
+        self::assertSame(6, preg_match_all('#class="link-card is-highlight next-card"[^>]* data-deep-link hidden>#', $html));
+        self::assertSame(6, substr_count($html, '<p class="next-lead" data-next-lead></p>'));
     }
 
     public function testLoggedOutThereIsNoNextProgramme(): void

@@ -106,6 +106,17 @@ export function hashTarget(hash) {
 }
 
 /**
+ * The timeline page a Harmonogram chip's address names: `?den=20260917` as "page-20260917",
+ * the page's key (the server's ShowAction reads the same query); null when the query has no
+ * eight-digit `den`.
+ */
+export function denPage(search) {
+	const den = new URLSearchParams(search).get('den');
+
+	return den !== null && /^\d{8}$/.test(den) ? 'page-' + den : null;
+}
+
+/**
  * The two old Moje hashes, which still land on Moje: #muj-program (where a login from the
  * list's own form landed) as {id: null}, #muj-program-<id> (Domů's card, before the sheet had
  * an address) as {id}; null for any other hash.
@@ -137,7 +148,10 @@ export function viewFromPath(pathname, screen) {
 
 /** The address of `view` on the Program screen `screen`, the inverse of viewFromPath(). */
 export function viewPath(view, screen) {
-	return screen + (VIEW_PATHS[view] ?? '');
+	// a string only for one of the three views: an inherited key (toString) is a function
+	const path = VIEW_PATHS[view];
+
+	return screen + (typeof path === 'string' ? path : '');
 }
 
 let dayFormat = null;

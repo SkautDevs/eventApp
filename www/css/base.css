@@ -309,7 +309,9 @@ body {
 
 /* The controls that are a glyph or a label on whatever is under them, rather than a
    filled button: one reset, and each rule below states only what differs. .tl-card
-   (hairline) and .sheet-close (filled) are not bare and are not in it. */
+   (hairline) and .sheet-close (filled) are not bare and are not in it. The view pills
+   (Program's and Místa's), the day chips and the list's programme names are links (they
+   work without JavaScript), so the reset also takes the underline off. */
 .day-chip,
 .pager-zoom-btn,
 .tabs-tab,
@@ -318,6 +320,7 @@ body {
 	border: none;
 	background-color: transparent;
 	font-family: inherit;
+	text-decoration: none;
 	cursor: pointer;
 }
 

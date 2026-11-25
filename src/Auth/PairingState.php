@@ -19,6 +19,10 @@ use Psr\Clock\ClockInterface;
  * `busy` (the throttle) `Teď se propojuje moc lidí najednou, zkus to za chvíli.`,
  * `unavailable` `Propojení se teď nedaří, zkus to prosím později.`.
  *
+ * While a pairing is pending, a no-JS check (`POST /profil/kontrola`) that found it still
+ * waiting leaves `pairingChecked` (a Unix timestamp), and for a minute Profil's status
+ * line reads NOT_YET instead of WAITING. Reading it consumes nothing, as with the outcome.
+ *
  * The stored shapes are the previous release's and must stay readable across a deploy:
  * `pairing` is `{deviceCode, userCode, verificationUrl, expiresAt}` (four non-empty
  * strings, `expiresAt` in DATE_ATOM) and `pairingOutcome` is `{code, at}` (`at` a Unix
@@ -45,6 +49,17 @@ final class PairingState
      * with the next start, an approval, or this.
      */
     private const int OUTCOME_SECONDS = 600;
+
+    /** Profil's status line while the pairing waits for the approval in KissJ. */
+    public const string WAITING = 'Čekám na potvrzení v KissJ…';
+
+    /** The status line for a minute after a check found the pairing still waiting. */
+    public const string NOT_YET = 'Zatím nepotvrzeno, zkus to za chvilku.';
+
+    /** How long NOT_YET stays after a check. */
+    private const int CHECK_SECONDS = 60;
+
+    private const string CHECK_KEY = 'pairingChecked';
 
     private const string PAIRING_KEY = 'pairing';
 
@@ -82,7 +97,7 @@ final class PairingState
     public function begin(Pairing $pairing): void
     {
         $this->session->transact(static function (array &$bag) use ($pairing): void {
-            unset($bag[self::OUTCOME_KEY]);
+            unset($bag[self::OUTCOME_KEY], $bag[self::CHECK_KEY]);
             $bag[self::PAIRING_KEY] = [
                 'deviceCode' => $pairing->deviceCode,
                 'userCode' => $pairing->userCode,
@@ -97,7 +112,7 @@ final class PairingState
     {
         $now = $this->clock->now()->getTimestamp();
         $this->session->transact(static function (array &$bag) use ($code, $now): void {
-            unset($bag[self::PAIRING_KEY]);
+            unset($bag[self::PAIRING_KEY], $bag[self::CHECK_KEY]);
             $bag[self::OUTCOME_KEY] = ['code' => $code, 'at' => $now];
         });
     }
@@ -110,19 +125,36 @@ final class PairingState
     public function approved(): void
     {
         $this->session->transact(static function (array &$bag): void {
-            unset($bag[self::PAIRING_KEY], $bag[self::OUTCOME_KEY]);
+            unset($bag[self::PAIRING_KEY], $bag[self::OUTCOME_KEY], $bag[self::CHECK_KEY]);
         });
     }
 
     /**
-     * Drops the pairing only (the logout). Written unconditionally, as the logout always
-     * wrote its session, whether or not a pairing was pending.
+     * Drops the pairing (and its last check) only: the logout. Written unconditionally, as
+     * the logout always wrote its session, whether or not a pairing was pending.
      */
     public function drop(): void
     {
         $this->session->transact(static function (array &$bag): void {
-            unset($bag[self::PAIRING_KEY]);
+            unset($bag[self::PAIRING_KEY], $bag[self::CHECK_KEY]);
         });
+    }
+
+    /** A no-JS check found the pairing still waiting: the clock's now, for waitingLine(). */
+    public function checked(): void
+    {
+        $this->session->set(self::CHECK_KEY, $this->clock->now()->getTimestamp());
+    }
+
+    /** Profil's status line under the pending code: NOT_YET within a minute of a check, else WAITING. */
+    public function waitingLine(): string
+    {
+        $at = $this->session->get(self::CHECK_KEY);
+        if (is_int($at) && $this->clock->now()->getTimestamp() - $at < self::CHECK_SECONDS) {
+            return self::NOT_YET;
+        }
+
+        return self::WAITING;
     }
 
     /**

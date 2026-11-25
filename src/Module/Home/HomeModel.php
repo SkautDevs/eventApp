@@ -33,6 +33,12 @@ final class HomeModel
         5 => 'pátek', 6 => 'sobota', 7 => 'neděle',
     ];
 
+    /** How many of "Můj program"'s cards show at once: the running one and the next two (nextup.js's NEXT_SHOWN). */
+    public const int NEXT_SHOWN = 3;
+
+    /** Within this many milliseconds of its start a card counts the minutes (nextup.js's HOUR). */
+    private const int HOUR_MS = 3_600_000;
+
     /**
      * @param list<Notification> $news NotificationList::items() of the messages this reader may see
      * @param list<Programme> $mine the participant's programmes
@@ -115,6 +121,28 @@ final class HomeModel
         return $from->format('j.') . '–' . $to->format('j. n. Y');
     }
 
+    /**
+     * A card's lead line at $now, word for word as nextLead() in www/js/home/nextup.js writes
+     * it, so the server's copy and the device clock's agree: a started programme
+     * "Právě · do 12:30", one starting within the hour (exactly an hour included)
+     * "Za 25 min · 14:00", the minutes rounded up, else "14:00"; each followed by
+     * " · <place>" when there is one (an empty place is none). Compared to the
+     * millisecond, as Date.parse() does.
+     */
+    public static function lead(\DateTimeImmutable $start, string $time, string $until, ?string $location, \DateTimeImmutable $now): string
+    {
+        $place = $location !== null && $location !== '' ? ' · ' . $location : '';
+        $ahead = (int) $start->format('Uv') - (int) $now->format('Uv');
+        if ($ahead <= 0) {
+            return 'Právě · ' . $until . $place;
+        }
+        if ($ahead <= self::HOUR_MS) {
+            return 'Za ' . (int) ceil($ahead / 60_000) . ' min · ' . $time . $place;
+        }
+
+        return $time . $place;
+    }
+
     private static function prague(\DateTimeImmutable $at): \DateTimeImmutable
     {
         return $at->setTimezone(Zone::prague());
@@ -151,7 +179,10 @@ final class HomeModel
      * NextUp::nextUp() as the Program screen's list builds it, each item extended
      * with what its card says: the start and end as Prague wall-clock times (written
      * as Times::CLOCK, like the Program screen), the place,
-     * the title of its section and the section's id for the card's deep link. Null when the participant has no programme to show.
+     * the title of its section and the section's id for the card's deep link. The first
+     * NEXT_SHOWN items not over at $now are shown, each with its lead(), as shownCards()
+     * in www/js/home/nextup.js picks them; the rest stay hidden with no lead, for the device
+     * clock to show. Null when the participant has no programme to show.
      *
      * @param list<Programme> $mine
      * @param array<int, Section> $sections
@@ -167,18 +198,29 @@ final class HomeModel
             $byId[$programme->id] ??= $programme;
         }
         $items = [];
+        $shownCount = 0;
         foreach ($nextUp->items as $item) {
             // every item is one of $mine
             $programme = $byId[$item->id];
             $section = $sections[$programme->sectionId] ?? null;
-            $location = $programme->location;
+            // as given, untrimmed: only an empty place is none
+            $location = $programme->location !== null && $programme->location !== '' ? $programme->location : null;
+            $start = new \DateTimeImmutable($item->start);
+            $end = new \DateTimeImmutable($item->end);
+            $time = self::prague($start)->format(Times::CLOCK);
+            $until = 'do ' . self::prague($end)->format(Times::CLOCK);
+            $shown = $shownCount < self::NEXT_SHOWN && $end > $now;
+            if ($shown) {
+                $shownCount++;
+            }
             $items[] = $item->forCard(
-                time: self::prague(new \DateTimeImmutable($item->start))->format(Times::CLOCK),
-                until: 'do ' . self::prague(new \DateTimeImmutable($item->end))->format(Times::CLOCK),
-                // as given, untrimmed: only an empty place is none
-                location: $location !== null && $location !== '' ? $location : null,
+                time: $time,
+                until: $until,
+                location: $location,
                 section: $section?->title,
                 sectionId: $programme->sectionId,
+                shown: $shown,
+                lead: $shown ? self::lead($start, $time, $until, $location, $now) : '',
             );
         }
 

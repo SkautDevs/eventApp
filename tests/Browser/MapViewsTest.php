@@ -39,6 +39,9 @@ final class MapViewsTest extends BrowserTestCase
         self::assertSame($length + 1, self::script('return history.length;'), 'one entry for the plan');
         self::assertEquals(['screen' => '/obrok19/mapa', 'mapView' => 'plan'], self::script('return history.state;'));
         self::assertSame('true', self::script('return document.querySelector(\'[role="tab"][data-map-view="plan"]\').getAttribute("aria-selected");'));
+        // the pill is a link the script did not follow (the state above is its push, not a load); it is now the current page
+        self::assertSame('page', self::script('return document.querySelector(\'[role="tab"][data-map-view="plan"]\').getAttribute("aria-current");'));
+        self::assertFalse(self::script('return document.querySelector(\'[role="tab"][data-map-view="google"]\').hasAttribute("aria-current");'));
         // the Google pane is hidden, not gone: its iframe keeps running behind the plan
         self::assertSame(1, self::script('return document.querySelectorAll("[data-map] iframe").length;'));
 

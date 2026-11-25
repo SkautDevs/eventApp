@@ -46,6 +46,19 @@ abstract class BrowserTestCase extends PantherTestCase
 
     private const string NO_CHROME = 'No chromedriver on PATH and no PANTHER_SELENIUM_URL — run with --exclude-group browser or install Chrome';
 
+    /**
+     * Where libfaketime is installed: Alpine's `libfaketime` (the compose `test` image,
+     * docker/test.Dockerfile) and Debian's or Ubuntu's (CI's runner).
+     */
+    private const array FAKETIME_LIBRARIES = [
+        '/usr/lib/faketime/libfaketime.so.1',
+        '/usr/lib/x86_64-linux-gnu/faketime/libfaketime.so.1',
+        '/usr/lib/aarch64-linux-gnu/faketime/libfaketime.so.1',
+    ];
+
+    /** A page whose data-fetched-at is the server's request time: freezeServerClock() reads it back. */
+    private const string CLOCK_PAGE = '/obrok27/offline';
+
     protected static ?Client $browser = null;
 
     private static ?WebServerManager $server = null;
@@ -58,6 +71,9 @@ abstract class BrowserTestCase extends PantherTestCase
 
     /** @var list<string> the CDP identifiers of the clocks pinClock() installed */
     private static array $clocks = [];
+
+    /** The instant freezeServerClock() froze the server's clock at, or null: the real clock. */
+    private static ?\DateTimeImmutable $serverFrozenAt = null;
 
     public static function setUpBeforeClass(): void
     {
@@ -77,15 +93,25 @@ abstract class BrowserTestCase extends PantherTestCase
         self::ensureViewport();
     }
 
-    /** A pinned clock belongs to the test that pinned it, not to the next one in the class. */
+    /** A pinned clock, and a frozen server clock, belong to the test that set them, not to the next one in the class. */
     protected function tearDown(): void
     {
-        self::unpinClock();
-        parent::tearDown();
+        try {
+            self::unpinClock();
+        } finally {
+            try {
+                self::thawServerClock();
+            } finally {
+                parent::tearDown();
+            }
+        }
     }
 
     public static function tearDownAfterClass(): void
     {
+        // the frozen clock is a static every browser class shares: the next class's server
+        // starts on the real clock even if a thaw above never ran
+        self::$serverFrozenAt = null;
         self::$browser?->quit();
         self::$browser = null;
         self::stopServer();
@@ -238,12 +264,89 @@ abstract class BrowserTestCase extends PantherTestCase
             self::PORT,
             $root . '/tests/Browser/router.php',
             '/',
-            static::serverEnvironment(),
+            [...static::serverEnvironment(), ...self::frozenClockEnvironment()],
         );
         $server->start();
         // kept only once it answers: a start that throws must leave no half-started server
         // behind for every later class's startServer() to mistake for a running one
         self::$server = $server;
+    }
+
+    /**
+     * Restarts the server with its clock frozen at $atom (libfaketime preloaded into the
+     * PHP server, as bin/gate.php serves the app), for the rest of the test: tearDown()
+     * restarts it on the real clock. Chrome keeps the real clock. Where libfaketime is not
+     * installed the test is skipped, or fails under PANTHER_NO_SKIP=1 (CI).
+     */
+    protected static function freezeServerClock(string $atom): void
+    {
+        if (self::faketimeLibrary() === null) {
+            $message = 'libfaketime is not installed (apk add libfaketime, apt-get install libfaketime): the server clock cannot be frozen';
+            if (self::env('PANTHER_NO_SKIP') === '1') {
+                self::fail($message);
+            }
+            self::markTestSkipped($message);
+        }
+        self::stopServer();
+        self::$serverFrozenAt = new \DateTimeImmutable($atom);
+        self::startServer();
+
+        // the server's own word for its time, so a preload that did not take fails here
+        $html = @file_get_contents('http://127.0.0.1:' . self::PORT . self::CLOCK_PAGE);
+        $seen = is_string($html) && preg_match('/data-fetched-at="([^"]*)"/', $html, $m) === 1 ? $m[1] : '';
+        self::assertNotSame('', $seen, 'the server answered ' . self::CLOCK_PAGE . ' with its time');
+        self::assertSame(
+            self::$serverFrozenAt->getTimestamp(),
+            (new \DateTimeImmutable($seen))->getTimestamp(),
+            'the server\'s clock is frozen at ' . $atom,
+        );
+    }
+
+    /**
+     * Puts the server back on the real clock, if freezeServerClock() froze it, and drops
+     * the browser's cookies: a session written under the frozen clock carries its times.
+     */
+    protected static function thawServerClock(): void
+    {
+        if (self::$serverFrozenAt === null) {
+            return;
+        }
+        self::stopServer();
+        self::$serverFrozenAt = null;
+        self::startServer();
+        self::$browser?->manage()->deleteAllCookies();
+    }
+
+    /**
+     * The server's environment for a frozen clock, empty for the real one. The instant is
+     * given in UTC, under TZ=UTC, so libc needs no time zone data to read it; the app keeps
+     * its own zone.
+     *
+     * @return array<string, string>
+     */
+    private static function frozenClockEnvironment(): array
+    {
+        $library = self::faketimeLibrary();
+        if (self::$serverFrozenAt === null || $library === null) {
+            return [];
+        }
+
+        return [
+            'LD_PRELOAD' => $library,
+            'FAKETIME' => self::$serverFrozenAt->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d H:i:s'),
+            'TZ' => 'UTC',
+        ];
+    }
+
+    private static function faketimeLibrary(): ?string
+    {
+        foreach (self::FAKETIME_LIBRARIES as $library) {
+            if (is_file($library)) {
+                return $library;
+            }
+        }
+
+        return null;
     }
 
     /** Returns only once nothing answers on the port: PHP_CLI_SERVER_WORKERS forks workers. */

@@ -12,6 +12,22 @@
    so switching view and pressing a card land immediately.
    ------------------------------------------------------------------------- */
 
+/* Without a script nothing removes a server toast (www/js/shell/toast.js does, after
+   6 s), and its close button is hidden, so it leaves by itself after the same 6 s. This
+   rule is not motion: a 0s animation that only holds the end state, so the toast is gone
+   at once after 6 s with reduced motion too. The block below overrides it by source order
+   with a fade over --motion for a reader who has not asked for reduced motion. */
+:root:not(.js) .toast {
+	animation: toast-gone 0s 6s forwards;
+}
+
+@keyframes toast-gone {
+	to {
+		opacity: 0;
+		visibility: hidden;
+	}
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	/* the sheet stays visible until the slide-out has finished */
 	.sheet {
@@ -19,6 +35,11 @@
 	}
 
 	.sheet.is-open {
+		transition-delay: 0s;
+	}
+
+	/* a rule of its own: a browser without :has() drops the whole rule it is in */
+	:root:not(.js) .sheet:has(.sheet-body:target) {
 		transition-delay: 0s;
 	}
 
@@ -183,5 +204,10 @@
 		to {
 			transform: scaleX(1);
 		}
+	}
+
+	/* the toast without a script fades out instead of vanishing (see above the block) */
+	:root:not(.js) .toast {
+		animation: toast-gone var(--motion) ease 6s forwards;
 	}
 }

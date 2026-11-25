@@ -6,20 +6,24 @@
    only; the perex is Moje's, where the list is short enough to carry it. #}
 {% macro dayList(kind, days) %}
 	{% for day in days %}
-		<section class="pl-day" data-key="{{ day.key }}" data-label="{{ day.label }}">
+		{# Each list's days carry ids of their own, since both lists are in the document:
+		   Přehled's `den-<YYYYMMDD>`, Moje's `moje-den-<YYYYMMDD>`; each strip's chips link to them. #}
+		<section class="pl-day" data-key="{{ day.key }}" id="{{ kind == 'list' ? 'moje-' }}den-{{ day.day|replace({'-': ''}) }}" data-label="{{ day.label }}">
 			{# every day is present and scrolled through, so each one names itself
 			   inside the scroll rather than in the strip alone #}
 			<h2 class="pl-head">{{ day.label }}</h2>
 			{% for item in day.items %}
 				{# The card is not itself a control: as role="button" it collapsed its lines
 				   into one accessible name a hundred characters long. The name is the
-				   control, and the card keeps data-pg-open so a press anywhere on it still
-				   opens the sheet — the handler matches the nearest one. tabindex="-1"
-				   rather than "0": no longer a tab stop, still focusable, which is what
-				   closing the sheet needs to hand focus back to the card it came from. #}
+				   control, a link to the sheet's hash on this address (the sheet opens on
+				   :target without JavaScript; the script intercepts it), and the card keeps
+				   data-pg-open so a press anywhere on it still opens the sheet — the handler
+				   matches the nearest one. tabindex="-1" rather than "0": no longer a tab
+				   stop, still focusable, which is what closing the sheet needs to hand focus
+				   back to the card it came from. #}
 				<article class="pl-item{{ item.registered ? ' is-registered' }}{{ kind == 'overview' and item.dimmed ? ' is-dimmed' }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-pg-open="{{ item.id }}" tabindex="-1">
 					<p class="pl-time">{{ item.time }}</p>
-					<h3 class="pl-name"><button type="button" class="pl-open" data-pg-open="{{ item.id }}">{{ item.name }}</button></h3>
+					<h3 class="pl-name"><a class="pl-open" href="{{ pageAddress }}#section-{{ item.sectionId }}-program-{{ item.id }}" data-pg-open="{{ item.id }}">{{ item.name }}</a></h3>
 					<p class="pl-meta">{{ item.until }}{% if item.location %} · {{ item.location }}{% endif %}</p>
 					{% if item.registered %}<span class="pl-tag">Zapsáno</span>{% endif %}
 					{% if kind == 'list' and item.perex %}<p class="pl-perex">{{ item.perex }}</p>{% endif %}
@@ -46,9 +50,12 @@
 		{% endif %}
 
 		{# One strip of day chips per view. The timeline's switches the page; each list's
-		   follows the scroll and scrolls to a day when tapped. The chip of the day on
-		   show carries aria-current, which the reader owns: data-morph-keep stops a
-		   background morph putting it back on the server's day. #}
+		   follows the scroll and scrolls to a day when tapped. Every chip is a link, so a
+		   reader without JavaScript does both: the timeline's to `?den=<YYYYMMDD>`, whose
+		   page the server makes active, each list's to its own day's id on this address
+		   (the script intercepts them). The chip of the day on show carries aria-current,
+		   which the reader owns: data-morph-keep stops a background morph putting it back
+		   on the server's day. #}
 		{# every child of .pg carries a data-key or an id (the two views): they come and go with the data, and the morph matches unkeyed siblings by position — which once turned the sheet into a day panel #}
 		{% for pager in [
 			{'kind': 'overview', 'items': overview, 'active': activeOverview},
@@ -59,7 +66,8 @@
 				<div class="pager" data-key="pager-{{ pager.kind }}" data-pg-pager="{{ pager.kind }}">
 					<div class="days" role="group" aria-label="Dny" data-pg-days="{{ pager.kind }}">
 						{% for item in pager.items %}
-							<button type="button" class="day-chip" data-key="{{ item.key }}" data-pg-page="{{ item.key }}" data-pg-kind="{{ pager.kind }}" aria-current="{{ item.key == pager.active ? 'true' : 'false' }}" data-morph-keep="aria-current">{{ item.label }}</button>
+							{% set ymd = item.day|replace({'-': ''}) %}
+							<a class="day-chip" href="{{ pager.kind == 'timeline' ? url_for('programs') ~ '?den=' ~ ymd : pageAddress ~ '#' ~ (pager.kind == 'list' ? 'moje-') ~ 'den-' ~ ymd }}" data-key="{{ item.key }}" data-pg-page="{{ item.key }}" data-pg-kind="{{ pager.kind }}" aria-current="{{ item.key == pager.active ? 'true' : 'false' }}" data-morph-keep="aria-current">{{ item.label }}</a>
 						{% endfor %}
 					</div>
 					{% if pager.kind == 'timeline' %}
@@ -109,9 +117,10 @@
 										{% for track in row.tracks %}
 											<div class="tl-track">
 												{% for card in track %}
-													<button type="button" class="tl-card{{ card.registered ? ' is-registered' }}{{ card.dimmed ? ' is-dimmed' }}" data-key="{{ card.id }}" style="left: calc(var(--hour-width) * {{ card.offset }}); width: calc(var(--hour-width) * {{ card.span }})" data-pg-open="{{ card.id }}" aria-label="{{ card.name }}, {{ card.time }}{% if card.registered %}, zapsáno{% endif %}">
+													{# a link to the sheet's hash on this address, as a list row's name is #}
+													<a class="tl-card{{ card.registered ? ' is-registered' }}{{ card.dimmed ? ' is-dimmed' }}" href="{{ pageAddress }}#section-{{ card.sectionId }}-program-{{ card.id }}" data-key="{{ card.id }}" style="left: calc(var(--hour-width) * {{ card.offset }}); width: calc(var(--hour-width) * {{ card.span }})" data-pg-open="{{ card.id }}" aria-label="{{ card.name }}, {{ card.time }}{% if card.registered %}, zapsáno{% endif %}">
 														<span class="tl-card-name">{{ card.name }}</span>
-													</button>
+													</a>
 												{% endfor %}
 											</div>
 										{% endfor %}
@@ -141,20 +150,27 @@
 			{% endif %}
 		</div>
 
-		{# the three views are named at once, in a bar docked on top of the main tab bar;
-		   the pill of the view painted first is selected and the bar's one tab stop #}
+		{# the three views are named at once, in a bar docked on top of the main tab bar.
+		   Each pill is a link to its view's address, so a reader without JavaScript
+		   switches views too; the script intercepts it. The pill of the view painted
+		   first is selected and the current page; both are the reader's once the script
+		   runs (views.js), so a background morph leaves them alone (data-morph-keep), as
+		   it does the day chips' aria-current. No tabindex here: every pill is reachable
+		   without a script, which puts the roving tabindex on at wiring. #}
 		<div class="tabs-wrap" data-key="tabs">
 			<div class="tabs" role="tablist" aria-label="Zobrazení programu">
 				<span class="tabs-indicator" aria-hidden="true"></span>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-overview" aria-controls="pg-view-overview" aria-selected="{{ view == 'overview' ? 'true' : 'false' }}"{% if view != 'overview' %} tabindex="-1"{% endif %} data-pg-view="overview"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span></button>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-timeline" aria-controls="pg-view-timeline" aria-selected="{{ view == 'timeline' ? 'true' : 'false' }}"{% if view != 'timeline' %} tabindex="-1"{% endif %} data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></button>
-				<button type="button" class="tabs-tab" role="tab" id="pg-tab-list" aria-controls="pg-view-list" aria-selected="{{ view == 'list' ? 'true' : 'false' }}"{% if view != 'list' %} tabindex="-1"{% endif %} data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span></button>
+				<a class="tabs-tab" role="tab" id="pg-tab-overview" href="{{ url_for('programs-overview') }}" aria-controls="pg-view-overview" aria-selected="{{ view == 'overview' ? 'true' : 'false' }}" data-pg-view="overview"{% if view == 'overview' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span></a>
+				<a class="tabs-tab" role="tab" id="pg-tab-timeline" href="{{ url_for('programs') }}" aria-controls="pg-view-timeline" aria-selected="{{ view == 'timeline' ? 'true' : 'false' }}" data-pg-view="timeline"{% if view == 'timeline' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span></a>
+				<a class="tabs-tab" role="tab" id="pg-tab-list" href="{{ url_for('programs-mine') }}" aria-controls="pg-view-list" aria-selected="{{ view == 'list' ? 'true' : 'false' }}" data-pg-view="list"{% if view == 'list' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span></a>
 			</div>
 		</div>
 
-		{# the programme detail, as a bottom sheet; closed, CSS hides it (visibility), from assistive technology too #}
+		{# the programme detail, as a bottom sheet; closed, CSS hides it (visibility), from
+		   assistive technology too. Without JavaScript it opens on the :target body, and
+		   the backdrop and the close row go to #zavrit, which names nothing. #}
 		<div class="sheet" data-key="sheet" data-pg-sheet>
-			<div class="sheet-backdrop" data-pg-close></div>
+			<a class="sheet-backdrop" href="{{ pageAddress }}#zavrit" data-pg-close aria-hidden="true" tabindex="-1"></a>
 			{# The server names the first programme so the dialog is never nameless, and
 			   openSheet() points it at the open one. A background morph rewrites it only
 			   while the sheet is closed, because an open sheet defers the morph. #}
@@ -207,7 +223,7 @@
 						</div>
 					{% endfor %}
 				</div>
-				<button type="button" class="sheet-close" data-pg-close>✕ Zavřít</button>
+				<a class="sheet-close" href="{{ pageAddress }}#zavrit" data-pg-close>✕ Zavřít</a>
 			</div>
 		</div>
 	</div>

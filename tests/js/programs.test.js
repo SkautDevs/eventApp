@@ -2,6 +2,7 @@ import {init} from '/js/programs/index.js';
 import {
 	chipScroll,
 	clampZoom,
+	denPage,
 	formatDay,
 	formatNow,
 	hashTarget,
@@ -91,6 +92,16 @@ test('hashTarget reads the section deep link and nothing else', () => {
 	assert.equal(hashTarget(''), null);
 });
 
+test('denPage reads an eight-digit den and nothing else', () => {
+	assert.equal(denPage('?den=20260917'), 'page-20260917');
+	assert.equal(denPage('?x=1&den=20260917'), 'page-20260917');
+	assert.equal(denPage(''), null);
+	assert.equal(denPage('?den='), null);
+	assert.equal(denPage('?den=2026091'), null);
+	assert.equal(denPage('?den=page-20260917'), null);
+	assert.equal(denPage('?den%5B%5D=20260917'), null);
+});
+
 test('legacyTarget reads the two old Moje hashes', () => {
 	assert.deepEqual(legacyTarget('#muj-program'), {id: null});
 	assert.deepEqual(legacyTarget('#muj-program-7'), {id: 7});
@@ -123,8 +134,8 @@ test('two Program screens in one page do not share their state', () => {
 		'<div data-pg-root data-view="timeline" data-pg-event="' +
 		slug +
 		'">' +
-		'<div role="tablist"><button type="button" data-pg-view="overview">Přehled</button>' +
-		'<button type="button" data-pg-view="timeline">Harmonogram</button></div></div>';
+		'<div role="tablist"><a role="tab" href="#pg-test-overview" data-pg-view="overview">Přehled</a>' +
+		'<a role="tab" href="#pg-test-timeline" data-pg-view="timeline">Harmonogram</a></div></div>';
 	const host = document.createElement('div');
 	host.innerHTML = tree('first') + tree('second');
 	document.body.appendChild(host);
@@ -143,9 +154,95 @@ test('two Program screens in one page do not share their state', () => {
 		assert.equal(first.querySelector('[data-pg-view="overview"]').getAttribute('aria-current'), 'page');
 		assert.equal(first.querySelector('[data-pg-view="timeline"]').hasAttribute('aria-current'), false);
 		assert.equal(second.querySelector('[data-pg-view="timeline"]').getAttribute('aria-current'), 'page');
-		// a root in no screen has no address of its own to push
+		// a root in no screen has no address of its own to push, and the link was not followed
 		assert.equal(location.href, address);
 	} finally {
+		host.remove();
+	}
+});
+
+test('a plain click or Space on a link acts, a modified click is left to the browser', () => {
+	const host = document.createElement('div');
+	host.innerHTML =
+		'<div data-pg-root data-view="timeline" data-pg-event="links">' +
+		'<div role="tablist"><a role="tab" href="#pg-test-overview" data-pg-view="overview">Přehled</a>' +
+		'<a role="tab" href="#pg-test-timeline" data-pg-view="timeline">Harmonogram</a></div></div>';
+	document.body.appendChild(host);
+	// after the root's listener: records what it left, then keeps the test page where it is
+	const prevented = [];
+	const record = event => {
+		prevented.push(event.defaultPrevented);
+		event.preventDefault();
+	};
+	document.addEventListener('click', record);
+	try {
+		const root = host.querySelector('[data-pg-root]');
+		init(root);
+		const overview = root.querySelector('[data-pg-view="overview"]');
+		const timeline = root.querySelector('[data-pg-view="timeline"]');
+
+		overview.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, ctrlKey: true}));
+		assert.equal(prevented.pop(), false);
+		assert.equal(root.dataset.view, 'timeline');
+
+		overview.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+		assert.equal(prevented.pop(), true);
+		assert.equal(root.dataset.view, 'overview');
+
+		const space = new KeyboardEvent('keydown', {key: ' ', bubbles: true, cancelable: true});
+		timeline.dispatchEvent(space);
+		assert.equal(space.defaultPrevented, true);
+		assert.equal(prevented.pop(), true);
+		assert.equal(root.dataset.view, 'timeline');
+	} finally {
+		document.removeEventListener('click', record);
+		host.remove();
+	}
+});
+
+test('a day chip is a link: a plain click or Space switches the page, a modified click is left to the browser', () => {
+	const host = document.createElement('div');
+	host.innerHTML =
+		'<div data-pg-root data-view="timeline" data-pg-event="chips">' +
+		'<div class="days" data-pg-days="timeline">' +
+		'<a class="day-chip" href="?den=20260916" data-key="page-20260916" data-pg-page="page-20260916" data-pg-kind="timeline" aria-current="true">st</a>' +
+		'<a class="day-chip" href="?den=20260917" data-key="page-20260917" data-pg-page="page-20260917" data-pg-kind="timeline" aria-current="false">čt</a></div>' +
+		'<section class="tl-page is-active" data-pg-panel="timeline" data-key="page-20260916"></section>' +
+		'<section class="tl-page" data-pg-panel="timeline" data-key="page-20260917"></section></div>';
+	document.body.appendChild(host);
+	const prevented = [];
+	const record = event => {
+		prevented.push(event.defaultPrevented);
+		event.preventDefault();
+	};
+	document.addEventListener('click', record);
+	try {
+		const root = host.querySelector('[data-pg-root]');
+		init(root);
+		const [first, second] = root.querySelectorAll('.day-chip');
+		const [one, two] = root.querySelectorAll('.tl-page');
+		const address = location.href;
+
+		second.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, metaKey: true}));
+		assert.equal(prevented.pop(), false);
+		assert.equal(two.classList.contains('is-active'), false);
+
+		second.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}));
+		assert.equal(prevented.pop(), true);
+		assert.equal(two.classList.contains('is-active'), true);
+		assert.equal(one.classList.contains('is-active'), false);
+		assert.equal(second.getAttribute('aria-current'), 'true');
+		// the chip switched the page without a URL change
+		assert.equal(location.href, address);
+
+		const space = new KeyboardEvent('keydown', {key: ' ', bubbles: true, cancelable: true});
+		first.dispatchEvent(space);
+		assert.equal(space.defaultPrevented, true);
+		assert.equal(prevented.pop(), true);
+		assert.equal(one.classList.contains('is-active'), true);
+		assert.equal(first.getAttribute('aria-current'), 'true');
+	} finally {
+		document.removeEventListener('click', record);
 		host.remove();
 	}
 });

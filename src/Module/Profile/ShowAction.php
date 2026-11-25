@@ -38,7 +38,7 @@ final class ShowAction
 
         $page = new ProfilePage(
             identity: $identity === null ? null : IdentityView::of($identity),
-            pairing: $pairing === null ? null : new PairingView($pairing->formattedUserCode(), $pairing->verificationUrl),
+            pairing: $pairing === null ? null : new PairingView($pairing->formattedUserCode(), $pairing->verificationUrl, $this->pairingState->waitingLine()),
             // the start's, the poll's or a session's outcome, on every read while it lasts
             outcome: $this->pairingState->outcomeLine(),
             toast: $toast,

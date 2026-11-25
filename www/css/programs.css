@@ -138,8 +138,12 @@
 	display: none;
 }
 
+/* A link (it works without JavaScript), centred in its box as the button it was */
 .day-chip {
 	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	min-width: 44px;
 	min-height: 44px;
 	padding: 0 12px;
@@ -147,6 +151,11 @@
 	color: var(--on-ground);
 	font-size: var(--fs-md);
 	white-space: nowrap;
+}
+
+/* shell.css's a:visited outranks .day-chip, so the ink is said again; the current chip still wins */
+.day-chip:visited {
+	color: var(--on-ground);
 }
 
 .day-chip[aria-current="true"] {
@@ -186,6 +195,11 @@
 .pager-zoom-btn[disabled] {
 	opacity: 0.25;
 	cursor: default;
+}
+
+/* only the script stretches the hour scale */
+:root:not(.js) .pager-zoom {
+	display: none;
 }
 
 /* --- view switching ------------------------------------------------------ */
@@ -476,8 +490,15 @@
 	font-weight: 400;
 	line-height: 1.1;
 	text-align: left;
+	text-decoration: none;
 	overflow: hidden;
 	cursor: pointer;
+}
+
+/* the card is a link (the sheet's hash, for a reader without JavaScript): shell.css's
+   a:visited outranks .tl-card, so the ink is said again; .is-registered still wins */
+.tl-card:visited {
+	color: var(--on-structure);
 }
 
 .tl-card-name {
@@ -514,6 +535,12 @@
 /* One continuous scroll over the whole event, in each of the two list views. The
    strip above only marks where the reader is; it is the day headings inside the
    scroll that do the dividing. */
+
+/* A chip's link to a day (#den-…, #moje-den-…) docks its heading under the strip, as
+   the script's scroll does: the same three tokens bandTop() in www/js/programs/daylist.js reads. */
+.pl-day {
+	scroll-margin-top: calc(var(--appbar-height) + var(--appbar-inset) + var(--pager-height));
+}
 
 /* The last day has to be able to dock under the strip like every other one, and it
    cannot if the document ends two rows below its heading: its chip would land short
@@ -621,6 +648,11 @@
 	text-align: left;
 }
 
+/* a link (the sheet's hash, for a reader without JavaScript): a:visited outranks .pl-open */
+.pl-open:visited {
+	color: inherit;
+}
+
 .pl-time {
 	margin: 0;
 	font-size: var(--fs-md);
@@ -677,7 +709,15 @@
 	visibility: hidden;
 }
 
+/* Open: .is-open with a script; without one, the body a programme's link put in the
+   hash (:target). #zavrit names nothing, which closes it. Each :has() selector is a
+   rule of its own, never in a list with .is-open: a browser without :has() drops the
+   whole rule it is in, and the sheet would not open there even with a script. */
 .sheet.is-open {
+	visibility: visible;
+}
+
+:root:not(.js) .sheet:has(.sheet-body:target) {
 	visibility: visible;
 }
 
@@ -689,6 +729,10 @@
 }
 
 .sheet.is-open .sheet-backdrop {
+	opacity: 0.55;
+}
+
+:root:not(.js) .sheet:has(.sheet-body:target) .sheet-backdrop {
 	opacity: 0.55;
 }
 
@@ -728,6 +772,10 @@
 	transform: translate(-50%, 0);
 }
 
+:root:not(.js) .sheet:has(.sheet-body:target) .sheet-card {
+	transform: translate(-50%, 0);
+}
+
 .sheet-card:focus {
 	outline: none;
 	box-shadow: none;
@@ -745,7 +793,8 @@
 	display: none;
 }
 
-.sheet-body.is-open {
+.sheet-body.is-open,
+:root:not(.js) .sheet-body:target {
 	display: block;
 }
 
@@ -867,7 +916,14 @@
 	font-size: var(--fs-xl);
 	font-weight: 700;
 	text-align: center;
+	text-decoration: none;
 	cursor: pointer;
+}
+
+/* a link to #zavrit, which closes the :target sheet without JavaScript: a:visited
+   outranks .sheet-close, so the ink is said again */
+.sheet-close:visited {
+	color: var(--on-action);
 }
 
 /* inset like .tabs-tab and .tl-card: the button runs to the card's edges and

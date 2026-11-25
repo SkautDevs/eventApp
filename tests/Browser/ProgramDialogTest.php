@@ -162,6 +162,24 @@ final class ProgramDialogTest extends BrowserTestCase
         self::assertSame('', self::script('return location.hash;'), 'the entry under the sheet carries no programme hash');
     }
 
+    /**
+     * A sheet opened on landing has no card that opened it: Back puts focus on the
+     * programme's card on the view on show, never on <body>, where a screen reader loses
+     * its place.
+     */
+    public function testBackFromALandedSheetFocusesItsCardNotTheBody(): void
+    {
+        self::visit('/korbo26/programy');
+        $id = self::script('return document.querySelector("[data-pg-detail]").dataset.pgDetail;');
+        self::visit('/korbo26/');
+        self::visit('/korbo26/programy#section-0-program-' . $id);
+        self::waitFor('return document.querySelector(".sheet.is-open") !== null;');
+        self::script('history.back();');
+        self::waitFor('return document.querySelector(".sheet.is-open") === null;');
+        self::assertFalse(self::script('return document.activeElement === null || document.activeElement === document.body;'), 'focus fell to <body>');
+        self::assertTrue(self::script('return document.activeElement.matches(\'[data-pg-open="\' + arguments[0] + \'"]\');', [$id]), 'focus is on the programme\'s card');
+    }
+
     /** A day chip in Můj program scrolls to its day, and the chip stays current once the scroll has settled. */
     public function testPickingADayInMyProgramLandsOnIt(): void
     {

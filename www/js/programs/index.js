@@ -17,7 +17,7 @@ import {nextTabIndex} from '../ui/tabs.js';
 import {setup as setupChips} from './chips.js';
 import {isList, LIST_KINDS, setup as setupDaylist} from './daylist.js';
 import {setup as setupDeeplink} from './deeplink.js';
-import {hashTarget, legacyTarget, viewFromPath} from './maths.js';
+import {denPage, hashTarget, legacyTarget, viewFromPath} from './maths.js';
 import {setup as setupNowline} from './nowline.js';
 import {setup as setupSheet} from './sheet.js';
 import {setup as setupTimeline} from './timeline.js';
@@ -46,7 +46,7 @@ export function init(root) {
 		// the reader's own state back on top of it. The view is the address's: an offline
 		// copy of the screen is stored once for all three addresses, so its data-view may
 		// be another view's.
-		view: viewFromPath(location.pathname, screen) ?? (root.dataset.view || 'timeline'),
+		view: viewFromPath(location.pathname, screen) || root.dataset.view || 'timeline',
 		pageKey: null,
 		hourWidth: cssPx('--hour-width'),
 		// the programme Moje lands on when it is next entered: a deep link's, or one
@@ -65,6 +65,17 @@ export function init(root) {
 		const el = event.target.closest('[data-pg-view],[data-pg-page],[data-pg-close],[data-pg-open],[data-pg-zoom]');
 		if (!el) {
 			return;
+		}
+		// The pills, the day chips, the programme links and the close row are links,
+		// which is how a reader without JavaScript switches views and days and opens and
+		// closes a sheet. A plain
+		// primary click is this script's, and the link is not followed; one with a
+		// modifier key (a new tab) is the browser's, and the screen does nothing.
+		if (el.matches('a[href]')) {
+			if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+				return;
+			}
+			event.preventDefault();
 		}
 		const data = el.dataset;
 
@@ -120,8 +131,19 @@ export function init(root) {
 			list[next].focus();
 			return;
 		}
+		// The pills, the day chips, the programme links and the close row were buttons,
+		// which Space pressed; a link answers Enter alone, so Space presses it here (the
+		// click handler above then takes it).
+		if (event.key === ' ' && root.contains(target) && target.matches('a[data-pg-view],a[data-pg-page],a[data-pg-open],a[data-pg-close]')) {
+			event.preventDefault();
+			// a held key presses once, as a button's did
+			if (!event.repeat) {
+				target.click();
+			}
+			return;
+		}
 		// A list row needs no key handling of its own any more. The control in it is
-		// the inner <button class="pl-open">, which answers Enter and Space itself;
+		// the inner <a class="pl-open">, which answers Enter itself and Space above;
 		// the branch that used to be here fired on the <article> and handed
 		// closeSheet() that as the opener, so focus came back one level out of where
 		// the reader had left it. The article keeps tabindex="-1" all the same — it
@@ -163,6 +185,13 @@ export function init(root) {
 	// the scale outlives paging and view switching, but not the session
 	ctx.restoreZoom();
 	ctx.showPage('timeline', Math.max(ctx.activeIndex('timeline'), 0));
+	// A day chip's address (`?den=`) names its page. The server has made it active already,
+	// but an offline copy is stored once for every query and carries another day's page.
+	const den = denPage(location.search);
+	const denShown = den !== null && ctx.panels('timeline').some(panel => panel.dataset.key === den);
+	if (denShown) {
+		ctx.showPageByKey('timeline', den);
+	}
 	// each list's strip opens on the day at the top of its scroll; from here on the
 	// observer marks whichever day the reader has scrolled to
 	LIST_KINDS.forEach(kind => {
@@ -171,8 +200,9 @@ export function init(root) {
 	});
 	ctx.showView(ctx.view);
 	ctx.updateNow();
-	// a deep link (or an old Moje hash) names its own place; only a plain landing goes to "now"
-	if (hashTarget(location.hash) === null && legacyTarget(location.hash) === null) {
+	// a deep link (or an old Moje hash) names its own place, as a chip's day does; only a
+	// plain landing goes to "now"
+	if (hashTarget(location.hash) === null && legacyTarget(location.hash) === null && !denShown) {
 		ctx.openOnNow();
 	}
 	ctx.fromHash();

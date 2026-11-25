@@ -1,14 +1,16 @@
 /**
  * Místa's two views of one place, Google's interactive map and the handbook's plan,
  * switched like the Program screen's. The view is the address: the map is the screen's own
- * path, the plan `/plan` under it. A pill pushes its address, so every tap is one Back;
- * Back (popstate), a show of the screen (screen:shown) and the wiring read the view from
- * the address again. A screen with one pane keeps the view its markup states. Nothing is
- * ever detached: hiding the Google pane keeps its iframe running, which is the point of the
- * screen stack.
+ * path, the plan `/plan` under it. Each pill is a link to its address, followed as a full
+ * page load without JavaScript; here a plain click pushes the address instead, so every
+ * tap is one Back; Back (popstate), a show of the screen (screen:shown) and the wiring
+ * read the view from the address again. A screen with one pane keeps the view its markup
+ * states. Nothing is ever detached: hiding the Google pane keeps its iframe running, which
+ * is the point of the screen stack.
  */
 
 import {onScreenMorphed, onScreenShown} from '../events.js';
+import {setAttr} from '../ui/dom.js';
 import {markSelected, nextTabIndex} from '../ui/tabs.js';
 
 const PLAN_PATH = '/plan';
@@ -34,7 +36,7 @@ export function openingView(online, pathView) {
 	if (!online) {
 		return 'plan';
 	}
-	return pathView ?? 'google';
+	return pathView || 'google';
 }
 
 /** Wires the tabs of one map root; `plan` is its setupPlan(), sized whenever the plan shows. */
@@ -59,7 +61,14 @@ export function setupViews(root, plan) {
 			root.dataset.view = next;
 		}
 		tabs().forEach(tab => {
-			markSelected(tab, tab.dataset.mapView === next, true);
+			const shown = tab.dataset.mapView === next;
+			markSelected(tab, shown, true);
+			// the pills are links to the two addresses; the shown one is the current page
+			if (shown) {
+				setAttr(tab, 'aria-current', 'page');
+			} else if (tab.hasAttribute('aria-current')) {
+				tab.removeAttribute('aria-current');
+			}
 		});
 		if (next === 'plan') {
 			plan.apply(plan.zoom());
@@ -92,7 +101,7 @@ export function setupViews(root, plan) {
 		const online = navigator.onLine !== false;
 		const pathView = mapViewFromPath(location.pathname, screen);
 		// on an address that is not this screen's, the view on show stays
-		setView(openingView(online, pathView ?? view));
+		setView(openingView(online, pathView || view));
 		if (!online && pathView === 'google') {
 			history.replaceState(history.state, '', mapViewPath('plan', screen));
 		}
@@ -102,6 +111,16 @@ export function setupViews(root, plan) {
 		const el = event.target.closest('[data-map-view],[data-plan-zoom]');
 		if (!el || el.dataset.mapView === undefined) {
 			return;
+		}
+		// The pills are links, which is how a reader without JavaScript switches views. A
+		// plain primary click is this script's, and the link is not followed (a full page
+		// load would refetch Google's iframe); one with a modifier key (a new tab) is the
+		// browser's, and the screen does nothing.
+		if (el.matches('a[href]')) {
+			if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+				return;
+			}
+			event.preventDefault();
 		}
 		select(el.dataset.mapView);
 		// the offline note's button moves the reader, so the focus goes with them
@@ -119,6 +138,16 @@ export function setupViews(root, plan) {
 		if (!tab) {
 			return;
 		}
+		// The pills were buttons, which Space pressed; a link answers Enter alone, so Space
+		// presses it here (the click handler above then takes it).
+		if (event.key === ' ' && tab.matches('a[href]')) {
+			event.preventDefault();
+			// a held key presses once, as a button's did
+			if (!event.repeat) {
+				tab.click();
+			}
+			return;
+		}
 		const list = tabs();
 		const next = nextTabIndex(event.key, list.indexOf(tab), list.length);
 		if (next === null) {
@@ -129,8 +158,9 @@ export function setupViews(root, plan) {
 		list[next].focus();
 	});
 
-	// data-morph-keep keeps data-view, but the tabs' aria-selected and tabindex are the
-	// server's again after a morph, so the reader's view is re-asserted on them
+	// data-morph-keep keeps data-view and the pills' aria-selected and aria-current, and the
+	// server writes no tabindex; the reader's view is re-asserted all the same, since a
+	// pill the morph replaced is a new node with the server's state
 	onScreenMorphed(target => {
 		if (target.contains && target.contains(root)) {
 			setView(view);

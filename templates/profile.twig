@@ -16,12 +16,15 @@
 			{# paired: who, and what this browser can do; no code of any kind is shown #}
 			<h2 class="profile-who">{% if identity.initials %}<span class="avatar">{{ identity.initials }}</span>{% else %}<i class="fas fa-user-circle" aria-hidden="true"></i>{% endif %} {{ identity.displayName }}</h2>
 		{% elseif pairing %}
-			{# pending: www/js/profile/pairing.js polls while this paragraph is on a visible screen #}
+			{# pending: www/js/profile/pairing.js polls while this paragraph is on a visible screen;
+			   without a script the reader checks with the button under the status line #}
 			<p class="pairing-code" data-pairing-poll>{{ pairing.userCode }}</p>
 			<p>Zadej kód v KissJ, nebo</p>
 			<a class="btn btn-primary" href="{{ pairing.verificationUrl }}" target="_blank" rel="noopener">Otevřít KissJ ↗</a>
 			{# not .push-status: www/js/push/ hides every one of those while it has no push status #}
-			<p class="pairing-status" role="status" data-pairing-status>Čekám na potvrzení v KissJ…</p>
+			<p class="pairing-status" role="status" data-pairing-status>{{ pairing.status }}</p>
+			{# no data-write: with a script the poll checks, and this form is hidden (profile.css) #}
+			<form method="post" action="{{ url_for('pairing-check') }}" class="stacked-form pairing-check"><button type="submit" class="btn btn-primary">Zkontrolovat přihlášení</button></form>
 			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form" data-write>
 				<button type="submit" class="btn">Začít znovu</button>
 			</form>

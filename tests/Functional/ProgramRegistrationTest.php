@@ -104,7 +104,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
     private static function cardClasses(string $html, int $id): string
     {
-        self::assertSame(1, preg_match('#<button type="button" class="(tl-card[^"]*)" data-key="' . $id . '"#', $html, $m));
+        self::assertSame(1, preg_match('#<a class="(tl-card[^"]*)" href="[^"]*" data-key="' . $id . '"#', $html, $m));
 
         return $m[1];
     }

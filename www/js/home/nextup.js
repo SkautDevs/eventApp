@@ -1,7 +1,8 @@
 /**
- * Můj program on Domů: every one of the participant's programmes is a hidden card carrying
- * its instants; the running one and the next two are shown, each with its lead line. The
- * times are the server's (data-time, data-until: Prague wall-clock), so a phone in another
+ * Můj program on Domů: every one of the participant's programmes is a card carrying its
+ * instants. The server (HomeModel) already shows the running one and the next two, each with
+ * its lead line, and hides the rest; this script redoes that pick and those lines by the
+ * device clock, so a stored or long-open page stays right. The times are the server's (data-time, data-until: Prague wall-clock), so a phone in another
  * zone still reads the event's own.
  */
 

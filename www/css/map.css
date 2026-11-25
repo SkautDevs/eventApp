@@ -95,6 +95,11 @@ div.map iframe {
 	gap: 4px;
 }
 
+/* only the script zooms the plan; without it the box still scrolls the drawing at its width */
+:root:not(.js) .plan-zoom {
+	display: none;
+}
+
 /* filled, not bare: it sits on the drawing, whose own colours are anything */
 .plan-zoom-btn {
 	width: 44px;

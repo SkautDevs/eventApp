@@ -21,29 +21,29 @@
 	{% endif %}
 	<meta name="theme-color" content="{{ hasDark ? (event.roles.light.bar ?? event.roles.light.structure ?? event.colors.base) : event.colors.base }}"
 		{% if hasDark %}data-light="{{ (event.roles.light.bar ?? event.roles.light.structure ?? event.colors.base) }}" data-dark="{{ event.roles.dark.bar ?? event.roles.dark.structure }}"{% endif %}>
-	{% if hasDark %}
-		{# Before first paint, not from the deferred script at the bottom: the mode has to
-		   be on the root element by the time the stylesheet applies, or the reader sees a
-		   frame of the wrong theme. A stored choice wins forever once made; until then
-		   the device's own setting decides. #}
-		<script nonce="{{ cspNonce }}">
-			(function () {
-				try {
-					var mode = localStorage.getItem('obrokColorMode');
-					if (mode !== 'dark' && mode !== 'light') {
-						mode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-					}
-					document.documentElement.setAttribute('data-mode', mode);
-					var meta = document.querySelector('meta[name=theme-color]');
-					if (meta) {
-						meta.setAttribute('content', meta.getAttribute(mode === 'dark' ? 'data-dark' : 'data-light'));
-					}
-				} catch (e) {
-					// no storage and no matchMedia: the CSS media query still gets it right
-				}
-			})();
-		</script>
-	{% endif %}
+	{# The one head script, rendered for every event and run before any stylesheet applies.
+	   It marks the root with `js`, so a rule scoped to `:root:not(.js)` (what shows only
+	   without a script) never paints a frame with JavaScript on, and `:root:not(.js) …
+	   { display: none; }` hides what only a script can drive. For a dark-capable event
+	   the mode follows in the same script, before first paint rather than from the
+	   deferred modules: the mode has to be on the root element by the time the
+	   stylesheet applies, or the reader sees a frame of the wrong theme. A stored choice
+	   wins forever once made; until then the device's own setting decides. #}
+	<script nonce="{{ cspNonce }}">document.documentElement.classList.add('js');{% if hasDark %}
+		try {
+			const stored = localStorage.getItem('obrokColorMode');
+			const mode = stored === 'dark' || stored === 'light'
+				? stored
+				: (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+			document.documentElement.setAttribute('data-mode', mode);
+			const meta = document.querySelector('meta[name=theme-color]');
+			if (meta) {
+				meta.setAttribute('content', meta.getAttribute(mode === 'dark' ? 'data-dark' : 'data-light'));
+			}
+		} catch (e) {
+			// no storage and no matchMedia: the CSS media query still gets it right
+		}
+	{% endif %}</script>
 	{# Font Awesome Free 5.8.1, unmodified, served from the app like every other font:
 	   no hash in the URL, because a file under /vendor/ never changes in place #}
 	<link rel="stylesheet" href="/vendor/fontawesome-free-5.8.1/css/all.min.css">
@@ -155,7 +155,7 @@
    one it leaves. The wrapper is emitted identically by _screen.twig, so a screen that
    arrived over the wire is indistinguishable from this one. #}
 <main id="obsah" tabindex="-1">
-	<noscript><p class="noscript">Aplikace potřebuje zapnutý JavaScript.</p></noscript>
+	<noscript><p class="noscript">Bez JavaScriptu nefungují notifikace, offline režim, instalace ani volba vzhledu.</p></noscript>
 	{# data-fetched-at is when the provider data on this screen was fetched (the request
 	   time when it used none); data-stale marks an old copy served because kissj failed.
 	   The handler has already run when this renders, so both are final here. The network

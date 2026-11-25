@@ -74,6 +74,36 @@ final class ThemingTest extends AppTestCase
         self::assertSame($onDisk, $listed);
     }
 
+    /**
+     * A browser without `:has()` (Safari before 15.4, Firefox before 121) drops the whole
+     * rule a `:has()` selector is in. In a list with `.sheet.is-open` it once took the
+     * sheet's opening with it, script or not: a `:has()` selector is a rule of its own.
+     */
+    public function testNoHasSelectorSharesItsRule(): void
+    {
+        $css = (string) preg_replace('!/\*.*?\*/!s', '', CoreStylesheet::read());
+        $checked = 0;
+        foreach (explode('}', $css) as $block) {
+            $open = strrpos($block, '{');
+            if ($open === false) {
+                continue;
+            }
+            $list = substr($block, 0, $open);
+            $wrapper = strrpos($list, '{'); // an @media or @supports opener before the rule's own list
+            if ($wrapper !== false) {
+                $list = substr($list, $wrapper + 1);
+            }
+            $list = trim($list);
+            if (!str_contains($list, ':has(')) {
+                continue;
+            }
+            $checked++;
+            // any comma not closed by the next parenthesis separates selectors: the rule holds one
+            self::assertSame(0, preg_match('/,(?![^()]*\))/', $list), 'a :has() selector shares its rule: ' . $list);
+        }
+        self::assertGreaterThan(0, $checked);
+    }
+
     public function testCoreStylesheetHasNoColorLiterals(): void
     {
         $css = CoreStylesheet::read();

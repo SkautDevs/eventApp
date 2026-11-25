@@ -67,6 +67,11 @@ article.link-card .btn {
 	display: none;
 }
 
+/* the install offer and the notifications button both need a script */
+:root:not(.js) [data-install-card] {
+	display: none;
+}
+
 .install-card h2 {
 	margin: 0 0 4px;
 	font-size: var(--fs-lg);

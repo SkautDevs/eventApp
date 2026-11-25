@@ -54,10 +54,10 @@ final class ScreenMorphTest extends AppTestCase
 
         // every card carries one, so a programme added to a day cannot shift the rest
         self::assertSame(
-            substr_count($html, '<button type="button" class="tl-card'),
-            (int) preg_match_all('/<button type="button" class="tl-card[^"]*" data-key="\d+"/', $html),
+            substr_count($html, '<a class="tl-card'),
+            (int) preg_match_all('/<a class="tl-card[^"]*" href="[^"]*" data-key="\d+"/', $html),
         );
-        self::assertMatchesRegularExpression('/<button type="button" class="tl-card[^"]*" data-key="\d+"/', $html);
+        self::assertMatchesRegularExpression('/<a class="tl-card[^"]*" href="[^"]*" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<div class="sheet-body" id="section-\d+-program-\d+" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<article class="pl-item[^"]*" data-key="\d+"/', $html);
         self::assertMatchesRegularExpression('/<section class="tl-page[^"]*"[^>]* data-key="page-\d{8}"/', $html);
@@ -132,7 +132,7 @@ final class ScreenMorphTest extends AppTestCase
         self::assertStringContainsString('data-pg-root data-morph-keep="data-view data-step"', $html);
         self::assertMatchesRegularExpression('/<section class="tl-page[^"]*" data-morph-keep="class"/', $html);
         // the current day chip is the reader's: a morph must not put it back on the server's day
-        self::assertMatchesRegularExpression('/<button type="button" class="day-chip" data-key="page-\d{8}" data-pg-page="page-\d{8}" data-pg-kind="timeline" aria-current="(?:true|false)" data-morph-keep="aria-current">/', $html);
+        self::assertMatchesRegularExpression('/<a class="day-chip" href="[^"]*" data-key="page-\d{8}" data-pg-page="page-\d{8}" data-pg-kind="timeline" aria-current="(?:true|false)" data-morph-keep="aria-current">/', $html);
         self::assertStringNotContainsString('data-morph-keep="class" data-pg-page', $html);
         // the now-line's state is the reader's clock's: data-now and --now-offset are
         // written by www/js/programs/nowline.js only, so a morph has nothing of its own to put back
@@ -157,13 +157,13 @@ final class ScreenMorphTest extends AppTestCase
             self::assertMatchesRegularExpression('/<div class="pg" data-pg-root [^>]*data-view="' . $view . '"/', $html, $path);
             foreach (['overview', 'timeline', 'list'] as $pill) {
                 self::assertMatchesRegularExpression(
-                    '/<button type="button" class="tabs-tab" role="tab" [^>]*aria-selected="' . ($pill === $view ? 'true' : 'false') . '"[^>]*data-pg-view="' . $pill . '"/',
+                    '/<a class="tabs-tab" role="tab" [^>]*aria-selected="' . ($pill === $view ? 'true' : 'false') . '"[^>]*data-pg-view="' . $pill . '"/',
                     $html,
                     $path . ' ' . $pill,
                 );
-                // the selected pill is the one tab stop of the bar
+                // the selected pill is the current page, both the reader's to a morph; no tabindex in the markup (the script puts the roving one on)
                 self::assertStringContainsString(
-                    $pill === $view ? 'aria-selected="true" data-pg-view="' . $pill . '"' : 'aria-selected="false" tabindex="-1" data-pg-view="' . $pill . '"',
+                    $pill === $view ? 'aria-selected="true" data-pg-view="' . $pill . '" aria-current="page" data-morph-keep="aria-selected aria-current">' : 'aria-selected="false" data-pg-view="' . $pill . '" data-morph-keep="aria-selected aria-current">',
                     $html,
                     $path . ' ' . $pill,
                 );

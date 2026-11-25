@@ -9,6 +9,8 @@
 		</div>
 		{# shown by www/js/map/offline.js while the phone is offline: Google's iframe is blank then.
 		   It must stay the map's next sibling — that is how offline.js finds it. #}
+		{# The note's control stays a <button>, not a link like the pills: only a script
+		   ever shows the note. #}
 		{# With the plan beside it the note carries a button, which may not take .empty's
 		   fade (a tonal .btn at 0.8 opacity falls under AA): the note then stays opaque
 		   and only its sentence is faded. #}
@@ -20,7 +22,8 @@
 {% endmacro %}
 
 {% macro plan(image, imageAlt) %}
-	{# the plan scrolls both ways inside its box; www/js/map/plan.js zooms it by its width #}
+	{# the plan scrolls both ways inside its box; www/js/map/plan.js zooms it by its width,
+	   and without a script the zoom pair is hidden (map.css) #}
 	<div class="plan" data-plan>
 		<img class="plan-img" src="{{ image }}" alt="{{ imageAlt }}" data-plan-img>
 	</div>
@@ -42,11 +45,17 @@
 			<div class="map-pane map-pane-plan" id="map-view-plan" role="tabpanel" aria-labelledby="map-tab-plan">
 				{{ _self.plan(image, imageAlt) }}
 			</div>
+			{# Each pill is a link to its view's address, so a reader without JavaScript
+			   switches views too (a full page load); views.js intercepts a plain click and
+			   pushes the address instead, leaving the iframe running. The shown pill is
+			   selected and the current page; both are the reader's once the script runs, so
+			   a background morph leaves them alone (data-morph-keep). No tabindex here: every
+			   pill is reachable without a script, which puts the roving tabindex on at wiring. #}
 			<div class="tabs-wrap" data-key="tabs">
 				<div class="tabs" role="tablist" aria-label="Zobrazení mapy">
 					<span class="tabs-indicator" aria-hidden="true"></span>
-					<button type="button" class="tabs-tab" role="tab" id="map-tab-google" aria-controls="map-view-google" aria-selected="{{ view == 'google' ? 'true' : 'false' }}"{% if view != 'google' %} tabindex="-1"{% endif %} data-map-view="google"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> <span class="tabs-label">Mapa</span></button>
-					<button type="button" class="tabs-tab" role="tab" id="map-tab-plan" aria-controls="map-view-plan" aria-selected="{{ view == 'plan' ? 'true' : 'false' }}"{% if view != 'plan' %} tabindex="-1"{% endif %} data-map-view="plan"><i class="far fa-map" aria-hidden="true"></i> <span class="tabs-label">Plán</span></button>
+					<a class="tabs-tab" role="tab" id="map-tab-google" href="{{ url_for('map') }}" aria-controls="map-view-google" aria-selected="{{ view == 'google' ? 'true' : 'false' }}" data-map-view="google"{% if view == 'google' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> <span class="tabs-label">Mapa</span></a>
+					<a class="tabs-tab" role="tab" id="map-tab-plan" href="{{ url_for('map-plan') }}" aria-controls="map-view-plan" aria-selected="{{ view == 'plan' ? 'true' : 'false' }}" data-map-view="plan"{% if view == 'plan' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="far fa-map" aria-hidden="true"></i> <span class="tabs-label">Plán</span></a>
 				</div>
 			</div>
 		</div>

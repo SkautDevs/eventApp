@@ -408,6 +408,113 @@ final class PairingTest extends AppTestCase
         self::assertStringNotContainsString('Propojení s KissJ už neplatí', $this->html($app, '/profil'));
     }
 
+    // --- the check (the pairing wait without JavaScript) ---
+
+    /** A provider whose poll always answers $status. */
+    private function polling(\App\Program\PairingStatus $status): ProgramProviderInterface
+    {
+        return new class ($this->counted(), $status) extends DelegatingProvider {
+            public function __construct(ProgramProviderInterface $inner, private readonly \App\Program\PairingStatus $status)
+            {
+                parent::__construct($inner);
+            }
+
+            public function pollPairing(string $deviceCode): PairingPoll
+            {
+                return new PairingPoll($this->status);
+            }
+        };
+    }
+
+    public function testThePendingProfilOffersTheCheckButton(): void
+    {
+        $app = $this->korbo();
+        $this->request($app, 'POST', '/profil/propojit');
+
+        $html = $this->html($app, '/profil');
+        self::assertStringContainsString('<p class="pairing-status" role="status" data-pairing-status>Čekám na potvrzení v KissJ…</p>', $html);
+        self::assertMatchesRegularExpression(
+            '#<p class="pairing-status"[^>]*>Čekám na potvrzení v KissJ…</p>\s*<form method="post" action="/korbo26/profil/kontrola" class="stacked-form pairing-check"><button type="submit" class="btn btn-primary">Zkontrolovat přihlášení</button></form>#u',
+            $html,
+        );
+        // a plain form: the script polls, so it never sends this one
+        self::assertDoesNotMatchRegularExpression('#<form[^>]*action="/korbo26/profil/kontrola"[^>]*data-write#', $html);
+    }
+
+    public function testTheCheckApprovesAndLandsOnProfil(): void
+    {
+        $app = $this->korbo();
+        $this->request($app, 'POST', '/profil/propojit');
+
+        $response = $this->request($app, 'POST', '/profil/kontrola');
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/korbo26/profil', $response->getHeaderLine('Location'));
+
+        $html = $this->html($app, '/profil');
+        self::assertMatchesRegularExpression('#<h2 class="profile-who"><span class="avatar">JN</span> Jana Nováková</h2>#u', $html);
+        self::assertStringContainsString('<p><strong>Jsi přihlášen</strong>', $html);
+        self::assertStringNotContainsString('data-pairing-poll', $html);
+    }
+
+    public function testTheCheckAnswersAScriptedWriteWithJson(): void
+    {
+        $app = $this->korbo();
+        $this->request($app, 'POST', '/profil/propojit');
+
+        $response = $this->request($app, 'POST', '/profil/kontrola', [], ['X-Write' => '1']);
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('{"next":"/korbo26/profil"}', (string) $response->getBody());
+    }
+
+    public function testTheCheckStillWaitingSaysSo(): void
+    {
+        foreach ([\App\Program\PairingStatus::Pending, \App\Program\PairingStatus::SlowDown] as $status) {
+            $_SESSION = [];
+            $app = $this->korbo($this->polling($status));
+            $this->request($app, 'POST', '/profil/propojit');
+
+            $response = $this->request($app, 'POST', '/profil/kontrola');
+            self::assertSame(302, $response->getStatusCode(), $status->value);
+            self::assertSame('/korbo26/profil', $response->getHeaderLine('Location'), $status->value);
+
+            $line = '<p class="pairing-status" role="status" data-pairing-status>Zatím nepotvrzeno, zkus to za chvilku.</p>';
+            self::assertStringContainsString($line, $this->html($app, '/profil'), $status->value);
+            self::assertStringContainsString($line, $this->html($app, '/profil'), $status->value . ': reading consumes nothing');
+            self::assertStringContainsString('data-pairing-poll', $this->html($app, '/profil'), $status->value . ': the pairing stays');
+        }
+    }
+
+    public function testTheCheckOfAnExpiredPairingLandsOnProfil(): void
+    {
+        $app = $this->korbo($this->polling(\App\Program\PairingStatus::Expired));
+        $this->request($app, 'POST', '/profil/propojit');
+
+        $response = $this->request($app, 'POST', '/profil/kontrola');
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/korbo26/profil', $response->getHeaderLine('Location'));
+
+        $html = $this->html($app, '/profil');
+        self::assertStringContainsString('<p class="notice">Kód vypršel, začni znovu.</p>', $html);
+        self::assertStringNotContainsString('data-pairing-poll', $html);
+    }
+
+    public function testTheCheckRefusesACrossSiteForm(): void
+    {
+        $provider = $this->counted();
+        $app = $this->korbo($provider);
+        $this->request($app, 'POST', '/profil/propojit');
+
+        $response = $this->request($app, 'POST', '/profil/kontrola', [], ['Origin' => 'https://evil.example']);
+
+        self::assertSame(403, $response->getStatusCode());
+        $body = (string) $response->getBody();
+        self::assertStringContainsString('Přihlášení se nepodařilo. Načti stránku a zkus to znovu.', $body);
+        self::assertStringContainsString('href="/korbo26/profil"', $body);
+        self::assertStringContainsString('Zpět na profil', $body);
+        self::assertSame(0, $provider->pairingPolls, 'nothing was asked');
+        self::assertStringContainsString('data-pairing-poll', $this->html($app, '/profil'), 'the pairing is still pending, not collected');
+    }
+
     // --- secrets stay on the server ---
 
     /** The session token and the device code live in the server-side session only; the user code is the one thing shown. */

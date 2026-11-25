@@ -240,14 +240,29 @@ export function setup(ctx) {
 		emitSheetClosed(parts.sheet);
 		// before the focus goes back: an inert element cannot take it
 		releaseFocus();
-		if (opener && document.contains(opener)) {
-			opener.focus();
+		const back = opener && document.contains(opener) ? opener : fallbackFocus();
+		if (back) {
+			back.focus();
 		}
 		opener = null;
 		if (!fromHistory) {
 			leaveOverlay();
 		}
 	};
+
+	/**
+	 * Where focus goes when the sheet closes with no opener (it opened on landing, on Back
+	 * or on a show of the screen): the open programme's link on the view on show, else its
+	 * row, else the screen's section (tabindex="-1", so focusable but never tabbed to).
+	 * Never <body>, where a screen reader loses its place.
+	 */
+	function fallbackFocus() {
+		const body = root.querySelector('[data-pg-detail].is-open');
+		const rows = body ? root.querySelectorAll('[data-pg-open="' + body.getAttribute('data-pg-detail') + '"]') : [];
+		const shown = Array.prototype.filter.call(rows, el => el.getClientRects().length > 0);
+
+		return shown.find(el => el.matches('a[href]')) || shown[0] || root.closest('[data-screen]');
+	}
 
 	/** Whether programme `id`'s sheet is the one open. */
 	function showing(id) {

@@ -30,8 +30,12 @@ services:
             timeout: 3s
             retries: 30
 
+    # php:8.5-alpine plus libfaketime (docker/test.Dockerfile), for the tests that freeze
+    # the served app's clock (BrowserTestCase::freezeServerClock())
     test:
-        image: php:8.5-alpine
+        build:
+            context: docker
+            dockerfile: test.Dockerfile
         profiles: [browser]
         working_dir: /app
         volumes:

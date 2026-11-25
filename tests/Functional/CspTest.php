@@ -71,11 +71,14 @@ final class CspTest extends AppTestCase
         }
     }
 
+    /** The one head script: on a dark-capable event (obrok27) and on the one without a dark set (obrok19). */
     public function testTheLayoutsInlineScriptIsNonced(): void
     {
-        $response = $this->request($this->createApp('obrok27'), 'GET', '/');
+        foreach (['obrok27', 'obrok19'] as $slug) {
+            $response = $this->request($this->createApp($slug), 'GET', '/');
 
-        self::assertSame(1, substr_count((string) $response->getBody(), '<script nonce="' . self::nonceOf($response) . '">'));
+            self::assertSame(1, substr_count((string) $response->getBody(), '<script nonce="' . self::nonceOf($response) . '">'), $slug);
+        }
     }
 
     public function testTheAdminPageCarriesItToo(): void

@@ -57,6 +57,7 @@ final class MapTest extends AppTestCase
         self::assertMatchesRegularExpression('#<img class="plan-img" src="/?events/obrok19/Obrok19_minilogo\.png" alt="Plán testovacího areálu" data-plan-img>#', $html);
         self::assertStringContainsString('aria-label="Zobrazení mapy"', $html);
         self::assertStringContainsString('data-map-view="plan"', $html);
+        // the offline note's control stays a button: only a script ever shows the note
         self::assertStringContainsString('<button type="button" class="btn" data-map-view="plan">Zobrazit plán</button>', $html);
         // the offline note stays the map's next sibling: www/js/map/offline.js finds it that way
         self::assertMatchesRegularExpression('#</div>\s*<p class="empty map-offline map-offline-plan" data-map-offline hidden>#', $html);
@@ -90,7 +91,10 @@ final class MapTest extends AppTestCase
 
     /**
      * Mapa and Plán have an address each, /mapa and /mapa/plan, and each paints its own
-     * view first: the root's data-view and the selected pill.
+     * view first: the root's data-view and the selected pill. Each pill is a link to its
+     * view's address, so a reader without JavaScript switches views too; the shown one is
+     * the current page. No tabindex: every pill is reachable without a script, which puts
+     * the roving one on at wiring.
      */
     public function testThePlanAddressPaintsThePlan(): void
     {
@@ -98,16 +102,14 @@ final class MapTest extends AppTestCase
 
         $google = (string) $this->request($app, 'GET', '/mapa')->getBody();
         self::assertStringContainsString('data-view="google"', $google);
-        self::assertMatchesRegularExpression('/id="map-tab-google" [^>]*aria-selected="true" data-map-view="google"/', $google);
-        self::assertMatchesRegularExpression('/id="map-tab-plan" [^>]*aria-selected="false" tabindex="-1" data-map-view="plan"/', $google);
+        self::assertPills('google', $google);
 
         $response = $this->request($app, 'GET', '/mapa/plan');
         self::assertSame(200, $response->getStatusCode());
         $plan = (string) $response->getBody();
         self::assertStringContainsString('data-view="plan"', $plan);
         self::assertStringNotContainsString('data-view="google"', $plan);
-        self::assertMatchesRegularExpression('/id="map-tab-plan" [^>]*aria-selected="true" data-map-view="plan"/', $plan);
-        self::assertMatchesRegularExpression('/id="map-tab-google" [^>]*aria-selected="false" tabindex="-1" data-map-view="google"/', $plan);
+        self::assertPills('plan', $plan);
     }
 
     /** An event with one pane shows it on either address: the other view does not exist there. */
@@ -123,5 +125,23 @@ final class MapTest extends AppTestCase
         $response = $this->request($this->createApp('map-embed', fixtureEvent: true), 'GET', '/mapa/plan');
         self::assertSame(200, $response->getStatusCode());
         self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe #', (string) $response->getBody());
+    }
+
+    /** Both pills of a two-view Místa painted on $view: links to their addresses, the shown one selected and current. */
+    private static function assertPills(string $view, string $html): void
+    {
+        $hrefs = ['google' => '/map-plan/mapa', 'plan' => '/map-plan/mapa/plan'];
+        foreach ($hrefs as $pill => $href) {
+            $shown = $pill === $view;
+            self::assertStringContainsString(
+                '<a class="tabs-tab" role="tab" id="map-tab-' . $pill . '" href="' . $href . '" aria-controls="map-view-' . $pill . '"'
+                . ' aria-selected="' . ($shown ? 'true' : 'false') . '" data-map-view="' . $pill . '"'
+                . ($shown ? ' aria-current="page"' : '') . ' data-morph-keep="aria-selected aria-current">',
+                $html,
+                $view . ': the ' . $pill . ' pill',
+            );
+        }
+        self::assertSame(1, substr_count($html, 'aria-current="page" data-morph-keep="aria-selected aria-current"'), $view . ': one current pill');
+        self::assertDoesNotMatchRegularExpression('/id="map-tab-[a-z]+"[^>]*tabindex/', $html, $view . ': no tabindex in the markup');
     }
 }

@@ -68,6 +68,27 @@ final class OfflineTest extends BrowserTestCase
     }
 
     /**
+     * A day chip's address (`?den=`) is answered offline from the screen's stored copy, which
+     * the server rendered on another day: the script puts the address's day on show.
+     */
+    public function testADayAddressOpensItsDayFromTheStoredScreen(): void
+    {
+        self::visit('/korbo26/');
+        self::waitForPrecache('korbo26');
+
+        self::stopServer();
+        try {
+            self::visit('/korbo26/programy?den=20260918');
+            self::waitFor('const root = document.querySelector(\'[data-pg-root][data-pg-ready="1"]\'); return root !== null;');
+            self::assertNull(self::script('return document.querySelector(".offline");'));
+            self::assertSame(['page-20260918'], self::script('return Array.from(document.querySelectorAll(".tl-page.is-active"), page => page.dataset.key);'));
+            self::assertSame('true', self::script('return document.querySelector(\'.day-chip[data-key="page-20260918"]\').getAttribute("aria-current");'));
+        } finally {
+            self::startServer();
+        }
+    }
+
+    /**
      * The other way round: a visit to Moje stores Moje's markup under the screen's key, and
      * the screen's own address, opened from that copy, is still Harmonogram.
      */
@@ -87,6 +108,28 @@ final class OfflineTest extends BrowserTestCase
         } finally {
             self::startServer();
         }
+    }
+
+    /**
+     * An online visit to a view address stores the page under its screen's key only: the
+     * worker's caches gain no entry of the view's own address.
+     */
+    public function testAViewVisitIsStoredUnderTheScreenKeyAlone(): void
+    {
+        self::visit('/korbo26/');
+        $cache = self::waitForPrecache('korbo26');
+        self::visit('/korbo26/programy/moje');
+        self::waitForCachedPage($cache, '/korbo26/programy', 'data-view="list"');
+
+        $paths = self::asyncScript(<<<'JS'
+            const done = arguments[arguments.length - 1];
+            caches.keys()
+                .then(names => Promise.all(names.map(name => caches.open(name).then(cache => cache.keys()))))
+                .then(lists => done([].concat(...lists).map(request => new URL(request.url).pathname)), () => done(null));
+            JS);
+        self::assertIsArray($paths);
+        self::assertContains('/korbo26/programy', $paths);
+        self::assertNotContains('/korbo26/programy/moje', $paths);
     }
 
     /** Review Focus 4: the crisis line is the one thing that must be there with no signal. */

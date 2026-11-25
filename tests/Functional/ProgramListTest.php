@@ -105,13 +105,36 @@ final class ProgramListTest extends AppTestCase
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
         self::assertMatchesRegularExpression(
-            '#data-pg-view="overview"><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span>.*'
-            . 'data-pg-view="timeline"><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span>.*'
-            . 'data-pg-view="list"><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span>#su',
+            '#data-pg-view="overview"[^>]*><i class="far fa-list-alt" aria-hidden="true"></i> <span class="tabs-label">Přehled</span>.*'
+            . 'data-pg-view="timeline"[^>]*><i class="far fa-calendar-alt" aria-hidden="true"></i> <span class="tabs-label">Harmonogram</span>.*'
+            . 'data-pg-view="list"[^>]*><i class="far fa-user" aria-hidden="true"></i> <span class="tabs-label">Moje</span>#su',
             $html,
         );
         self::assertStringContainsString('data-pg-root data-morph-keep="data-view data-step" data-pg-event="obrok19" data-view="timeline"', $html);
         self::assertMatchesRegularExpression('#aria-selected="true"[^>]*data-pg-view="timeline"#', $html);
+    }
+
+    /**
+     * Each pill is a link to its view's address, so a reader without JavaScript switches
+     * views too. The shown view's pill is the current page; the markup writes no tabindex,
+     * so every pill is reachable without a script (the script puts the roving one on).
+     */
+    public function testEachPillIsALinkToItsView(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/programy')->getBody();
+
+        foreach (['overview' => '/korbo26/programy/prehled', 'timeline' => '/korbo26/programy', 'list' => '/korbo26/programy/moje'] as $view => $href) {
+            self::assertStringContainsString(
+                '<a class="tabs-tab" role="tab" id="pg-tab-' . $view . '" href="' . $href . '" aria-controls="pg-view-' . $view . '"'
+                . ' aria-selected="' . ($view === 'timeline' ? 'true' : 'false') . '" data-pg-view="' . $view . '"'
+                . ($view === 'timeline' ? ' aria-current="page"' : '') . ' data-morph-keep="aria-selected aria-current">',
+                $html,
+                $view,
+            );
+        }
+        self::assertSame(1, preg_match('#<div class="tabs" role="tablist".*?</div>#s', $html, $tablist));
+        self::assertSame(1, substr_count($tablist[0], 'aria-current="page"'));
+        self::assertStringNotContainsString('tabindex', $tablist[0]);
     }
 
     public function testListItemsCarryTheirTimesAsInstants(): void
@@ -152,7 +175,7 @@ final class ProgramListTest extends AppTestCase
             self::assertGreaterThan((int) strpos($view, 'day-20190530'), (int) strpos($view, 'day-20190531'));
             self::assertGreaterThan((int) strpos($view, 'day-20190531'), (int) strpos($view, 'day-20190601'));
             // the strip opens on the day at the top of the scroll, not today
-            self::assertMatchesRegularExpression('#data-pg-page="day-20190530" data-pg-kind="' . $kind . '" aria-current="true" data-morph-keep="aria-current">čt 30. 5.</button>#u', $html);
+            self::assertMatchesRegularExpression('#data-pg-page="day-20190530" data-pg-kind="' . $kind . '" aria-current="true" data-morph-keep="aria-current">čt 30. 5.</a>#u', $html);
         }
     }
 

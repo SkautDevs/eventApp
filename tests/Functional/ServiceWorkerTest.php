@@ -184,6 +184,8 @@ final class ServiceWorkerTest extends AppTestCase
         // the timer and a 5xx try both copies, and neither falls through to /offline
         self::assertSame(1, substr_count($body, "SCOPE + 'offline'"));
         self::assertStringContainsString('setTimeout(() => cachedCopy().then(hit => {', $body);
+        // a failed read at the timer is no rejection left unhandled: it keeps waiting
+        self::assertStringContainsString('}, () => null), NETWORK_TIMEOUT);', $body);
         // the cache read never holds the reader's answer back, and a failed read is no aliases
         self::assertStringContainsString('const network = fetch(request).then(response => {', $body);
         self::assertStringNotContainsString('Promise.all([fetch(request), screen])', $body);

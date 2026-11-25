@@ -10,7 +10,8 @@ use Slim\App;
 
 /**
  * Profil and the login, part of every event: the screen (`GET /profil`, reached from the
- * app bar, so no tab), and kissj's device pairing — the start, the poll and the logout.
+ * app bar, so no tab), and kissj's device pairing — the start, the poll, the no-JS check
+ * and the logout.
  */
 final class ProfileModule implements ModuleInterface
 {
@@ -40,6 +41,7 @@ final class ProfileModule implements ModuleInterface
         $app->get('/profil', ShowAction::class)->setName('profile');
         $app->post('/profil/propojit', StartPairingAction::class)->setName('pairing-start');
         $app->get('/profil/propojit/stav', PollPairingAction::class)->setName('pairing-poll');
+        $app->post('/profil/kontrola', CheckPairingAction::class)->setName('pairing-check');
         $app->post('/profil/odpojit', RevokeAction::class)->setName('pairing-revoke');
     }
 }
