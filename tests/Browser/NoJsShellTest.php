@@ -60,6 +60,19 @@ final class NoJsShellTest extends NoJsTestCase
         }
     }
 
+    /** Profil is the last tab, a plain link to its page, and lit there as the current one. */
+    public function testProfilIsTheLastTab(): void
+    {
+        self::visit('/korbo26/');
+        self::assertSame('Profil', self::text('.tabbar a.tab:last-child span:last-child'));
+
+        self::follow('.tabbar a.tab:last-child');
+
+        self::assertSame('/korbo26/profil', self::path());
+        self::assertSame('page', self::attribute('.tabbar a.tab:last-child', 'aria-current'));
+        self::assertStringContainsString('is-active', (string) self::attribute('.tabbar a.tab:last-child', 'class'));
+    }
+
     /**
      * Follows each pill matching $pills on the page shown, in their order: it lands on its
      * href, $root paints the view its $attribute names, that pill is the current page, and
@@ -118,6 +131,21 @@ final class NoJsShellTest extends NoJsTestCase
                 self::assertFalse($offline->isDisplayed(), $slug . ': the map\'s offline line');
             }
         }
+    }
+
+    /**
+     * The notifications card needs a script: it is rendered, only hidden, on Domů and on
+     * Profil, and so is Profil's quiet line.
+     */
+    public function testTheNotificationsCardIsHiddenWithoutAScript(): void
+    {
+        foreach (['/korbo26/', '/korbo26/profil'] as $path) {
+            self::visit($path);
+
+            self::assertFalse(self::displayed('[data-push-card]'), $path . ': the notifications card');
+            self::assertStringContainsString('data-push-toggle', self::$browser->getPageSource(), $path . ': rendered, only hidden');
+        }
+        self::assertFalse(self::displayed('[data-push-on]'), 'Profil: the quiet line');
     }
 
     /**

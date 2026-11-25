@@ -43,7 +43,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertStringContainsString('Osobní program se nepodařilo načíst.', $html);
         // the reader stays paired, just without a highlighted program
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $html);
     }
 
     /** A pairing start kissj does not answer is explained on Profil, and nothing is pending. */
@@ -68,7 +68,7 @@ final class ProviderFailureTest extends AppTestCase
         self::assertSame(302, $start->getStatusCode());
         $html = (string) $this->request($app, 'GET', '/profil')->getBody();
         self::assertStringContainsString('Propojení se teď nedaří, zkus to prosím později.', $html);
-        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringNotContainsString('tab-avatar', $html);
     }
 
     public function testProgramsLogOutOnAnExpiredSession(): void
@@ -86,7 +86,7 @@ final class ProviderFailureTest extends AppTestCase
         $html = (string) $response->getBody();
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringNotContainsString('tab-avatar', $html);
         self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
         // the same toast as Domů says why, and the worker keeps the page out of the offline copy
         self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
@@ -115,7 +115,7 @@ final class ProviderFailureTest extends AppTestCase
 
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
-        self::assertStringNotContainsString('appbar-avatar', $html, 'the participant was not logged out');
+        self::assertStringNotContainsString('tab-avatar', $html, 'the participant was not logged out');
         self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
         self::assertStringContainsString('<p class="notice" data-key="notice">Programy se nepodařilo načíst, zkus to prosím později.</p>', $html);
     }

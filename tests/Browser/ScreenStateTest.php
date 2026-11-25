@@ -19,7 +19,7 @@ final class ScreenStateTest extends BrowserTestCase
     {
         self::visit('/korbo26/');
         self::waitFor(<<<'JS'
-            return Array.from(document.querySelectorAll('.tabbar .tab, .appbar-profile'))
+            return Array.from(document.querySelectorAll('.tabbar .tab'))
                 .every(link => document.querySelector('[data-screen="' + new URL(link.href).pathname + '"]') !== null);
             JS, [], 15);
         // the icon fonts are read in too, though no brand icon is on the homepage

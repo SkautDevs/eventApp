@@ -26,7 +26,7 @@ final class KorboEventTest extends AppTestCase
         $this->pair($app);
 
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $html);
         self::assertStringContainsString('is-registered', $html);
     }
 }

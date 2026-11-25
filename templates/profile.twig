@@ -1,13 +1,12 @@
 {% extends fragment ? "_screen.twig" : "_layout.twig" %}
 
 {% set pageTitle = 'Profil' %}
-{# not a tab: the app bar's profile link is what this lights up #}
-{% set profileActive = true %}
+{% set activeTab = 'profile' %}
 {# an event is dark-capable only if it hand-authored a full dark role set #}
 {% set hasDark = event.roles.dark is defined and event.roles.dark is not empty %}
 
 {% block content %}
-	{# a login's or a logout's toast, on the first full Profil after it (Toasts::take()) #}
+	{# a logout's toast, or a login's when the approval lands here (an event without Program, after the poll or the check button alike), once (Toasts::take()) #}
 	{% if toast ?? null %}
 		{% include '_toast.twig' with {title: toast.title, line: toast.line} only %}
 	{% endif %}
@@ -26,6 +25,7 @@
 			{# no data-write: with a script the poll checks, and this form is hidden (profile.css) #}
 			<form method="post" action="{{ url_for('pairing-check') }}" class="stacked-form pairing-check"><button type="submit" class="btn btn-primary">Zkontrolovat přihlášení</button></form>
 			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form" data-write>
+				{% if returnProgram %}<input type="hidden" name="program" value="{{ returnProgram }}">{% endif %}
 				<button type="submit" class="btn">Začít znovu</button>
 			</form>
 		{% else %}
@@ -34,12 +34,15 @@
 				<p class="notice">{{ outcome }}</p>
 			{% endif %}
 			<p>Obsah můžeš jen prohlížet. Pro výběr programů a další akce je třeba být registrovaným účastníkem této akce a přihlásit se:</p>
+			{# a sheet's login link brings ?program=<id>: the approval returns to that sheet #}
 			<form method="post" action="{{ url_for('pairing-start') }}" class="stacked-form" data-write>
+				{% if returnProgram %}<input type="hidden" name="program" value="{{ returnProgram }}">{% endif %}
 				<button type="submit" class="btn btn-primary">Přihlásit kódem z KissJ</button>
 			</form>
 		{% endif %}
 	</div>
-	{% include '_install.twig' with {installCard: 'profile'} %}
+	{% include '_install.twig' %}
+	{% include '_notifications.twig' with {pushOn: true} %}
 	{% if hasDark %}
 		{# Logged in or not: the look is the browser's, not the participant's. The choice
 		   lives in localStorage, so nothing is checked here: www/js/profile/mode.js checks the stored

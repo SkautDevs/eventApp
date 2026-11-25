@@ -233,6 +233,28 @@ final class HistoryTest extends BrowserTestCase
         self::assertSame(1, self::script('return window.__noReload;'));
     }
 
+    /**
+     * A first screen served with a query that names nothing (a `?fbclid=` on a link shared
+     * on Facebook) keeps its screen: a tab round trip comes back to the same live root, so
+     * the zoom, the scroll and the root's listeners are not lost to a refetch.
+     */
+    public function testAFirstScreenWithAnUnrelatedQueryKeepsItsRootOnATabRoundTrip(): void
+    {
+        self::visit('/korbo26/programy?fbclid=x');
+        self::waitForLoaded('/korbo26/programy');
+        self::waitFor(self::VIEW, ['/korbo26/programy', 'timeline']);
+        self::script('window.__noReload = 1; const s = document.querySelector(\'[data-screen="/korbo26/programy"]\'); s.__marker = 1; s.querySelector("[data-pg-root]").__marker = 1;');
+
+        self::tap('.tabbar a[href="/korbo26/"]');
+        self::waitFor(self::SHOWN, ['/korbo26/']);
+        self::tap(self::PROGRAM_TAB);
+
+        self::waitFor(self::VIEW, ['/korbo26/programy', 'timeline']);
+        self::assertSame(1, self::script('return document.querySelectorAll(\'[data-screen="/korbo26/programy"]\').length;'));
+        self::assertTrue(self::script('const s = document.querySelector(\'[data-screen="/korbo26/programy"]\'); return s.__marker === 1 && s.querySelector("[data-pg-root]").__marker === 1;'), 'the tab return replaced the Program screen');
+        self::assertSame(1, self::script('return window.__noReload;'), 'the tab return loaded a document');
+    }
+
     /** Domů, then the Program tab: the Program screen on Harmonogram, shown by the loader. */
     private static function openProgram(): void
     {

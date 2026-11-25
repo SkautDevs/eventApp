@@ -1,4 +1,4 @@
-import {classifyFailure, urlB64ToUint8Array} from '/js/push/index.js';
+import {cardState, classifyFailure, urlB64ToUint8Array} from '/js/push/index.js';
 import {assert, test} from './harness.js';
 
 test('urlB64ToUint8Array decodes URL-safe base64 without padding', () => {
@@ -35,4 +35,29 @@ test('classifyFailure: anything else is none of the three', () => {
 	assert.deepEqual(classifyFailure(500, {}), none);
 	assert.deepEqual(classifyFailure(201, {saved: false}), none);
 	assert.deepEqual(classifyFailure(0, {error: 'subscription-rejected'}), none);
+});
+
+const base = {supported: true, ios: false, known: true, subscribed: false, status: null};
+
+test('cardState: hidden until the browser has said whether it is subscribed', () => {
+	assert.deepEqual(cardState({...base, known: false}), {card: false, button: false, status: null, on: false});
+});
+
+test('cardState: not subscribed shows the card with its button and any status line', () => {
+	assert.deepEqual(cardState(base), {card: true, button: true, status: null, on: false});
+	assert.deepEqual(cardState({...base, status: 'Připravuji…'}), {card: true, button: true, status: 'Připravuji…', on: false});
+});
+
+test('cardState: subscribed hides the card and shows the Profil line', () => {
+	assert.deepEqual(cardState({...base, subscribed: true}), {card: false, button: false, status: null, on: true});
+});
+
+test('cardState: no push and not iOS is no card at all', () => {
+	assert.deepEqual(cardState({...base, supported: false}), {card: false, button: false, status: null, on: false});
+});
+
+test('cardState: iOS outside an installed app says to save the app first, known or not', () => {
+	const ios = {card: true, button: false, status: 'Na iPhonu zapneš notifikace, až si aplikaci přidáš na plochu.', on: false};
+	assert.deepEqual(cardState({...base, supported: false, ios: true}), ios);
+	assert.deepEqual(cardState({...base, supported: false, ios: true, known: false}), ios);
 });

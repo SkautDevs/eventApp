@@ -1,20 +1,12 @@
-{# The install card, on Domů (installCard 'home') and Profil ('profile'): the install offer
-   and the notifications button under one heading. www/js/shell/install.js unhides at most one of the
-   two install paragraphs, never in an installed app: the button once Chrome offers the
-   install (its prompt can only be shown from a tap), the hint on iOS, which has no install
-   prompt at all. In an installed app Domů hides the whole card; Profil keeps it for the
-   notifications button, which installing never hides. #}
-<section class="install-card" aria-label="Instalace" data-install-card="{{ installCard }}">
+{# The install card, on Domů and Profil, rendered hidden with its four paragraphs. www/js/shell/install.js
+   unhides the card and the one paragraph of the case it finds (installCase()), and none in an
+   installed app or on a computer: offer (Chrome's kept offer, shown from the button, since its
+   prompt needs a tap), inApp (a social app's in-app browser on a phone), ios, android. Without
+   JavaScript the card stays hidden. The notifications have a card of their own (_notifications.twig). #}
+<section class="install-card" aria-label="Instalace" data-install-card data-key="install-card" data-morph-keep="hidden" hidden>
 	<h2>Ulož si {{ event.shortName ?? event.name }} na plochu</h2>
-	<p>Zapni si upozornění, ať ti neuteče výběr programů, novinky a varování v průběhu akce.</p>
-	<p class="install" data-install hidden><button type="button" class="btn install-btn">Uložit jako aplikaci</button></p>
-	<p class="install" data-install-ios hidden><span class="notice">Aplikaci si přidáš na plochu v Safari: klepni na Sdílet a pak na Přidat na plochu.</span></p>
-	{% if 'push' in event.features %}
-		<p class="push-enable">
-			<button type="button" class="btn btn-primary" data-push-toggle>
-				Povolit notifikace
-			</button>
-		</p>
-		<p class="push-status" role="status" hidden></p>
-	{% endif %}
+	<p class="install" data-install="offer" data-morph-keep="hidden" hidden><button type="button" class="btn install-btn">Uložit jako aplikaci</button></p>
+	<p class="install" data-install="inApp" data-morph-keep="hidden" hidden>Tady aplikaci uložit nejde. Otevři stránku v prohlížeči: v menu ⋮ nebo ⋯ zvol Otevřít v prohlížeči.</p>
+	<p class="install" data-install="ios" data-morph-keep="hidden" hidden>Klepni na Sdílet a pak na Přidat na plochu. Pokud tu volbu nevidíš, otevři stránku v Safari.</p>
+	<p class="install" data-install="android" data-morph-keep="hidden" hidden>V menu prohlížeče ⋮ zvol Přidat na plochu nebo Instalovat aplikaci. Pokud tu volbu nevidíš, otevři stránku v Chromu.</p>
 </section>

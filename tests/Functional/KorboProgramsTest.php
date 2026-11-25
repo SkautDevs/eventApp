@@ -203,7 +203,7 @@ final class KorboProgramsTest extends AppTestCase
     public function testAPairedParticipantSeesTheirProgrammeMarked(): void
     {
         $html = $this->loggedInScreen();
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $html);
 
         self::assertCount(59, self::cards($html));
         foreach (self::cards($html) as $id => $classes) {

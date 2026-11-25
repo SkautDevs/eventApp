@@ -241,8 +241,8 @@
 /* Present to a screen reader, absent to the eye. Not `display: none` and not
    `visibility: hidden` — both remove the text from the accessibility tree along
    with the pixels, which is the opposite of the point. This is what carries the
-   per-screen <h1> the app bar already draws, the profile link's own label, and the
-   live region that names a screen the loader has swapped in. */
+   per-screen <h1> the app bar already draws, the home link's own name, and the live
+   region that names a screen the loader has swapped in. */
 .sr-only {
 	position: absolute;
 	width: 1px;

@@ -11,8 +11,10 @@ use Psr\Http\Message\ServerRequestInterface;
 /**
  * GET /profil/propojit/stav: what Profil's script asks every 5 s while the code is shown
  * (www/js/profile/pairing.js). It is always a 200 `{"status": …}` with `PairingCheck`'s
- * status: "pending" (and "slowDown") mean ask again, "approved" means the reader is now
- * logged in, "expired" ends the pairing and leaves the line to Profil.
+ * answer: "pending" (and "slowDown") mean ask again, "approved" means the reader is now
+ * logged in and carries `next`, the landing relative to the event
+ * (`{"status":"approved","next":"programy/moje"}`, slashes unescaped), "expired" ends the
+ * pairing and leaves the line to Profil.
  */
 final class PollPairingAction
 {
@@ -23,8 +25,8 @@ final class PollPairingAction
     /** @param array<string, string> $args */
     public function __invoke(ServerRequestInterface $request, ResponseInterface $response, array $args): ResponseInterface
     {
-        $status = Tracer::span('auth.pairing', 'GET /profil/propojit/stav', fn(): string => $this->check->run());
-        $response->getBody()->write((string) json_encode(['status' => $status]));
+        $answer = Tracer::span('auth.pairing', 'GET /profil/propojit/stav', fn(): PairingAnswer => $this->check->run());
+        $response->getBody()->write((string) json_encode($answer->toArray(), JSON_UNESCAPED_SLASHES));
 
         return $response
             ->withHeader('Content-Type', 'application/json')

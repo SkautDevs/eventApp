@@ -65,26 +65,45 @@ final class ShellScriptTest extends AppTestCase
         self::assertFileDoesNotExist(dirname(__DIR__, 2) . '/www/js/shell.js');
     }
 
+    /**
+     * The install card is rendered hidden on Domů and Profil, its four paragraphs too:
+     * www/js/shell/install.js unhides the card and at most one of them, by the case it
+     * finds (tests/js/install.test.js, InstallTest).
+     */
     public function testTheHomepageAndTheProfileOfferAHiddenInstall(): void
     {
-        foreach (['/' => 'home', '/profil' => 'profile'] as $path => $flag) {
+        foreach (['/', '/profil'] as $path) {
             $html = (string) $this->request($this->createApp(), 'GET', $path)->getBody();
 
-            self::assertStringContainsString('<section class="install-card" aria-label="Instalace" data-install-card="' . $flag . '">', $html, $path);
-            self::assertStringContainsString('<p class="install" data-install hidden><button type="button" class="btn install-btn">Uložit jako aplikaci</button></p>', $html, $path);
-            self::assertStringContainsString('<p class="install" data-install-ios hidden><span class="notice">Aplikaci si přidáš na plochu v Safari: klepni na Sdílet a pak na Přidat na plochu.</span></p>', $html, $path);
-            self::assertMatchesRegularExpression('#<button type="button" class="btn btn-primary" data-push-toggle>\s*Povolit notifikace\s*</button>#', $html, $path);
+            foreach ([
+                '<section class="install-card" aria-label="Instalace" data-install-card data-key="install-card" data-morph-keep="hidden" hidden>',
+                '<p class="install" data-install="offer" data-morph-keep="hidden" hidden><button type="button" class="btn install-btn">Uložit jako aplikaci</button></p>',
+                '<p class="install" data-install="inApp" data-morph-keep="hidden" hidden>Tady aplikaci uložit nejde. Otevři stránku v prohlížeči: v menu ⋮ nebo ⋯ zvol Otevřít v prohlížeči.</p>',
+                '<p class="install" data-install="ios" data-morph-keep="hidden" hidden>Klepni na Sdílet a pak na Přidat na plochu. Pokud tu volbu nevidíš, otevři stránku v Safari.</p>',
+                '<p class="install" data-install="android" data-morph-keep="hidden" hidden>V menu prohlížeče ⋮ zvol Přidat na plochu nebo Instalovat aplikaci. Pokud tu volbu nevidíš, otevři stránku v Chromu.</p>',
+                'data-push-toggle>Zapnout notifikace</button>',
+            ] as $needle) {
+                self::assertStringContainsString($needle, $html, $path);
+            }
+            self::assertStringNotContainsString('data-install-ios', $html, $path);
+            self::assertStringNotContainsString('<span class="notice">Aplikaci si přidáš', $html, $path);
         }
     }
 
-    /** On Domů the whole card goes in an installed app; on Profil only its install half. */
-    public function testAnInstalledAppHidesTheHomeCardAndOnlyTheInstallHalfOnProfil(): void
+    /** One case draws the card and its paragraphs: the card shows when there is one, and only its paragraph. */
+    public function testTheCardAndItsParagraphsAreDrawnByOneCase(): void
     {
         $js = self::js('shell/install.js');
 
-        // which card hides is InstallTest's, standalone() itself tests/js/install.test.js's
-        self::assertStringContainsString("document.querySelectorAll('[data-install-card=\"home\"]')", $js);
-        self::assertStringContainsString("document.querySelectorAll('[data-install]')", $js);
+        // the cases themselves are tests/js/install.test.js's, the drawing InstallTest's
+        foreach ([
+            "document.querySelectorAll('[data-install-card]')",
+            "document.querySelectorAll('[data-install]')",
+            'export function installCase(',
+            '/FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\\/|LinkedInApp/',
+        ] as $needle) {
+            self::assertStringContainsString($needle, $js);
+        }
     }
 
     /**
@@ -118,13 +137,10 @@ final class ShellScriptTest extends AppTestCase
         self::assertEventName('pg:tick');
     }
 
-    public function testTheIosHintIsDrawnOnlyOutsideAnInstalledApp(): void
+    public function testAnInstalledAppIsRecognised(): void
     {
-        $js = self::js('shell/install.js');
-
-        // ios() and standalone() are tests/js/install.test.js's, the hint itself InstallTest's
-        self::assertStringContainsString("document.querySelectorAll('[data-install-ios]')", $js);
-        self::assertStringContainsString('nav.standalone === true', $js);
+        // standalone() itself is tests/js/install.test.js's: iOS's own flag, then the display mode
+        self::assertStringContainsString('nav.standalone === true', self::js('shell/install.js'));
     }
 
     /** The network banner's two sentences, and the offline toast's (spec: Network banner, Toasts). */

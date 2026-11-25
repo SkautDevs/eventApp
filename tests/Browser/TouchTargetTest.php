@@ -19,26 +19,18 @@ final class TouchTargetTest extends BrowserTestCase
         return small;
         JS;
 
-    /** The title's box against every visible control on the right of the bar, and the page's width. */
+    /** The title's box against the bar's inner right edge (its content box), and the page's width. */
     private const string BAR = <<<'JS'
+        const bar = document.querySelector('.appbar');
         const title = document.querySelector('.appbar-title').getBoundingClientRect();
-        const overlaps = [];
-        document.querySelectorAll('.appbar-tools .appbar-profile').forEach(el => {
-            if (!el.getClientRects().length) { return; }
-            const r = el.getBoundingClientRect();
-            if (title.right > r.left + 0.5 && title.left < r.right - 0.5) {
-                overlaps.push(el.className + ' ' + Math.round(r.left) + '..' + Math.round(r.right) + ' under title ' + Math.round(title.left) + '..' + Math.round(title.right));
-            }
-        });
-        const tools = document.querySelector('.appbar-tools').getBoundingClientRect();
+        const inner = bar.getBoundingClientRect().right - parseFloat(getComputedStyle(bar).paddingRight);
         return {
             width: window.innerWidth,
             scrollWidth: document.documentElement.scrollWidth,
             clientWidth: document.documentElement.clientWidth,
             titleRight: title.right,
             titleWidth: title.width,
-            toolsLeft: tools.left,
-            overlaps: overlaps,
+            barInner: inner,
         };
         JS;
 
@@ -49,7 +41,7 @@ final class TouchTargetTest extends BrowserTestCase
         self::$browser->manage()->deleteAllCookies();
         self::visit('/korbo26/profil');
         self::waitFor('return document.readyState === "complete";');
-        self::assertSame([], self::script(self::SMALL, [['.appbar-profile', '.appbar-brand', '.tab', '.btn']]));
+        self::assertSame([], self::script(self::SMALL, [['.appbar-brand', '.tab', '.btn']]));
 
         // logged out, a programme's sheet offers the way to log in: a full-width button, not a bare inline link
         self::visit('/korbo26/programy');
@@ -61,18 +53,23 @@ final class TouchTargetTest extends BrowserTestCase
 
         // paired, so the personal list has a strip of its own to measure, and Profil its mode control
         self::pair();
-        self::assertSame([], self::script(self::SMALL, [['.appbar-profile', '.btn', '.mode-control label']]));
+        self::visit('/korbo26/profil');
+        self::waitFor('return document.readyState === "complete";');
+        self::assertSame([], self::script(self::SMALL, [['.tab', '.btn', '.mode-control label']]));
 
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null;');
-        self::assertSame([], self::script(self::SMALL, [['.appbar-profile', '.appbar-brand', '.tab', '.day-chip', '.pager-zoom-btn']]));
+        self::assertSame([], self::script(self::SMALL, [['.appbar-brand', '.tab', '.day-chip', '.pager-zoom-btn']]));
 
         self::script('document.querySelector(\'[data-pg-view="list"]\').click();');
         self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "list";');
         self::assertSame([], self::script(self::SMALL, [['.day-chip']]));
     }
 
-    /** Review Focus 2: the minimums must still fit the narrowest phone. */
+    /**
+     * Review Focus 2: the minimums must still fit the narrowest phone. The right end of
+     * the bar is empty, so the title only has to stay inside the bar's own padding.
+     */
     public function testTheNarrowestPhoneStillFitsTheBars(): void
     {
         self::overrideViewport(320, 700);
@@ -82,9 +79,8 @@ final class TouchTargetTest extends BrowserTestCase
             self::assertSame(320, self::script('return window.innerWidth;'), 'the viewport override did not take');
 
             $bar = self::script(self::BAR);
-            self::assertLessThanOrEqual($bar['toolsLeft'] + 0.5, $bar['titleRight'], 'the title runs under the tools');
+            self::assertLessThanOrEqual($bar['barInner'] + 0.5, $bar['titleRight'], 'the title runs past the bar\'s padding');
             self::assertGreaterThan(30, $bar['titleWidth'], 'the title was squeezed out');
-            self::assertSame([], $bar['overlaps']);
             self::assertSame($bar['clientWidth'], $bar['scrollWidth'], 'the page scrolls sideways');
             // the strip keeps room for at least two whole chips beside the zoom pair, and scrolls the rest
             self::assertGreaterThanOrEqual(143, self::script('return document.querySelector(\'[data-pg-days="timeline"]\').getBoundingClientRect().width;'));
@@ -95,8 +91,8 @@ final class TouchTargetTest extends BrowserTestCase
     }
 
     /**
-     * The profile link gives way before the screen's name, entirely: at an ordinary
-     * phone width a paired event's title must not lose even a sub-pixel to it.
+     * The bar is the screen's name: at an ordinary phone width a paired event's title
+     * must not lose even a sub-pixel.
      *
      * The widths are what they are because the hermetic lane now loads the real fonts
      * (self-hosted since Round E); it used to measure the fallback. navigamus27's
@@ -129,9 +125,43 @@ final class TouchTargetTest extends BrowserTestCase
         }
     }
 
+    /** Spec, Milestone 3 "Measured": five tabs fit at 320px on every event, labels whole, targets 44 × 44. */
+    public function testFiveTabsFitTheNarrowestPhone(): void
+    {
+        self::overrideViewport(320, 700);
+        try {
+            foreach (['obrok27', 'obrok19', 'navigamus27'] as $slug) {
+                self::visit('/' . $slug . '/');
+                self::waitFor('return document.readyState === "complete";');
+                // measured with the real face in place, not the fallback it swaps from
+                self::asyncScript('const done = arguments[arguments.length - 1]; document.fonts.ready.then(() => done(true));');
+                self::assertSame(320, self::script('return window.innerWidth;'), 'the viewport override did not take');
+
+                $tabs = self::script(<<<'JS'
+                    return Array.from(document.querySelectorAll('.tabbar .tab')).map(tab => {
+                        const r = tab.getBoundingClientRect();
+                        const label = tab.querySelector('span:last-child');
+                        return {width: r.width, height: r.height, cut: label.scrollWidth > label.clientWidth, href: tab.getAttribute('href'), label: label.textContent};
+                    });
+                    JS);
+                self::assertIsArray($tabs);
+                self::assertCount(5, $tabs, $slug);
+                foreach ($tabs as $tab) {
+                    self::assertGreaterThanOrEqual(44, $tab['width'], $slug . ' ' . $tab['label']);
+                    self::assertGreaterThanOrEqual(44, $tab['height'], $slug . ' ' . $tab['label']);
+                    self::assertFalse($tab['cut'], $slug . ': "' . $tab['label'] . '" is cut');
+                }
+                self::assertSame('/' . $slug . '/profil', end($tabs)['href'], $slug);
+                self::assertTrue(self::script('return document.documentElement.scrollWidth === document.documentElement.clientWidth;'), $slug . ': the page scrolls sideways');
+            }
+        } finally {
+            self::overrideViewport(self::VIEWPORT_WIDTH, self::VIEWPORT_HEIGHT);
+        }
+    }
+
     /**
-     * 200% page zoom on a 390px phone is a 195px CSS viewport. The right-hand end of the
-     * bar is the profile link alone; the mode control lives on Profil.
+     * 200% page zoom on a 390px phone is a 195px CSS viewport. The right end of the bar
+     * is empty (Profil is a tab), so the title only has to stay inside the bar's padding.
      */
     public function testTwoHundredPercentZoomKeepsTheBarApart(): void
     {
@@ -143,7 +173,7 @@ final class TouchTargetTest extends BrowserTestCase
 
             $bar = self::script(self::BAR);
             self::assertSame($bar['clientWidth'], $bar['scrollWidth'], 'the page scrolls sideways');
-            self::assertSame([], $bar['overlaps'], 'the title overlaps the bar\'s controls');
+            self::assertLessThanOrEqual($bar['barInner'] + 0.5, $bar['titleRight'], 'the title runs past the bar\'s padding');
             // the 4ch floor is 44px at 20px; anything under 40 is the ellipsis alone
             self::assertGreaterThanOrEqual(40, $bar['titleWidth'], 'the title was squeezed out');
         } finally {

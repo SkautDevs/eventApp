@@ -163,20 +163,41 @@ final class HomepageTest extends AppTestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('phases')]
-    public function testTheInstallCardCarriesBothButtonsInEveryPhase(string $slug): void
+    public function testTheInstallAndNotificationsCardsShowInEveryPhase(string $slug): void
     {
         $html = (string) $this->request($this->fixture($slug), 'GET', '/')->getBody();
         $config = \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug);
         $name = $config->shortName ?? $config->name;
 
-        self::assertStringContainsString('<section class="install-card" aria-label="Instalace" data-install-card="home">', $html);
+        self::assertStringContainsString('<section class="install-card" aria-label="Instalace" data-install-card data-key="install-card" data-morph-keep="hidden" hidden>', $html);
         self::assertStringContainsString('<h2>Ulož si ' . htmlspecialchars($name) . ' na plochu</h2>', $html);
-        self::assertStringContainsString('<p>Zapni si upozornění, ať ti neuteče výběr programů, novinky a varování v průběhu akce.</p>', $html);
         self::assertStringContainsString('<button type="button" class="btn install-btn">Uložit jako aplikaci</button>', $html);
-        self::assertMatchesRegularExpression('#<button type="button" class="btn btn-primary" data-push-toggle>\s*Povolit notifikace\s*</button>#', $html);
         self::assertStringNotContainsString('Aktivuj si notifikace', $html);
+        // the notifications have a card of their own, right after the install card
+        self::assertStringNotContainsString('Zapni si upozornění', $html);
+        self::assertStringContainsString('<section class="push-card" aria-label="Notifikace" data-push-card data-key="push-card" data-morph-keep="hidden" hidden>', $html);
+        self::assertStringContainsString('<h2>Notifikace</h2>', $html);
+        self::assertStringContainsString('<p class="push-intro">Pošleme ti změny programu a důležité zprávy od organizátorů.</p>', $html);
+        self::assertStringContainsString('<p class="push-enable"><button type="button" class="btn btn-primary" data-push-toggle>Zapnout notifikace</button></p>', $html);
+        self::assertStringContainsString('<p class="push-status" role="status" data-morph-keep="hidden" hidden></p>', $html);
+        self::assertGreaterThan(strpos($html, 'data-install-card'), strpos($html, 'data-push-card'));
+        self::assertSame(1, substr_count($html, 'data-push-card'));
+        self::assertStringNotContainsString('data-push-on', $html); // Profil only
+        self::assertStringNotContainsString('Povolit notifikace', $html);
         // the app bar keeps the event's mark on Domů as on every screen
         self::assertStringContainsString('<img class="appbar-logo" src="events/obrok19/Obrok19_minilogo.png" alt="">', $html);
+    }
+
+    /** The card is the push feature's: an event without it renders none, on Domů or Profil. */
+    public function testAnEventWithoutPushHasNoNotificationsCard(): void
+    {
+        $app = $this->fixture('programs');
+        foreach (['/', '/profil'] as $path) {
+            $html = (string) $this->request($app, 'GET', $path)->getBody();
+
+            self::assertStringNotContainsString('data-push-card', $html, $path);
+            self::assertStringNotContainsString('data-push-toggle', $html, $path);
+        }
     }
 
     // --- Můj program -------------------------------------------------------------
@@ -278,7 +299,7 @@ final class HomepageTest extends AppTestCase
         // marked, so the worker keeps this page out of the offline copy
         self::assertSame('1', $response->getHeaderLine('X-Toast'));
         self::assertStringNotContainsString('data-next-up', $html);
-        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringNotContainsString('tab-avatar', $html);
         // the page renders logged out, and says why in a toast (Task 13 left it to Task 14)
         self::assertStringContainsString(self::PAIR_CARD, $html);
         self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
@@ -335,7 +356,7 @@ final class HomepageTest extends AppTestCase
         $html = (string) $response->getBody();
         self::assertSame(200, $response->getStatusCode());
         self::assertStringNotContainsString('data-next-up', $html);
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $html);
     }
 
     /** Before the start the window is the only provider read; its outage only drops the card. */

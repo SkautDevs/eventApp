@@ -153,8 +153,10 @@ abstract class BrowserTestCase extends PantherTestCase
 
     /**
      * Pairs the browser as a reader does: Profil, "Přihlásit kódem z KissJ", and the page's
-     * own poll, which the local source approves at once and which then reloads Profil
-     * paired. A browser already paired (the session outlives a test) is left as it is.
+     * own poll, which the local source approves at once and which then lands on Program
+     * (the poll's `next`), paired; it ends on that landing. A browser already paired (the
+     * session outlives a test) is left as it is, on Profil. A caller that needs Profil
+     * afterwards visits it.
      */
     protected static function pair(string $slug = 'korbo26'): void
     {
@@ -165,7 +167,11 @@ abstract class BrowserTestCase extends PantherTestCase
         }
         // the start, or "Začít znovu" over a pairing an earlier test left pending
         self::tap('[data-screen="/' . $slug . '/profil"] form[action="/' . $slug . '/profil/propojit"] button[type="submit"]');
-        self::waitFor('return document.readyState === "complete" && document.querySelector(".profile-who") !== null;', [], 20);
+        self::waitFor(
+            'const m = document.querySelector(\'meta[name="push-identity"]\'); return document.readyState === "complete" && location.pathname.startsWith(arguments[0]) && m !== null && m.content !== "";',
+            ['/' . $slug . '/programy'],
+            20,
+        );
     }
 
     /**
@@ -518,6 +524,20 @@ abstract class BrowserTestCase extends PantherTestCase
     {
         $result = self::devTools()->execute('Page.addScriptToEvaluateOnNewDocument', [
             'source' => 'window.appWarm = false;',
+        ]);
+        self::$clocks[] = (string) $result['identifier'];
+    }
+
+    /**
+     * Stops Chrome's own install offer on every document loaded after this call: headless
+     * Chrome fires a trusted beforeinstallprompt at a moment of its own choosing, which would
+     * change the install card's case under a test. Only a test's synthetic offers (untrusted)
+     * reach www/js/shell/install.js. Removed again after the test, with the clocks.
+     */
+    protected static function noInstallOffers(): void
+    {
+        $result = self::devTools()->execute('Page.addScriptToEvaluateOnNewDocument', [
+            'source' => "window.addEventListener('beforeinstallprompt', function (e) { if (e.isTrusted) { e.stopImmediatePropagation(); } }, true);",
         ]);
         self::$clocks[] = (string) $result['identifier'];
     }

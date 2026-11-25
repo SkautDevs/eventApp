@@ -41,7 +41,12 @@ const LOAD_TIMEOUT = 8000;
 
 /** <main>, once startLoader() found it. */
 let main = null;
-/** screen path -> {section, html, fetchedAt, shownAt, scrollTop, pending, checking} */
+/**
+ * screen path -> {section, html, fetchedAt, shownAt, scrollTop, pending, checking, search, wanted}.
+ * `search` is the query the markup on show was served for (`?program=1`, `?fbclid=…`, or ''),
+ * `wanted` the query the last visit asked for, and `checking` the query of the revalidation in
+ * flight (null for none). A visit whose query differs from `search` revalidates (revalidate()).
+ */
 const screens = new Map();
 /** The screen on show, always a screen path, never an alias. */
 let currentPath = null;
@@ -61,7 +66,7 @@ const staleOnArrival = new Set();
 const inflight = new Map();
 
 /**
- * The participating screens, in tab-bar order, with /profil after the last tab —
+ * The participating screens, in tab-bar order: Domů first and Profil the last tab,
  * which is what makes a move to the profile count as forward. The order is read
  * off the rendered shell rather than hardcoded, so an event that enables a
  * different set of features gets its own order for free.
@@ -136,11 +141,15 @@ function parse(html) {
 	return holder.content.querySelector('[data-screen]');
 }
 
-function load(path) {
+/**
+ * The screen at `path`, fetched for the query `search`. A fetch already in flight for the
+ * screen is shared whatever its query: show() revalidates a copy served for another one.
+ */
+function load(path, search = '') {
 	if (inflight.has(path)) {
 		return inflight.get(path);
 	}
-	const pending = fetchScreen(path).then(entry => {
+	const pending = fetchScreen(path, search).then(entry => {
 		inflight.delete(path);
 
 		return entry;
@@ -150,7 +159,7 @@ function load(path) {
 	return pending;
 }
 
-function fetchScreen(path) {
+function fetchScreen(path, search) {
 	// lie-fi: a fetch that never ends would leave the tap hanging for minutes
 	const controller = window.AbortController ? new AbortController() : null;
 	const timer = controller
@@ -159,7 +168,8 @@ function fetchScreen(path) {
 			}, LOAD_TIMEOUT)
 		: null;
 
-	return fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', signal: controller ? controller.signal : undefined})
+	// the worker keys a fragment with a query by its exact address (www/sw.js, cacheKey())
+	return fetch(path + search, {headers: {'X-Screen': '1'}, credentials: 'same-origin', signal: controller ? controller.signal : undefined})
 		.then(response => {
 			// A non-200 is never a screen: a 404 and a 500 both answer with the
 			// whole error page, shell and all, and injecting that into a <section>
@@ -202,7 +212,9 @@ function fetchScreen(path) {
 				shownAt: 0,
 				scrollTop: 0,
 				pending: null,
-				checking: false,
+				checking: null,
+				search: search,
+				wanted: search,
 			};
 			screens.set(path, entry);
 
@@ -267,6 +279,10 @@ function busy(section) {
 }
 
 function applyPending(entry) {
+	// a morph held for an address the reader has since left is not this visit's copy
+	if (entry.pending && entry.pending.search !== entry.wanted) {
+		entry.pending = null;
+	}
 	if (!entry.pending || busy(entry.section)) {
 		return;
 	}
@@ -278,6 +294,7 @@ function applyPending(entry) {
 	morphChildren(entry.section, fresh.section);
 	restoreFocus(focus);
 	entry.html = fresh.html;
+	entry.search = fresh.search;
 	// The screen's own script puts back what it, and not the server, owns: which
 	// view is on show, which page it is on, the hour scale. Dispatched
 	// synchronously, in this same task: the fresh markup names the server's page
@@ -293,15 +310,29 @@ function applyPending(entry) {
  * Stale-while-revalidate: the cached screen is shown at once, always, and only a
  * screen whose HTML has actually changed is morphed into the new one — an
  * unchanged one is not touched at all, so it can neither flicker nor lose state.
+ *
+ * `search` is the query the screen is wanted for: the visit's, or for a background check
+ * the last visit's. A copy served for another query (a first screen opened as
+ * `profil?program=1` or with a `?fbclid=`, then visited by its tab; or the other way round,
+ * Back to that entry) is checked at once, whatever its age, against `path + search`; the
+ * screen is never removed for it. Until the answer lands the copy stays on show, and a
+ * failed fetch leaves it there. An answer for a query no longer wanted is dropped.
  */
-function revalidate(path, entry) {
-	if (entry.checking || Date.now() - entry.fetchedAt < STALE_AFTER) {
+function revalidate(path, entry, search = entry.wanted) {
+	entry.wanted = search;
+	const mismatch = search !== entry.search;
+	if (entry.checking === search || (!mismatch && Date.now() - entry.fetchedAt < STALE_AFTER)) {
 		return;
 	}
-	entry.checking = true;
+	entry.checking = search;
+	const settle = () => {
+		if (entry.checking === search) {
+			entry.checking = null;
+		}
+	};
 	// no-cache: the worker answers this from the network (www/sw.js); its cached copy
 	// is what the reader is already looking at
-	fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})
+	fetch(path + search, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})
 		.then(response => {
 			// the same two rules as load(): a non-200 and a redirect are both
 			// something other than this screen. A revalidation that finds one
@@ -313,7 +344,11 @@ function revalidate(path, entry) {
 			return response.ok && !response.redirected && response.headers.get('X-From-Cache') !== '1' ? response.text() : null;
 		})
 		.then(html => {
-			entry.checking = false;
+			settle();
+			// the reader has asked for another query since: that check, not this one, decides
+			if (search !== entry.wanted) {
+				return;
+			}
 			const fresh = html === null ? null : parse(html);
 			if (!fresh || fresh.dataset.screen !== path) {
 				return;
@@ -321,18 +356,19 @@ function revalidate(path, entry) {
 			entry.fetchedAt = Date.now();
 			const freshHtml = fresh.innerHTML;
 			if (freshHtml === entry.html) {
+				// the markup on show is this query's too
+				entry.search = search;
 				// a held older morph must not re-apply over this newer, identical fetch
 				entry.pending = null;
 				syncFreshness(entry.section, fresh);
 				return;
 			}
-			// if the reader is busy in it, the morph waits for the next time it is shown
-			entry.pending = {section: fresh, html: freshHtml};
+			// if the reader is busy in it, the morph waits for the next time it is shown;
+			// `search` becomes the screen's when the morph is applied
+			entry.pending = {section: fresh, html: freshHtml, search: search};
 			applyPending(entry);
 		})
-		.catch(() => {
-			entry.checking = false;
-		});
+		.catch(settle);
 }
 
 // --- showing ----------------------------------------------------------
@@ -354,8 +390,7 @@ function dressShell(section) {
 	}
 	const tab = section.dataset.tab || '';
 	document.body.className = 'screen-' + (tab !== '' ? tab : 'other');
-	// the app bar's profile link is lit like a tab while Profil is shown
-	document.querySelectorAll('.tabbar .tab, .appbar-profile').forEach(link => {
+	document.querySelectorAll('.tabbar .tab').forEach(link => {
 		const active = screenOf(pathOf(link.href)) === currentPath;
 		link.classList.toggle('is-active', active);
 		// The fill is pixels and .is-active is a class name; aria-current is the
@@ -410,10 +445,13 @@ function transition(swap, back) {
 	document.startViewTransition(swap).finished.then(done, done);
 }
 
-function show(path, entry) {
+/** Shows the screen at `path` for the query `search`, revalidating a copy served for another one. */
+function show(path, entry, search = entry.wanted) {
 	if (path === currentPath) {
 		return;
 	}
+	// before the swap: a morph held for another query is dropped there, not applied
+	entry.wanted = search;
 	const from = order.indexOf(currentPath);
 	const to = order.indexOf(path);
 	// popstate gets the reverse direction for free: the order comparison is the
@@ -448,7 +486,7 @@ function show(path, entry) {
 	}, back);
 
 	evict();
-	revalidate(path, entry);
+	revalidate(path, entry, search);
 }
 
 /**
@@ -464,18 +502,21 @@ function go(screen, push, url = screen) {
 		history.pushState({screen: screen}, '', url);
 	}
 	wantedPath = screen;
+	// The query this visit is for: none for a tab (its address is a pathname), the entry's
+	// own on Back. A screen whose markup was served for another one is revalidated by show().
+	const search = url === null ? location.search : new URL(url, location.href).search;
 	const entry = screens.get(screen);
 	if (entry) {
 		// an earlier tap may still be loading; this one is not, so the bar goes
 		emitScreenLoaded();
-		show(screen, entry);
+		show(screen, entry, search);
 
 		return;
 	}
 	// the loading bar (shell/progress.js): only for a fetch the reader is waiting for,
 	// never for a background revalidation
 	emitScreenLoading();
-	load(screen).then(loaded => {
+	load(screen, search).then(loaded => {
 		// An overtaken screen that did arrive is kept: it is a warm cache entry
 		// either way, and the next visit to it is then instant. It is only not
 		// shown, and not pushed, because the reader is somewhere else now.
@@ -495,7 +536,7 @@ function go(screen, push, url = screen) {
 
 			return;
 		}
-		show(screen, loaded);
+		show(screen, loaded, search);
 	});
 }
 
@@ -569,7 +610,7 @@ function onClick(event) {
 	}
 	const url = new URL(link.href);
 	const screen = screenOf(url.pathname);
-	const isTab = link.matches('.tabbar .tab, .appbar-profile');
+	const isTab = link.matches('.tabbar .tab');
 	if (screen === currentPath && url.search === '' && url.hash === '') {
 		event.preventDefault();
 		// The tab you are already on, or the very address you are on: a native app does
@@ -650,10 +691,6 @@ export function startLoader() {
 			aliases.set(alias, screen);
 		});
 	});
-	const profileLink = document.querySelector('.appbar-profile');
-	if (profileLink) {
-		order.push(pathOf(profileLink.href));
-	}
 	order = order.filter((path, i) => order.indexOf(path) === i);
 
 	// filed under the screen it names, which on an alias route is not the address
@@ -665,7 +702,9 @@ export function startLoader() {
 		shownAt: Date.now(),
 		scrollTop: 0,
 		pending: null,
-		checking: false,
+		checking: null,
+		search: location.search,
+		wanted: location.search,
 	});
 
 	// Domů underneath: Back from a screen opened from outside the event lands on Domů,

@@ -161,7 +161,7 @@ final class InfoModuleTest extends AppTestCase
 
         $html = (string) $this->request($app, 'GET', '/informace')->getBody();
         self::assertStringNotContainsString('Jen pro přihlášené', $html);
-        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringNotContainsString('tab-avatar', $html);
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
@@ -180,7 +180,7 @@ final class InfoModuleTest extends AppTestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertStringContainsString('Pro všechny', $html);
         self::assertStringNotContainsString('Jen pro přihlášené', $html);
-        self::assertStringContainsString('appbar-avatar', $html);
+        self::assertStringContainsString('tab-avatar', $html);
         self::assertStringNotContainsString('Propojení s KissJ už neplatí', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
@@ -192,16 +192,18 @@ final class InfoModuleTest extends AppTestCase
         self::assertSame(404, $this->request($app, 'GET', '/odkazy')->getStatusCode());
     }
 
-    public function testTheTabBarHasFourTabs(): void
+    public function testTheTabBarHasFiveTabs(): void
     {
         $html = (string) $this->request($this->app(), 'GET', '/informace')->getBody();
 
         preg_match('#<nav class="tabbar"[^>]*>(.*?)</nav>#s', $html, $nav);
         preg_match_all('#<a class="tab[^"]*" href="([^"]+)"[^>]*>.*?<span>([^<]+)</span>#s', $nav[1], $tabs);
-        self::assertSame(['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace'], $tabs[1]);
-        self::assertSame(['Program', 'Místa', 'Informace'], array_slice($tabs[2], 1));
+        self::assertSame(['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil'], $tabs[1]);
+        self::assertSame(['Program', 'Místa', 'Informace', 'Profil'], array_slice($tabs[2], 1));
         self::assertStringContainsString('class="tab is-active" href="/obrok27/informace" aria-current="page"', $html);
         self::assertStringContainsString('<i class="fas fa-info-circle" aria-hidden="true"></i>', $nav[1]);
+        // logged out, the Profil tab holds the person icon
+        self::assertMatchesRegularExpression('#<a class="tab tab-profile" href="/obrok27/profil">\s*<i class="fas fa-user-circle" aria-hidden="true"></i>#', $nav[1]);
     }
 
     public function testThePrecacheNamesTheFourScreensProfilAndOffline(): void

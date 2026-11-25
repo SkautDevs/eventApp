@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Functional;
 
 /**
- * The opt-in's behaviour is proved in a browser (Round C), and urlB64ToUint8Array() and
- * classifyFailure() in tests/js/push.test.js. What a test can hold here is the script's
+ * The opt-in's behaviour is proved in a browser (PushToggleTest), and urlB64ToUint8Array(),
+ * classifyFailure() and cardState() in tests/js/push.test.js. What a test can hold here is the script's
  * contract: no alert(), the order of the unsubscribe, the answer keys it reads, every line
  * it can show, and the entry that ships it.
  */
@@ -46,7 +46,18 @@ final class PushScriptTest extends AppTestCase
 
         self::assertStringNotContainsString('push/unsubscribe', $js);
         self::assertStringNotContainsString('disablePush', $js);
-        self::assertStringContainsString('el.hidden = !ok || subscribed;', $js);
+        // which part shows when is cardState()'s, proved in tests/js/push.test.js
+        self::assertStringContainsString("querySelectorAll('[data-push-card]')", $js);
+        self::assertStringContainsString("querySelectorAll('[data-push-on]')", $js);
+    }
+
+    /** A successful opt-in says so in a toast, with the welcome's line only when it arrived. */
+    public function testASuccessfulOptInSaysSoInAToast(): void
+    {
+        $js = self::code();
+
+        self::assertStringContainsString("import {showToast} from '../shell/toast.js';", $js);
+        self::assertStringContainsString('showToast(TEXT.toast, result.welcome === true ? TEXT.toastWelcome : undefined);', $js);
     }
 
     public function testTheSubscribeAnswerIsReadBySavedAndWelcome(): void
@@ -78,9 +89,8 @@ final class PushScriptTest extends AppTestCase
         $js = self::code();
 
         foreach ([
-            'Povolit notifikace',
-            'Hotovo! Právě ti přišla uvítací notifikace.',
-            'Notifikace máš zapnuté, jupí!',
+            'Notifikace zapnuté, jupí!',
+            'Právě ti přišla uvítací notifikace.',
             'Notifikace jsou vypnuté.',
             'Notifikace máš v prohlížeči zakázané. Povol je v nastavení stránky a zkus to znovu.',
             'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
@@ -91,6 +101,8 @@ final class PushScriptTest extends AppTestCase
         ] as $line) {
             self::assertStringContainsString("'" . $line . "'", $js);
         }
+        self::assertStringNotContainsString('Hotovo!', self::script());
+        self::assertStringNotContainsString('Povolit notifikace', self::script());
         self::assertStringNotContainsString('Vypnout notifikace', self::script());
         self::assertStringNotContainsString('nepodporuje', self::script());
     }

@@ -100,8 +100,9 @@ abstract class NoJsTestCase extends BrowserTestCase
     /**
      * Pairs the browser without a script, as such a reader does: Profil, `Přihlásit kódem
      * z KissJ` (or `Začít znovu` over a pairing an earlier test left pending, as pair()
-     * does), then `Zkontrolovat přihlášení` until Profil shows who is paired; the local
-     * source approves at once. A browser already paired is left as it is.
+     * does), then `Zkontrolovat přihlášení` until the check lands on Program (the approval's
+     * landing); the local source approves at once. A browser already paired is left as it
+     * is, on Profil. A caller that needs Profil afterwards visits it.
      */
     protected static function pairWithoutScript(string $slug): void
     {
@@ -109,12 +110,13 @@ abstract class NoJsTestCase extends BrowserTestCase
         if (self::present('.profile-who')) {
             return;
         }
+        $landed = static fn(): bool => str_starts_with(self::path(), '/' . $slug . '/programy');
         self::follow('form[action="/' . $slug . '/profil/propojit"] button[type="submit"]');
-        for ($check = 0; $check < 3 && !self::present('.profile-who'); $check++) {
+        for ($check = 0; $check < 3 && !$landed(); $check++) {
             self::follow('form[action="/' . $slug . '/profil/kontrola"] button[type="submit"]');
         }
 
-        self::assertTrue(self::displayed('.profile-who'), $slug . ': paired through the check button');
+        self::assertTrue($landed(), $slug . ': paired through the check button, landed on Program, not ' . self::path());
     }
 
     /** Whether anything matches $css on the page. */

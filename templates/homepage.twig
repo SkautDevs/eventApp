@@ -23,7 +23,8 @@
 	{% endif %}
 
 	{% if home.phase == 'before' %}
-		{% include '_install.twig' with {installCard: 'home'} %}
+		{% include '_install.twig' %}
+		{% include '_notifications.twig' %}
 
 		<h2 class="home-kicker">Co tě čeká</h2>
 		{% if home.window and home.window.state == 'before' %}
@@ -83,7 +84,8 @@
 			</section>
 		{% endif %}
 
-		{% include '_install.twig' with {installCard: 'home'} %}
+		{% include '_install.twig' %}
+		{% include '_notifications.twig' %}
 	{% endif %}
 
 	{# only the urgent ones — the full list is on Informace #}

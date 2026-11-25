@@ -17,7 +17,10 @@ use Slim\Views\Twig;
 
 /**
  * GET /profil: who is paired, or the pairing in progress and how the last one ended, and
- * the login's or the logout's toast, once.
+ * the login's or the logout's toast, once. Logged out, `?program=<id>` (a sheet's login
+ * link) goes into the start form's hidden `program` field, digits only and not checked
+ * against the provider (the start checks it); pending, the field of `Začít znovu` carries
+ * the pairing's own return target on, so a restart keeps it.
  */
 final class ShowAction
 {
@@ -42,6 +45,11 @@ final class ShowAction
             // the start's, the poll's or a session's outcome, on every read while it lasts
             outcome: $this->pairingState->outcomeLine(),
             toast: $toast,
+            returnProgram: match (true) {
+                $identity !== null => null,
+                $pairing !== null => $this->pairingState->returnProgram(),
+                default => PairingState::programId($request->getQueryParams()['program'] ?? null),
+            },
         );
 
         return $this->toasts->mark($this->twig->render($response, 'profile.twig', TemplateContext::of($page)), $toast);

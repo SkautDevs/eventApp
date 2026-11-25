@@ -358,7 +358,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         foreach ([self::FREE, self::MINE, self::PREREGISTERED] as $id) {
             // not paired comes first, even before "preregistered"
-            self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, $id), "programme {$id}");
+            self::assertSame('<a class="btn" href="/korbo26/profil?program=' . $id . '" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, $id), "programme {$id}");
         }
         self::assertStringNotContainsString('/prihlasit"', $html);
     }
@@ -401,7 +401,7 @@ final class ProgramRegistrationTest extends AppTestCase
     {
         $html = $this->html($this->createApp('window-before', fixtureEvent: true));
 
-        self::assertSame('<a class="btn" href="/window-before/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, 1));
+        self::assertSame('<a class="btn" href="/window-before/profil?program=1" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, 1));
     }
 
     /** @return iterable<string, array{RegistrationWindow, string, string}> */
@@ -477,7 +477,7 @@ final class ProgramRegistrationTest extends AppTestCase
 
         $html = $this->html($app);
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) self::toast($html));
-        self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, self::MINE));
+        self::assertSame('<a class="btn" href="/korbo26/profil?program=' . self::MINE . '" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, self::MINE));
     }
 
     /** The local source's state file cannot be written: an outage toast, never a 500. */
@@ -503,7 +503,7 @@ final class ProgramRegistrationTest extends AppTestCase
         $html = $this->html($app);
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', (string) self::toast($html));
         // logged out: the footers send the reader to Profil again
-        self::assertSame('<a class="btn" href="/korbo26/profil" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, self::FREE));
+        self::assertSame('<a class="btn" href="/korbo26/profil?program=' . self::FREE . '" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>', self::sheet($html, self::FREE));
     }
 
     /** When and where, as the toast says it: a run past midnight names its start day only. */

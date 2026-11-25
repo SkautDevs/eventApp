@@ -37,7 +37,7 @@ final class FontsTest extends BrowserTestCase
         );
         self::waitFor(self::LOADED, ['Font Awesome 5 Free', '900']);
         self::assertTrue(self::script('return document.fonts.check(\'900 16px "Font Awesome 5 Free"\');'));
-        self::assertGreaterThan(0, (float) self::script('return document.querySelector(".appbar-profile i").getBoundingClientRect().width;'));
+        self::assertGreaterThan(0, (float) self::script('return document.querySelector(".tab-profile i").getBoundingClientRect().width;'));
     }
 
     public function testTheShellsOwnTypefaceLoads(): void

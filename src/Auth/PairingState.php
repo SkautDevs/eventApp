@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Auth;
 
 use App\Program\Pairing;
+use App\Program\Programme;
 use App\Session;
 use App\Toast\Toasts;
 use Psr\Clock\ClockInterface;
@@ -23,10 +24,18 @@ use Psr\Clock\ClockInterface;
  * waiting leaves `pairingChecked` (a Unix timestamp), and for a minute Profil's status
  * line reads NOT_YET instead of WAITING. Reading it consumes nothing, as with the outcome.
  *
+ * A start sent from a programme's sheet (`program` in the form) leaves `pairingReturn`
+ * beside the pairing: the programme and its section, read from the provider's list at the
+ * start, so the approval lands on that sheet (returnTarget()) without asking the provider
+ * again. Every end of the pairing drops it: a failure, the approval, the logout, and a start
+ * without one.
+ *
  * The stored shapes are the previous release's and must stay readable across a deploy:
  * `pairing` is `{deviceCode, userCode, verificationUrl, expiresAt}` (four non-empty
  * strings, `expiresAt` in DATE_ATOM) and `pairingOutcome` is `{code, at}` (`at` a Unix
  * timestamp, read from the clock when the outcome is left, i.e. after the provider's answer).
+ * `pairingReturn` is new in this release: `{program, section}`, the programme's id (a
+ * positive int) and its section's (an int, 0 for none). A malformed one is no target.
  */
 final class PairingState
 {
@@ -65,6 +74,8 @@ final class PairingState
 
     private const string OUTCOME_KEY = 'pairingOutcome';
 
+    private const string RETURN_KEY = 'pairingReturn';
+
     public function __construct(
         private readonly Session $session,
         private readonly ClockInterface $clock,
@@ -93,10 +104,28 @@ final class PairingState
         return new Pairing($data['deviceCode'], $data['userCode'], $data['verificationUrl'], $expiresAt, 5);
     }
 
-    /** Stores a started pairing and drops any outcome before it, in one write. */
-    public function begin(Pairing $pairing): void
+    /**
+     * The programme id a form or a query sent (`program`): a positive decimal of at most 10
+     * digits, nothing before or after it, else null. Whether the provider lists it is the
+     * caller's to check.
+     */
+    public static function programId(mixed $value): ?int
     {
-        $this->session->transact(static function (array &$bag) use ($pairing): void {
+        if (!is_string($value) || preg_match('/^[1-9][0-9]{0,9}\z/', $value) !== 1) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    /**
+     * Stores a started pairing and drops any outcome before it, in one write, with the
+     * programme whose sheet the reader returns to after the approval (pairingReturn), or
+     * without one, which drops an earlier start's.
+     */
+    public function begin(Pairing $pairing, ?Programme $returnTo = null): void
+    {
+        $this->session->transact(static function (array &$bag) use ($pairing, $returnTo): void {
             unset($bag[self::OUTCOME_KEY], $bag[self::CHECK_KEY]);
             $bag[self::PAIRING_KEY] = [
                 'deviceCode' => $pairing->deviceCode,
@@ -104,6 +133,11 @@ final class PairingState
                 'verificationUrl' => $pairing->verificationUrl,
                 'expiresAt' => $pairing->expiresAt->format(\DATE_ATOM),
             ];
+            if ($returnTo === null) {
+                unset($bag[self::RETURN_KEY]);
+            } else {
+                $bag[self::RETURN_KEY] = ['program' => $returnTo->id, 'section' => $returnTo->sectionId];
+            }
         });
     }
 
@@ -112,32 +146,62 @@ final class PairingState
     {
         $now = $this->clock->now()->getTimestamp();
         $this->session->transact(static function (array &$bag) use ($code, $now): void {
-            unset($bag[self::PAIRING_KEY], $bag[self::CHECK_KEY]);
+            unset($bag[self::PAIRING_KEY], $bag[self::CHECK_KEY], $bag[self::RETURN_KEY]);
             $bag[self::OUTCOME_KEY] = ['code' => $code, 'at' => $now];
         });
     }
 
     /**
-     * Drops the pairing and any outcome: the reader is in now. Called before the identity
-     * is stored and the ID rotates, so the old ID holds neither the pairing nor the identity
-     * and a late poll under it cannot collect a re-issued approval.
+     * Drops the pairing, its return target and any outcome: the reader is in now. Called
+     * before the identity is stored and the ID rotates, so the old ID holds neither the
+     * pairing nor the identity and a late poll under it cannot collect a re-issued approval.
+     * The landing reads returnTarget() before this.
      */
     public function approved(): void
     {
         $this->session->transact(static function (array &$bag): void {
-            unset($bag[self::PAIRING_KEY], $bag[self::OUTCOME_KEY], $bag[self::CHECK_KEY]);
+            unset($bag[self::PAIRING_KEY], $bag[self::OUTCOME_KEY], $bag[self::CHECK_KEY], $bag[self::RETURN_KEY]);
         });
     }
 
     /**
-     * Drops the pairing (and its last check) only: the logout. Written unconditionally, as
-     * the logout always wrote its session, whether or not a pairing was pending.
+     * Drops the pairing (with its last check and its return target) only: the logout.
+     * Written unconditionally, as the logout always wrote its session, whether or not a
+     * pairing was pending.
      */
     public function drop(): void
     {
         $this->session->transact(static function (array &$bag): void {
-            unset($bag[self::PAIRING_KEY], $bag[self::CHECK_KEY]);
+            unset($bag[self::PAIRING_KEY], $bag[self::CHECK_KEY], $bag[self::RETURN_KEY]);
         });
+    }
+
+    /**
+     * The programme id the pending pairing returns to, or null: for the `program` field of
+     * Profil's `Začít znovu` form, so a restart keeps the target.
+     */
+    public function returnProgram(): ?int
+    {
+        $program = $this->returnEntry()['program'] ?? null;
+
+        return is_int($program) && $program > 0 ? $program : null;
+    }
+
+    /**
+     * Where the approval lands for the pending pairing's programme, relative to the event:
+     * `programy#section-<s>-program-<id>`, its sheet on Harmonogram; null when there is
+     * none or it is malformed.
+     */
+    public function returnTarget(): ?string
+    {
+        $entry = $this->returnEntry();
+        $program = $entry['program'] ?? null;
+        $section = $entry['section'] ?? null;
+        if (!is_int($program) || $program <= 0 || !is_int($section) || $section < 0) {
+            return null;
+        }
+
+        return sprintf('programy#section-%d-program-%d', $section, $program);
     }
 
     /** A no-JS check found the pairing still waiting: the clock's now, for waitingLine(). */
@@ -182,5 +246,13 @@ final class PairingState
         }
 
         return self::LINES[$outcome['code']] ?? null;
+    }
+
+    /** @return array<mixed> the stored pairingReturn, or an empty array when it is not one */
+    private function returnEntry(): array
+    {
+        $entry = $this->session->get(self::RETURN_KEY);
+
+        return is_array($entry) ? $entry : [];
     }
 }

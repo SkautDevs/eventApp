@@ -1,11 +1,13 @@
 /**
- * The notifications opt-in on Domů and Profil: the button, its status line, the subscribe
- * call and the re-sync of a subscription whose paired participant changed. It still
- * listens for DOMContentLoaded itself: PushToggleTest dispatches that event again to
- * restart it with its fakes in place.
+ * The notifications card on Domů and Profil (templates/_notifications.twig): shown once the
+ * browser has said it is not subscribed, with its button and status line; the subscribe
+ * call and its toast; Profil's quiet line once subscribed; and the re-sync of a
+ * subscription whose paired participant changed. It still listens for DOMContentLoaded
+ * itself: PushToggleTest dispatches that event again to restart it with its fakes in place.
  */
 
 import {onScreenMorphed, onScreenShown} from '../events.js';
+import {showToast} from '../shell/toast.js';
 
 /** The bytes of a URL-safe base64 string without padding: the VAPID public key's form. */
 export function urlB64ToUint8Array(value) {
@@ -37,9 +39,8 @@ const identityKey = () => 'pushIdentity:' + meta('event-base');
 
 // Every line the opt-in can show, in one place.
 const TEXT = {
-	enable: 'Povolit notifikace',
-	welcome: 'Hotovo! Právě ti přišla uvítací notifikace.',
-	on: 'Notifikace máš zapnuté, jupí!',
+	toast: 'Notifikace zapnuté, jupí!',
+	toastWelcome: 'Právě ti přišla uvítací notifikace.',
 	off: 'Notifikace jsou vypnuté.',
 	denied: 'Notifikace máš v prohlížeči zakázané. Povol je v nastavení stránky a zkus to znovu.',
 	enableFailed: 'Notifikace se nepodařilo zapnout. Zkontroluj připojení a zkus to znovu.',
@@ -55,26 +56,51 @@ const supported = () => 'serviceWorker' in navigator && 'PushManager' in window;
 // reports itself as a Mac; the touch points give it away.
 const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-// The opt-in is drawn from these two by render(), so a screen the loader shows — or
-// morphs back to the server's markup — later is simply drawn again.
+/**
+ * What the card shows: the card itself, its button, its status line (null: none) and
+ * Profil's quiet line. iOS outside an installed app has no push at all and is told to save
+ * the app first, whatever is known. Elsewhere the card waits until the browser has said
+ * whether it is subscribed (known), so a subscribed reader never sees it flash; once
+ * subscribed it goes for good, since notifications are turned off only in the browser's
+ * own settings, and Profil says quietly that they are on.
+ */
+export function cardState({supported, ios, known, subscribed, status}) {
+	if (!supported && ios) {
+		return {card: true, button: false, status: TEXT.ios, on: false};
+	}
+	if (!supported || !known) {
+		return {card: false, button: false, status: null, on: false};
+	}
+	if (subscribed) {
+		return {card: false, button: false, status: null, on: true};
+	}
+	return {card: true, button: true, status, on: false};
+}
+
+// The card is drawn from these three by render(), so a screen the loader shows — or
+// morphs back to the server's markup — later is simply drawn again. known turns true
+// once detectSubscription() has answered, whatever it found.
 let subscribed = false;
 let status = null;
+let known = false;
 
 const render = () => {
-	const ok = supported();
-	// Without push the homepage looks like every push-less event's: no button at all.
-	// Once subscribed the button goes too: notifications cannot be turned off here, only
-	// in the browser's own settings.
-	document.querySelectorAll('.push-enable').forEach(el => {
-		el.hidden = !ok || subscribed;
+	const state = cardState({supported: supported(), ios: isIos(), known, subscribed, status});
+	document.querySelectorAll('[data-push-card]').forEach(el => {
+		el.hidden = !state.card;
 	});
-	const text = ok ? status : isIos() ? TEXT.ios : null;
+	document.querySelectorAll('.push-enable').forEach(el => {
+		el.hidden = !state.button;
+	});
 	document.querySelectorAll('.push-status').forEach(el => {
 		// shown before it is filled, so a screen reader hears the change in the live region
-		el.hidden = text === null;
-		if (text !== null && el.textContent !== text) {
-			el.textContent = text;
+		el.hidden = state.status === null;
+		if (state.status !== null && el.textContent !== state.status) {
+			el.textContent = state.status;
 		}
+	});
+	document.querySelectorAll('[data-push-on]').forEach(el => {
+		el.hidden = !state.on;
 	});
 };
 
@@ -135,8 +161,9 @@ const enablePush = async () => {
 			});
 			const result = await sendSubscription(subscription);
 			subscribed = true;
+			status = null;
 			// welcome false: saved, but the welcome did not get through — say only what is true
-			status = result.welcome === true ? TEXT.welcome : TEXT.on;
+			showToast(TEXT.toast, result.welcome === true ? TEXT.toastWelcome : undefined);
 		} catch (e) {
 			if (e.tooMany === true) {
 				// The browser's subscription is fine and is kept: the next page re-sends it
@@ -157,15 +184,20 @@ const enablePush = async () => {
 	}
 };
 
-// A browser that is already subscribed hides the button and says so.
+// Whether this browser is already subscribed. Whatever it finds — or if it fails — the
+// card is known afterwards: shown when not subscribed, the quiet line when subscribed.
 const detectSubscription = async () => {
-	if (!supported() || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
-		return;
-	}
-	const registration = await navigator.serviceWorker.getRegistration(meta('event-base'));
-	if (registration && (await registration.pushManager.getSubscription())) {
-		subscribed = true;
-		status = TEXT.on;
+	try {
+		if (!supported() || typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+			return;
+		}
+		const registration = await navigator.serviceWorker.getRegistration(meta('event-base'));
+		if (registration && (await registration.pushManager.getSubscription())) {
+			subscribed = true;
+			status = null;
+		}
+	} finally {
+		known = true;
 		render();
 	}
 };
@@ -227,6 +259,8 @@ const bindPushToggles = scope => {
 
 document.addEventListener('DOMContentLoaded', () => {
 	bindPushToggles(document);
+	// a start (or PushToggleTest's restart) begins unknown: the card waits for the answer
+	known = false;
 	render();
 	// one after the other: a re-sync that finds the subscription dead lets go of it,
 	// and only then is the browser asked whether it is still subscribed

@@ -10,7 +10,11 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('browser')]
 final class FocusRingTest extends BrowserTestCase
 {
-    /** From the skip link through the app bar, every stop draws the one 2px ring. */
+    /**
+     * From the skip link through the app bar, every stop draws the one 2px ring. The bar
+     * has two stops, the skip link and the brand; the next is the screen's own first
+     * control, which differs per screen.
+     */
     public function testTabbingThroughTheAppBarShowsTheRing(): void
     {
         foreach (['/korbo26/', '/korbo26/programy'] as $path) {
@@ -19,14 +23,14 @@ final class FocusRingTest extends BrowserTestCase
             self::script('if (document.activeElement) { document.activeElement.blur(); } window.scrollTo(0, 0);');
 
             $seen = [];
-            for ($i = 0; $i < 3; $i++) {
+            for ($i = 0; $i < 2; $i++) {
                 self::$browser->getKeyboard()->sendKeys(WebDriverKeys::TAB);
                 [$class, $style, $width] = self::script('const el = document.activeElement; const s = getComputedStyle(el); return [el.classList[0] || el.tagName, s.outlineStyle, s.outlineWidth];');
                 self::assertSame('solid', $style, $path . ': ' . $class);
                 self::assertSame('2px', $width, $path . ': ' . $class);
                 $seen[] = $class;
             }
-            self::assertSame(['skip-link', 'appbar-brand', 'appbar-profile'], $seen, $path);
+            self::assertSame(['skip-link', 'appbar-brand'], $seen, $path);
         }
     }
 

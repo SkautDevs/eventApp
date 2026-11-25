@@ -1,14 +1,25 @@
 /**
- * The install. Chrome offers it once the worker is in; the offer is kept for the button on
- * the homepage and /profil rather than shown at once. iOS has no such event and no way to
- * install from a page, so there the same place carries how to do it by hand. In an
- * installed app Domů's install card has nothing left to offer; Profil's keeps its
- * notifications button and only its install half goes.
+ * The install card, on Domů and Profil. It is rendered hidden with its four paragraphs, and
+ * one case decides what shows (installCase(), first match wins):
+ *
+ *  - an installed app: nothing, the card stays hidden;
+ *  - a kept offer: Chrome's own (beforeinstallprompt, once the worker is in), shown only from
+ *    the button, since its prompt needs a tap; it wins over every step by hand, so an offer
+ *    that arrives late replaces the Android paragraph;
+ *  - an in-app browser (Facebook, Instagram, Messenger, Line, LinkedIn) on a phone or tablet,
+ *    which cannot install at all: open the page in the browser;
+ *  - iOS, which has no offer: Sdílet, then Přidat na plochu;
+ *  - Android without an offer: the browser's own menu;
+ *  - anything else (a computer): nothing.
+ *
+ * Once the kept offer has been shown, or the app is installed (appinstalled), `done` hides
+ * the card until the next document.
  */
 
 import {onScreenFreshness, onScreenMorphed, onScreenShown} from '../events.js';
 
 let deferredPrompt = null;
+let done = false;
 
 /** Whether the page runs as the installed app: iOS's own flag, or the display mode elsewhere. */
 export function standalone(nav = navigator, media = window.matchMedia ? query => window.matchMedia(query) : null) {
@@ -20,20 +31,57 @@ export function ios(nav = navigator) {
 	return /iPhone|iPad|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
 }
 
-function drawInstallCard() {
-	document.querySelectorAll('[data-install-card="home"]').forEach(card => {
-		card.hidden = standalone();
-	});
+export function android(nav = navigator) {
+	return /Android/.test(nav.userAgent);
+}
+
+/** The in-app browsers of the social apps, by the markers they add to the user agent. */
+export function inApp(nav = navigator) {
+	return /FBAN|FBAV|FB_IAB|Instagram|Messenger|Line\/|LinkedInApp/.test(nav.userAgent);
+}
+
+/** A phone or a tablet: an in-app marker counts only there. */
+export function mobile(nav = navigator) {
+	return ios(nav) || /Android|Mobi/.test(nav.userAgent);
+}
+
+/** Which paragraph the card shows: 'offer', 'inApp', 'ios' or 'android', or 'none' (the card hidden). */
+export function installCase({standalone, offer, ios, android, inApp, mobile}) {
+	if (standalone) {
+		return 'none';
+	}
+	if (offer) {
+		return 'offer';
+	}
+	if (inApp && mobile) {
+		return 'inApp';
+	}
+	if (ios) {
+		return 'ios';
+	}
+	if (android) {
+		return 'android';
+	}
+	return 'none';
 }
 
 function drawInstall() {
+	const choice = done
+		? 'none'
+		: installCase({
+				standalone: standalone(),
+				offer: deferredPrompt !== null,
+				ios: ios(),
+				android: android(),
+				inApp: inApp(),
+				mobile: mobile(),
+			});
+	document.querySelectorAll('[data-install-card]').forEach(card => {
+		card.hidden = choice === 'none';
+	});
 	document.querySelectorAll('[data-install]').forEach(el => {
-		el.hidden = deferredPrompt === null || standalone();
+		el.hidden = el.dataset.install !== choice;
 	});
-	document.querySelectorAll('[data-install-ios]').forEach(el => {
-		el.hidden = !ios() || standalone();
-	});
-	drawInstallCard();
 }
 
 window.addEventListener('beforeinstallprompt', event => {
@@ -43,6 +91,7 @@ window.addEventListener('beforeinstallprompt', event => {
 });
 window.addEventListener('appinstalled', () => {
 	deferredPrompt = null;
+	done = true;
 	drawInstall();
 });
 document.addEventListener('click', event => {
@@ -53,11 +102,12 @@ document.addEventListener('click', event => {
 	// a kept offer can be shown once, whatever the reader answers
 	const offer = deferredPrompt;
 	deferredPrompt = null;
+	done = true;
 	offer.prompt();
 	drawInstall();
 });
 
-// a morph writes the server's hidden button back
+// a screen inserted or morphed carries the server's hidden card again
 document.addEventListener('DOMContentLoaded', drawInstall);
 onScreenShown(drawInstall);
 onScreenMorphed(drawInstall);

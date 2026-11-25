@@ -253,7 +253,7 @@ final class SessionRotationTest extends TestCase
             'headers' => ['Cookie' => 'eventapp=' . $sessionId],
         ]);
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame(['status' => 'approved'], json_decode((string) $response->getBody(), true));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], json_decode((string) $response->getBody(), true));
 
         return $response;
     }

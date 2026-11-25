@@ -9,9 +9,8 @@ use App\Module\ModuleInterface;
 use Slim\App;
 
 /**
- * Profil and the login, part of every event: the screen (`GET /profil`, reached from the
- * app bar, so no tab), and kissj's device pairing — the start, the poll, the no-JS check
- * and the logout.
+ * Profil and the login, part of every event: the screen (`GET /profil`, the last tab), and
+ * kissj's device pairing — the start, the poll, the no-JS check and the logout.
  */
 final class ProfileModule implements ModuleInterface
 {
@@ -20,9 +19,9 @@ final class ProfileModule implements ModuleInterface
         return 'profile';
     }
 
-    public function menuItem(): ?MenuItem
+    public function menuItem(): MenuItem
     {
-        return null;
+        return new MenuItem('profile', 'Profil', 'profile', 'fas fa-user-circle', 40);
     }
 
     public function script(): string

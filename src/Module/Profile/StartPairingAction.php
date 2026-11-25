@@ -14,6 +14,7 @@ use App\Http\SameOrigin;
 use App\Http\WriteResponse;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
+use App\Program\Programme;
 use App\Program\ProgramUnavailableException;
 use App\Session;
 use App\Telemetry\Tracer;
@@ -26,6 +27,12 @@ use Slim\Routing\RouteContext;
  * enters in KissJ, and Profil polls until it is approved. The device id is the hash of the
  * session ID, so a second start replaces this browser's pending pairing at kissj. The
  * throttle is a lazy service: the database opens only once the checks before it passed.
+ *
+ * The form's optional `program` field (a programme's sheet links to `profil?program=<id>`,
+ * and both start forms carry it on) names the sheet the approval returns to. It is kept
+ * (PairingState's pairingReturn) only when it is a positive decimal id the provider lists
+ * now; the list is read only when the field is sent and the throttle let the start
+ * through, and a provider failure drops the target, not the start.
  */
 final class StartPairingAction
 {
@@ -70,9 +77,10 @@ final class StartPairingAction
                 return;
             }
             $throttle->record($slug, $ip);
+            $returnTo = $this->returnTo($request);
             try {
                 $pairing = $this->provider->startPairing(hash('sha256', $session->id()));
-                $pairingState->begin($pairing);
+                $pairingState->begin($pairing, $returnTo);
                 Tracer::tag('pairing_outcome', 'started');
             } catch (ProgramUnavailableException|ProgramDataException) {
                 // never arrived, kissj's cap, or an answer that is not a pairing: one notice
@@ -82,5 +90,30 @@ final class StartPairingAction
         });
 
         return WriteResponse::redirect($request, $response, $base . '/profil');
+    }
+
+    /**
+     * The programme the form's `program` names, as the provider lists it now, or null: no
+     * field, not a positive decimal id, an event without Program, an id not in the list, or
+     * a provider that fails to answer.
+     */
+    private function returnTo(ServerRequestInterface $request): ?Programme
+    {
+        $body = $request->getParsedBody();
+        $id = PairingState::programId(is_array($body) ? ($body['program'] ?? null) : null);
+        if ($id === null || !$this->event->isEnabled('programs')) {
+            return null;
+        }
+        try {
+            foreach ($this->provider->getPrograms() as $programme) {
+                if ($programme->id === $id) {
+                    return $programme;
+                }
+            }
+        } catch (ProgramUnavailableException|ProgramDataException) {
+            // the target goes, the pairing still starts
+        }
+
+        return null;
     }
 }

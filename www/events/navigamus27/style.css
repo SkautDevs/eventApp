@@ -51,6 +51,7 @@ h2,
 /* the manual's 1.5 for running text; never the timeline grid, whose geometry is frozen */
 .link-card p,
 .install-card p,
+.push-card p,
 div.news p,
 .notice,
 .empty,
@@ -92,15 +93,8 @@ div.news p,
 	background-color: transparent;
 }
 
-.appbar-brand, .appbar-brand:visited,
-.appbar-profile, .appbar-profile:visited {
+.appbar-brand, .appbar-brand:visited {
 	color: var(--role-on-bar, var(--on-state));
-}
-
-/* Profil lights its link with the band's pair swapped */
-.appbar-profile.is-active, .appbar-profile.is-active:visited {
-	background-color: var(--role-on-bar, var(--on-state));
-	color: var(--role-bar, var(--state));
 }
 
 /* rings sit inside the control, on the band's own fill */
@@ -215,6 +209,7 @@ body::after {
 
 .link-card, .link-card:visited,
 .install-card,
+.push-card,
 div.news {
 	border: none;
 	border-radius: 0;
@@ -230,7 +225,8 @@ div.news {
 
 /* the wave takes up to 9px of each end, so the content moves in by that much */
 .link-card, .link-card:visited,
-.install-card {
+.install-card,
+.push-card {
 	padding-block: calc(var(--n27-wave) + 8px);
 }
 

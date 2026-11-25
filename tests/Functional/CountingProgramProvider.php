@@ -10,9 +10,11 @@ use App\Program\Participant;
 use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationWindow;
 
-/** Delegates to a real provider and counts the personal calls — "did it reach kissj?". */
+/** Delegates to a real provider and counts the personal calls — "did it reach kissj?" — and the reads of the programme list. */
 final class CountingProgramProvider implements ProgramProviderInterface
 {
+    public int $programReads = 0;
+
     public int $participantCalls = 0;
 
     public int $pairingStarts = 0;
@@ -28,6 +30,8 @@ final class CountingProgramProvider implements ProgramProviderInterface
 
     public function getPrograms(): array
     {
+        $this->programReads++;
+
         return $this->inner->getPrograms();
     }
 

@@ -101,8 +101,8 @@ final class ScreenMorphTest extends AppTestCase
     {
         $app = $this->createApp('korbo26');
         // logged out, the link is keyed too
-        self::assertStringContainsString(
-            '<div class="sheet-footer"><a class="btn" href="/korbo26/profil" data-key="unpaired">',
+        self::assertMatchesRegularExpression(
+            '#<div class="sheet-footer"><a class="btn" href="/korbo26/profil\?program=\d+" data-key="unpaired">#',
             (string) $this->request($app, 'GET', '/programy')->getBody(),
         );
         $this->pair($app);
@@ -219,14 +219,17 @@ final class ScreenMorphTest extends AppTestCase
         self::assertMatchesRegularExpression('~<script type="module" src="/js/[0-9a-f]{8}/shell/index\.js"></script>~', (string) $this->request($this->createApp(), 'GET', '/')->getBody());
     }
 
-    /** The worker serves load() from its cache and sends revalidate() to the network (Task 7). */
+    /**
+     * The worker serves load() from its cache and sends revalidate() to the network (Task 7).
+     * Both fetch the screen for the visit's query, which the worker keys by its exact address.
+     */
     public function testABackgroundRevalidationAsksTheNetwork(): void
     {
         $js = $this->loader();
 
-        self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})"), 'revalidate()');
+        self::assertSame(1, substr_count($js, "fetch(path + search, {headers: {'X-Screen': '1'}, credentials: 'same-origin', cache: 'no-cache'})"), 'revalidate()');
         // load() carries no cache mode, only the deadline's abort signal
-        self::assertSame(1, substr_count($js, "fetch(path, {headers: {'X-Screen': '1'}, credentials: 'same-origin', signal: controller ? controller.signal : undefined})"), 'load()');
+        self::assertSame(1, substr_count($js, "fetch(path + search, {headers: {'X-Screen': '1'}, credentials: 'same-origin', signal: controller ? controller.signal : undefined})"), 'load()');
     }
 
     public function testAFetchTheReaderWaitsForIsAnnounced(): void

@@ -134,20 +134,6 @@
 		{% endif %}
 		<span class="appbar-title">{{ pageTitle }}</span>
 	</a>
-	<div class="appbar-tools">
-		{# The label is text rather than an aria-label, because an aria-label REPLACES
-		   the element's contents. The avatar's initials are decoration for a sighted
-		   reader and hidden from assistive tech: the link is announced as "Profil". #}
-		<a class="appbar-profile{{ profileActive|default(false) ? ' is-active' }}" href="{{ url_for('profile') }}"{% if profileActive|default(false) %} aria-current="page"{% endif %}>
-			<span class="sr-only">Profil</span>
-			{% set who = auth_identity() %}
-			{% if who and who.initials %}
-				<span class="appbar-avatar" aria-hidden="true">{{ who.initials }}</span>
-			{% else %}
-				<i class="fas fa-user-circle" aria-hidden="true"></i>
-			{% endif %}
-		</a>
-	</div>
 </header>
 
 {# <main> is a stack of screens, not one screen: the first is server-rendered here and
@@ -190,11 +176,12 @@
 	{# the loading bar along the bar's top edge; www/js/shell/progress.js shows it while the loader
 	   waits for a screen it has never shown #}
 	<span class="progress" data-progress aria-hidden="true"></span>
-	{# aria-current is the only thing that tells a screen reader which of the four you
+	{# aria-current is the only thing that tells a screen reader which of the tabs you
 	   are on: the fill and the chip are pixels, and .is-active is a class name. Every tab
-	   is an item of the menu, Domů first; Domů draws its own mark and the event's short
-	   name. A tab's data-screen-aliases are its other addresses, the views of its screen
-	   with a path of their own (MenuItem::$aliases), which belong to this tab as well.
+	   is an item of the menu, Domů first and Profil last; Domů draws its own mark and the
+	   event's short name, Profil the reader's initials once paired. A tab's
+	   data-screen-aliases are its other addresses, the views of its screen with a path of
+	   their own (MenuItem::$aliases), which belong to this tab as well.
 	   The ~ on the loop's tags keeps the bar's whitespace what it always was. #}
 	{%~ for item in menu %}
 	{%~ if item.key == 'homepage' %}
@@ -216,6 +203,18 @@
 			<img class="tab-logo tab-logo-chip" src="{{ chipLogo }}" alt="">
 		{% endif %}
 		<span>{{ event.shortName|default(event.name) }}</span>
+	</a>
+	{% elseif item.key == 'profile' %}
+	{# The paired reader's initials stand in for the person icon. They are decoration for
+	   a sighted reader and hidden from assistive tech: the tab is announced as "Profil". #}
+	{% set who = auth_identity() %}
+	<a class="tab tab-profile{{ activeTab == 'profile' ? ' is-active' }}" href="{{ url_for(item.route) }}"{% if activeTab == 'profile' %} aria-current="page"{% endif %}>
+		{% if who and who.initials %}
+			<span class="tab-avatar" aria-hidden="true">{{ who.initials }}</span>
+		{% else %}
+			<i class="{{ item.icon }}" aria-hidden="true"></i>
+		{% endif %}
+		<span>{{ item.label }}</span>
 	</a>
 	{% else %}
 		<a class="tab{{ activeTab == item.key ? ' is-active' }}" href="{{ url_for(item.route) }}"{% if item.aliases is not empty %} data-screen-aliases="{% for alias in item.aliases %}{{ url_for(alias) }}{{ not loop.last ? ' ' }}{% endfor %}"{% endif %}{% if activeTab == item.key %} aria-current="page"{% endif %}>

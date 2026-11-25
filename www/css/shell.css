@@ -12,14 +12,10 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	/* The bar's geometry, named once so the brand's cap below can be derived from it
-	   rather than restated: the gap between the two ends, every control's touch
-	   target, the gap between the controls, and the controls' floor — the profile
-	   link, the one control at that end. */
+	/* The bar's geometry, named once: the gap beside the brand and the brand's touch
+	   target. The bar carries the brand alone, so its right-hand end is empty. */
 	--appbar-gap: 8px;
 	--appbar-target: 44px;
-	--appbar-tools-gap: 2px;
-	--appbar-tools-floor: var(--appbar-target);
 	gap: var(--appbar-gap);
 	max-width: var(--app-width);
 	margin: 0 auto;
@@ -40,29 +36,27 @@
 }
 
 .appbar-brand,
-.appbar-brand:visited,
-.appbar-profile,
-.appbar-profile:visited {
+.appbar-brand:visited {
 	display: flex;
 	align-items: center;
 	color: var(--on-state);
 	text-decoration: none;
 }
 
-/* The brand end never takes part in the bar's shrinking: it keeps its natural width,
+/* The brand never takes part in the bar's shrinking: it keeps its natural width,
    exactly as it did when its automatic minimum (the WHOLE title — an item's
    min-content ignores its overflow) held it there, so at an ordinary width the
    title is never trimmed by even a fraction of a pixel. A proportional share would
    have done that, and a fraction is all an ellipsis needs. What it may not do is
-   push into the controls' floor: with the 44 × 44 targets that put the bar 38–55px
-   past a 195px viewport. So it is capped at what the floor leaves, and only there
-   does the title ellipsise, down to its own 4ch floor. */
+   run past the bar's padding: at 200% zoom that is a 195px viewport. So it is capped
+   at the bar's own width, and only there does the title ellipsise, down to its own
+   4ch floor. */
 .appbar-brand {
 	gap: 10px;
 	min-height: var(--appbar-target);
 	flex-shrink: 0;
 	min-width: 0;
-	max-width: calc(100% - var(--appbar-tools-floor) - var(--appbar-gap));
+	max-width: 100%;
 }
 
 .appbar-logo {
@@ -88,41 +82,13 @@
 	min-width: 4ch;
 }
 
-/* the right-hand end of the bar: the profile link */
-.appbar-tools {
-	display: flex;
-	align-items: center;
-	gap: var(--appbar-tools-gap);
-	/* Shrinkable, now that the title next to it refuses to disappear. At 200% zoom
-	   the bar is 195px wide and the two ends together want more than that; something
-	   has to give, and it is the identity's own text — the screen's name is the one
-	   thing on this bar the reader cannot get anywhere else. Without this the two
-	   ends simply overlapped. It is the only end that shrinks (the brand does not),
-	   so it takes the whole shortfall... */
-	flex: 0 1 auto;
-	/* ...but never below its own targets. Its automatic minimum would count the
-	   identity's whole name. */
-	min-width: var(--appbar-tools-floor);
-}
-
-/* At 200% zoom of a 390px phone (195px) the mark, its gap, a 4ch title and two 44px
-   targets need 202px. The mark is decoration (alt="") and the title is the one thing
-   the reader cannot get elsewhere, so below 250px the mark steps aside and the title
-   keeps the room: 73px at 195px instead of its 44px floor. */
+/* At 200% zoom of a 390px phone (195px) the mark is decoration (alt="") and the title
+   is the one thing the reader cannot get elsewhere, so below 250px the mark steps
+   aside and the title keeps the room. */
 @media (max-width: 249px) {
 	.appbar-logo {
 		display: none;
 	}
-}
-
-/* the link keeps a 44 × 44 target around the icon or the avatar */
-.appbar-profile {
-	gap: 6px;
-	/* px on purpose: chrome glyph, see --fs-* in :root */
-	font-size: 22px;
-	min-width: var(--appbar-target);
-	min-height: var(--appbar-target);
-	justify-content: center;
 }
 
 /* the second drawing of a mode pair stays out until its mode is on */
@@ -148,25 +114,10 @@
 	display: block;
 }
 
-/* On Profil the link is lit like the active tab. The tab is filled with `state`, but
-   the app bar already is, so here the bar's pair swaps: its ink becomes the fill and
-   its fill the ink, at exactly the bar's own contrast. */
-.appbar-profile.is-active,
-.appbar-profile.is-active:visited {
-	background-color: var(--on-state);
-	color: var(--state);
-	border-radius: var(--theme-radius-pill, 999px);
-}
-
-/* the glyph, or the avatar, is the link */
-.appbar-profile i {
-	flex: 0 0 auto;
-}
-
-/* The paired reader's initials in a ring of the bar's own ink: no fill, so nothing but
-   the bar's own pair is on the bar. */
+/* The paired reader's initials in a ring of the surrounding ink: no fill, so on the
+   Profil tab nothing but the tab's own pair is on the tab, as with the glyphs. */
 .avatar,
-.appbar-avatar {
+.tab-avatar {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -179,10 +130,10 @@
 	letter-spacing: 0;
 }
 
-.appbar-avatar {
-	width: 32px;
-	height: 32px;
-	font-size: var(--fs-sm);
+.tab-avatar {
+	width: 22px;
+	height: 22px;
+	font-size: var(--fs-2xs);
 }
 
 /* --- content ------------------------------------------------------------- */
@@ -413,7 +364,9 @@ main > .screen[hidden] {
 	width: auto;
 }
 
-.tab span {
+/* the label, always the tab's last child: the Profil tab's avatar is a span too, and
+   an ellipsis would cut its initials at large text */
+.tab > span:last-child {
 	max-width: 100%;
 	white-space: nowrap;
 	overflow: hidden;

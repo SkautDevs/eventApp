@@ -36,6 +36,12 @@
 	margin: 24px 0;
 }
 
+/* Notifikace máš zapnuté.: Profil's quiet line in place of the notifications card */
+.push-on {
+	margin: 16px 8px;
+	text-align: center;
+}
+
 /* Světlý / Tmavý / Podle systému as one segmented bar. The radios stay real radios
    (one name, arrow keys move between them) and are only drawn by their labels: the
    chosen one wears the state fill under its own ink, as the current day chip does. */

@@ -37,7 +37,7 @@ final class OfflineTest extends BrowserTestCase
                 [$path, $content],
             );
         }
-        self::tap('.appbar-profile');
+        self::tap('.tabbar a[href="/korbo26/profil"]');
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/profil"]\'); return s && !s.hidden;');
 
         // a page the worker never kept
@@ -229,7 +229,7 @@ final class OfflineTest extends BrowserTestCase
         self::stopServer();
         self::visit('/korbo26/programy');
         self::waitFor('return document.querySelector(".tl-card.is-registered") !== null;');
-        self::assertSame('JN', self::script('return document.querySelector(".appbar-avatar").textContent;'));
+        self::assertSame('JN', self::script('return document.querySelector(".tab-avatar").textContent;'));
     }
 
     /**
@@ -305,7 +305,7 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('return window.__checks.length === 1 && window.__checks[0].done;');
         self::assertSame('1', self::script('return window.__checks[0].fromCache;'), 'answered from the cache, and marked so');
 
-        self::tap('.appbar-profile');
+        self::tap('.tabbar a[href="/korbo26/profil"]');
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/profil"]\'); return s && !s.hidden;');
         self::tap('.tabbar a[href="/korbo26/informace"]');
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');

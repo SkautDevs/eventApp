@@ -52,8 +52,9 @@ article.link-card .btn {
 	font-size: var(--fs-md);
 }
 
-/* the install offer and the notifications button under one heading (Domů and Profil) */
-.install-card {
+/* the install card and the notifications card, one after the other (Domů and Profil) */
+.install-card,
+.push-card {
 	margin: 16px 8px;
 	padding: 12px 14px;
 	border-radius: var(--radius-card);
@@ -63,33 +64,32 @@ article.link-card .btn {
 	text-align: left;
 }
 
-.install-card[hidden] {
+.install-card[hidden],
+.push-card[hidden] {
 	display: none;
 }
 
-/* the install offer and the notifications button both need a script */
-:root:not(.js) [data-install-card] {
-	display: none;
-}
-
-.install-card h2 {
+.install-card h2,
+.push-card h2 {
 	margin: 0 0 4px;
 	font-size: var(--fs-lg);
 	color: inherit;
 }
 
-.install-card p {
+.install-card p,
+.push-card p {
 	margin: 0 0 8px;
 }
 
 /* inside the card the buttons fill it rather than the column */
-.install-card .btn {
+.install-card .btn,
+.push-card .btn {
 	width: 100%;
 }
 
 .install-card .install,
-.install-card p.push-enable,
-.install-card p.push-status {
+.push-card p.push-enable,
+.push-card p.push-status {
 	margin: 8px 0 0;
 }
 

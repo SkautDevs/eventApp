@@ -183,9 +183,9 @@ final class RenderGate extends BrowserTestCase
      * runs, on every document of the session:
      *
      *  - headless Chrome offers the install when it likes, and www/js/shell/install.js shows the
-     *    install button when it does, before the dump on one run and after it on the
-     *    next: the offer is stopped, so the button stays in its markup state (hidden;
-     *    settle() still pins it, as bin/baseline.php does);
+     *    install card with its button when it does, before the dump on one run and after
+     *    it on the next: the offer is stopped (settle() still pins the card hidden, as
+     *    bin/baseline.php does);
      *  - an iframe's load is recorded on the element (__gateLoaded, a property, not an
      *    attribute), so settle() can wait for the map's iframe whether or not map/offline.js
      *    was listening yet when it fired.
@@ -404,7 +404,7 @@ final class RenderGate extends BrowserTestCase
         self::settle();
     }
 
-    /** See SETTLED; then two animation frames, and the install offer pinned hidden. */
+    /** See SETTLED; then two animation frames, and the install card pinned hidden. */
     private static function settle(): void
     {
         $deadline = microtime(true) + self::SETTLE_SECONDS;
@@ -420,8 +420,9 @@ final class RenderGate extends BrowserTestCase
                 throw new \RuntimeException('The page did not settle');
             }
         } while (true);
-        // as bin/baseline.php does; instrument() already keeps the offer from showing it
-        self::script('document.querySelectorAll("[data-install]").forEach(element => { element.hidden = true; });');
+        // as bin/baseline.php does: the card's case depends on Chrome's offer and on the
+        // platform (www/js/shell/install.js), so the whole card is pinned to its markup state
+        self::script('document.querySelectorAll("[data-install-card]").forEach(element => { element.hidden = true; });');
     }
 
     /** The registered programme's sheet (the HTML gate's programme), or the first programme's. */
@@ -503,7 +504,7 @@ final class RenderGate extends BrowserTestCase
         }
     }
 
-    /** Domů, then every tab-bar link in order, then the profile link, each settled. */
+    /** Domů, then every tab-bar link in order (Profil is the last tab), each settled. */
     private static function walk(string $slug): void
     {
         self::visitSettled('/' . $slug . '/');
@@ -515,7 +516,6 @@ final class RenderGate extends BrowserTestCase
         foreach ($links as $href) {
             $targets[] = ['.tabbar a[href="' . $href . '"]', (string) $href];
         }
-        $targets[] = ['.appbar-profile', (string) self::script('return document.querySelector(".appbar-profile").getAttribute("href");')];
         foreach ($targets as [$selector, $href]) {
             self::tap($selector);
             self::waitFor(

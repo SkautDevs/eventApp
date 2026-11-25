@@ -1,0 +1,14 @@
+{% if 'push' in event.features %}
+	{# The notifications card, on Domů and Profil: rendered hidden; www/js/push/index.js shows it
+	   once it knows this browser is not subscribed (spec, Milestone 3). On Profil a subscribed
+	   browser gets the quiet line under it instead (pushOn). #}
+	<section class="push-card" aria-label="Notifikace" data-push-card data-key="push-card" data-morph-keep="hidden" hidden>
+		<h2>Notifikace</h2>
+		<p class="push-intro">Pošleme ti změny programu a důležité zprávy od organizátorů.</p>
+		<p class="push-enable"><button type="button" class="btn btn-primary" data-push-toggle>Zapnout notifikace</button></p>
+		<p class="push-status" role="status" data-morph-keep="hidden" hidden></p>
+	</section>
+	{% if pushOn ?? false %}
+		<p class="push-on" data-push-on data-key="push-on" data-morph-keep="hidden" hidden>Notifikace máš zapnuté.</p>
+	{% endif %}
+{% endif %}

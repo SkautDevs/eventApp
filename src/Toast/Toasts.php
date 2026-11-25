@@ -55,7 +55,7 @@ final class Toasts
      */
     private const int SECONDS = 60;
 
-    /** The title on the first full Profil after a pairing was approved. */
+    /** The title on the first full document after the approval (the landing). */
     private const string LOGGED_IN = 'Jsi přihlášen';
 
     /** The title and line on the first full Profil after a logout. */
@@ -97,7 +97,7 @@ final class Toasts
         });
     }
 
-    /** The toast on the first full Profil after a pairing was approved. */
+    /** The toast on the first full document after the approval (the landing). */
     public function loggedIn(): void
     {
         $this->put(self::LOGGED_IN, null);

@@ -405,6 +405,8 @@ final class ThemingTest extends AppTestCase
         $css = CoreStylesheet::read();
         self::assertStringNotContainsString('.appbar-mode', $css);
         self::assertStringNotContainsString('.appbar-who', $css);
+        // nor the profile link that sat beside the title, its tools box and its avatar: Profil is a tab
+        self::assertDoesNotMatchRegularExpression('/\.appbar-(?:profile|tools|avatar)\b/', $css);
         self::assertStringNotContainsString('.mode-sun', $css);
         self::assertStringNotContainsString('data-mode-toggle', (string) file_get_contents(dirname(__DIR__, 2) . '/www/js/profile/mode.js'));
         self::assertStringNotContainsString('appbar-mode', (string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/style.css'));
@@ -652,7 +654,7 @@ final class ThemingTest extends AppTestCase
      */
     public function testTypeIsOnTheRemScaleOutsideTheInstrumentAllowlist(): void
     {
-        $allowed = ['.appbar-profile', '.tab i', '.pager-zoom-btn', '.plan-zoom-btn', '.tl-tick', '.tl-now-label', '.tl-stage', '.tl-card'];
+        $allowed = ['.tab i', '.pager-zoom-btn', '.plan-zoom-btn', '.tl-tick', '.tl-now-label', '.tl-stage', '.tl-card'];
         $css = (string) preg_replace('!/\*.*?\*/!s', '', CoreStylesheet::read());
 
         $offenders = [];
@@ -1115,7 +1117,7 @@ final class ThemingTest extends AppTestCase
 
         self::assertStringContainsString('Nejsi přihlášen', $html);
         self::assertMatchesRegularExpression('#<fieldset class="mode-control" data-mode-control>\s*<legend>Vzhled</legend>#u', $html);
-        self::assertGreaterThan(strpos($html, 'data-install-card="profile"'), strpos($html, 'data-mode-control'));
+        self::assertGreaterThan(strpos($html, 'data-install-card'), strpos($html, 'data-mode-control'));
     }
 
     /**

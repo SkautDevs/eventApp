@@ -12,13 +12,13 @@ namespace Tests\Functional;
  */
 final class ScreenFragmentTest extends AppTestCase
 {
-    /** The four tab destinations plus /profil — the screens the loader participates in. */
+    /** The five tabs: the screens the loader participates in. */
     private const array SCREENS = [
         '/' => 'homepage',
         '/programy' => 'programs',
         '/mapa' => 'map',
         '/informace' => 'info',
-        '/profil' => '',
+        '/profil' => 'profile',
     ];
 
     public function testFragmentCarriesNoShell(): void
@@ -65,6 +65,45 @@ final class ScreenFragmentTest extends AppTestCase
             $this->assertStringContainsString('Hlavní menu', $html, $path);
             // the whole page wraps its content in exactly the same screen element
             $this->assertStringContainsString('data-screen="' . $app->getBasePath() . $path . '"', $html, $path);
+        }
+    }
+
+    /** The app bar is the event's mark and the screen's title, nothing else: Profil is a tab. */
+    public function testTheAppBarCarriesOnlyTheTitle(): void
+    {
+        $app = $this->createApp('obrok27');
+
+        foreach (['/', '/profil'] as $path) {
+            $html = (string) $this->request($app, 'GET', $path)->getBody();
+            $start = strpos($html, '<header class="appbar">');
+            self::assertIsInt($start, $path);
+            $bar = substr($html, $start, (int) strpos($html, '</header>', $start) - $start);
+
+            self::assertStringContainsString('appbar-brand', $bar, $path);
+            // neither the old profile link nor the tools box it sat in
+            self::assertDoesNotMatchRegularExpression('/appbar-(?:profile|tools)\b/', $bar, $path);
+            self::assertStringNotContainsString('href="/obrok27/profil"', $bar, $path);
+        }
+    }
+
+    /** Profil is a core module whose tab comes last, whatever the event's features. */
+    public function testProfilIsTheLastTabOnEveryEvent(): void
+    {
+        $expected = [
+            'korbo26' => ['/korbo26/', '/korbo26/programy', '/korbo26/informace', '/korbo26/profil'],
+            'obrok27' => ['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil'],
+        ];
+        foreach ($expected as $slug => $hrefs) {
+            $app = $this->createApp($slug);
+
+            $home = (string) $this->request($app, 'GET', '/')->getBody();
+            preg_match('#<nav class="tabbar"[^>]*>(.*?)</nav>#s', $home, $nav);
+            preg_match_all('#<a class="tab[^"]*" href="([^"]+)"#', $nav[1], $tabs);
+            self::assertSame($hrefs, $tabs[1], $slug);
+            self::assertStringContainsString('<a class="tab tab-profile" href="/' . $slug . '/profil">', $nav[1], $slug);
+
+            $profil = (string) $this->request($app, 'GET', '/profil')->getBody();
+            self::assertStringContainsString('<a class="tab tab-profile is-active" href="/' . $slug . '/profil" aria-current="page">', $profil, $slug);
         }
     }
 

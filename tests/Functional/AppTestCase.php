@@ -90,13 +90,16 @@ abstract class AppTestCase extends TestCase
 
     /**
      * Pairs the test's session the way a reader does, through the routes: the start, then
-     * one poll, which the local source approves at once.
+     * one poll, which the local source approves at once. Where the approval lands (`next`)
+     * is PairingTest's.
      */
     protected function pair(App $app): void
     {
         self::assertSame(302, $this->request($app, 'POST', '/profil/propojit')->getStatusCode(), 'the pairing start redirects to Profil');
         $poll = $this->request($app, 'GET', '/profil/propojit/stav');
-        self::assertSame(['status' => 'approved'], json_decode((string) $poll->getBody(), true), 'the first poll approves');
+        $body = json_decode((string) $poll->getBody(), true);
+        self::assertIsArray($body);
+        self::assertSame('approved', $body['status'] ?? null, 'the first poll approves');
     }
 
     /**

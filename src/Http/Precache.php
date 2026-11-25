@@ -27,7 +27,7 @@ final class Precache
      */
     public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $stylesheets, array $menu, string $docroot): array
     {
-        // every tab, Domů first, then Profil and the offline page; a tab's other addresses
+        // every tab, Domů first and Profil last, then the offline page; a tab's other addresses
         // (MenuItem::$aliases) are no documents of their own: the worker finds them under
         // the tab's own copy
         $documents = [];
@@ -39,7 +39,6 @@ final class Precache
                 $aliases[$routes->urlFor($alias)] = $screen;
             }
         }
-        $documents[] = $routes->urlFor('profile');
         $documents[] = $routes->urlFor('offline');
 
         // the core sheets the layout links for this event: those of its registered modules

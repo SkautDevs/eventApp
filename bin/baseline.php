@@ -12,7 +12,7 @@ declare(strict_types=1);
  *   docker compose --profile browser stop chrome
  *
  * or, where chromedriver is installed, `php bin/baseline.php`. A round diffs its own
- * screens against these; the install button on /profil is pinned hidden. The network
+ * screens against these; the install card is pinned hidden. The network
  * banner needs no pin: the local source is never stale, and the server is up.
  *
  * Chrome gets the browser tests' arguments, the host-resolver rule included, so no
@@ -72,9 +72,10 @@ final class Baseline extends BrowserTestCase
                 if ($size !== [self::WIDTH, self::HEIGHT]) {
                     throw new \RuntimeException(sprintf('The viewport is %dx%d, not %dx%d', $size[0], $size[1], self::WIDTH, self::HEIGHT));
                 }
-                // Chrome offers the install at a moment of its own, so the button on /profil
-                // is pinned to its markup state (hidden)
-                self::script('document.querySelectorAll("[data-install]").forEach(p => { p.hidden = true; });');
+                // Chrome offers the install at a moment of its own, and its offer decides the
+                // install card's case (www/js/shell/install.js): the whole card is pinned to its
+                // markup state (hidden) on Domů and /profil
+                self::script('document.querySelectorAll("[data-install-card]").forEach(card => { card.hidden = true; });');
                 $file = $dir . '/' . $name . '.png';
                 self::$browser->takeScreenshot($file);
                 // the compose `test` container runs as root; the file belongs to whoever owns the directory

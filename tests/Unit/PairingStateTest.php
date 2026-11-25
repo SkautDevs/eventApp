@@ -6,6 +6,7 @@ namespace Tests\Unit;
 
 use App\Auth\PairingState;
 use App\Program\Pairing;
+use App\Program\Programme;
 use App\Session;
 use App\Toast\Toasts;
 use PHPUnit\Framework\TestCase;
@@ -136,6 +137,60 @@ final class PairingStateTest extends TestCase
         self::assertFalse($this->session->has('pairingChecked'));
     }
 
+    public function testTheReturnTargetIsKeptUntilTheApproval(): void
+    {
+        $programme = Programme::fromArray(['id' => 12, 'name' => 'X', 'section' => ['id' => 3]]);
+        self::assertNotNull($programme);
+        $this->pairing->begin(self::aPairing(), $programme);
+
+        self::assertSame(['program' => 12, 'section' => 3], $this->session->get('pairingReturn'));
+        self::assertSame('programy#section-3-program-12', $this->pairing->returnTarget());
+        self::assertSame(12, $this->pairing->returnProgram());
+
+        $this->pairing->approved();
+        self::assertNull($this->pairing->returnTarget());
+        self::assertNull($this->pairing->returnProgram());
+        self::assertFalse($this->session->has('pairingReturn'));
+    }
+
+    public function testEveryEndDropsTheReturnTarget(): void
+    {
+        $programme = Programme::fromArray(['id' => 12, 'name' => 'X', 'section' => ['id' => 3]]);
+        self::assertNotNull($programme);
+        $ends = [
+            'fail' => fn() => $this->pairing->fail('expired'),
+            'drop' => fn() => $this->pairing->drop(),
+            'a start without a target' => fn() => $this->pairing->begin(self::aPairing()),
+        ];
+        foreach ($ends as $what => $end) {
+            $this->pairing->begin(self::aPairing(), $programme);
+            self::assertNotNull($this->pairing->returnTarget(), $what);
+            $end();
+            self::assertNull($this->pairing->returnTarget(), $what);
+            self::assertFalse($this->session->has('pairingReturn'), $what);
+        }
+    }
+
+    public function testAMalformedReturnTargetIsNone(): void
+    {
+        foreach (['x', ['program' => '12', 'section' => 3], ['program' => 0, 'section' => 3], ['program' => 12, 'section' => -1], ['program' => 12]] as $stored) {
+            $this->session->set('pairingReturn', $stored);
+            self::assertNull($this->pairing->returnTarget(), json_encode($stored, JSON_THROW_ON_ERROR));
+        }
+        // section 0 is a programme without a section, still a sheet
+        $this->session->set('pairingReturn', ['program' => 12, 'section' => 0]);
+        self::assertSame('programy#section-0-program-12', $this->pairing->returnTarget());
+    }
+
+    public function testProgramIdAcceptsOnlyAPositiveDecimal(): void
+    {
+        self::assertSame(1, PairingState::programId('1'));
+        self::assertSame(4294967295, PairingState::programId('4294967295'));
+        foreach (['0', '-1', '1#x', ' 1', "1\n", 'abc', '12345678901', '', 5, null] as $value) {
+            self::assertNull(PairingState::programId($value), var_export($value, true));
+        }
+    }
+
     public function testAFailureAnApprovalAndALogoutClearTheCheckToo(): void
     {
         foreach (['fail' => fn() => $this->pairing->fail('expired'), 'approved' => fn() => $this->pairing->approved(), 'drop' => fn() => $this->pairing->drop()] as $what => $end) {
@@ -143,5 +198,10 @@ final class PairingStateTest extends TestCase
             $end();
             self::assertFalse($this->session->has('pairingChecked'), $what);
         }
+    }
+
+    private static function aPairing(): Pairing
+    {
+        return new Pairing('d3v1c3', '483291', 'https://kissj.example/pair', new \DateTimeImmutable('2027-05-21T09:10:00+02:00'), 5);
     }
 }

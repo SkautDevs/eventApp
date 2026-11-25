@@ -208,7 +208,7 @@
 							<div class="sheet-footer">
 								{%- if detail.footer -%}
 									{%- if detail.footer.state == 'unpaired' -%}
-										<a class="btn" href="{{ url_for('profile') }}" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>
+										<a class="btn" href="{{ url_for('profile', {}, {program: detail.id}) }}" data-key="unpaired">Pro zápis na programy se přihlas kódem z KissJ</a>
 									{%- elseif detail.footer.state in ['before', 'after', 'none'] -%}
 										<p class="sheet-line" data-key="{{ detail.footer.state }}">{{ detail.footer.line }}</p>
 									{%- elseif detail.footer.state == 'register' -%}

@@ -10,7 +10,7 @@ use Slim\App;
 
 /**
  * Web push: POST /push/subscribe (SubscribeAction) saves a browser's subscription. No tab
- * of its own; the opt-in is the install card's button, and the organisers send from the
+ * of its own; the opt-in is the notifications card's button, and the organisers send from the
  * admin page (AdminModule), which comes with this feature.
  */
 final class PushModule implements ModuleInterface

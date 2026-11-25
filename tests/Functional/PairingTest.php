@@ -11,6 +11,7 @@ use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\SessionExpiredException;
 use App\Program\LocalProgramProvider;
+use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 
 /**
@@ -113,7 +114,7 @@ final class PairingTest extends AppTestCase
         self::assertSame('{"next":"/korbo26/profil"}', (string) $start->getBody());
         self::assertStringContainsString('483 291', $this->html($app, '/profil'));
 
-        self::assertSame(['status' => 'approved'], $this->poll($app));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app));
         $logout = $this->request($app, 'POST', '/profil/odpojit', [], ['X-Write' => '1']);
         self::assertSame(200, $logout->getStatusCode());
         self::assertSame('{"next":"/korbo26/profil"}', (string) $logout->getBody());
@@ -211,22 +212,24 @@ final class PairingTest extends AppTestCase
         $app = $this->korbo();
         $this->request($app, 'POST', '/profil/propojit');
 
-        self::assertSame(['status' => 'approved'], $this->poll($app));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app));
 
         $html = $this->html($app, '/profil');
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $html);
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $html);
         self::assertStringContainsString('<meta name="push-identity" content="1">', $html);
         self::assertMatchesRegularExpression('#<h2 class="profile-who"><span class="avatar">JN</span> Jana Nováková</h2>#u', $html);
         self::assertStringContainsString('Odhlásit se z aplikace', $html);
         self::assertStringContainsString('data-confirm="Opravdu odhlásit?"', $html);
         self::assertStringNotContainsString('data-pairing-poll', $html);
         self::assertStringNotContainsString('Nejsi přihlášen', $html);
-        // the install card with the notifications button, its install half hidden by itself
-        self::assertStringContainsString('<section class="install-card" aria-label="Instalace" data-install-card="profile">', $html);
-        self::assertMatchesRegularExpression('#<p class="push-enable">\s*<button type="button" class="btn btn-primary" data-push-toggle>\s*Povolit notifikace\s*</button>\s*</p>#', $html);
-        self::assertStringContainsString('<p class="push-status" role="status" hidden></p>', $html);
-        // the identity is the app bar's on every screen, not Profil's only
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $this->html($app, '/'));
+        // the install card, then the notifications card and its quiet line, before the mode control
+        self::assertStringContainsString('<section class="install-card" aria-label="Instalace" data-install-card data-key="install-card" data-morph-keep="hidden" hidden>', $html);
+        self::assertStringContainsString('<section class="push-card" aria-label="Notifikace" data-push-card', $html);
+        self::assertStringContainsString('<p class="push-on" data-push-on data-key="push-on" data-morph-keep="hidden" hidden>Notifikace máš zapnuté.</p>', $html);
+        self::assertGreaterThan(strpos($html, 'data-push-card'), strpos($html, 'data-push-on'));
+        self::assertLessThan(strpos($html, 'data-mode-control') ?: PHP_INT_MAX, strpos($html, 'data-push-card'));
+        // the identity is the Profil tab's on every screen, not Profil's only
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $this->html($app, '/'));
     }
 
     /**
@@ -320,7 +323,7 @@ final class PairingTest extends AppTestCase
 
         self::assertSame(['status' => 'expired'], $this->poll($app));
         // and it logs nobody out
-        self::assertStringContainsString('<span class="appbar-avatar" aria-hidden="true">JN</span>', $this->html($app, '/profil'));
+        self::assertStringContainsString('<span class="tab-avatar" aria-hidden="true">JN</span>', $this->html($app, '/profil'));
     }
 
     public function testAPollWithoutAPairingIsExpired(): void
@@ -345,12 +348,12 @@ final class PairingTest extends AppTestCase
         $this->pair($app);
         $html = $this->html($app, '/profil');
 
-        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringNotContainsString('tab-avatar', $html);
         self::assertStringNotContainsString('class="avatar"', $html);
-        // on Profil the link is lit like the current tab
-        self::assertMatchesRegularExpression('#<a class="appbar-profile is-active" href="/obrok27/profil" aria-current="page">\s*<span class="sr-only">Profil</span>\s*<i class="fas fa-user-circle" aria-hidden="true"></i>#u', $html);
+        // on Profil its tab is the current one
+        self::assertMatchesRegularExpression('#<a class="tab tab-profile is-active" href="/obrok27/profil" aria-current="page">\s*<i class="fas fa-user-circle" aria-hidden="true"></i>\s*<span>Profil</span>\s*</a>#u', $html);
         // and nowhere else
-        self::assertStringContainsString('<a class="appbar-profile" href="/obrok27/profil">', $this->html($app, '/programy'));
+        self::assertStringContainsString('<a class="tab tab-profile" href="/obrok27/profil">', $this->html($app, '/programy'));
         self::assertMatchesRegularExpression('#<h2 class="profile-who"><i class="fas fa-user-circle" aria-hidden="true"></i> Účastník</h2>#u', $html);
         self::assertStringContainsString('<meta name="push-identity" content="1">', $html);
     }
@@ -441,18 +444,18 @@ final class PairingTest extends AppTestCase
         self::assertDoesNotMatchRegularExpression('#<form[^>]*action="/korbo26/profil/kontrola"[^>]*data-write#', $html);
     }
 
-    public function testTheCheckApprovesAndLandsOnProfil(): void
+    public function testTheCheckApprovesAndLandsOnMoje(): void
     {
         $app = $this->korbo();
         $this->request($app, 'POST', '/profil/propojit');
 
         $response = $this->request($app, 'POST', '/profil/kontrola');
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/korbo26/profil', $response->getHeaderLine('Location'));
+        self::assertSame('/korbo26/programy/moje', $response->getHeaderLine('Location'));
 
+        self::assertStringContainsString('<p><strong>Jsi přihlášen</strong>', $this->html($app, '/programy/moje'));
         $html = $this->html($app, '/profil');
         self::assertMatchesRegularExpression('#<h2 class="profile-who"><span class="avatar">JN</span> Jana Nováková</h2>#u', $html);
-        self::assertStringContainsString('<p><strong>Jsi přihlášen</strong>', $html);
         self::assertStringNotContainsString('data-pairing-poll', $html);
     }
 
@@ -463,7 +466,7 @@ final class PairingTest extends AppTestCase
 
         $response = $this->request($app, 'POST', '/profil/kontrola', [], ['X-Write' => '1']);
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame('{"next":"/korbo26/profil"}', (string) $response->getBody());
+        self::assertSame('{"next":"/korbo26/programy/moje"}', (string) $response->getBody());
     }
 
     public function testTheCheckStillWaitingSaysSo(): void
@@ -513,6 +516,171 @@ final class PairingTest extends AppTestCase
         self::assertStringContainsString('Zpět na profil', $body);
         self::assertSame(0, $provider->pairingPolls, 'nothing was asked');
         self::assertStringContainsString('data-pairing-poll', $this->html($app, '/profil'), 'the pairing is still pending, not collected');
+    }
+
+    // --- the landing (where an approved login goes) ---
+
+    /** A start sending `program` as the sheet's link and the start forms do. */
+    private function startWith(App $app, string $program): ResponseInterface
+    {
+        return $this->request($app, 'POST', '/profil/propojit', ['program' => $program]);
+    }
+
+    public function testThePollAnswersTheLandingWithItsSlashesIntact(): void
+    {
+        $app = $this->korbo();
+        $this->request($app, 'POST', '/profil/propojit');
+
+        self::assertSame('{"status":"approved","next":"programy/moje"}', (string) $this->request($app, 'GET', '/profil/propojit/stav')->getBody());
+    }
+
+    public function testTheLandingShowsTheLoginToastOnProgram(): void
+    {
+        $app = $this->korbo();
+        $this->pair($app);
+
+        self::assertStringContainsString('<strong>Jsi přihlášen</strong>', $this->html($app, '/programy/moje'));
+        self::assertStringNotContainsString('data-toast', $this->html($app, '/profil'), 'said once, on the landing');
+    }
+
+    public function testAReaderWithoutProgrammesLandsOnPrehled(): void
+    {
+        $app = $this->korbo(new class ($this->counted()) extends DelegatingProvider {
+            public function getParticipant(string $sessionToken): Participant
+            {
+                return new Participant(1, 'Jana Nováková', []);
+            }
+        });
+        $this->request($app, 'POST', '/profil/propojit');
+
+        self::assertSame(['status' => 'approved', 'next' => 'programy/prehled'], $this->poll($app));
+    }
+
+    public function testALoginFromASheetReturnsToIt(): void
+    {
+        $app = $this->korbo();
+        self::assertSame(302, $this->startWith($app, '1')->getStatusCode());
+        self::assertSame(['status' => 'approved', 'next' => 'programy#section-1-program-1'], $this->poll($app));
+
+        // the same through the check button, in a browser of its own
+        $_SESSION = [];
+        $app = $this->korbo();
+        $this->startWith($app, '1');
+        $response = $this->request($app, 'POST', '/profil/kontrola');
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/korbo26/programy#section-1-program-1', $response->getHeaderLine('Location'));
+    }
+
+    /** Review Focus 2. */
+    public function testAMalformedOrUnknownProgrammeIsDropped(): void
+    {
+        foreach (['abc', '-1', '1#x', '0', '12345678901', '999999'] as $program) {
+            $_SESSION = [];
+            $app = $this->korbo();
+            self::assertSame(302, $this->startWith($app, $program)->getStatusCode(), $program);
+            self::assertArrayNotHasKey('pairingReturn', $_SESSION['korbo26'], $program);
+            self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app), $program);
+        }
+    }
+
+    public function testTheProgrammeIsCheckedOnlyWhenSent(): void
+    {
+        $provider = $this->counted();
+        $app = $this->korbo($provider);
+
+        $this->request($app, 'POST', '/profil/propojit');
+        self::assertSame(0, $provider->programReads, 'a start without a programme reads no list');
+
+        $this->startWith($app, '1');
+        self::assertSame(1, $provider->programReads, 'a start with one checks it in the list once');
+    }
+
+    /**
+     * Only a well-formed id is looked up: a malformed one is dropped before the provider is
+     * asked, an unknown one costs one read. An event without Program never asks.
+     */
+    public function testOnlyAWellFormedProgrammeIsLookedUp(): void
+    {
+        foreach (['abc' => 0, '-1' => 0, '1#x' => 0, '0' => 0, '12345678901' => 0, '999999' => 1] as $program => $reads) {
+            $_SESSION = [];
+            $provider = $this->counted();
+            $this->startWith($this->korbo($provider), (string) $program);
+            self::assertSame($reads, $provider->programReads, (string) $program);
+        }
+
+        $_SESSION = [];
+        $provider = $this->counted();
+        $app = $this->createApp('minimal', [ProgramProviderInterface::class => $provider], fixtureEvent: true);
+        self::assertSame(302, $this->startWith($app, '1')->getStatusCode());
+        self::assertSame(0, $provider->programReads, 'an event without Program looks nothing up');
+    }
+
+    public function testAProviderFailureDropsTheTargetButStarts(): void
+    {
+        $app = $this->korbo(new class ($this->counted()) extends DelegatingProvider {
+            public function getPrograms(): array
+            {
+                throw new \App\Program\ProgramUnavailableException('down');
+            }
+        });
+
+        $response = $this->startWith($app, '1');
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/korbo26/profil', $response->getHeaderLine('Location'));
+        self::assertStringContainsString('<p class="pairing-code" data-pairing-poll>483 291</p>', $this->html($app, '/profil'));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app));
+    }
+
+    /** Review Focus 5. */
+    public function testTheRestartKeepsTheReturnTarget(): void
+    {
+        $app = $this->korbo();
+        $this->startWith($app, '1');
+
+        self::assertMatchesRegularExpression(
+            '#<form method="post" action="/korbo26/profil/propojit" class="stacked-form" data-write>\s*<input type="hidden" name="program" value="1">\s*<button type="submit" class="btn">Začít znovu</button>#u',
+            $this->html($app, '/profil'),
+        );
+
+        // what that form sends
+        $this->startWith($app, '1');
+        self::assertSame(['status' => 'approved', 'next' => 'programy#section-1-program-1'], $this->poll($app));
+    }
+
+    public function testTheStartFormCarriesTheProgrammeFromTheQuery(): void
+    {
+        $app = $this->korbo();
+
+        self::assertMatchesRegularExpression(
+            '#<form method="post" action="/korbo26/profil/propojit" class="stacked-form" data-write>\s*<input type="hidden" name="program" value="7">\s*<button type="submit" class="btn btn-primary">Přihlásit kódem z KissJ</button>#u',
+            $this->html($app, '/profil?program=7'),
+        );
+        self::assertStringNotContainsString('name="program"', $this->html($app, '/profil?program=abc'));
+        self::assertStringNotContainsString('name="program"', $this->html($app, '/profil'));
+    }
+
+    /** Review Focus 4. */
+    public function testWithoutProgramTheLandingIsProfil(): void
+    {
+        $app = $this->createApp('minimal', fixtureEvent: true);
+        $this->request($app, 'POST', '/profil/propojit');
+        self::assertSame(['status' => 'approved', 'next' => 'profil'], $this->poll($app));
+
+        $_SESSION = [];
+        $app = $this->createApp('minimal', fixtureEvent: true);
+        $this->request($app, 'POST', '/profil/propojit');
+        $response = $this->request($app, 'POST', '/profil/kontrola');
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/minimal/profil', $response->getHeaderLine('Location'));
+        self::assertNotNull($this->auth($app)->identity(), 'the check logged the reader in');
+    }
+
+    public function testAnExpiredPairingHasNoNext(): void
+    {
+        $app = $this->korbo($this->polling(\App\Program\PairingStatus::Expired));
+        $this->startWith($app, '1');
+
+        self::assertSame(['status' => 'expired'], $this->poll($app));
     }
 
     // --- secrets stay on the server ---
@@ -608,7 +776,7 @@ final class PairingTest extends AppTestCase
         self::assertSame(['status' => 'pending'], $this->poll($app));
         self::assertSame(['status' => 'slowDown'], $this->poll($app));
         self::assertStringContainsString('data-pairing-poll', $this->html($app, '/profil'));
-        self::assertSame(['status' => 'approved'], $this->poll($app));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app));
     }
 
     public function testAFailedParticipantReadAfterTheApprovalKeepsPolling(): void
@@ -635,7 +803,7 @@ final class PairingTest extends AppTestCase
         self::assertStringContainsString('data-pairing-poll', $this->html($app, '/profil'));
 
         // kissj re-issues the approval within a minute: the next poll collects it
-        self::assertSame(['status' => 'approved'], $this->poll($app));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app));
         self::assertSame(1, $this->auth($app)->identity()?->participantId);
     }
 
@@ -664,7 +832,7 @@ final class PairingTest extends AppTestCase
         self::assertStringNotContainsString('<p class="notice">', $html);
         self::assertStringNotContainsString('nedaří', $html);
 
-        self::assertSame(['status' => 'approved'], $this->poll($app));
+        self::assertSame(['status' => 'approved', 'next' => 'programy/moje'], $this->poll($app));
     }
 
     public function testAMalformedPollAnswerIsAFailedPollToo(): void
@@ -696,7 +864,7 @@ final class PairingTest extends AppTestCase
 
         $programs = $this->html($app, '/programy');
         self::assertStringNotContainsString('<p class="sheet-mine">', $programs);
-        self::assertStringNotContainsString('appbar-avatar', $programs);
+        self::assertStringNotContainsString('tab-avatar', $programs);
         self::assertStringContainsString('Nejsi přihlášen', $this->html($app, '/profil'));
     }
 
@@ -781,7 +949,7 @@ final class PairingTest extends AppTestCase
 
         self::assertSame(403, $response->getStatusCode());
         self::assertSame(0, $provider->revokes);
-        self::assertStringContainsString('appbar-avatar', $this->html($app, '/profil'));
+        self::assertStringContainsString('tab-avatar', $this->html($app, '/profil'));
     }
 
     public function testAnExpiredSessionOnProgramLogsOut(): void
@@ -796,7 +964,7 @@ final class PairingTest extends AppTestCase
 
         $html = $this->html($app, '/programy');
         self::assertStringContainsString('Propojení s KissJ už neplatí, přihlas se znovu.', $html);
-        self::assertStringNotContainsString('appbar-avatar', $html);
+        self::assertStringNotContainsString('tab-avatar', $html);
         self::assertNull($this->auth($app)->identity());
     }
 
