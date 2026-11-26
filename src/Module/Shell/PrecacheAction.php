@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Shell;
 
+use App\Environment;
 use App\EventConfig;
 use App\Http\AssetVersion;
 use App\Http\Precache;
@@ -16,7 +17,8 @@ use Slim\Routing\RouteContext;
 
 /**
  * GET /precache.json: what the service worker keeps (Http\Precache). no-cache: the worker
- * must see a new list the moment an asset changes. `aliases` is always a JSON object.
+ * must see a new list the moment an asset changes. `aliases` is always a JSON object;
+ * `imageOrigin` is the program provider's origin, `null` for `local`.
  */
 final class PrecacheAction
 {
@@ -26,6 +28,7 @@ final class PrecacheAction
         private readonly ScriptVersion $scripts,
         private readonly Modules $modules,
         private readonly Paths $paths,
+        private readonly Environment $environment,
     ) {}
 
     /** @param array<string, string> $args */
@@ -39,6 +42,7 @@ final class PrecacheAction
             $this->modules->sheets(),
             $this->modules->menu(),
             $this->paths->www,
+            $this->environment->programOrigin($this->event->slug),
         );
         // the worker reads `aliases` as an object: none is {}, never []
         $body['aliases'] = (object) $body['aliases'];

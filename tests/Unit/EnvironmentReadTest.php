@@ -209,6 +209,36 @@ final class EnvironmentReadTest extends TestCase
         self::assertSame('http://localhost:8080', Environment::fromGlobals()->programSource('obrok27'));
     }
 
+    /** Plan call 4: the origin the image filter, the CSP and the worker all compare against. */
+    public function testProgramOriginIsTheProvidersSchemeHostAndPort(): void
+    {
+        $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
+        foreach ([
+            'https://Kissj.Example:8443/sub/' => 'https://kissj.example:8443',
+            'http://localhost:8080' => 'http://localhost:8080',
+            'https://kissj.example' => 'https://kissj.example',
+            'local' => null,
+        ] as $value => $origin) {
+            $_ENV['PROGRAM_PROVIDER_OBROK27'] = $value;
+            self::assertSame($origin, Environment::fromGlobals()->programOrigin('obrok27'), $value);
+        }
+    }
+
+    /** Final review F2: the scheme's default port is no port, as a browser's `URL.origin` spells it. */
+    public function testProgramOriginDropsTheSchemesDefaultPort(): void
+    {
+        $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';
+        foreach ([
+            'https://kissj.example:443/' => 'https://kissj.example',
+            'http://kissj.example:80' => 'http://kissj.example',
+            'https://kissj.example:80' => 'https://kissj.example:80',
+            'http://kissj.example:443' => 'http://kissj.example:443',
+        ] as $value => $origin) {
+            $_ENV['PROGRAM_PROVIDER_OBROK27'] = $value;
+            self::assertSame($origin, Environment::fromGlobals()->programOrigin('obrok27'), $value);
+        }
+    }
+
     public function testAnythingButLocalOrAnHttpUrlNamesTheVariable(): void
     {
         $_ENV['KISSJ_API_KEY_OBROK27'] = 'secret-key';

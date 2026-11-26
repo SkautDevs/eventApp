@@ -10,7 +10,9 @@
  * browser's way: install fills the new cache, activate drops the others. A new list
  * version under an unchanged sw.js — the usual deploy — never reaches install, because
  * the browser reinstalls a worker only when its script changes; the version check that
- * runs after the first page from the network (checkVersion()) picks it up instead.
+ * runs after the first page from the network (checkVersion()) picks it up instead. The
+ * photos the reader has seen are kept apart, in eventapp-<slug>-img, which no version owns
+ * (photo()).
  *
  * Rollback: a sw.js with only the push and notificationclick handlers plus an activate
  * that deletes every PREFIX cache (docs/deployment.md).
@@ -24,8 +26,18 @@ const PREFIX = 'eventapp-' + SLUG + '-';
  * This event's caches: PREFIX and an 8-hex version, nothing longer. PREFIX alone is a
  * prefix of another event's caches too (ab-26 and ab-26-27), whose caches this worker
  * must never adopt or delete. A slug is [a-z0-9-], nothing a regex reads specially.
+ * IMAGES never matches it ('img' is not 8 hex), so adopt(), purgeHtml() and
+ * newestComplete() never touch the photos.
  */
 const MINE = new RegExp('^' + PREFIX + '[0-9a-f]{8}$');
+/**
+ * The photos the reader has seen — a programme's gallery and its rows' thumbnails — kept
+ * for offline in a cache of their own: no list version owns them, so a deploy keeps them,
+ * and a photo is no page, so a write's purge keeps them too.
+ */
+const IMAGES = PREFIX + 'img';
+/** How many photos IMAGES keeps; past it the oldest go (trimImages()). */
+const IMAGE_CAP = 200;
 /** How long a page may take before the cached copy is shown instead. */
 const NETWORK_TIMEOUT = 3000;
 
@@ -341,8 +353,13 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
 	const request = event.request;
 	const url = new URL(request.url);
+	// a photo: the provider's, cross-origin, or one of the event's demo files
+	if (request.method === 'GET' && request.destination === 'image' && (url.origin !== self.location.origin || url.pathname.startsWith('/events/' + SLUG + '/demo/'))) {
+		event.respondWith(photo(event, url));
+		return;
+	}
 	if (url.origin !== self.location.origin) {
-		return;   // the map's iframe: the browser's business
+		return;   // every other cross-origin request (the map's iframe): the browser's business
 	}
 	const inScope = url.pathname.startsWith(BASE);
 
@@ -622,6 +639,50 @@ function cacheFirst(event) {
 		}
 		return response;
 	}));
+}
+
+/**
+ * The program provider's origin, read off the stored list (App\Http\Precache): the one
+ * other origin whose photos are kept. null for a `local` event, without a stored list, or
+ * with one from before the list had it.
+ */
+function imageOriginOf() {
+	return currentCache()
+		.then(cache => cache && cache.match(SCOPE + 'precache.json'))
+		.then(stored => (stored ? stored.json() : null))
+		.then(list => (list && typeof list.imageOrigin === 'string' ? list.imageOrigin : null));
+}
+
+/**
+ * A photo, cache-first in IMAGES: a photo never changes under its URL (kissj gives a
+ * changed image a new name, contract 3.1, and so does a changed demo file). A miss goes to the network,
+ * and a whole answer is kept under the URL, the cap then enforced. The provider's photo is
+ * a `cors` answer (the <img> asks with crossorigin="anonymous"), so storable() and its
+ * `basic` do not apply; an opaque answer is never kept, its status unreadable and its size
+ * padded against the quota. A failed fetch rejects, so the <img> errors and its frame keeps
+ * the event's mark. An image of any other origin goes straight to the network: the handler
+ * cannot read the stored list synchronously to leave it to the browser, and the page's
+ * img-src admits no other origin anyway.
+ */
+function photo(event, url) {
+	const kept = url.origin === self.location.origin
+		? Promise.resolve(true)
+		: imageOriginOf().then(origin => origin === url.origin, () => false);
+	return kept.then(keep => (keep
+		? caches.open(IMAGES).then(cache => cache.match(url.href, {ignoreVary: true}).then(hit => hit || fetch(event.request).then(response => {
+			if (response.ok && response.type !== 'opaque') {
+				// put first, then trim: the photo just seen is the newest, never the one dropped
+				event.waitUntil(cache.put(url.href, response.clone()).then(trimImages).catch(() => null));
+			}
+			return response;
+		})))
+		: fetch(event.request)));
+}
+
+/** Drops the oldest photos past IMAGE_CAP; keys() lists them in insertion order. */
+function trimImages() {
+	return caches.open(IMAGES).then(cache => cache.keys()
+		.then(keys => Promise.all(keys.slice(0, Math.max(0, keys.length - IMAGE_CAP)).map(key => cache.delete(key)))));
 }
 
 /** An event file without a version (a logo replaced in place): the copy now, the new one next time. */

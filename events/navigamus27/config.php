@@ -161,5 +161,9 @@ return [
         // goes under a new file name, since files under www/events/ are cached as immutable.
         'image' => 'events/navigamus27/plan-navigamus-n27.png',
         'imageAlt' => 'Plán areálu Navigamus',
+        // The plan image's edges in degrees, which put a place with GPS on the plan:
+        // extrapolated from docs/navigamus_plan/draw.py (the inverse of its px() at the
+        // image's corners). Demo-grade until the real layer is final.
+        'planBounds' => ['north' => 49.898275, 'south' => 49.894169, 'west' => 18.163925, 'east' => 18.173170],
     ],
 ];

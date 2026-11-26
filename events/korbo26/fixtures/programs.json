@@ -14,7 +14,20 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "Pojďme si společně zahrát volejbal.\nKonkrétní časy budeme domlouvat přes Whatsappovou skupinu tak aby se nás sešlo vždycky alespoň 8.\nKrom toho proběhne jedna nebo dvě hry pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6,
+        "images": [
+            {
+                "url": "/events/korbo26/demo/volejbal-1.webp",
+                "thumbUrl": "/events/korbo26/demo/volejbal-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/korbo26/demo/volejbal-2.webp",
+                "thumbUrl": "/events/korbo26/demo/volejbal-2-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 2,
@@ -66,7 +79,8 @@
         "lector": null,
         "location": "Jiné místo - specifikuj",
         "perex": "Najdi teepee, najdi stavbu pece na pizzu a můžeš se ucházet o práci! Vsadím se že takový dva kýble jílovitýho bláta vyměníme za pizzu.\n\nTaky můžes okoukat stavbu absolutně redneck pece na pizzu!",
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 5,
@@ -83,7 +97,14 @@
         "lector": null,
         "location": null,
         "perex": "Aby sis rozšířil(a) obzory i nad rámec skupinky, se kterou na Korbo jedeš, přijď se seznámit s novými lidmi během speed datingu, který spočívá v krátkých časově ohraničených pokecech s lidmi na různá (daná i vlastní) témata.\n\nCílem aktivity není najít sobě spřízněnou duši, ale prohodit pár slov s potenciálními novými kamarády. :)\n\nKapacita: neomezená",
-        "tools": null
+        "tools": null,
+        "images": [
+            {
+                "url": "/events/korbo26/demo/seznamka-1.webp",
+                "thumbUrl": "/events/korbo26/demo/seznamka-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 6,
@@ -117,7 +138,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 8,
@@ -134,7 +156,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark pro noční sovy",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 9,
@@ -151,7 +174,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "Pojďme si společně zahrát volejbal.\nKonkrétní časy budeme domlouvat přes Whatsappovou skupinu tak aby se nás sešlo vždycky alespoň 8.\nKrom toho proběhne jedna nebo dvě hry pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 10,
@@ -168,7 +192,8 @@
         "lector": null,
         "location": "Jiné místo - specifikuj",
         "perex": "Protože máme Orlici co by kamenem dohodil, přivezem lodě (kánoe) a splujeme 10 říčních kilometrů z Petroviček do Krňovic. Cestou nás čekají klidné meandry, ale i jeden kamenný stupeň pro zpestření!\n\nAktivita má tyto parametry:\n\n- sraz 8:00 u nástěnky\n- musíš být plavec\n- zkušenosti s vodou a loděma žádoucí\n- s sebou měj boty na vodu (nebo nějaké náhradní s pevnou patou a špičkou) a nějaké oblečení na převlečení\n- budu schopná odvézt autem max 6 dalších lidí, pro zajištění dobré dopravy bude potřeba sehnat další auta (pokud máš, dej mi vědět na <[odstraněno]>)\n- pokud nebude přát počasí, aktivita neproběhne (toto rozhodnutí padne ještě před Korbem) - rozhodující je teplota a déšť",
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 11,
@@ -185,7 +210,15 @@
         "lector": null,
         "location": "Louka u Mlýna",
         "perex": "Libová fitka, při které se budete cítit jako v castingu na scénu Bullet time. Kdo zůstane ve hře poslední, může si říkat Keanu Reeves.",
-        "tools": null
+        "tools": null,
+        "placeId": 3,
+        "images": [
+            {
+                "url": "/events/korbo26/demo/louka-1.webp",
+                "thumbUrl": "/events/korbo26/demo/louka-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 12,
@@ -202,7 +235,8 @@
         "lector": null,
         "location": "Nástěnka",
         "perex": "Půjdeme se po ránu osvěžit a nabrat nový dech do nového dne. Poslouží k tomu nedaleká nádrž Marokánka.\n\nSsebou ručník, možno plavací míč, nebo frisbee, volitelně plavky",
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 13,
@@ -219,7 +253,25 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Pokusíme se dovézt naše krátké a dlouhé vzduchovky (hromové hole, hehe) a na bezpečném místě udělat volnou střelbu (a ekologickou olověnou katastrofu). Když budeme mít náladu, zkusíme si zasoutěžit v přesnosti!\n\nPřesný místo a čas upřesníme.",
-        "tools": null
+        "tools": null,
+        "placeId": 2,
+        "images": [
+            {
+                "url": "/events/korbo26/demo/strelba-1.webp",
+                "thumbUrl": "/events/korbo26/demo/strelba-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/korbo26/demo/louka-1.webp",
+                "thumbUrl": "/events/korbo26/demo/louka-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/korbo26/demo/volejbal-2.webp",
+                "thumbUrl": "/events/korbo26/demo/volejbal-2-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 14,
@@ -236,7 +288,8 @@
         "lector": null,
         "location": "Jiné místo - specifikuj",
         "perex": "Praktická ukázka (na tee-pee co RK Standy Ptáčka minulé léto ušil) jak se taková věc dělá a že to není zas tak těžký. Pokecáme o velikosti a typech tee-pee a co vám při jeho výrobě pomůže - kde sehnat rady i materiál + nasdílíme tipy a triky.\nJako bonus můžeme navázat na téma skládacích tyčí či stavby:).\n\nAktivita se bude konat přímo u týpí!",
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 15,
@@ -287,7 +340,8 @@
         "lector": null,
         "location": "Jiné místo - specifikuj",
         "perex": "Protože máme Orlici co by kamenem dohodil, přivezem lodě (kánoe) a (podruhé) splujeme 10 říčních kilometrů z Petroviček do Krňovic. Cestou nás čekají klidné meandry, ale i jeden kamenný stupeň pro zpestření!\n\nAktivita má tyto parametry:\n\n- sraz 13:00 u nástěnky\n- musíš být plavec\n- zkušenosti s vodou a loděma žádoucí\n- s sebou měj boty na vodu (nebo nějaké náhradní s pevnou patou a špičkou) a nějaké oblečení na převlečení\n- budu schopná odvézt autem max 6 dalších lidí, pro zajištění dobré dopravy bude potřeba sehnat další auta (pokud máš, dej mi vědět na <[odstraněno]>)\n- pokud nebude přát počasí, aktivita neproběhne (toto rozhodnutí padne ještě před Korbem) - rozhodující je teplota a déšť",
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 18,
@@ -321,7 +375,8 @@
         "lector": null,
         "location": "Louka u Mlýna",
         "perex": "Uspořádáme turnaj ve fofršťouchu. Co to je?\n\n2 hráči stojí proti sobě a pravou rukou se pevně uchopí, přičemž ukazováčky míří proti soupeři.\nCíl: Ukazováčkem se dotknout jakékoli části soupeřova těla kromě pravého předloktí. Kdo se dotkne první, vyhrává.\nPovoleno je téměř vše v rámci základní bezpečnosti (přetahování, držení druhou rukou apod.) mimo lechtání.\n\nJestli si nejste jistí podobou hry, dorazte a počkejte si na názornou ukázku.\n\nRádi bychom ve finále uzavírali sázky, jen ještě musíme domyslet o co by se sázelo.\n\nKapacita je teoreticky neomezená. Od ní se bude odvíjet délka trvání turnaje.",
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 20,
@@ -338,7 +393,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "slibovaná hra pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 21,
@@ -389,7 +445,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 24,
@@ -406,7 +463,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark pro noční sovy",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 25,
@@ -423,7 +481,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "Pojďme si společně zahrát volejbal.\nKonkrétní časy budeme domlouvat přes Whatsappovou skupinu tak aby se nás sešlo vždycky alespoň 8.\nKrom toho proběhne jedna nebo dvě hry pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 26,
@@ -440,7 +499,8 @@
         "lector": null,
         "location": "Nástěnka",
         "perex": "Půjdeme se po ránu osvěžit a nabrat nový dech do nového dne. Poslouží k tomu nedaleká nádrž Marokánka.\n\nSsebou ručník, možno plavací míč, nebo frisbee, volitelně plavky",
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 27,
@@ -474,7 +534,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Pár her, pár náhodných dvojic, pár trochu zvláštních otázek a možná pár nových lidí, se kterými pak strávíš zbytek KORBA.\n\nPřijď si popovídat, prolomit ledy a poznat někoho, s kým můžeš zajít na jídlo, zahrát deskovku, vyrazit na další program nebo jen tak posedět.",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 29,
@@ -491,7 +552,8 @@
         "lector": null,
         "location": "Louka u Mlýna",
         "perex": "Na chvíli budeme indiáni a rozdáme si to v solidní partičce Lacrossu! Pálky a tenisák dovezeme, ty si přijď zahrát! (neznalým vysvětlíme, natrénujeme)\n\nKyf se vás bude snažit přesvědčit k jedné \"víc indiánské\" a kontaktnější hře lacrossu jen v bederních rouškách/trenkách (indiánky libovolně) - když ho vybučíte, má smůlu.",
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 30,
@@ -542,7 +604,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "slibovaná hra pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 33,
@@ -593,7 +656,8 @@
         "lector": null,
         "location": "Louka u Mlýna",
         "perex": "Máme frisbee, máme louku!\nUděláme dvě čáry!\nZahrajeme přátelskou hru frisbee!\n(kdo nezná, rychle se naučí)",
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 36,
@@ -611,7 +675,8 @@
         "location": "Jiné místo - specifikuj",
         "perex": "Ani letos na Korbu nebude chybět příležitost k tanci. Vítáni jsou všichni tanečníci od úplných začátečníků až po chronické vymetače plesů.\n\nBudeme tančit předevšímn klasiku a latinu. Pro ty, kdo by si potřebovali kroky osvěžit, nebo budou tančit úplně poprvé budu k dispozici. Můžeme také okoukat nějaké nové figiury od ostatních párů a vzájemně se obohatit.",
         "tools": null,
-        "preregistered": true
+        "preregistered": true,
+        "placeId": 1
     },
     {
         "id": 37,
@@ -645,7 +710,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Hra mírně násilná a dobrodružná! Doporučujeme vzít sebou věci na zašpinění a hrát bez brýlí! (Brutalitou mírně méně násilná než-li buldoci)",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 39,
@@ -662,7 +728,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 40,
@@ -679,7 +746,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark pro noční sovy",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 41,
@@ -696,7 +764,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "Pojďme si společně zahrát volejbal.\nKonkrétní časy budeme domlouvat přes Whatsappovou skupinu tak aby se nás sešlo vždycky alespoň 8.\nKrom toho proběhne jedna nebo dvě hry pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 42,
@@ -713,7 +782,8 @@
         "lector": null,
         "location": "Nástěnka",
         "perex": "Půjdeme se po ránu osvěžit a nabrat nový dech do nového dne. Poslouží k tomu nedaleká nádrž Marokánka.\n\nSsebou ručník, možno plavací míč, nebo frisbee, volitelně plavky",
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 43,
@@ -730,7 +800,8 @@
         "lector": null,
         "location": "Molo",
         "perex": "Sedneme si společně někam k molu, přečteme si pár přípravených textíků o přírodě, a v rámci krátké diskuze na ně volně navážeme.\n\nVhodné pro kohokoli, kdo má rád přírodu. Nemusíte dokonce ani umět číst.",
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 44,
@@ -764,7 +835,8 @@
         "lector": null,
         "location": "Nástěnka",
         "perex": "Je čas opět kouzlit na skautské akci! 6. ročník Magie na Korbu nabídne oblíbenou pouliční magii. Letos je to 5 let od mého prvního kouzlení na Korbu a zároveň 5 let skautské odborky Kouzelník/Kouzelnice.\n\nZ ulice akce se stane jeviště a z vás, účastníků, hlavní postavy v situacích, ve kterých se stane něco překvapivého. Žádné složité dekorace a rekvizity, žádní figuranti. Jen vy a skautský kouzelník. Moderní magie přichází za vámi.\n\nKouzlit se bude v daném čase na různých místech areálu. Začátek je tradičně u nástěnky.\n\nChceš-li, napiš si předem o kouzelnický zážitek: IG/FB: [odstraněno]",
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 46,
@@ -781,7 +853,8 @@
         "lector": null,
         "location": "Molo",
         "perex": "Chvíle klidu pro všechny, kteří chtějí dát sudoku šanci.\n\nPřijď si na chvíli odpočinout a vyčistit hlavu. Případně sdílet pokročilejší taktiky.\n\nSudoku různých obtížností budou připravená na místě.",
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 47,
@@ -798,7 +871,8 @@
         "lector": null,
         "location": "Molo",
         "perex": "Pro tvorbu časopisu potřebujeme i zpětnou vazbu, protože chceme dělat časopis roverům na míru. Přijď si pokecat s redaktorkou Štikou a editorem Kyblíkem o časopisu a odnes si i zajímavosti o tvorbě časopisu.",
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 48,
@@ -832,7 +906,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "slibovaná hra pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 50,
@@ -918,7 +993,8 @@
         "lector": null,
         "location": "Nástěnka",
         "perex": "Letošní 6. ročník Magie na Korbu zakončí tradiční Večerní mikromagie. Před 5 lety jsem právě tímto programem odstartoval kouzlení na Korbu.\n\nNech se vtáhnout do světa moderní magie, zažij čtení myšlenek a vytvoř zázrak ve svých rukou.\n\nZačíná se u nástěnky a dále se bude kouzlit tam, kde budou účastníci a světlo.",
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 55,
@@ -935,7 +1011,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Hra mírně násilná a dobrodružná! Doporučujeme vzít sebou věci na zašpinění a hrát bez brýlí! (Brutalitou mírně méně násilná než-li buldoci)",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 56,
@@ -952,7 +1029,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 57,
@@ -969,7 +1047,8 @@
         "lector": null,
         "location": "Louka Lesopark",
         "perex": "Společná večerka u ohniště, nebo na louce Lesopark pro noční sovy",
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 58,
@@ -986,7 +1065,8 @@
         "lector": null,
         "location": "Volejbalové hřiště",
         "perex": "Pojďme si společně zahrát volejbal.\nKonkrétní časy budeme domlouvat přes Whatsappovou skupinu tak aby se nás sešlo vždycky alespoň 8.\nKrom toho proběhne jedna nebo dvě hry pro pokročilé",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 59,
@@ -1003,6 +1083,7 @@
         "lector": null,
         "location": "Nástěnka",
         "perex": "Půjdeme se po ránu osvěžit a nabrat nový dech do nového dne. Poslouží k tomu nedaleká nádrž Marokánka.\n\nSsebou ručník, možno plavací míč, nebo frisbee, volitelně plavky",
-        "tools": null
+        "tools": null,
+        "placeId": 5
     }
 ]

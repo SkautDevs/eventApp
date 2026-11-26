@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "name": "Jiné místo - specifikuj",
+        "lat": null,
+        "lng": null
+    },
+    {
+        "id": 2,
+        "name": "Louka Lesopark",
+        "lat": null,
+        "lng": null
+    },
+    {
+        "id": 3,
+        "name": "Louka u Mlýna",
+        "lat": null,
+        "lng": null
+    },
+    {
+        "id": 4,
+        "name": "Molo",
+        "lat": null,
+        "lng": null
+    },
+    {
+        "id": 5,
+        "name": "Nástěnka",
+        "lat": null,
+        "lng": null
+    },
+    {
+        "id": 6,
+        "name": "Volejbalové hřiště",
+        "lat": null,
+        "lng": null
+    }
+]

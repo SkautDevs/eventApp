@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use App\Program\LocalProgramProvider;
+use App\Program\ProgramDataException;
+use App\Program\ProgramProviderInterface;
+use App\Program\ProgramUnavailableException;
 use Tests\CoreStylesheet;
 
 /** Místa: the map screen, with Google's embed, the handbook's plan, or both. */
@@ -69,13 +73,162 @@ final class MapTest extends AppTestCase
         self::assertMatchesRegularExpression('/\.map-offline-text \{\s*opacity: 0\.8;/', $css);
     }
 
+    /**
+     * The embed alone keeps its markup inside a root of its own (Plan call 14): no pill, no
+     * plan, the iframe a lone child of div.map, which knows its plain address.
+     */
     public function testAnEmbedAloneRendersAsBefore(): void
     {
         $html = (string) $this->request($this->createApp('map-embed', fixtureEvent: true), 'GET', '/mapa')->getBody();
 
-        self::assertStringNotContainsString('data-map-root', $html);
         self::assertStringNotContainsString('Zobrazit plán', $html);
-        self::assertStringContainsString('<div class="map" data-map>', $html);
+        self::assertStringNotContainsString('role="tablist"', $html);
+        self::assertStringNotContainsString('data-plan', $html);
+        self::assertMatchesRegularExpression('#<div class="map" data-map>\s*<iframe src="https://www\.google\.com/maps/d/u/1/embed\?mid=test" data-embed="https://www\.google\.com/maps/d/u/1/embed\?mid=test" [^>]*></iframe>\s*</div>#', $html);
+    }
+
+    public function testTheEmbedAloneIsARoot(): void
+    {
+        $html = (string) $this->request($this->createApp('map-embed', fixtureEvent: true), 'GET', '/mapa')->getBody();
+
+        self::assertMatchesRegularExpression('#<div data-map-root data-map-event="map-embed" data-view="google">\s*<div class="map" data-map>#', $html);
+        // the offline note stays the map's next sibling, inside the root
+        self::assertMatchesRegularExpression('#</iframe>\s*</div>\s*<p class="empty map-offline" data-map-offline hidden>Mapa potřebuje připojení\.</p>\s*</div>#', $html);
+    }
+
+    /**
+     * Every place with GPS inside planBounds gets a marker on the plan, at its share of the
+     * image's width and height, hidden until an address names it; a place without GPS or
+     * outside the bounds gets none. The image and the markers share one canvas.
+     */
+    public function testEveryPlaceOnThePlanHasAHiddenMarker(): void
+    {
+        $html = $this->mapPlaces('/mapa/plan');
+
+        self::assertStringContainsString('<span class="plan-marker" id="misto-1" data-key="place-1" data-place="1" style="left: 25.00%; top: 50.00%" hidden data-morph-keep="hidden"><span class="plan-marker-label">Brána</span></span>', $html);
+        self::assertStringContainsString('<span class="plan-marker" id="misto-4" data-key="place-4" data-place="4" style="left: 0.00%; top: 0.00%" hidden data-morph-keep="hidden"><span class="plan-marker-label">Roh</span></span>', $html);
+        self::assertStringNotContainsString('misto-2', $html);
+        self::assertStringNotContainsString('misto-3', $html);
+        self::assertLessThan(strpos($html, 'id="misto-4"'), strpos($html, 'id="misto-1"'), 'markers in the places order');
+        self::assertMatchesRegularExpression('#<div class="plan" data-plan>\s*<div class="plan-canvas" data-plan-canvas>\s*<img class="plan-img" src="/events/obrok19/plan-example\.png" alt="Plán areálu" data-plan-img>\s*<span class="plan-marker" id="misto-1"#', $html);
+    }
+
+    public function testMistoShowsItsMarkerAndCentresTheEmbed(): void
+    {
+        $html = $this->mapPlaces('/mapa/plan?misto=1');
+
+        self::assertStringContainsString('<span class="plan-marker" id="misto-1" data-key="place-1" data-place="1" style="left: 25.00%; top: 50.00%" data-morph-keep="hidden">', $html);
+        self::assertStringContainsString('id="misto-4" data-key="place-4" data-place="4" style="left: 0.00%; top: 0.00%" hidden data-morph-keep="hidden">', $html);
+        self::assertStringContainsString('<iframe src="https://www.google.com/maps/d/embed?mid=test&amp;ll=50.005000,15.005000&amp;z=18" data-embed="https://www.google.com/maps/d/embed?mid=test"', $html);
+        self::assertStringContainsString('id="map-tab-plan" href="/map-places/mapa/plan?misto=1#misto-1"', $html);
+        self::assertStringContainsString('id="map-tab-google" href="/map-places/mapa?misto=1"', $html);
+        self::assertStringContainsString('data-view="plan"', $html);
+    }
+
+    public function testAPlaceOutsideThePlanStillCentresTheEmbed(): void
+    {
+        $html = $this->mapPlaces('/mapa?misto=3');
+
+        self::assertSame(substr_count($html, 'class="plan-marker"'), substr_count($html, ' hidden data-morph-keep="hidden"'), 'no marker is shown');
+        self::assertStringContainsString('<iframe src="https://www.google.com/maps/d/embed?mid=test&amp;ll=51.000000,15.000000&amp;z=18"', $html);
+        self::assertStringContainsString('id="map-tab-plan" href="/map-places/mapa/plan?misto=3#misto-3"', $html);
+    }
+
+    /** The embed carries every place with GPS, on the plan or off it, for a script to centre on. */
+    public function testTheEmbedKnowsEveryPlaceWithGps(): void
+    {
+        $html = $this->mapPlaces('/mapa');
+
+        self::assertMatchesRegularExpression(
+            '#<iframe [^>]*></iframe>\s*<div data-map-places hidden>'
+            . '<span data-key="place-1" data-place="1" data-lat="50.005000" data-lng="15.005000"></span>'
+            . '<span data-key="place-3" data-place="3" data-lat="51.000000" data-lng="15.000000"></span>'
+            . '<span data-key="place-4" data-place="4" data-lat="50.010000" data-lng="15.000000"></span>'
+            . '</div>\s*</div>\s*<p class="empty map-offline#',
+            $html,
+        );
+        self::assertStringNotContainsString('data-place="2"', $html);
+    }
+
+    /** A plan-only event has no embed, so no list for one. */
+    public function testAPlanOnlyEventHasMarkersAndNoPlacesList(): void
+    {
+        $html = (string) $this->request($this->createApp('map-places-plan', fixtureEvent: true), 'GET', '/mapa?misto=1')->getBody();
+
+        self::assertStringContainsString('<span class="plan-marker" id="misto-1" data-key="place-1" data-place="1" style="left: 25.00%; top: 50.00%" data-morph-keep="hidden">', $html);
+        self::assertStringNotContainsString('data-map-places', $html);
+        self::assertStringNotContainsString('<iframe', $html);
+    }
+
+    /** @return array<string, array{string}> */
+    public static function ignoredMisto(): array
+    {
+        return [
+            'not a number' => ['?misto=abc'],
+            'an array' => ['?misto[]=1'],
+            'a leading zero' => ['?misto=007'],
+            'too long' => ['?misto=99999999999'],
+            'a place without GPS' => ['?misto=2'],
+            'an unknown place' => ['?misto=42'],
+            'zero' => ['?misto=0'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('ignoredMisto')]
+    public function testAnInvalidOrUnknownMistoIsIgnored(string $query): void
+    {
+        $response = $this->request($this->createApp('map-places', fixtureEvent: true), 'GET', '/mapa/plan' . $query);
+
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string) $response->getBody();
+        self::assertSame(2, substr_count($html, 'class="plan-marker"'));
+        self::assertSame(2, substr_count($html, ' hidden data-morph-keep="hidden"'), 'every marker hidden');
+        self::assertStringContainsString('<iframe src="https://www.google.com/maps/d/embed?mid=test" data-embed="https://www.google.com/maps/d/embed?mid=test"', $html);
+        self::assertStringContainsString('id="map-tab-plan" href="/map-places/mapa/plan" ', $html);
+        self::assertStringContainsString('id="map-tab-google" href="/map-places/mapa" ', $html);
+    }
+
+    /** @return array<string, array{\Throwable}> */
+    public static function providerFailures(): array
+    {
+        return [
+            'unavailable' => [new ProgramUnavailableException('down')],
+            'bad data' => [new ProgramDataException('garbled')],
+        ];
+    }
+
+    /** The places are programme data: without them Místa still renders, with no marker. */
+    #[\PHPUnit\Framework\Attributes\DataProvider('providerFailures')]
+    public function testAProviderFailureLeavesTheMapWithoutMarkers(\Throwable $failure): void
+    {
+        $app = $this->createApp('map-places', [ProgramProviderInterface::class => new ThrowingProgramProvider(programsException: $failure)], fixtureEvent: true);
+        $response = $this->request($app, 'GET', '/mapa/plan?misto=1');
+
+        self::assertSame(200, $response->getStatusCode());
+        $html = (string) $response->getBody();
+        self::assertStringContainsString('data-plan-img', $html);
+        self::assertStringNotContainsString('plan-marker"', $html);
+        self::assertStringNotContainsString('data-map-places', $html);
+        self::assertStringContainsString('<iframe src="https://www.google.com/maps/d/embed?mid=test" ', $html);
+    }
+
+    /** Only Program links to a place (Plan call 11): an event without it asks the provider nothing. */
+    public function testAnEventWithoutProgramsReadsNoPlaces(): void
+    {
+        $provider = new CountingProgramProvider(new LocalProgramProvider(dirname(__DIR__) . '/fixtures/events/map-places/fixtures', $this->stubState));
+        $app = $this->createApp('map-plan', [ProgramProviderInterface::class => $provider], fixtureEvent: true);
+
+        self::assertSame(200, $this->request($app, 'GET', '/mapa/plan?misto=1')->getStatusCode());
+        self::assertSame(0, $provider->placeReads);
+        self::assertSame(0, $provider->programReads);
+    }
+
+    private function mapPlaces(string $path): string
+    {
+        $response = $this->request($this->createApp('map-places', fixtureEvent: true), 'GET', $path);
+        self::assertSame(200, $response->getStatusCode(), $path);
+
+        return (string) $response->getBody();
     }
 
     public function testAPlanAloneHasNoPill(): void

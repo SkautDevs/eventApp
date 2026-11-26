@@ -1,0 +1,13 @@
+{#- The photo placeholder: the event's logo, centred in a photo's frame under the photo
+   (programs.twig's gallery), so a photo that is still loading, or failed, leaves the
+   event's mark on `tonal` rather than an empty box. Domů's `mainLogo`, with its dark twin
+   when the event has one, else the tab bar's `menuLogo`, else nothing: the frame alone.
+   Decorative, so alt is empty; lazy like the photo over it. No whitespace around it: the
+   frame's markup is asserted as one string. -#}
+{%- if event.assets.mainLogo and event.assets.mainLogoDark -%}
+	<img class="photo-mark mode-light-only" src="{{ event.assets.mainLogo }}" alt="" loading="lazy" decoding="async"><img class="photo-mark mode-dark-only" src="{{ event.assets.mainLogoDark }}" alt="" loading="lazy" decoding="async">
+{%- elseif event.assets.mainLogo -%}
+	<img class="photo-mark" src="{{ event.assets.mainLogo }}" alt="" loading="lazy" decoding="async">
+{%- elseif event.assets.menuLogo -%}
+	<img class="photo-mark" src="{{ event.assets.menuLogo }}" alt="" loading="lazy" decoding="async">
+{%- endif -%}

@@ -7,9 +7,12 @@ namespace App\Module\Programs;
 use App\Auth\Authenticator;
 use App\Auth\CurrentParticipant;
 use App\EventConfig;
+use App\Module\Map\PlaceLinks;
 use App\Module\Programs\View\ProgramsPage;
+use App\Module\Programs\View\Sheet;
 use App\Module\Programs\View\SheetMessage;
 use App\Module\Programs\View\TimelinePage;
+use App\Program\Place;
 use App\Program\ProgramDataException;
 use App\Program\ProgramProviderInterface;
 use App\Program\ProgramUnavailableException;
@@ -21,16 +24,18 @@ use App\View\TemplateContext;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Slim\Interfaces\RouteParserInterface;
+use Slim\Routing\RouteContext;
 use Slim\Views\Twig;
 
 /**
  * GET /programy, /programy/prehled and /programy/moje: the three views of the programme
  * (ScheduleBuilder), the one the route's `view` argument names painted first, the
  * timeline on the page the query `den` names (a day chip's link) or today's, every
- * sheet with its footer (SheetBuilder::footer()) and the organisers' messages about it, and the toast a
- * register or unregister left. The paired reader's own programmes are read best effort: a
- * session kissj no longer knows logs the reader out, and this very page says why; an
- * outage leaves a notice.
+ * sheet with its footer (SheetBuilder::footer()), the organisers' messages about it and its
+ * pin to the place on Místa (placeHref()), and the toast a register or unregister left.
+ * The paired reader's own programmes are read best effort: a session kissj no longer
+ * knows logs the reader out, and this very page says why; an outage leaves a notice.
  */
 final class ShowAction
 {
@@ -42,6 +47,7 @@ final class ShowAction
         private readonly Authenticator $auth,
         private readonly Toasts $toasts,
         private readonly MessageRepository $messages,
+        private readonly PlaceLinks $placeLinks,
         private readonly Twig $twig,
     ) {}
 
@@ -113,6 +119,18 @@ final class ShowAction
                 );
             }
         }
+        // the places a sheet's pin can lead to, read only when Místa could show one; they
+        // are an extra, so a failure leaves every place as text and says nothing
+        $places = [];
+        if ($schedule->details !== [] && $this->placeLinks->possible()) {
+            try {
+                $places = $provider->getPlaces();
+            } catch (ProgramUnavailableException|ProgramDataException) {
+                $places = [];
+            }
+        }
+        $routes = RouteContext::fromRequest($request)->getRouteParser();
+
         // asked after the read, which may have logged the reader out
         $paired = $this->auth->isLogged();
         $details = [];
@@ -122,6 +140,7 @@ final class ShowAction
                 $window === null && $paired
                     ? null
                     : SheetBuilder::footer($detail, $paired, $mineRead, $window ?? new RegistrationWindow(null, null), $now),
+                $this->placeHref($detail, $places, $routes),
             );
         }
 
@@ -142,6 +161,28 @@ final class ShowAction
         );
 
         return $toasts->mark($this->twig->render($response, 'programs.twig', TemplateContext::of($page)), $toast);
+    }
+
+    /**
+     * The sheet's pin: Místa on the sheet's place, `?misto=<id>` for its marker or the
+     * centred map and `#misto-<id>` for the scroll to the marker without a script. Only a
+     * sheet that prints a location and names a place Místa can show (PlaceLinks::route())
+     * has one; any other is null and Kde stays text.
+     *
+     * @param array<int, Place> $places keyed by id
+     */
+    private function placeHref(Sheet $detail, array $places, RouteParserInterface $routes): ?string
+    {
+        $place = $detail->placeId === null ? null : $places[$detail->placeId] ?? null;
+        if ($place === null || $detail->location === null) {
+            return null;
+        }
+        $route = $this->placeLinks->route($place);
+        if ($route === null) {
+            return null;
+        }
+
+        return $routes->urlFor($route) . '?misto=' . $place->id . '#misto-' . $place->id;
     }
 
     /**

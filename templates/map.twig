@@ -3,9 +3,15 @@
 {% set pageTitle = 'Místa' %}
 {% set activeTab = 'map' %}
 
-{% macro google(embedUrl, withPlan) %}
+{% macro google(embedUrl, withPlan, embedSrc, places) %}
+		{# the iframe opens on embedSrc, the embed centred on the place the address names
+		   (or the embed itself); data-embed keeps the plain address, and the hidden list
+		   every place with GPS, for www/js/map/ to centre on without a reload #}
 		<div class="map" data-map>
-			<iframe src="{{ embedUrl }}" title="Mapa areálu" loading="lazy" allowfullscreen></iframe>
+			<iframe src="{{ embedSrc }}" data-embed="{{ embedUrl }}" title="Mapa areálu" loading="lazy" allowfullscreen></iframe>
+			{% if places is not empty %}
+			<div data-map-places hidden>{% for place in places %}<span data-key="place-{{ place.id }}" data-place="{{ place.id }}" data-lat="{{ place.lat }}" data-lng="{{ place.lng }}"></span>{% endfor %}</div>
+			{% endif %}
 		</div>
 		{# shown by www/js/map/offline.js while the phone is offline: Google's iframe is blank then.
 		   It must stay the map's next sibling — that is how offline.js finds it. #}
@@ -21,11 +27,16 @@
 		{% endif %}
 {% endmacro %}
 
-{% macro plan(image, imageAlt) %}
+{% macro plan(image, imageAlt, markers) %}
 	{# the plan scrolls both ways inside its box; www/js/map/plan.js zooms it by its width,
-	   and without a script the zoom pair is hidden (map.css) #}
+	   and without a script the zoom pair is hidden (map.css). The markers sit on the
+	   image's canvas at their share of its width and height, every one hidden but the
+	   place the address names; once shown, a marker is the reader's (data-morph-keep). #}
 	<div class="plan" data-plan>
-		<img class="plan-img" src="{{ image }}" alt="{{ imageAlt }}" data-plan-img>
+		<div class="plan-canvas" data-plan-canvas>
+			<img class="plan-img" src="{{ image }}" alt="{{ imageAlt }}" data-plan-img>
+			{% for marker in markers %}<span class="plan-marker" id="misto-{{ marker.id }}" data-key="place-{{ marker.id }}" data-place="{{ marker.id }}" style="left: {{ marker.left }}%; top: {{ marker.top }}%"{% if not marker.shown %} hidden{% endif %} data-morph-keep="hidden"><span class="plan-marker-label">{{ marker.name }}</span></span>{% endfor %}
+		</div>
 	</div>
 	<span class="plan-zoom">
 		<button type="button" class="plan-zoom-btn" data-plan-zoom="out" aria-label="Oddálit">−</button>
@@ -40,31 +51,36 @@
 		   the address names; after that data-view is the reader's, not the server's. #}
 		<div class="mapview" data-map-root data-map-event="{{ event.slug }}" data-view="{{ view }}" data-morph-keep="data-view">
 			<div class="map-pane map-pane-google" id="map-view-google" role="tabpanel" aria-labelledby="map-tab-google">
-				{{ _self.google(embedUrl, true) }}
+				{{ _self.google(embedUrl, true, embedSrc, places) }}
 			</div>
 			<div class="map-pane map-pane-plan" id="map-view-plan" role="tabpanel" aria-labelledby="map-tab-plan">
-				{{ _self.plan(image, imageAlt) }}
+				{{ _self.plan(image, imageAlt, markers) }}
 			</div>
 			{# Each pill is a link to its view's address, so a reader without JavaScript
 			   switches views too (a full page load); views.js intercepts a plain click and
 			   pushes the address instead, leaving the iframe running. The shown pill is
 			   selected and the current page; both are the reader's once the script runs, so
 			   a background morph leaves them alone (data-morph-keep). No tabindex here: every
-			   pill is reachable without a script, which puts the roving tabindex on at wiring. #}
+			   pill is reachable without a script, which puts the roving tabindex on at wiring.
+			   A place the address names (misto) stays named on both, and the Plán link
+			   jumps to its marker. #}
 			<div class="tabs-wrap" data-key="tabs">
 				<div class="tabs" role="tablist" aria-label="Zobrazení mapy">
 					<span class="tabs-indicator" aria-hidden="true"></span>
-					<a class="tabs-tab" role="tab" id="map-tab-google" href="{{ url_for('map') }}" aria-controls="map-view-google" aria-selected="{{ view == 'google' ? 'true' : 'false' }}" data-map-view="google"{% if view == 'google' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> <span class="tabs-label">Mapa</span></a>
-					<a class="tabs-tab" role="tab" id="map-tab-plan" href="{{ url_for('map-plan') }}" aria-controls="map-view-plan" aria-selected="{{ view == 'plan' ? 'true' : 'false' }}" data-map-view="plan"{% if view == 'plan' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="far fa-map" aria-hidden="true"></i> <span class="tabs-label">Plán</span></a>
+					<a class="tabs-tab" role="tab" id="map-tab-google" href="{{ url_for('map', {}, misto ? {misto: misto} : {}) }}" aria-controls="map-view-google" aria-selected="{{ view == 'google' ? 'true' : 'false' }}" data-map-view="google"{% if view == 'google' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> <span class="tabs-label">Mapa</span></a>
+					<a class="tabs-tab" role="tab" id="map-tab-plan" href="{{ url_for('map-plan', {}, misto ? {misto: misto} : {}) }}{{ misto ? '#misto-' ~ misto }}" aria-controls="map-view-plan" aria-selected="{{ view == 'plan' ? 'true' : 'false' }}" data-map-view="plan"{% if view == 'plan' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="far fa-map" aria-hidden="true"></i> <span class="tabs-label">Plán</span></a>
 				</div>
 			</div>
 		</div>
 	{% elseif embedUrl %}
-		{{ _self.google(embedUrl, false) }}
+		{# a root of its own, so www/js/map/ wires it too; div.map sets its own height #}
+		<div data-map-root data-map-event="{{ event.slug }}" data-view="google">
+			{{ _self.google(embedUrl, false, embedSrc, places) }}
+		</div>
 	{% elseif image %}
 		<div class="mapview" data-map-root data-map-event="{{ event.slug }}" data-view="plan">
 			<div class="map-pane map-pane-plan">
-				{{ _self.plan(image, imageAlt) }}
+				{{ _self.plan(image, imageAlt, markers) }}
 			</div>
 		</div>
 	{% else %}

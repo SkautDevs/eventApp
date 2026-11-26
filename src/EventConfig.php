@@ -174,7 +174,17 @@ final readonly class EventConfig
         $shortName = $data['shortName'] ?? null;
         $assets = $data['assets'] ?? null;
         $homepage = $data['homepage'] ?? null;
-        $map = $data['map'] ?? null;
+        $mapData = $data['map'] ?? null;
+        $map = is_array($mapData) ? EventMap::fromArray($mapData) : null;
+        // bounds that do not parse would leave every place off the plan without a word
+        if (is_array($mapData) && $map !== null && array_key_exists('planBounds', $mapData)) {
+            if ($map->planBounds === null) {
+                throw new \RuntimeException(sprintf('Event config "%s" has an invalid map.planBounds (expected north > south and east > west, in degrees)', $slug));
+            }
+            if ($map->image === null || $map->image === '') {
+                throw new \RuntimeException(sprintf('Event config "%s" has map.planBounds without map.image', $slug));
+            }
+        }
         $handbook = $data['handbook'] ?? null;
 
         return new self(
@@ -194,7 +204,7 @@ final readonly class EventConfig
             csp: $origins,
             assets: EventAssets::fromArray(is_array($assets) ? $assets : []),
             homepage: EventHomepage::fromArray(is_array($homepage) ? $homepage : []),
-            map: is_array($map) ? EventMap::fromArray($map) : null,
+            map: $map,
             handbook: is_array($handbook) ? EventHandbook::fromArray($handbook) : null,
         );
     }

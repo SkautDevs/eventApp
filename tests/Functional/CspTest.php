@@ -16,7 +16,9 @@ final class CspTest extends AppTestCase
 
     protected function tearDown(): void
     {
-        unset($_ENV['ADMIN_TOKEN_OBROK27']);
+        // tests/bootstrap.php pins every event to local; put that back rather than unsetting
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'local';
+        unset($_ENV['ADMIN_TOKEN_OBROK27'], $_ENV['KISSJ_API_KEY_OBROK27']);
         parent::tearDown();
     }
 
@@ -195,6 +197,26 @@ final class CspTest extends AppTestCase
         self::assertArrayNotHasKey('frame-src', $policy);
         self::assertSame(["'self'", "'unsafe-inline'"], $policy['style-src']);
         self::assertSame(["'self'"], $policy['font-src']);
+    }
+
+    /** A kissj provider's photos come from its own origin, so the page may load images from there. */
+    public function testAKissjProviderAddsItsOriginToImgSrc(): void
+    {
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'https://kissj.example/';
+        $_ENV['KISSJ_API_KEY_OBROK27'] = 'k';
+
+        // the offline page asks the provider nothing
+        $response = $this->request($this->createApp('obrok27'), 'GET', '/offline');
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringContainsString("img-src 'self' data: https://kissj.example;", $response->getHeaderLine('Content-Security-Policy'));
+    }
+
+    public function testTheLocalProviderAddsNothing(): void
+    {
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'local';
+
+        self::assertSame(["'self'", 'data:'], self::policy($this->request($this->createApp('obrok27'), 'GET', '/offline'))['img-src']);
     }
 
     public function testTheHomepageButtonIsBoundByThePushModuleNotInline(): void

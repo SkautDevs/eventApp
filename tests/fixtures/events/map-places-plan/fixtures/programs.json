@@ -1,0 +1,53 @@
+[
+    {
+        "id": 1,
+        "name": "U brány",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 09:00:00"},
+        "end": {"date": "2027-06-03 10:00:00"},
+        "lector": null,
+        "location": "Brána",
+        "perex": null,
+        "tools": null,
+        "placeId": 1,
+        "images": [
+            {"url": "/events/korbo26/demo/volejbal-1.webp", "thumbUrl": "/events/korbo26/demo/volejbal-1-thumb.webp", "alt": ""},
+            {"url": "/events/korbo26/demo/volejbal-2.webp", "thumbUrl": "/events/korbo26/demo/volejbal-2-thumb.webp", "alt": ""}
+        ]
+    },
+    {
+        "id": 2,
+        "name": "Všude",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 11:00:00"},
+        "end": {"date": "2027-06-03 12:00:00"},
+        "lector": null,
+        "location": "Celý tábor",
+        "perex": null,
+        "tools": null,
+        "placeId": 2
+    },
+    {
+        "id": 3,
+        "name": "Výlet",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 13:00:00"},
+        "end": {"date": "2027-06-03 14:00:00"},
+        "lector": null,
+        "location": "Daleko",
+        "perex": null,
+        "tools": null,
+        "placeId": 3
+    },
+    {
+        "id": 4,
+        "name": "Nikde",
+        "section": {"id": 1},
+        "start": {"date": "2027-06-03 15:00:00"},
+        "end": {"date": "2027-06-03 16:00:00"},
+        "lector": null,
+        "location": null,
+        "perex": null,
+        "tools": null
+    }
+]

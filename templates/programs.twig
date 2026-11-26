@@ -21,11 +21,16 @@
 				   matches the nearest one. tabindex="-1" rather than "0": no longer a tab
 				   stop, still focusable, which is what closing the sheet needs to hand focus
 				   back to the card it came from. #}
-				<article class="pl-item{{ item.registered ? ' is-registered' }}{{ kind == 'overview' and item.dimmed ? ' is-dimmed' }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-pg-open="{{ item.id }}" tabindex="-1">
+				<article class="pl-item{{ item.registered ? ' is-registered' }}{{ kind == 'overview' and item.dimmed ? ' is-dimmed' }}{{ item.thumb ? ' has-thumb' }}" data-key="{{ item.id }}" data-start="{{ item.start }}" data-end="{{ item.end }}" data-pg-open="{{ item.id }}" tabindex="-1">
 					<p class="pl-time">{{ item.time }}</p>
 					<h3 class="pl-name"><a class="pl-open" href="{{ pageAddress }}#section-{{ item.sectionId }}-program-{{ item.id }}" data-pg-open="{{ item.id }}">{{ item.name }}</a></h3>
 					<p class="pl-meta">{{ item.until }}{% if item.location %} · {{ item.location }}{% endif %}</p>
 					{% if item.registered %}<span class="pl-tag">Zapsáno</span>{% endif %}
+					{# The first photo's thumbnail, in a third column beside the name, over the event's
+					   placeholder (_photo_mark.twig); a row without photos has no frame. Decorative:
+					   the sheet carries the photos. The frame is keyed for the morph, and the thumb's
+					   class is the script's (gallery.js marks it is-loaded), as the gallery's are. #}
+					{% if item.thumb %}<span class="pl-thumb-frame" data-key="thumb" aria-hidden="true">{% include '_photo_mark.twig' %}<img class="pl-thumb" src="{{ item.thumb }}" alt="" loading="lazy" decoding="async" crossorigin="anonymous" data-photo data-morph-keep="class"></span>{% endif %}
 					{% if kind == 'list' and item.perex %}<p class="pl-perex">{{ item.perex }}</p>{% endif %}
 				</article>
 			{% endfor %}
@@ -181,11 +186,31 @@
 						   middle of the day must not shift every detail after it. The id is the
 						   programme's deep link, section and programme. #}
 						<div class="sheet-body" id="section-{{ detail.sectionId }}-program-{{ detail.id }}" data-key="{{ detail.id }}" data-pg-detail="{{ detail.id }}" data-page="{{ detail.page }}">
+							{# The photos, a strip that snaps frame by frame, over the event's logo
+							   (_photo_mark.twig) until each loads: lazy, so nothing is fetched until
+							   the sheet opens (a closed body is display: none). www/js/programs/gallery.js
+							   marks a loaded photo is-loaded, which fades it in, and moves the dots with
+							   the strip; data-morph-keep keeps both through a background morph. A frame
+							   and its dot are keyed by the photo (Sheet::$imageKeys), so a reordered or
+							   replaced photo arrives in a fresh frame, not as a new src in a loaded
+							   one. Without JavaScript the photo shows as it loads and the dots are
+							   hidden. Two or more make the strip a focusable group, scrolled with the
+							   arrow keys. #}
+							{% if detail.images is not empty %}
+								<div class="gallery" data-key="gallery" data-gallery>
+									<div class="gallery-strip" data-gallery-strip{% if detail.images|length > 1 %} role="group" tabindex="0" aria-label="Fotky"{% endif %}>
+										{% for image in detail.images %}
+											<div class="gallery-frame" data-key="photo-{{ detail.imageKeys[loop.index0] }}">{% include '_photo_mark.twig' %}<img class="gallery-photo" src="{{ image.url }}" alt="{{ image.alt }}" loading="lazy" decoding="async" crossorigin="anonymous" data-photo data-morph-keep="class"></div>
+										{% endfor %}
+									</div>
+									{% if detail.images|length > 1 %}<div class="gallery-dots" aria-hidden="true">{% for image in detail.images %}<span class="gallery-dot" data-key="dot-{{ detail.imageKeys[loop.index0] }}"{% if loop.first %} data-active{% endif %} data-morph-keep="data-active"></span>{% endfor %}</div>{% endif %}
+								</div>
+							{% endif %}
 							<div class="sheet-head">
 								<h2 class="sheet-name" id="sheet-name-{{ detail.id }}">{{ detail.name }}</h2>
 								{% if detail.section %}<span class="sheet-chip">{{ detail.section }}</span>{% endif %}
 							</div>
-							<dl class="sheet-facts"><dt>Kdy</dt><dd>{{ detail.when }}</dd>{% if detail.location %}<dt>Kde</dt><dd>{{ detail.location }}</dd>{% endif %}</dl>
+							<dl class="sheet-facts"><dt>Kdy</dt><dd>{{ detail.when }}</dd>{% if detail.location %}<dt>Kde</dt><dd>{% if detail.placeHref %}<a class="place-pin" href="{{ detail.placeHref }}" data-deep-link><i class="fas fa-map-marker-alt" aria-hidden="true"></i> {{ detail.location }}</a>{% else %}{{ detail.location }}{% endif %}</dd>{% endif %}</dl>
 							{% if detail.registered %}<p class="sheet-mine"><i class="fas fa-star" aria-hidden="true"></i> Tvůj program</p>{% endif %}
 							{% if detail.messages %}
 								<div class="sheet-messages">

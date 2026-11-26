@@ -63,6 +63,8 @@ final class DayListBuilder
                         registered: $registered,
                         // a preregistered programme is never dimmed: see TimelineBuilder::buildCard()
                         dimmed: $mineRead && !$registered && !$p->preregistered,
+                        // the row shows the first photo only, as a thumbnail
+                        thumb: $p->images[0]->thumbUrl ?? null,
                     );
                 }, $dayPrograms),
             );

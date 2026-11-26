@@ -311,4 +311,28 @@ final class EventConfigTest extends TestCase
         $this->expectExceptionMessage('csp');
         $this->loadWithConfigLines('    ' . $line);
     }
+
+    public function testPlanBoundsAreRead(): void
+    {
+        $event = EventConfig::load($this->eventsDir, 'obrok27');
+
+        self::assertNotNull($event->map?->planBounds);
+        self::assertSame(50.343810, $event->map->planBounds->north);
+        self::assertSame(15.938067, $event->map->planBounds->east);
+        self::assertNull(EventConfig::load($this->eventsDir, 'obrok19')->map?->planBounds);
+    }
+
+    public function testInvalidPlanBoundsFailAtLoad(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Event config "tmp26" has an invalid map.planBounds (expected north > south and east > west, in degrees)');
+        $this->loadWithConfigLines("    'map' => ['image' => 'events/obrok19/plan-example.png', 'planBounds' => ['north' => 50.00, 'south' => 50.01, 'west' => 15.00, 'east' => 15.02]],");
+    }
+
+    public function testPlanBoundsWithoutAPlanFailAtLoad(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Event config "tmp26" has map.planBounds without map.image');
+        $this->loadWithConfigLines("    'map' => ['embedUrl' => 'https://www.google.com/maps/d/embed?mid=test', 'planBounds' => ['north' => 50.01, 'south' => 50.00, 'west' => 15.00, 'east' => 15.02]],");
+    }
 }

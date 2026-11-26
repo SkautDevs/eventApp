@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Program\Programme;
+use App\Program\ProgrammeImage;
 use PHPUnit\Framework\TestCase;
 
 final class ProgrammeTest extends TestCase
@@ -54,5 +55,46 @@ final class ProgrammeTest extends TestCase
     {
         $stored = json_decode('{"id":1,"name":"Volejbal","section":{"id":1},"start":{"date":"2026-09-16 08:00:00"},"end":{"date":"2026-09-16 10:00:00"},"lector":null,"location":"Volejbalové hřiště","perex":null,"tools":null,"preregistered":false}', true);
         self::assertSame($stored, Programme::fromArray($stored)?->toArray());
+    }
+
+    public function testARowWithoutPlaceOrImagesHasNone(): void
+    {
+        $programme = Programme::fromArray(['id' => 1, 'name' => 'X']);
+        self::assertNotNull($programme);
+        self::assertNull($programme->placeId);
+        self::assertSame([], $programme->images);
+        self::assertArrayNotHasKey('placeId', $programme->toArray());
+        self::assertArrayNotHasKey('images', $programme->toArray());
+    }
+
+    public function testPlaceIdAndImagesRoundTrip(): void
+    {
+        $images = [['url' => '/events/x/demo/a.webp', 'thumbUrl' => '/events/x/demo/a-thumb.webp', 'alt' => '']];
+        $programme = Programme::fromArray(['id' => 1, 'name' => 'X', 'placeId' => 7, 'images' => $images]);
+        self::assertNotNull($programme);
+        self::assertSame(7, $programme->placeId);
+        self::assertEquals([new ProgrammeImage('/events/x/demo/a.webp', '/events/x/demo/a-thumb.webp', '')], $programme->images);
+        $row = $programme->toArray();
+        self::assertSame(7, $row['placeId'] ?? null);
+        self::assertSame($images, $row['images'] ?? null);
+        self::assertEquals($programme, Programme::fromArray($row));
+    }
+
+    public function testIrregularPlaceAndImagesAreDropped(): void
+    {
+        foreach (['7', 0, -1, 7.0, null, true] as $placeId) {
+            self::assertNull(Programme::fromArray(['id' => 1, 'placeId' => $placeId])?->placeId, var_export($placeId, true));
+        }
+        self::assertSame([], Programme::fromArray(['id' => 1, 'images' => 'x'])?->images);
+        self::assertSame([], Programme::fromArray(['id' => 1, 'images' => ['a' => ['url' => 'u', 'thumbUrl' => 't']]])?->images, 'not a list');
+
+        $images = Programme::fromArray(['id' => 1, 'images' => [
+            ['url' => '', 'thumbUrl' => 't'],
+            ['url' => 'u'],
+            'x',
+            ['url' => 'u', 'thumbUrl' => 't', 'alt' => 5],
+        ]])?->images;
+
+        self::assertEquals([new ProgrammeImage('u', 't', '')], $images);
     }
 }

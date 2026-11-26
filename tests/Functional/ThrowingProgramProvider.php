@@ -44,6 +44,15 @@ final class ThrowingProgramProvider implements ProgramProviderInterface
         return [];
     }
 
+    public function getPlaces(): array
+    {
+        if ($this->programsException !== null) {
+            throw $this->programsException;
+        }
+
+        return [];
+    }
+
     public function getRegistrationWindow(): RegistrationWindow
     {
         if ($this->programsException !== null) {

@@ -35,6 +35,7 @@ final class KissjKorboFixtureTest extends TestCase
         return new KissjProgramProvider(
             http: new Client(['handler' => $stack, 'base_uri' => 'https://kissj.example/']),
             apiKey: 'secret-key',
+            origin: 'https://kissj.example',
         );
     }
 
@@ -120,7 +121,8 @@ final class KissjKorboFixtureTest extends TestCase
     /**
      * `isPreregistered` and `targetRoles` are in every record, and three records carry
      * `isPreregistered: true`. The first becomes `preregistered`; `targetRoles` is not in
-     * the internal shape, so it does not reach the screen.
+     * the internal shape, so it does not reach the screen. Contract 3.1's `placeId` and
+     * `images` (the demo overlay's, bin/demo-media.php) follow only where they are set.
      */
     public function testOnlyTheContractsFieldsReachTheInternalShape(): void
     {
@@ -131,7 +133,11 @@ final class KissjKorboFixtureTest extends TestCase
         foreach ($this->programmesById() as $id => $program) {
             self::assertSame(
                 ['id', 'name', 'section', 'start', 'end', 'lector', 'location', 'perex', 'tools', 'preregistered'],
-                array_keys($program),
+                array_slice(array_keys($program), 0, 10),
+            );
+            self::assertSame(
+                array_values(array_intersect(['placeId', 'images'], array_keys($program))),
+                array_slice(array_keys($program), 10),
             );
             self::assertSame(['id'], array_keys($program['section']));
             if ($program['preregistered']) {
@@ -190,10 +196,13 @@ final class KissjKorboFixtureTest extends TestCase
         // past the sections, whose ids are small integers too
         $start = strpos($body, '"id": ' . $programme['id'] . ",\n", (int) strpos($body, '"programmes"'));
         self::assertNotFalse($start);
-        $open = strrpos(substr($body, 0, $start), '{');
-        $close = strpos($body, '}', $start);
+        // a record is indented by eight spaces; its photos are objects nested deeper
+        $open = strrpos(substr($body, 0, $start), "\n        {");
+        $close = strpos($body, "\n        }", $start);
+        self::assertNotFalse($open);
+        self::assertNotFalse($close);
 
-        return substr($body, $open, $close - $open + 1);
+        return substr($body, $open + 1, $close - $open + 9);
     }
 
     /**

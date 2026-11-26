@@ -13,6 +13,8 @@ use Psr\Clock\ClockInterface;
  *
  * - programs.json and sections.json are the programme list; registration.json is the
  *   registration window (`{"start": DATE_ATOM|null, "end": …}`, no file: no window).
+ * - places.json is kissj's own `places` list (contract 3.1), like sections.json; no file:
+ *   no places.
  * - registered.json maps a participant id to their programme ids (`{"1": [3, 5]}`) and
  *   participants.json an id to a nickname (no file: no nicknames). Every event's fixture
  *   participant is id 1, and an event without registered.json has participant 1 with
@@ -74,6 +76,12 @@ final class LocalProgramProvider implements ProgramProviderInterface
     public function getSections(): array
     {
         return Sections::fromKissj($this->readJson('sections.json'));
+    }
+
+    /** fixtures/places.json is kissj's own `places` list, read by the same lenient mapping. */
+    public function getPlaces(): array
+    {
+        return Places::fromKissj($this->readJson('places.json'));
     }
 
     public function getRegistrationWindow(): RegistrationWindow

@@ -630,12 +630,13 @@ function onClick(event) {
 
 		return;
 	}
-	// A deep link the page marks for it (the homepage's next-programme card) stays in
-	// the app: the entry is pushed with its hash, and the screen reads the address
-	// itself — on its first wiring when it is new, on screen:shown when it is already
-	// here. Nothing dispatches a hashchange for it. A screen that cannot be fetched
-	// reloads that pushed entry, so the plain load keeps the address, hash and all.
-	if (link.hasAttribute('data-deep-link') && url.search === '' && url.hash !== '' && screen !== currentPath && order.indexOf(screen) >= 0) {
+	// A deep link the page marks for it (the homepage's next-programme card, a sheet's pin
+	// to its place) stays in the app: the entry is pushed with its query and its hash, the
+	// screen is fetched or revalidated for that query, and it reads the address itself —
+	// on its first wiring when it is new, on screen:shown when it is already here. Nothing
+	// dispatches a hashchange for it. A screen that cannot be fetched reloads that pushed
+	// entry, so the plain load keeps the address, query, hash and all.
+	if (link.hasAttribute('data-deep-link') && (url.hash !== '' || url.search !== '') && screen !== currentPath && order.indexOf(screen) >= 0) {
 		event.preventDefault();
 		history.pushState({screen: screen}, '', url.pathname + url.search + url.hash);
 		wantedPath = screen;

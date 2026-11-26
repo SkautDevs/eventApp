@@ -1,0 +1,6 @@
+[
+    {"id": 1, "name": "Brána", "lat": 50.005, "lng": 15.005},
+    {"id": 2, "name": "Celý tábor", "lat": null, "lng": null},
+    {"id": 3, "name": "Daleko", "lat": 51.0, "lng": 15.0},
+    {"id": 4, "name": "Roh", "lat": 50.01, "lng": 15.0}
+]

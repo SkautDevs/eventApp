@@ -23,9 +23,11 @@ final class Precache
     /**
      * @param list<string> $stylesheets the core sheets the layout links, in its order (Modules::sheets())
      * @param list<MenuItem> $menu the tab bar, in its order, Domů first
-     * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>, aliases: array<string, string>}
+     * @param ?string $imageOrigin the program provider's origin (Environment::programOrigin()), the
+     *                             one cross-origin source whose photos the worker keeps; null for `local`
+     * @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>, aliases: array<string, string>, imageOrigin: ?string}
      */
-    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $stylesheets, array $menu, string $docroot): array
+    public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $stylesheets, array $menu, string $docroot, ?string $imageOrigin = null): array
     {
         // every tab, Domů first and Profil last, then the offline page; a tab's other addresses
         // (MenuItem::$aliases) are no documents of their own: the worker finds them under
@@ -101,11 +103,12 @@ final class Precache
         }
 
         return [
-            'version' => self::version(array_values(array_unique($documents)), $assets, $optional, $aliases),
+            'version' => self::version(array_values(array_unique($documents)), $assets, $optional, $aliases, $imageOrigin),
             'documents' => array_values(array_unique($documents)),
             'assets' => $assets,
             'optional' => $optional,
             'aliases' => $aliases,
+            'imageOrigin' => $imageOrigin,
         ];
     }
 
@@ -114,14 +117,16 @@ final class Precache
      * empty line between the lists; an alias is the line "<alias> <screen>". The documents,
      * the optional entries and the aliases count as much as the assets: a tab enabled, a
      * handbook added or a view given an address of its own is a new list, which the worker
-     * picks up only through a new version.
+     * picks up only through a new version. An image origin follows as an empty line and
+     * "image <origin>", so a provider moved to another origin is a new list too; without one
+     * the text, and so the version, is what it was before the list had the field.
      *
      * @param list<string> $documents
      * @param list<string> $assets
      * @param list<string> $optional
      * @param array<string, string> $aliases alias URL => its screen's URL
      */
-    public static function version(array $documents, array $assets, array $optional, array $aliases = []): string
+    public static function version(array $documents, array $assets, array $optional, array $aliases = [], ?string $imageOrigin = null): string
     {
         sort($documents);
         sort($assets);
@@ -132,6 +137,11 @@ final class Precache
         }
         sort($lines);
 
-        return substr(hash('sha256', implode("\n", [...$documents, '', ...$assets, '', ...$optional, '', ...$lines])), 0, 8);
+        $text = implode("\n", [...$documents, '', ...$assets, '', ...$optional, '', ...$lines]);
+        if ($imageOrigin !== null) {
+            $text .= "\n\nimage " . $imageOrigin;
+        }
+
+        return substr(hash('sha256', $text), 0, 8);
     }
 }

@@ -8,6 +8,7 @@ use App\Cache\FileCache;
 use App\Program\CachingProgramProvider;
 use App\Program\Freshness;
 use App\Program\Pairing;
+use App\Program\Place;
 use App\Program\PairingPoll;
 use App\Program\PairingStatus;
 use App\Program\Participant;
@@ -170,7 +171,7 @@ final class CachingProgramProviderTest extends TestCase
         self::assertSame(2, $inner->listCalls);
         self::assertSame(1, $inner->windowCalls);
         $entry = $this->cache()->get(CachingProgramProvider::LIST_KEY);
-        self::assertSame(self::listEntry(self::PROGRAMMES), $entry->data);
+        self::assertSame(self::listEntry(self::PROGRAMMES) + ['places' => []], $entry->data);
         self::assertSame($this->now->format(\DATE_ATOM), $entry->fetchedAt->format(\DATE_ATOM));
     }
 
@@ -719,6 +720,63 @@ final class CachingProgramProviderTest extends TestCase
         self::assertSame([0, 0], [$inner->listCalls, $inner->identityCalls]);
     }
 
+    public function testPlacesAreCachedWithTheList(): void
+    {
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES, places: [7 => new Place(7, 'A', 50.1, 15.2)]);
+
+        $places = $this->provider($inner)->getPlaces();
+        self::assertSame([7], array_keys($places));
+        self::assertSame(1, $inner->placesCalls);
+
+        // a later request answers from the entry
+        $again = $this->provider($inner)->getPlaces();
+        self::assertEquals($places, $again);
+        self::assertSame([1, 1], [$inner->placesCalls, $inner->windowCalls]);
+        self::assertSame(
+            [['id' => 7, 'name' => 'A', 'lat' => 50.1, 'lng' => 15.2]],
+            $this->cache()->get(CachingProgramProvider::LIST_KEY)->data['places'],
+        );
+    }
+
+    /** Plan call 3, Review Focus 1: an entry written before places were cached is read, with none. */
+    public function testAListEntryWithoutPlacesIsStillUsable(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 10);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $inner->failure = self::down();
+        $provider = $this->provider($inner);
+
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame([], $provider->getPlaces());
+        self::assertSame([0, 0, 0], [$inner->listCalls, $inner->windowCalls, $inner->placesCalls]);
+    }
+
+    /** Review Focus 1: during an outage the old entry still shows the programme, without pins. */
+    public function testAStaleEntryWithoutPlacesIsServedDuringAnOutage(): void
+    {
+        $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES), 400);
+        $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+        $inner->failure = self::down();
+        $provider = $this->provider($inner);
+
+        self::assertSame(self::OLD_PROGRAMMES, self::rows($provider->getPrograms()));
+        self::assertSame([], $provider->getPlaces());
+        self::assertCount(1, $this->reported);
+    }
+
+    /** places that are no list of rows make the entry the wrong shape: a miss, refetched. */
+    public function testAListEntryWithUnusablePlacesIsTreatedAsMissing(): void
+    {
+        foreach (['a string' => 'x', 'an object' => ['7' => ['id' => 7]], 'a row that is no array' => ['x'], 'null' => null] as $label => $places) {
+            $this->tearDown();
+            $this->seed(CachingProgramProvider::LIST_KEY, self::listEntry(self::OLD_PROGRAMMES) + ['places' => $places], 10);
+            $inner = new FakeProgramProvider(self::SECTIONS, self::PROGRAMMES);
+
+            self::assertSame(self::PROGRAMMES, self::rows($this->provider($inner)->getPrograms()), $label);
+            self::assertSame(1, $inner->windowCalls, $label);
+        }
+    }
+
     /** A list entry from before the window was cached, or one whose window is not two instants, is a miss. */
     public function testAListEntryWithoutAUsableWindowIsTreatedAsMissing(): void
     {
@@ -959,6 +1017,8 @@ final class FakeProgramProvider implements ProgramProviderInterface
 
     public int $windowCalls = 0;
 
+    public int $placesCalls = 0;
+
     public int $identityCalls = 0;
 
     public int $participantIdCalls = 0;
@@ -972,7 +1032,7 @@ final class FakeProgramProvider implements ProgramProviderInterface
     /** @var array{register: list<array{string, int}>, unregister: list<array{string, int}>} */
     public array $writes = ['register' => [], 'unregister' => []];
 
-    /** thrown by getSections(), getPrograms() and getRegistrationWindow() */
+    /** thrown by getSections(), getPrograms(), getPlaces() and getRegistrationWindow() */
     public ?\Throwable $failure = null;
 
     /** thrown by getParticipant() */
@@ -991,11 +1051,13 @@ final class FakeProgramProvider implements ProgramProviderInterface
      * @param array<int, array> $sections section rows, keyed by id
      * @param list<array> $programmes programme rows, as the decorator stores them
      * @param list<array> $mine the participant's programme rows
+     * @param array<int, Place> $places keyed by id
      */
     public function __construct(
         private readonly array $sections = [],
         private readonly array $programmes = [],
         private readonly array $mine = [],
+        private readonly array $places = [],
     ) {}
 
     public function getPrograms(): array
@@ -1016,6 +1078,16 @@ final class FakeProgramProvider implements ProgramProviderInterface
         }
 
         return array_map(Section::fromArray(...), $this->sections);
+    }
+
+    public function getPlaces(): array
+    {
+        $this->placesCalls++;
+        if ($this->failure !== null) {
+            throw $this->failure;
+        }
+
+        return $this->places;
     }
 
     public function getRegistrationWindow(): RegistrationWindow

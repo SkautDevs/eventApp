@@ -16,7 +16,9 @@ use PHPUnit\Framework\Attributes\Group;
  * and the zoom pair, which only the script drives, is hidden.
  * Moje and the sheet's register and unregister forms need a paired reader: those cases run
  * on korbo26, whose local source keeps registrations in the stub state, put back to the
- * fixtures before every test (resetStubState()), and pair the script-off way.
+ * fixtures before every test (resetStubState()), and pair the script-off way. The
+ * gallery and thumbnail cases run on korbo26 too, whose demo photos the sheet and the rows
+ * show without a script.
  */
 #[Group('browser')]
 final class NoJsProgramTest extends NoJsTestCase
@@ -285,6 +287,72 @@ final class NoJsProgramTest extends NoJsTestCase
         self::assertTrue(self::present('main > section.screen[data-screen="/korbo26/programy"]'), 'the Program screen');
         self::assertTrue(self::present('.pg[data-pg-root]'), 'a Program page, not a broken one');
         self::assertFalse(self::present('.error-page'), 'no error page');
+    }
+
+    /**
+     * Without a script nothing marks a photo loaded, and none needs to be: the `:target`
+     * sheet shows its photo over the placeholder, and the dots, which only the script
+     * moves, are hidden (korbo26's Volejbal, two demo photos).
+     */
+    public function testAGalleryShowsItsPhotos(): void
+    {
+        self::visit('/korbo26/programy');
+        $id = (string) self::attribute('.sheet-body[data-pg-detail="' . self::VOLEJBAL . '"]', 'id');
+        self::visit('/korbo26/programy#' . $id);
+
+        self::assertTrue(self::displayed('.sheet-body:target .gallery-photo'), 'the photo is shown');
+        $photo = self::$browser->findElement(WebDriverBy::cssSelector('.sheet-body:target .gallery-photo'));
+        self::$browser->wait(5, 100)->until(
+            static fn(): bool => (int) $photo->getDomProperty('naturalWidth') > 0,
+            'the photo did not load',
+        );
+        self::assertFalse(self::displayed('.sheet-body:target .gallery-dots'), 'no dots without a script');
+    }
+
+    /**
+     * A row of a programme with photos shows its thumbnail without a script: korbo26's
+     * Vzduchovky in Přehled, loaded once scrolled to (it is lazy).
+     */
+    public function testARowShowsItsThumbnail(): void
+    {
+        self::visit('/korbo26/programy/prehled');
+        $css = '#pg-view-overview .pl-item[data-key="13"] .pl-thumb';
+        $thumb = self::$browser->findElement(WebDriverBy::cssSelector($css));
+        $thumb->getLocationOnScreenOnceScrolledIntoView();
+
+        self::assertTrue(self::displayed($css), 'the thumbnail is shown');
+        self::$browser->wait(5, 100)->until(
+            static fn(): bool => (int) $thumb->getDomProperty('naturalWidth') > 0,
+            'the thumbnail did not load',
+        );
+    }
+
+    /**
+     * obrok27's programme 11 is at Plaza, on the plan: the pin in its `:target` sheet opens
+     * Plán on that place, the marker shown and scrolled to, and Back returns to the sheet.
+     */
+    public function testThePinOpensThePlanOnThePlaceAndBackReturnsToTheSheet(): void
+    {
+        self::visit('/obrok27/programy/prehled');
+        $sheet = (string) self::attribute('.sheet-body[data-pg-detail="11"]', 'id');
+        self::assertNotSame('', $sheet);
+        self::visit('/obrok27/programy/prehled#' . $sheet);
+        self::assertTrue(self::displayed('.sheet-body:target .place-pin'), 'the sheet shows its pin');
+        parse_str((string) parse_url((string) self::attribute('.sheet-body:target .place-pin', 'href'), PHP_URL_QUERY), $query);
+        $place = $query['misto'] ?? null;
+        self::assertIsString($place);
+        self::assertMatchesRegularExpression('/^[1-9]\d*$/', $place);
+
+        self::follow('.sheet-body:target .place-pin');
+
+        self::assertSame('/obrok27/mapa/plan?misto=' . $place . '#misto-' . $place, self::path());
+        self::assertTrue(self::displayed('#misto-' . $place), 'the place\'s marker');
+        self::assertCount(1, self::$browser->findElements(WebDriverBy::cssSelector('.plan #misto-' . $place)), 'the marker is on the plan');
+
+        self::$browser->back();
+
+        self::assertSame('/obrok27/programy/prehled#' . $sheet, self::path());
+        self::assertTrue(self::displayed('.sheet-body:target'), 'the sheet is open again');
     }
 
     /** Only the script stretches the hour scale, so without it the zoom pair is not there to press. */

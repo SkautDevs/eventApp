@@ -9,11 +9,20 @@ use App\Time\Zone;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\ResponseException;
 use GuzzleHttp\Exception\TransferException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
- * Talks to kissj's programme API, as kissj's API contract 3.0 describes it: the
- * list, the device pairing, the participant behind a device session, the write
- * endpoints and the revoke. Everything that arrives is validated here rather than trusted.
+ * Talks to kissj's programme API, as kissj's API contract 3.1 describes it: the
+ * list (with its places), the device pairing, the participant behind a device session, the
+ * write endpoints and the revoke. Everything that arrives is validated here rather than
+ * trusted: 3.0 fields strict, 3.1 additions lenient. A kissj that still answers 3.0 sends
+ * no `places`, `placeId` or `images`, and its list reads as before, without them. A
+ * `places` value that is not a list, a `placeId` that is not a positive integer or a
+ * malformed image is dropped, never a failed list (a `places` that is no list is logged
+ * as `kissj.places-invalid`). A photo is kept only when its `url` and `thumbUrl` are both
+ * on the provider's own origin; the others are counted and logged once per read as
+ * `kissj.images-dropped`, with the count and the first one's origin, never a URL.
  *
  * Failures: a `401` with an empty body on a call that carries a device session is
  * SessionExpiredException; a `400` with the contract's `{"error": code}` on register or
@@ -28,19 +37,31 @@ final class KissjProgramProvider implements ProgramProviderInterface
     public const string SESSION_HEADER = 'X-Kissj-Device-Session';
 
     /**
-     * @var array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow}|null
+     * @var array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow, places: array<int, Place>}|null
      *      the list response, fetched once
      */
     private ?array $list = null;
 
+    /** The only origin a photo may come from, spelled as originOf() spells it. */
+    private readonly string $origin;
+
     /**
      * The key is passed in rather than set as a client default header: it is part of
      * the contract — the event is resolved from it — so the provider owns sending it.
+     *
+     * @param string $origin the client's base URL as an origin, as Environment::programOrigin()
+     *                       gives it (Guzzle's `base_uri` cannot be read back): the only
+     *                       origin a photo may come from; a default port is dropped, as
+     *                       originOf() drops it
      */
     public function __construct(
         private readonly ClientInterface $http,
         private readonly string $apiKey,
-    ) {}
+        string $origin,
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+        $this->origin = self::originOf($origin) ?? $origin;
+    }
 
     public function getPrograms(): array
     {
@@ -50,6 +71,12 @@ final class KissjProgramProvider implements ProgramProviderInterface
     public function getSections(): array
     {
         return $this->list()['sections'];
+    }
+
+    /** From the same list response as the programmes; none from a kissj that answers 3.0. */
+    public function getPlaces(): array
+    {
+        return $this->list()['places'];
     }
 
     public function getRegistrationWindow(): RegistrationWindow
@@ -216,11 +243,11 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * `programmes`, `sections` and `registration` arrive in one response and a request
-     * asks for all of them, so the list is fetched and validated once, as a whole, for
-     * the provider's lifetime — which is one request.
+     * `programmes`, `sections`, `registration` and `places` arrive in one response and a
+     * request asks for all of them, so the list is fetched and validated once, as a whole,
+     * for the provider's lifetime — which is one request.
      *
-     * @return array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow}
+     * @return array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow, places: array<int, Place>}
      */
     private function list(): array
     {
@@ -234,10 +261,33 @@ final class KissjProgramProvider implements ProgramProviderInterface
                 'sections' => Sections::fromKissj($data['sections']),
                 'programmes' => $this->programmes($data, $where),
                 'registration' => self::registration($data['registration'] ?? null, $where),
+                'places' => $this->places($data),
             ];
         }
 
         return $this->list;
+    }
+
+    /**
+     * The list's `places` (contract 3.1): none when the key is missing, as from a kissj
+     * that answers 3.0; none and a warning when it is not a list. A list's bad records
+     * are skipped by Places::fromKissj().
+     *
+     * @param array<mixed> $data
+     * @return array<int, Place>
+     */
+    private function places(array $data): array
+    {
+        if (!array_key_exists('places', $data)) {
+            return [];
+        }
+        if (!is_array($data['places']) || !array_is_list($data['places'])) {
+            $this->logger->warning('kissj.places-invalid');
+
+            return [];
+        }
+
+        return Places::fromKissj($data['places']);
     }
 
     /** @param mixed $raw the list's `registration`, trusted for nothing */
@@ -254,6 +304,9 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
+     * The photos dropped for their origin are logged once per call: how many, and the
+     * origin of the first one (`invalid` when it had none), never a URL.
+     *
      * @param array<mixed> $data
      * @param string $where what the error message names: the endpoint, never a path or a token
      *
@@ -266,7 +319,17 @@ final class KissjProgramProvider implements ProgramProviderInterface
             throw new ProgramDataException(sprintf('kissj sent no list of programmes for %s', $where));
         }
 
-        return array_map($this->normalize(...), $programmes);
+        $dropped = 0;
+        $droppedOrigin = null;
+        $normalized = [];
+        foreach ($programmes as $programme) {
+            $normalized[] = $this->normalize($programme, $dropped, $droppedOrigin);
+        }
+        if ($dropped > 0) {
+            $this->logger->warning('kissj.images-dropped', ['dropped' => $dropped, 'origin' => $droppedOrigin ?? 'invalid']);
+        }
+
+        return $normalized;
     }
 
     /**
@@ -376,12 +439,16 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * Maps one kissj programme onto a Programme — see kissj's API contract 3.0.
+     * Maps one kissj programme onto a Programme — see kissj's API contract 3.1. The 3.0
+     * fields are strict; `placeId` (a positive integer, else none) and `images` (malformed
+     * elements and photos off the provider's origin left out) are lenient.
      * Fields the contract does not map (`targetRoles`, whatever comes later) are ignored.
      *
      * @param mixed $kissj one element of whatever kissj sent, trusted for nothing
+     * @param int $dropped counts the photos left out for their origin
+     * @param string|null $droppedOrigin the first such photo's origin, `invalid` for none; null until one
      */
-    private function normalize(mixed $kissj): Programme
+    private function normalize(mixed $kissj, int &$dropped, ?string &$droppedOrigin): Programme
     {
         if (!is_array($kissj)) {
             throw new ProgramDataException('kissj program record is not an object');
@@ -412,7 +479,67 @@ final class KissjProgramProvider implements ProgramProviderInterface
             perex: $this->optionalText($kissj['description'] ?? null),
             tools: null,
             preregistered: $preregistered,
+            placeId: is_int($kissj['placeId'] ?? null) && $kissj['placeId'] >= 1 ? $kissj['placeId'] : null,
+            images: $this->images($kissj['images'] ?? null, $dropped, $droppedOrigin),
         );
+    }
+
+    /**
+     * A programme's `images`: anything but a list is none, a malformed element is skipped,
+     * and a photo is kept only when its `url` and `thumbUrl` are both on the provider's
+     * origin (an http provider, a dev kissj, keeps its own http photos). The rest are counted.
+     *
+     * @return list<ProgrammeImage>
+     */
+    private function images(mixed $raw, int &$dropped, ?string &$droppedOrigin): array
+    {
+        if (!is_array($raw) || !array_is_list($raw)) {
+            return [];
+        }
+        $images = [];
+        foreach ($raw as $element) {
+            $image = ProgrammeImage::fromArray($element);
+            if ($image === null) {
+                continue;
+            }
+            $urlOrigin = self::originOf($image->url);
+            $thumbOrigin = self::originOf($image->thumbUrl);
+            if ($urlOrigin === $this->origin && $thumbOrigin === $this->origin) {
+                $images[] = $image;
+                continue;
+            }
+            $dropped++;
+            $droppedOrigin ??= ($urlOrigin !== $this->origin ? $urlOrigin : $thumbOrigin) ?? 'invalid';
+        }
+
+        return $images;
+    }
+
+    /**
+     * An absolute http(s) URL's origin, scheme and host lower-cased and the port only when
+     * the URL names one other than the scheme's default (443 for https, 80 for http), as
+     * Environment::programOrigin() and a browser's `URL.origin` write it; null for anything else.
+     * A URL with credentials, a backslash, whitespace or a control character is none either:
+     * there PHP's parser and a browser can disagree on the host.
+     */
+    private static function originOf(string $url): ?string
+    {
+        if (preg_match('/[\\\\\s\x00-\x1f\x7f]/', $url) === 1) {
+            return null;
+        }
+        $parts = parse_url($url);
+        if (!is_array($parts) || isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+        $scheme = strtolower($parts['scheme'] ?? '');
+        $host = $parts['host'] ?? '';
+        if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+            return null;
+        }
+
+        $port = isset($parts['port']) && $parts['port'] !== ($scheme === 'https' ? 443 : 80) ? ':' . $parts['port'] : '';
+
+        return $scheme . '://' . strtolower($host) . $port;
     }
 
     /** kissj sends an empty string for "none"; the screen tests for null. */

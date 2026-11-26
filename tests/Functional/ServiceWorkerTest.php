@@ -387,4 +387,35 @@ final class ServiceWorkerTest extends AppTestCase
         self::assertStringContainsString(".then(name => adopt(name))\n\t\t.then(adopted => {\n\t\t\tif (!adopted) {", $sw);
         self::assertStringContainsString("\t\t\t\tcacheName = null;\n", $sw);
     }
+
+    /**
+     * A photo the reader has seen is kept for offline in a cache of its own, capped, which
+     * neither a version change nor a write's purge touches (MINE is PREFIX plus 8 hex, and
+     * 'img' is not). Only the provider's image origin (the stored list's) and the event's
+     * demo files are kept. ImageCacheTest proves the behaviour; these are its contracts.
+     */
+    public function testSeenPhotosGoToACappedCacheOfTheirOwn(): void
+    {
+        $sw = $this->source();
+
+        self::assertStringContainsString("const IMAGES = PREFIX + 'img';", $sw);
+        self::assertStringContainsString('const IMAGE_CAP = 200;', $sw);
+        self::assertStringContainsString('list.imageOrigin', $sw);
+
+        $fetch = strpos($sw, "self.addEventListener('fetch', event => {");
+        self::assertNotFalse($fetch);
+        $branch = strpos($sw, "if (request.method === 'GET' && request.destination === 'image' && (url.origin !== self.location.origin || url.pathname.startsWith('/events/' + SLUG + '/demo/'))) {", $fetch);
+        $crossOrigin = strpos($sw, 'if (url.origin !== self.location.origin) {', $fetch);
+        self::assertNotFalse($branch, 'the fetch handler sends images to the photo cache');
+        self::assertNotFalse($crossOrigin);
+        self::assertLessThan($crossOrigin, $branch, 'before cross-origin requests are left to the browser');
+
+        foreach (['function purgeHtml() {', 'function adopt(name) {'] as $start) {
+            $from = strpos($sw, $start);
+            self::assertNotFalse($from, $start);
+            $end = strpos($sw, "\n}\n", $from);
+            self::assertNotFalse($end);
+            self::assertStringNotContainsString('IMAGES', substr($sw, $from, $end - $from), $start);
+        }
+    }
 }

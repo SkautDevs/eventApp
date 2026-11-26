@@ -67,6 +67,11 @@ final class CurrentParticipantTest extends TestCase
                 throw new \LogicException('not asked');
             }
 
+            public function getPlaces(): array
+            {
+                return [];
+            }
+
             public function getRegistrationWindow(): RegistrationWindow
             {
                 throw new \LogicException('not asked');

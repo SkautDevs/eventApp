@@ -39,8 +39,12 @@ export function openingView(online, pathView) {
 	return pathView || 'google';
 }
 
-/** Wires the tabs of one map root; `plan` is its setupPlan(), sized whenever the plan shows. */
-export function setupViews(root, plan) {
+/**
+ * Wires the tabs of one map root; `plan` is its setupPlan(), sized whenever the plan shows,
+ * and `onView(view)` runs after every setView(), a re-assert of the same view included
+ * (map/place.js puts the address's place on show there).
+ */
+export function setupViews(root, plan, onView = () => {}) {
 	const hasTabs = root.querySelector('[role="tab"][data-map-view]') !== null;
 	const section = root.closest('[data-screen]');
 	// the screen's own path; the plan's address is built on it
@@ -73,12 +77,14 @@ export function setupViews(root, plan) {
 		if (next === 'plan') {
 			plan.apply(plan.zoom());
 		}
+		onView(next);
 	}
 
 	/**
 	 * A pill's choice (a tap, an arrow key or the offline note's button): the view is shown
-	 * and its address pushed, so Back returns to the view before. The address already on
-	 * show pushes nothing.
+	 * and its address pushed with the query on show (`?misto=` names the same place on both
+	 * views), so Back returns to the view before. The view already on show pushes nothing:
+	 * only the path is compared, the query being the same either way.
 	 */
 	function select(next) {
 		setView(next);
@@ -87,15 +93,15 @@ export function setupViews(root, plan) {
 		}
 		const path = mapViewPath(next, screen);
 		if (location.pathname !== path) {
-			history.pushState({screen, mapView: next}, '', path);
+			history.pushState({screen, mapView: next}, '', path + location.search);
 		}
 	}
 
 	/**
 	 * The view the address names, read on wiring and on each show. An offline copy of the
 	 * screen is stored once for both addresses, so its data-view may be the other view's:
-	 * only the address counts. Offline the bare address moves to the plan's, replacing
-	 * the entry, since Google's map is a blank box then.
+	 * only the address counts. Offline the bare address moves to the plan's, query kept,
+	 * replacing the entry, since Google's map is a blank box then.
 	 */
 	function syncFromUrl() {
 		const online = navigator.onLine !== false;
@@ -103,7 +109,7 @@ export function setupViews(root, plan) {
 		// on an address that is not this screen's, the view on show stays
 		setView(openingView(online, pathView || view));
 		if (!online && pathView === 'google') {
-			history.replaceState(history.state, '', mapViewPath('plan', screen));
+			history.replaceState(history.state, '', mapViewPath('plan', screen) + location.search);
 		}
 	}
 

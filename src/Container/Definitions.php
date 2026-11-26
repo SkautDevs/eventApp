@@ -43,7 +43,7 @@ final class Definitions
             Environment::class => $environment,
             // the one source of "now": every reader of the time gets it from here
             ClockInterface::class => \DI\get(Time\SystemClock::class),
-            \App\Program\ProgramProviderInterface::class => function (ClockInterface $clock, Environment $environment, Program\Freshness $freshness) use ($event, $root): \App\Program\ProgramProviderInterface {
+            \App\Program\ProgramProviderInterface::class => function (ClockInterface $clock, Environment $environment, Program\Freshness $freshness, \Psr\Log\LoggerInterface $logger) use ($event, $root): \App\Program\ProgramProviderInterface {
                 $programSource = $environment->programSource($event->slug);
                 if ($programSource !== null) {
                     // kissj resolves the event from the key, so the key is what picks the event
@@ -57,6 +57,9 @@ final class Definitions
                         inner: new \App\Program\KissjProgramProvider(
                             http: new \GuzzleHttp\Client(['base_uri' => $programSource . '/', 'timeout' => 10]),
                             apiKey: $apiKey,
+                            // the only origin a photo may come from; the CSP and the worker read the same
+                            origin: (string) $environment->programOrigin($event->slug),
+                            logger: $logger,
                         ),
                         cache: new Cache\FileCache($environment->cachePath($root) . '/' . $event->slug, $clock),
                         freshness: $freshness,

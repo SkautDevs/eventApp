@@ -193,6 +193,10 @@ return [
         // goes under a new file name, since files under www/events/ are cached as immutable.
         'image' => 'events/obrok27/plan-josefov.png',
         'imageAlt' => 'Plán areálu pevnosti Josefov',
+        // The plan image's edges in degrees, which put a place with GPS on the plan:
+        // extrapolated from docs/obrok27_plan/draw.py (the inverse of its px() at the
+        // image's corners). Demo-grade until the real layer is final.
+        'planBounds' => ['north' => 50.343810, 'south' => 50.336173, 'west' => 15.929620, 'east' => 15.938067],
     ],
 
     'handbook' => [

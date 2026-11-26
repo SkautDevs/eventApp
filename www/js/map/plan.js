@@ -1,8 +1,10 @@
 /**
- * The handbook's own site plan, the view that works offline. It zooms by its width inside
- * a box that scrolls both ways — the browser's own panning, no transform — and the anchor
- * stays put, as on the timeline: the + and − buttons zoom around the box's centre, two
- * fingers around the point between them. The scale is remembered per event for the tab.
+ * The handbook's own site plan, the view that works offline. It zooms by the width of its
+ * canvas (the image and the place markers on it) inside a box that scrolls both ways — the
+ * browser's own panning, no transform — and the anchor stays put, as on the timeline: the
+ * + and − buttons zoom around the box's centre, two fingers around the point between them.
+ * The image is the canvas's full width and a marker sits at its share of the canvas, so the
+ * markers stay on the drawing at every scale. The scale is remembered per event for the tab.
  */
 
 import {setDisabled} from '../ui/dom.js';
@@ -41,23 +43,28 @@ export function planScroll(scrollLeft, scrollTop, x, y, from, to) {
 	return {left: Math.max(left, 0), top: Math.max(top, 0)};
 }
 
-/** Wires the plan of one map root: its zoom buttons, the pinch, the remembered scale. */
+/**
+ * Wires the plan of one map root: its zoom buttons, the pinch, the remembered scale. Returns
+ * `apply(zoom, ax, ay)`, `restore()` (back to the remembered scale, 1 when none, writing
+ * nothing: map/place.js undoes a place's zoom with it), the scale on show (`zoom()`) and
+ * the scrolling box (`box()`).
+ */
 export function setupPlan(root, slug) {
 	const zoomKey = 'planZoom:' + slug;
 	let zoom = ZOOM_MIN;
-	// the image's width is set once without the scroll maths: before that, the box
+	// the canvas's width is set once without the scroll maths: before that, the box
 	// holds the plan at 100% whatever `zoom` says, so a ratio against it would be wrong
 	let applied = false;
 
 	/**
-	 * Sets the plan's width to `next` × the box, keeping the point under (ax, ay) where
+	 * Sets the canvas's width to `next` × the box, keeping the point under (ax, ay) where
 	 * it is. It does not remember the scale: a pinch calls it on every pointermove, so
 	 * its callers store it once the gesture or the tap is over (rememberZoom()).
 	 */
 	function applyZoom(next, ax, ay) {
 		const plan = root.querySelector('[data-plan]');
-		const img = root.querySelector('[data-plan-img]');
-		if (!plan || !img) {
+		const canvas = root.querySelector('[data-plan-canvas]');
+		if (!plan || !canvas) {
 			return;
 		}
 		next = clampZoom(next);
@@ -66,11 +73,11 @@ export function setupPlan(root, slug) {
 			const x = ax === undefined ? rect.width / 2 : ax - rect.left;
 			const y = ay === undefined ? rect.height / 2 : ay - rect.top;
 			const scroll = planScroll(plan.scrollLeft, plan.scrollTop, x, y, zoom, next);
-			img.style.width = next * 100 + '%';
+			canvas.style.width = next * 100 + '%';
 			plan.scrollLeft = scroll.left;
 			plan.scrollTop = scroll.top;
 		} else {
-			img.style.width = next * 100 + '%';
+			canvas.style.width = next * 100 + '%';
 			applied = true;
 		}
 		zoom = next;
@@ -81,6 +88,12 @@ export function setupPlan(root, slug) {
 
 	function rememberZoom() {
 		session(zoomKey, String(zoom));
+	}
+
+	/** The scale the reader last chose for the tab, or 1. */
+	function storedZoom() {
+		const stored = parseFloat(session(zoomKey));
+		return Number.isFinite(stored) ? clampZoom(stored) : ZOOM_MIN;
 	}
 
 	root.addEventListener('click', event => {
@@ -135,10 +148,12 @@ export function setupPlan(root, slug) {
 	root.addEventListener('pointerup', release);
 	root.addEventListener('pointercancel', release);
 
-	const storedZoom = parseFloat(session(zoomKey));
-	if (Number.isFinite(storedZoom)) {
-		zoom = clampZoom(storedZoom);
-	}
+	zoom = storedZoom();
 
-	return {apply: applyZoom, zoom: () => zoom};
+	return {
+		apply: applyZoom,
+		restore: () => applyZoom(storedZoom()),
+		zoom: () => zoom,
+		box: () => root.querySelector('[data-plan]'),
+	};
 }

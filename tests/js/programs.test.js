@@ -1,3 +1,4 @@
+import {galleryIndex} from '/js/programs/gallery.js';
 import {init} from '/js/programs/index.js';
 import {
 	chipScroll,
@@ -245,4 +246,13 @@ test('a day chip is a link: a plain click or Space switches the page, a modified
 		document.removeEventListener('click', record);
 		host.remove();
 	}
+});
+
+test('galleryIndex follows the strip and stays in range', () => {
+	assert.equal(galleryIndex(0, 300, 3), 0);
+	assert.equal(galleryIndex(149, 300, 3), 0);
+	assert.equal(galleryIndex(151, 300, 3), 1);
+	assert.equal(galleryIndex(900, 300, 3), 2);
+	assert.equal(galleryIndex(-20, 300, 3), 0);
+	assert.equal(galleryIndex(50, 0, 3), 0);
 });

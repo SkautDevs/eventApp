@@ -14,7 +14,20 @@
         "lector": null,
         "location": "Slapy – u kempu",
         "perex": "Organizuje Olda Pešina.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 5,
+        "images": [
+            {
+                "url": "/events/navigamus27/demo/regata-1.webp",
+                "thumbUrl": "/events/navigamus27/demo/regata-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/navigamus27/demo/regata-2.webp",
+                "thumbUrl": "/events/navigamus27/demo/regata-2-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 2,
@@ -31,7 +44,8 @@
         "lector": null,
         "location": "Elektrárna Štěchovice",
         "perex": "Doprava autobusem – cca 50–100 Kč.\nDélka prohlídky: 1,5 hod.\nKapacita: max 40 osob (20 v infocentru sleduje video, 20 je na prohlídce).\nProhlídka je zdarma.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 3,
@@ -48,7 +62,15 @@
         "lector": null,
         "location": "Přístaviště u kempu",
         "perex": "Z kempu na hráz a zpět cca 1,5 hod. + 30 min. procházka po hrázi.\nKapacita lodi: 150 míst (80 k sezení), při velkém zájmu lze objednat dvě lodě.\nCena podle počtu zájemců – cca 100–150 Kč.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 3,
+        "images": [
+            {
+                "url": "/events/navigamus27/demo/lod-1.webp",
+                "thumbUrl": "/events/navigamus27/demo/lod-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 4,
@@ -65,7 +87,8 @@
         "lector": null,
         "location": "Zámek Konopiště",
         "perex": "Doprava autobusem – cca 50–100 Kč.\na) 2. okruh (Salony severního křídla) – 55 min., dospělí 280 Kč, mládež 220 Kč, děti 80 Kč.\nb) Muzeum sv. Jiří (patron skautů) – 30 min., 80 Kč bez rozdílu věku.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 5,
@@ -82,7 +105,8 @@
         "lector": null,
         "location": "Rozhledny za přehradou",
         "perex": "Pramicí na druhý břeh, pak pěšky cca 4 km tam a zpět.\nObě rozhledny jsou volně přístupné.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 6,
@@ -99,7 +123,15 @@
         "lector": null,
         "location": "Kemp",
         "perex": "Modelové ukázky – záchrana tonoucího, vytažení na loď s transportem na břeh, využití paddleboardu (15 min.).\nPráce s házečkami, resuscitace na figuríně, první pomoc (2 skupiny, max 20 osob, 30 min.).\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 2,
+        "images": [
+            {
+                "url": "/events/navigamus27/demo/lod-1.webp",
+                "thumbUrl": "/events/navigamus27/demo/lod-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 7,
@@ -116,7 +148,8 @@
         "lector": null,
         "location": "Přístaviště u kempu",
         "perex": "Na vlastních lodích cca 2 km na dnes zatopené místo, kde v roce 1915 tábořily první skautky.\nVyprávění a dobové fotografie: skautský historik Roman Šantora – Bobo.\nDélka cca 1,5 hod., vhodné pro děti starší 10 let.\nKapacita: max 30 osob.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 8,
@@ -133,6 +166,7 @@
         "lector": null,
         "location": "Přístaviště u kempu",
         "perex": "Druhá plavba, pokud je zájem.\nNa vlastních lodích cca 2 km na dnes zatopené místo, kde v roce 1915 tábořily první skautky.\nVyprávění a dobové fotografie: skautský historik Roman Šantora – Bobo.\nDélka cca 1,5 hod., vhodné pro děti starší 10 let.\nKapacita: max 30 osob.\nCeny doprovodných programů nejsou zahrnuty v registračním poplatku.",
-        "tools": null
+        "tools": null,
+        "placeId": 3
     }
 ]

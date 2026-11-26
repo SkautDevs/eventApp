@@ -6,9 +6,13 @@
 //   docker run --rm -v "$PWD":/app -w /app php:8.5-alpine php bin/kissj-fixtures.php <slug> [--clamp-all-day=HH:MM-HH:MM]
 //
 // Everything goes through the real KissjProgramProvider, fed the responses by a Guzzle
-// MockHandler, so the stub serves exactly what the kissj provider would. sections.json is
-// kissj's own shape already and is copied as it is. programs.json carries `preregistered`
-// only where it is true (the stub reads a missing key as false). registration.json is the
+// MockHandler, so the stub serves exactly what the kissj provider would. sections.json and
+// places.json are kissj's own shape already and are copied as they are (places.json is `[]`
+// for a list without `places`). programs.json carries `preregistered` only where it is true
+// (the stub reads a missing key as false), `placeId` only where it is set and `images` only
+// where there are any; a photo URL loses the converter's fake origin `https://kissj.example`,
+// so it is root-relative and served from www/ (bin/demo-media.php draws the photos, and runs
+// before this script, after a converter). registration.json is the
 // list's registration window, written when either end is set and removed when
 // it has none (the stub reads a missing file as no window). registered.json gives the
 // fixture participant, read through the session endpoint from participant.json, the
@@ -56,6 +60,7 @@ $provider = new KissjProgramProvider(
         'base_uri' => 'https://kissj.example/',
     ]),
     apiKey: 'unused',
+    origin: 'https://kissj.example',
 );
 
 // the rows programs.json stores, as the stub reads them back
@@ -71,15 +76,29 @@ $window = $provider->getRegistrationWindow();
 // the session endpoint is what the provider reads a participant through; the token is a dummy
 $participant = $provider->getParticipant('fixtures');
 $registered = array_map(static fn(Programme $programme): int => $programme->id, $participant->programmes);
-// the stub reads a missing key as false, so only the true ones are spelled out
+// the stub reads a missing key as false, so only the true ones are spelled out; a null
+// placeId and an empty images list are left out by Programme::toArray() already
 $programs = array_map(static function (array $program): array {
     if ($program['preregistered'] !== true) {
         unset($program['preregistered']);
     }
+    if (isset($program['images'])) {
+        $program['images'] = array_map(static function (array $image): array {
+            foreach (['url', 'thumbUrl'] as $key) {
+                if (str_starts_with($image[$key], 'https://kissj.example/')) {
+                    $image[$key] = substr($image[$key], strlen('https://kissj.example'));
+                }
+            }
+
+            return $image;
+        }, $program['images']);
+    }
 
     return $program;
 }, $programs);
-$sections = json_decode($list, true, flags: JSON_THROW_ON_ERROR)['sections'];
+$decoded = json_decode($list, true, flags: JSON_THROW_ON_ERROR);
+$sections = $decoded['sections'];
+$places = $decoded['places'] ?? [];
 
 $write = static function (string $file, array $data) use ($target): void {
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
@@ -93,6 +112,7 @@ if (!is_dir($target) && !mkdir($target, 0777, true)) {
 }
 $write('programs.json', $programs);
 $write('sections.json', $sections);
+$write('places.json', $places);
 $write('registered.json', [(string) $participant->id => $registered]);
 if ($window->start !== null || $window->end !== null) {
     $write('registration.json', ['start' => $window->start?->format(DATE_ATOM), 'end' => $window->end?->format(DATE_ATOM)]);
@@ -101,9 +121,10 @@ if ($window->start !== null || $window->end !== null) {
 }
 
 printf(
-    "%d programmes, %d sections, %d registered for participant %d, registration %s → %s\n",
+    "%d programmes, %d sections, %d places (places.json), %d registered for participant %d, registration %s → %s\n",
     count($programs),
     count($sections),
+    count($places),
     count($registered),
     $participant->id,
     $window->start === null && $window->end === null ? 'not set' : 'set',

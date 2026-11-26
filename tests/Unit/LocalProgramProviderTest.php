@@ -90,6 +90,66 @@ final class LocalProgramProviderTest extends TestCase
         self::assertSame([], $provider->getSections());
     }
 
+    /**
+     * Runs $test against a provider over a fixtures directory of its own holding $files,
+     * each encoded as JSON, and removes the directory afterwards.
+     *
+     * @param array<string, mixed> $files
+     * @param \Closure(LocalProgramProvider): void $test
+     */
+    private function withFixtures(array $files, \Closure $test): void
+    {
+        $dir = $this->stateDir . '/fixtures-' . bin2hex(random_bytes(4));
+        mkdir($dir . '/fixtures', recursive: true);
+        foreach ($files as $name => $content) {
+            file_put_contents($dir . '/fixtures/' . $name, json_encode($content, JSON_THROW_ON_ERROR));
+        }
+        try {
+            $test(new LocalProgramProvider($dir . '/fixtures', $this->stateDir));
+        } finally {
+            array_map('unlink', glob($dir . '/fixtures/*') ?: []);
+            rmdir($dir . '/fixtures');
+            rmdir($dir);
+        }
+    }
+
+    public function testPlacesComeFromPlacesJson(): void
+    {
+        $this->withFixtures(
+            ['places.json' => [['id' => 2, 'name' => 'B', 'lat' => null, 'lng' => null], ['id' => 1, 'name' => 'A', 'lat' => 50.1, 'lng' => 15.2]]],
+            static function (LocalProgramProvider $provider): void {
+                $places = $provider->getPlaces();
+                self::assertSame([2, 1], array_keys($places), 'in the file\'s order');
+                self::assertTrue($places[1]->hasGps());
+                self::assertFalse($places[2]->hasGps());
+            },
+        );
+    }
+
+    public function testNoPlacesJsonMeansNoPlaces(): void
+    {
+        $provider = new LocalProgramProvider(sys_get_temp_dir() . '/no-such-fixtures-' . bin2hex(random_bytes(4)), $this->stateDir);
+
+        self::assertSame([], $provider->getPlaces());
+    }
+
+    public function testAParticipantsProgrammesKeepTheirPhotos(): void
+    {
+        $this->withFixtures(
+            [
+                'programs.json' => [['id' => 3, 'name' => 'Lanovka', 'placeId' => 1, 'images' => [
+                    ['url' => '/events/x/demo/a.webp', 'thumbUrl' => '/events/x/demo/a-thumb.webp', 'alt' => ''],
+                ]]],
+                'registered.json' => ['1' => [3]],
+            ],
+            static function (LocalProgramProvider $provider): void {
+                $programme = $provider->getParticipant(self::pair($provider))->programmes[0];
+                self::assertSame('/events/x/demo/a.webp', $programme->images[0]->url);
+                self::assertSame(1, $programme->placeId);
+            },
+        );
+    }
+
     public function testEveryProgrammeSaysWhetherItIsPreregistered(): void
     {
         $preregistered = [];

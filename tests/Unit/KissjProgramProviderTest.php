@@ -19,6 +19,8 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 
@@ -36,15 +38,20 @@ final class KissjProgramProviderTest extends TestCase
     /** @var list<array{request: RequestInterface}> */
     private array $history = [];
 
-    private function provider(MockHandler $mock): KissjProgramProvider
+    /** what the provider logged */
+    private TestHandler $log;
+
+    private function provider(MockHandler $mock, string $origin = 'https://kissj.example'): KissjProgramProvider
     {
         $this->history = [];
         $stack = HandlerStack::create($mock);
         $stack->push(Middleware::history($this->history));
 
         return new KissjProgramProvider(
-            http: new Client(['handler' => $stack, 'base_uri' => 'https://kissj.example/']),
+            http: new Client(['handler' => $stack, 'base_uri' => $origin . '/']),
             apiKey: 'secret-key',
+            origin: $origin,
+            logger: new Logger('test', [$this->log = new TestHandler()]),
         );
     }
 
@@ -711,5 +718,201 @@ final class KissjProgramProviderTest extends TestCase
                 self::assertStringNotContainsString(self::TOKEN, $e->getMessage(), $label);
             }
         }
+    }
+
+    /** an image id as kissj mints them: 32 hex */
+    private const string IMAGE = '0123456789abcdef0123456789abcdef';
+
+    /** A 3.1 list response: listBody() plus `places`, which is sent as given. */
+    private static function listWithPlaces(array $programmes, mixed $places): string
+    {
+        return (string) json_encode(json_decode(self::listBody($programmes), true) + ['places' => $places]);
+    }
+
+    /** One image element on $origin, as kissj sends them. */
+    private static function image(string $origin = 'https://kissj.example', string $alt = ''): array
+    {
+        $url = $origin . '/v3/programme/image/' . self::IMAGE;
+
+        return ['url' => $url, 'thumbUrl' => $url . '/thumb', 'alt' => $alt];
+    }
+
+    /** Review Focus 1: a kissj that still answers 3.0 shows the programme as before. */
+    public function testAThreeZeroListHasNoPlacesAndNoImages(): void
+    {
+        $provider = $this->answering(new Response(200, [], self::listBody([self::programme(), self::programme(['id' => 6])])));
+
+        self::assertSame([], $provider->getPlaces());
+        $programmes = $provider->getPrograms();
+        self::assertCount(2, $programmes);
+        foreach ($programmes as $programme) {
+            self::assertNull($programme->placeId);
+            self::assertSame([], $programme->images);
+        }
+        self::assertSame([], $this->log->getRecords());
+        self::assertCount(1, $this->history, 'the places come from the one list request');
+    }
+
+    public function testAThreeOneListMapsPlacesPlaceIdsAndImages(): void
+    {
+        $provider = $this->answering(new Response(200, [], self::listWithPlaces(
+            [self::programme(['id' => 123, 'place' => 'Žlutý les', 'placeId' => 7, 'images' => [self::image()]])],
+            [
+                ['id' => 8, 'name' => 'Celý tábor', 'lat' => null, 'lng' => null],
+                ['id' => 7, 'name' => 'Žlutý les', 'lat' => 50.340847, 'lng' => 15.935361],
+            ],
+        )));
+
+        $places = $provider->getPlaces();
+        self::assertSame([8, 7], array_keys($places));
+        self::assertTrue($places[7]->hasGps());
+        self::assertFalse($places[8]->hasGps());
+        $programme = $provider->getPrograms()[0];
+        self::assertSame(7, $programme->placeId);
+        self::assertSame('Žlutý les', $programme->location);
+        self::assertCount(1, $programme->images);
+        self::assertSame('https://kissj.example/v3/programme/image/' . self::IMAGE, $programme->images[0]->url);
+        self::assertStringEndsWith('/thumb', $programme->images[0]->thumbUrl);
+        self::assertSame('', $programme->images[0]->alt);
+        self::assertSame([], $this->log->getRecords());
+    }
+
+    /** Plan call 1: only the provider's own origin, so an insecure or foreign photo never reaches a page. */
+    public function testAForeignOrInsecureImageIsDroppedAndLogged(): void
+    {
+        $good = self::image(alt: 'Táborák');
+        $provider = $this->answering(new Response(200, [], self::listWithPlaces(
+            [self::programme(['images' => [self::image('https://evil.example'), self::image('http://kissj.example'), $good]])],
+            [],
+        )));
+
+        $images = $provider->getPrograms()[0]->images;
+        self::assertCount(1, $images);
+        self::assertSame($good, $images[0]->toArray());
+
+        self::assertTrue($this->log->hasWarningThatContains('kissj.images-dropped'));
+        $records = $this->log->getRecords();
+        self::assertCount(1, $records, 'one line per list, however many were dropped');
+        self::assertSame(['dropped' => 2, 'origin' => 'https://evil.example'], $records[0]->context);
+        self::assertStringNotContainsString(self::IMAGE, json_encode($records[0]->toArray()), 'no full URL in the log');
+    }
+
+    /** One URL off the origin is enough: a foreign thumbnail drops the image, and so do look-alike or unparseable addresses. */
+    public function testAnImageIsKeptOnlyWhenBothUrlsAreOnTheOrigin(): void
+    {
+        $url = 'https://kissj.example/v3/programme/image/' . self::IMAGE;
+        $provider = $this->answering(new Response(200, [], self::listWithPlaces([self::programme(['images' => [
+            ['url' => $url, 'thumbUrl' => 'https://cdn.example/thumb', 'alt' => ''],
+            ['url' => 'https://kissj.example.evil.example/x', 'thumbUrl' => $url . '/thumb', 'alt' => ''],
+            ['url' => 'https://kissj.example@evil.example/x', 'thumbUrl' => $url . '/thumb', 'alt' => ''],
+            // a browser reads the backslash as a slash, so the host is evil.example, not the one after the @
+            ['url' => 'https://evil.example\\@kissj.example/x', 'thumbUrl' => $url . '/thumb', 'alt' => ''],
+            ['url' => 'https://kissj.example:8443/x', 'thumbUrl' => $url . '/thumb', 'alt' => ''],
+            ['url' => '/v3/programme/image/' . self::IMAGE, 'thumbUrl' => $url . '/thumb', 'alt' => ''],
+            ['url' => 'https://KISSJ.example/v3/programme/image/' . self::IMAGE, 'thumbUrl' => $url . '/thumb', 'alt' => ''],
+        ]])], [])));
+
+        $images = $provider->getPrograms()[0]->images;
+        self::assertCount(1, $images, 'only the last one: the host is case-insensitive');
+        self::assertSame(6, $this->log->getRecords()[0]->context['dropped']);
+        self::assertSame('https://cdn.example', $this->log->getRecords()[0]->context['origin']);
+    }
+
+    public function testAnUnparseableFirstDropIsLoggedAsInvalid(): void
+    {
+        $this->answering(new Response(200, [], self::listWithPlaces(
+            [self::programme(['images' => [['url' => 'javascript:alert(1)', 'thumbUrl' => 'javascript:alert(1)', 'alt' => '']]])],
+            [],
+        )))->getPrograms();
+
+        self::assertSame(['dropped' => 1, 'origin' => 'invalid'], $this->log->getRecords()[0]->context);
+    }
+
+    /** Plan call 1: a dev kissj on http keeps its own http photos. */
+    public function testAnHttpProviderKeepsItsOwnHttpImages(): void
+    {
+        $provider = $this->provider(new MockHandler([new Response(200, [], self::listWithPlaces(
+            [self::programme(['images' => [self::image('http://localhost:8080')]])],
+            [],
+        ))]), origin: 'http://localhost:8080');
+
+        self::assertCount(1, $provider->getPrograms()[0]->images);
+        self::assertSame([], $this->log->getRecords());
+    }
+
+    /**
+     * Final review F2: the scheme's default port is no port, on either side, so a photo
+     * spelled with `:443` is on `https://kissj.example`, and one without it is on an origin
+     * configured as `https://kissj.example:443`. Any other port is another origin.
+     */
+    public function testTheDefaultPortIsNoPort(): void
+    {
+        $plain = self::image();
+        $spelled = self::image('https://kissj.example:443');
+        $list = self::listWithPlaces([self::programme(['images' => [$plain, $spelled, self::image('https://kissj.example:8443')]])], []);
+
+        foreach (['https://kissj.example', 'https://kissj.example:443'] as $origin) {
+            $provider = $this->provider(new MockHandler([new Response(200, [], $list)]), origin: $origin);
+            self::assertSame([$plain, $spelled], array_map(static fn($image) => $image->toArray(), $provider->getPrograms()[0]->images), $origin);
+            self::assertSame(['dropped' => 1, 'origin' => 'https://kissj.example:8443'], $this->log->getRecords()[0]->context, $origin);
+        }
+
+        $http = $this->provider(new MockHandler([new Response(200, [], self::listWithPlaces(
+            [self::programme(['images' => [self::image('http://kissj.example:80')]])],
+            [],
+        ))]), origin: 'http://kissj.example');
+        self::assertCount(1, $http->getPrograms()[0]->images);
+    }
+
+    /** Plan call 2: the 3.1 additions never take the list down. */
+    public function testMalformedPlacesNeverFailTheList(): void
+    {
+        $provider = $this->answering(new Response(200, [], self::listWithPlaces(
+            [self::programme(['placeId' => '7', 'images' => 'x']), self::programme(['id' => 6, 'placeId' => 0, 'images' => ['x', ['url' => 1]]])],
+            'x',
+        )));
+
+        self::assertSame([], $provider->getPlaces());
+        $programmes = $provider->getPrograms();
+        self::assertCount(2, $programmes);
+        self::assertSame([null, null], array_column($programmes, 'placeId'));
+        self::assertSame([[], []], array_column($programmes, 'images'));
+        $records = $this->log->getRecords();
+        self::assertCount(1, $records);
+        self::assertTrue($this->log->hasWarningThatContains('kissj.places-invalid'));
+    }
+
+    public function testAPlacesObjectIsNoListEither(): void
+    {
+        $provider = $this->answering(new Response(200, [], self::listWithPlaces([], ['7' => ['id' => 7, 'name' => 'A']])));
+
+        self::assertSame([], $provider->getPlaces());
+        self::assertTrue($this->log->hasWarningThatContains('kissj.places-invalid'));
+    }
+
+    public function testBadCoordinatesGiveAPlaceWithoutGps(): void
+    {
+        $places = $this->answering(new Response(200, [], self::listWithPlaces([], [
+            ['id' => 1, 'name' => 'A', 'lat' => 95, 'lng' => 15],
+            ['id' => 2, 'name' => 'B', 'lat' => 50.1, 'lng' => null],
+        ])))->getPlaces();
+
+        self::assertSame([1, 2], array_keys($places));
+        self::assertFalse($places[1]->hasGps());
+        self::assertFalse($places[2]->hasGps());
+    }
+
+    public function testTheParticipantReadCarriesPlaceIdAndImages(): void
+    {
+        $participant = $this->answering(self::session(programmes: [
+            self::programme(['placeId' => 7, 'images' => [self::image(), self::image('https://evil.example')]]),
+        ]))->getParticipant(self::TOKEN);
+
+        self::assertSame(7, $participant->programmes[0]->placeId);
+        self::assertCount(1, $participant->programmes[0]->images);
+        self::assertSame(1, $this->log->getRecords()[0]->context['dropped']);
+        // the session body has no places, and nothing asked for the list
+        self::assertCount(1, $this->history);
+        self::assertSame('/v3/programme/participant/session', $this->lastRequest()->getUri()->getPath());
     }
 }

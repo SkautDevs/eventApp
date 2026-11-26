@@ -51,6 +51,12 @@ final class TouchTargetTest extends BrowserTestCase
         self::assertTrue(self::script('return document.querySelector(".sheet-body.is-open .sheet-footer a").getClientRects().length > 0;'));
         self::assertSame([], self::script(self::SMALL, [['.sheet-body.is-open .sheet-footer a']]));
 
+        // the sheet's pin to Místa, on the shortest place name obrok27 has (Les, programme 53)
+        self::visit('/obrok27/programy/prehled#section-4-program-53');
+        self::waitFor('return document.querySelector(".sheet.is-open .sheet-body.is-open .place-pin") !== null;');
+        self::assertSame('Les', self::script('return document.querySelector(".sheet-body.is-open .place-pin").textContent.trim();'));
+        self::assertSame([], self::script(self::SMALL, [['.sheet-body.is-open .place-pin']]));
+
         // paired, so the personal list has a strip of its own to measure, and Profil its mode control
         self::pair();
         self::visit('/korbo26/profil');

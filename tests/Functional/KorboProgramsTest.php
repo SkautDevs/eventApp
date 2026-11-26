@@ -38,6 +38,7 @@ final class KorboProgramsTest extends AppTestCase
                 'base_uri' => 'https://kissj.example/',
             ]),
             apiKey: 'secret-key',
+            origin: 'https://kissj.example',
         );
 
         return $this->createApp('programs', [

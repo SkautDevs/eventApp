@@ -15,6 +15,15 @@ final class TemplateContextTest extends TestCase
         $page = new MapPage('google', 'https://www.google.com/maps/d/embed?mid=x', null, 'Plán areálu');
 
         self::assertSame(get_object_vars($page), TemplateContext::of($page));
-        self::assertSame(['view' => 'google', 'embedUrl' => 'https://www.google.com/maps/d/embed?mid=x', 'image' => null, 'imageAlt' => 'Plán areálu'], TemplateContext::of($page));
+        self::assertSame([
+            'view' => 'google',
+            'embedUrl' => 'https://www.google.com/maps/d/embed?mid=x',
+            'image' => null,
+            'imageAlt' => 'Plán areálu',
+            'markers' => [],
+            'places' => [],
+            'misto' => null,
+            'embedSrc' => null,
+        ], TemplateContext::of($page));
     }
 }

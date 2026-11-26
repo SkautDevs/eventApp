@@ -13,7 +13,15 @@ use App\Module\Modules;
 /** What the service worker keeps, as the server says it. */
 final class PrecacheTest extends AppTestCase
 {
-    /** @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>, aliases: array<string, string>} */
+    protected function tearDown(): void
+    {
+        // tests/bootstrap.php pins every event to local; put that back rather than unsetting
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'local';
+        unset($_ENV['KISSJ_API_KEY_OBROK27']);
+        parent::tearDown();
+    }
+
+    /** @return array{version: string, documents: list<string>, assets: list<string>, optional: list<string>, aliases: array<string, string>, imageOrigin: ?string} */
     private function listFor(string $slug, bool $fixtureEvent = false): array
     {
         $response = $this->request($this->createApp($slug, fixtureEvent: $fixtureEvent), 'GET', '/precache.json');
@@ -75,6 +83,29 @@ final class PrecacheTest extends AppTestCase
             Precache::version(['/x/programy/moje', '/x/programy'], $assets, []),
             Precache::version([], $assets, [], ['/x/programy/moje' => '/x/programy']),
         );
+    }
+
+    /** The worker keeps photos of the provider's origin only, and reads that origin here. */
+    public function testTheListNamesTheImageOrigin(): void
+    {
+        $local = $this->listFor('obrok27');
+        self::assertArrayHasKey('imageOrigin', $local);
+        self::assertNull($local['imageOrigin']);
+
+        $_ENV['PROGRAM_PROVIDER_OBROK27'] = 'https://kissj.example/';
+        $_ENV['KISSJ_API_KEY_OBROK27'] = 'k';
+
+        self::assertSame('https://kissj.example', $this->listFor('obrok27')['imageOrigin']);
+    }
+
+    public function testTheImageOriginCountsInTheVersion(): void
+    {
+        $documents = ['/x/', '/x/programy', '/x/offline'];
+        $assets = ['/style.css?v=00000000'];
+
+        self::assertNotSame(Precache::version($documents, $assets, [], [], 'https://a.example'), Precache::version($documents, $assets, [], [], null));
+        // no origin is the list as it was: an event on local keeps its version
+        self::assertSame(Precache::version($documents, $assets, [], []), Precache::version($documents, $assets, [], [], null));
     }
 
     /** The worker reads `aliases` as an object, so an event without any sends {}, never []. */
@@ -249,8 +280,8 @@ final class PrecacheTest extends AppTestCase
 
         self::assertSame('application/json', $response->getHeaderLine('Content-Type'));
         self::assertSame('no-cache', $response->getHeaderLine('Cache-Control'));
-        self::assertSame(['version', 'documents', 'assets', 'optional', 'aliases'], array_keys($body));
-        self::assertSame(Precache::version($body['documents'], $body['assets'], $body['optional'], $body['aliases']), $body['version']);
+        self::assertSame(['version', 'documents', 'assets', 'optional', 'aliases', 'imageOrigin'], array_keys($body));
+        self::assertSame(Precache::version($body['documents'], $body['assets'], $body['optional'], $body['aliases'], $body['imageOrigin']), $body['version']);
         self::assertStringNotContainsString('\/', (string) $response->getBody());
     }
 

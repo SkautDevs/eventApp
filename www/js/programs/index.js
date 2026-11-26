@@ -17,6 +17,7 @@ import {nextTabIndex} from '../ui/tabs.js';
 import {setup as setupChips} from './chips.js';
 import {isList, LIST_KINDS, setup as setupDaylist} from './daylist.js';
 import {setup as setupDeeplink} from './deeplink.js';
+import {setupGallery} from './gallery.js';
 import {denPage, hashTarget, legacyTarget, viewFromPath} from './maths.js';
 import {setup as setupNowline} from './nowline.js';
 import {setup as setupSheet} from './sheet.js';
@@ -60,6 +61,7 @@ export function init(root) {
 	setupViews(ctx);
 	setupZoom(ctx);
 	setupNowline(ctx);
+	setupGallery(root);
 
 	root.addEventListener('click', event => {
 		const el = event.target.closest('[data-pg-view],[data-pg-page],[data-pg-close],[data-pg-open],[data-pg-zoom]');

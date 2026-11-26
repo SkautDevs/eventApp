@@ -218,7 +218,7 @@ final class Kernel
         $app->add(new Http\SecurityHeadersMiddleware());
         // after the security headers, so it too is outside the error middleware and a 404
         // or a 500 carries the policy
-        $app->add(new Http\CspMiddleware($twig, Http\CspMiddleware::extrasFor($event)));
+        $app->add(new Http\CspMiddleware($twig, Http\CspMiddleware::extrasFor($event, $environment->programOrigin($event->slug))));
         // Last of all, so it is outermost: the error middleware's 500 is measured too.
         // Keep it the final $app->add() — anything added after it would go unmeasured.
         $app->add(new Telemetry\TransactionMiddleware());

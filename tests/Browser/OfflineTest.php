@@ -170,6 +170,38 @@ final class OfflineTest extends BrowserTestCase
         }
     }
 
+    /**
+     * A place's address opens offline from Místa's stored page, which the server rendered for
+     * the bare address with every marker hidden: www/js/map/place.js shows the place's.
+     */
+    public function testAPlaceAddressOpensOfflineWithItsMarker(): void
+    {
+        $places = json_decode((string) file_get_contents(dirname(__DIR__, 2) . '/events/obrok27/fixtures/places.json'), true);
+        self::assertIsArray($places);
+        $plaza = array_values(array_filter($places, static fn(mixed $place): bool => is_array($place) && ($place['name'] ?? null) === 'Plaza'));
+        self::assertCount(1, $plaza);
+        $place = (string) $plaza[0]['id'];
+
+        self::visit('/obrok27/mapa');
+        self::waitForPrecache('obrok27');
+
+        self::stopServer();
+        self::networkOffline(true);
+        try {
+            self::visit('/obrok27/mapa/plan?misto=' . $place);
+            self::waitFor('const s = document.querySelector(\'[data-screen="/obrok27/mapa"]\'); return !!s && !s.hidden;');
+            self::assertNull(self::script('return document.querySelector(".offline");'));
+            self::waitFor('const root = document.querySelector("[data-map-root]"); return root !== null && root.dataset.mapReady === "1" && root.dataset.view === "plan";');
+            self::assertSame('/obrok27/mapa/plan', self::script('return location.pathname;'));
+            self::assertSame('?misto=' . $place, self::script('return location.search;'));
+            self::waitFor('const marker = document.querySelector("#misto-" + arguments[0]); return marker !== null && !marker.hidden;', [$place]);
+            self::assertSame(1, self::script('return Array.from(document.querySelectorAll("[data-plan-canvas] [data-place]")).filter(el => !el.hidden).length;'));
+        } finally {
+            self::networkOffline(false);
+            self::startServer();
+        }
+    }
+
     /** A Místa already wired, shown again on its bare address with no signal, moves to the plan too. */
     public function testTheMapShownAgainWithoutSignalMovesToThePlan(): void
     {
@@ -311,6 +343,87 @@ final class OfflineTest extends BrowserTestCase
         self::waitFor('const s = document.querySelector(\'[data-screen="/korbo26/informace"]\'); return s && !s.hidden;');
         // shown again: still due, so asked again
         self::waitFor('return window.__checks.filter(check => check.done).length >= 2;');
+    }
+
+    /**
+     * A photo is kept only once it has been seen. One never seen, with no signal, fails to
+     * load, and its frame keeps the event's mark (_photo_mark.twig) rather than an empty box.
+     */
+    public function testAPhotoNeverSeenShowsThePlaceholderOffline(): void
+    {
+        self::visit('/korbo26/programy');
+        self::waitForPrecache('korbo26');
+
+        self::stopServer();
+        self::networkOffline(true);
+        try {
+            self::$browser->reload();
+            self::waitFor('return document.querySelector(\'[data-screen="/korbo26/programy"] [data-pg-root][data-pg-ready="1"]\') !== null;');
+            // Vzduchovky (programme 13), whose sheet this browser never opened
+            self::script('document.querySelector(\'[data-screen="/korbo26/programy"] .tl-card[data-key="13"]\').click();');
+            self::waitFor('return document.querySelector(\'.sheet.is-open .sheet-body.is-open[data-pg-detail="13"]\') !== null;');
+            $photo = '.sheet-body[data-pg-detail="13"] .gallery-frame img[data-photo]';
+            self::waitFor('return document.querySelector(arguments[0]) !== null;', [$photo]);
+
+            usleep(2_000_000);
+
+            self::assertFalse(self::script('return document.querySelector(arguments[0]).classList.contains("is-loaded");', [$photo]), 'the photo never loaded');
+            $mark = self::script(<<<'JS'
+                const frame = document.querySelector(arguments[0]).closest('.gallery-frame');
+                return Math.max(0, ...Array.from(frame.querySelectorAll('.photo-mark')).map(mark => mark.getBoundingClientRect().width));
+                JS, [$photo]);
+            self::assertGreaterThan(0, $mark, 'the frame shows the event\'s mark');
+        } finally {
+            self::networkOffline(false);
+            self::startServer();
+        }
+    }
+
+    /**
+     * Final review F8: a photo seen once shows without the server. Volejbal's first photo
+     * loads through the worker, which keeps it in `eventapp-korbo26-img`; with the server
+     * stopped and the browser's own HTTP cache cleared, so only the worker's copy is left,
+     * the reopened sheet's photo loads from there.
+     */
+    public function testAPhotoSeenOnceShowsOffline(): void
+    {
+        $photo = '.sheet-body[data-pg-detail="1"] .gallery-frame img[data-photo]';
+        self::visit('/korbo26/programy');
+        self::waitForPrecache('korbo26');
+        // the first page was not controlled yet; this one goes through the worker
+        self::$browser->reload();
+        self::waitFor('return document.querySelector(\'[data-pg-root][data-pg-ready="1"]\') !== null && navigator.serviceWorker.controller !== null;');
+        self::openVolejbal();
+        self::waitFor('const img = document.querySelector(arguments[0]); return img !== null && img.classList.contains("is-loaded") && img.naturalWidth > 0;', [$photo]);
+        $src = (string) self::script('return document.querySelector(arguments[0]).src;', [$photo]);
+        self::assertStringEndsWith('/events/korbo26/demo/volejbal-1.webp', $src);
+        // the worker puts the photo after answering with it: waited for, never assumed
+        self::waitForAsync(<<<'JS'
+            const done = arguments[arguments.length - 1];
+            caches.open('eventapp-korbo26-img')
+                .then(cache => cache.match(arguments[0]))
+                .then(hit => done(Boolean(hit)), () => done(false));
+            JS, [$src]);
+
+        self::stopServer();
+        try {
+            self::devTools()->execute('Network.clearBrowserCache');
+            // the screen's own address, no sheet in the hash: the worker's stored copy
+            self::visit('/korbo26/programy');
+            self::waitFor('return document.querySelector(\'[data-screen="/korbo26/programy"] [data-pg-root][data-pg-ready="1"]\') !== null;');
+            self::assertNull(self::script('return document.querySelector(".offline");'), 'the stored Program screen, not /offline');
+            self::assertFalse(self::script('const img = document.querySelector(arguments[0]); return img.complete && img.naturalWidth > 0;', [$photo]), 'the reloaded sheet is closed, its lazy photo not fetched yet');
+            self::openVolejbal();
+            self::waitFor('const img = document.querySelector(arguments[0]); return img.complete && img.naturalWidth > 0 && img.classList.contains("is-loaded");', [$photo]);
+        } finally {
+            self::startServer();
+        }
+    }
+
+    private static function openVolejbal(): void
+    {
+        self::script('document.querySelector(\'[data-screen="/korbo26/programy"] .tl-card[data-key="1"]\').click();');
+        self::waitFor('return document.querySelector(\'.sheet.is-open .sheet-body.is-open[data-pg-detail="1"]\') !== null;');
     }
 
     /** Wait until the worker's cache $cache holds the page $path, and its HTML contains $needle. */

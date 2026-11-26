@@ -14,7 +14,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 2,
@@ -31,7 +32,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 3,
@@ -48,7 +50,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 4,
@@ -65,7 +68,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 5,
@@ -82,7 +86,20 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11,
+        "images": [
+            {
+                "url": "/events/obrok27/demo/louka-1.webp",
+                "thumbUrl": "/events/obrok27/demo/louka-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/obrok27/demo/louka-2.webp",
+                "thumbUrl": "/events/obrok27/demo/louka-2-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 6,
@@ -99,7 +116,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 7,
@@ -116,7 +134,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 8,
@@ -133,7 +152,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 9,
@@ -150,7 +170,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 10,
@@ -167,7 +188,20 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22,
+        "images": [
+            {
+                "url": "/events/obrok27/demo/louka-1.webp",
+                "thumbUrl": "/events/obrok27/demo/louka-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/obrok27/demo/stan-1.webp",
+                "thumbUrl": "/events/obrok27/demo/stan-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 11,
@@ -184,7 +218,15 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15,
+        "images": [
+            {
+                "url": "/events/obrok27/demo/plaza-1.webp",
+                "thumbUrl": "/events/obrok27/demo/plaza-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 12,
@@ -201,7 +243,8 @@
         "lector": null,
         "location": "Les 1/2",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 10
     },
     {
         "id": 13,
@@ -218,7 +261,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 14,
@@ -235,7 +279,25 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18,
+        "images": [
+            {
+                "url": "/events/obrok27/demo/sapito-1.webp",
+                "thumbUrl": "/events/obrok27/demo/sapito-1-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/obrok27/demo/sapito-2.webp",
+                "thumbUrl": "/events/obrok27/demo/sapito-2-thumb.webp",
+                "alt": ""
+            },
+            {
+                "url": "/events/obrok27/demo/louka-2.webp",
+                "thumbUrl": "/events/obrok27/demo/louka-2-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 15,
@@ -252,7 +314,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 16,
@@ -269,7 +332,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 17,
@@ -286,7 +350,15 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16,
+        "images": [
+            {
+                "url": "/events/obrok27/demo/stan-1.webp",
+                "thumbUrl": "/events/obrok27/demo/stan-1-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 18,
@@ -303,7 +375,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 19,
@@ -320,7 +393,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 20,
@@ -337,7 +411,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 21,
@@ -354,7 +429,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 22,
@@ -371,7 +447,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 23,
@@ -388,7 +465,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 24,
@@ -405,7 +483,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 25,
@@ -422,7 +501,15 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4,
+        "images": [
+            {
+                "url": "/events/obrok27/demo/sapito-2.webp",
+                "thumbUrl": "/events/obrok27/demo/sapito-2-thumb.webp",
+                "alt": ""
+            }
+        ]
     },
     {
         "id": 26,
@@ -439,7 +526,8 @@
         "lector": null,
         "location": "Dopro kreativní stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 27,
@@ -456,7 +544,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 28,
@@ -473,7 +562,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 29,
@@ -490,7 +580,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 30,
@@ -507,7 +598,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 31,
@@ -524,7 +616,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 32,
@@ -541,7 +634,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 33,
@@ -558,7 +652,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 34,
@@ -575,7 +670,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 35,
@@ -592,7 +688,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 36,
@@ -609,7 +706,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 37,
@@ -626,7 +724,8 @@
         "lector": null,
         "location": "Stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 17
     },
     {
         "id": 38,
@@ -643,7 +742,8 @@
         "lector": null,
         "location": "Stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 17
     },
     {
         "id": 39,
@@ -660,7 +760,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 40,
@@ -677,7 +778,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 41,
@@ -694,7 +796,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 42,
@@ -711,7 +814,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 43,
@@ -728,7 +832,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 44,
@@ -745,7 +850,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 45,
@@ -762,7 +868,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 46,
@@ -779,7 +886,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 47,
@@ -796,7 +904,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 48,
@@ -813,7 +922,8 @@
         "lector": null,
         "location": "Červená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 20
     },
     {
         "id": 49,
@@ -830,7 +940,8 @@
         "lector": null,
         "location": "Červená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 20
     },
     {
         "id": 50,
@@ -847,7 +958,8 @@
         "lector": null,
         "location": "Červená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 20
     },
     {
         "id": 51,
@@ -864,7 +976,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 52,
@@ -881,7 +994,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 53,
@@ -898,7 +1012,8 @@
         "lector": null,
         "location": "Les",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 9
     },
     {
         "id": 54,
@@ -915,7 +1030,8 @@
         "lector": null,
         "location": "Les",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 9
     },
     {
         "id": 55,
@@ -932,7 +1048,8 @@
         "lector": null,
         "location": "Les",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 9
     },
     {
         "id": 56,
@@ -949,7 +1066,8 @@
         "lector": null,
         "location": "Les",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 9
     },
     {
         "id": 57,
@@ -966,7 +1084,8 @@
         "lector": null,
         "location": "Chillzóna",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 58,
@@ -983,7 +1102,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 59,
@@ -1000,7 +1120,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 60,
@@ -1017,7 +1138,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 61,
@@ -1034,7 +1156,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 62,
@@ -1051,7 +1174,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 63,
@@ -1068,7 +1192,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 64,
@@ -1085,7 +1210,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 65,
@@ -1102,7 +1228,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 66,
@@ -1119,7 +1246,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 67,
@@ -1136,7 +1264,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 68,
@@ -1153,7 +1282,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 69,
@@ -1170,7 +1300,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 70,
@@ -1187,7 +1318,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 71,
@@ -1204,7 +1336,8 @@
         "lector": null,
         "location": "FoodCourt stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 72,
@@ -1221,7 +1354,8 @@
         "lector": null,
         "location": "FoodCourt stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 6
     },
     {
         "id": 73,
@@ -1238,7 +1372,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 74,
@@ -1255,7 +1390,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 75,
@@ -1272,7 +1408,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 76,
@@ -1289,7 +1426,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 77,
@@ -1306,7 +1444,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 78,
@@ -1323,7 +1462,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 79,
@@ -1340,7 +1480,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 80,
@@ -1357,7 +1498,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 81,
@@ -1374,7 +1516,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 82,
@@ -1391,7 +1534,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 83,
@@ -1408,7 +1552,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 84,
@@ -1425,7 +1570,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 85,
@@ -1442,7 +1588,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 86,
@@ -1459,7 +1606,8 @@
         "lector": null,
         "location": "Dopro kreativní stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 5
     },
     {
         "id": 87,
@@ -1476,7 +1624,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 88,
@@ -1493,7 +1642,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 89,
@@ -1510,7 +1660,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 90,
@@ -1527,7 +1678,8 @@
         "lector": null,
         "location": "Náměstí",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 14
     },
     {
         "id": 91,
@@ -1544,7 +1696,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 92,
@@ -1561,7 +1714,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 93,
@@ -1578,7 +1732,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 94,
@@ -1595,7 +1750,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 95,
@@ -1612,7 +1768,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 96,
@@ -1629,7 +1786,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 97,
@@ -1646,7 +1804,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 98,
@@ -1663,7 +1822,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 99,
@@ -1680,7 +1840,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 100,
@@ -1697,7 +1858,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 101,
@@ -1714,7 +1876,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 102,
@@ -1731,7 +1894,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 103,
@@ -1748,7 +1912,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 104,
@@ -1765,7 +1930,8 @@
         "lector": null,
         "location": "Stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 17
     },
     {
         "id": 105,
@@ -1782,7 +1948,8 @@
         "lector": null,
         "location": "Stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 17
     },
     {
         "id": 106,
@@ -1799,7 +1966,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 107,
@@ -1816,7 +1984,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 108,
@@ -1833,7 +2002,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 109,
@@ -1850,7 +2020,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 110,
@@ -1867,7 +2038,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 111,
@@ -1884,7 +2056,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 112,
@@ -1901,7 +2074,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 113,
@@ -1918,7 +2092,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 114,
@@ -1935,7 +2110,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 115,
@@ -1952,7 +2128,8 @@
         "lector": null,
         "location": "Červená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 20
     },
     {
         "id": 116,
@@ -1969,7 +2146,8 @@
         "lector": null,
         "location": "Červená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 20
     },
     {
         "id": 117,
@@ -1986,7 +2164,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 118,
@@ -2003,7 +2182,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 119,
@@ -2020,7 +2200,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 120,
@@ -2037,7 +2218,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 121,
@@ -2054,7 +2236,8 @@
         "lector": null,
         "location": "Les",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 9
     },
     {
         "id": 122,
@@ -2071,7 +2254,8 @@
         "lector": null,
         "location": "Chillzóna",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 123,
@@ -2088,7 +2272,8 @@
         "lector": null,
         "location": "Chillzóna",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 124,
@@ -2105,7 +2290,8 @@
         "lector": null,
         "location": "Chillzóna",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 125,
@@ -2122,7 +2308,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 126,
@@ -2139,7 +2326,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 127,
@@ -2156,7 +2344,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 128,
@@ -2173,7 +2362,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 129,
@@ -2190,7 +2380,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 130,
@@ -2207,7 +2398,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 131,
@@ -2224,7 +2416,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 132,
@@ -2241,7 +2434,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 133,
@@ -2258,7 +2452,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 134,
@@ -2275,7 +2470,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 135,
@@ -2292,7 +2488,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 136,
@@ -2309,7 +2506,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 137,
@@ -2326,7 +2524,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 138,
@@ -2343,7 +2542,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 139,
@@ -2360,7 +2560,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 140,
@@ -2377,7 +2578,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 141,
@@ -2394,7 +2596,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 142,
@@ -2411,7 +2614,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 143,
@@ -2428,7 +2632,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 144,
@@ -2445,7 +2650,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 145,
@@ -2462,7 +2668,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 146,
@@ -2479,7 +2686,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 147,
@@ -2496,7 +2704,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 148,
@@ -2513,7 +2722,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 149,
@@ -2530,7 +2740,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 150,
@@ -2547,7 +2758,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 151,
@@ -2564,7 +2776,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 152,
@@ -2581,7 +2794,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 153,
@@ -2598,7 +2812,8 @@
         "lector": null,
         "location": "Celý tábor",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 1
     },
     {
         "id": 154,
@@ -2615,7 +2830,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 155,
@@ -2632,7 +2848,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 156,
@@ -2649,7 +2866,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 157,
@@ -2666,7 +2884,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 158,
@@ -2683,7 +2902,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 159,
@@ -2700,7 +2920,8 @@
         "lector": null,
         "location": "Louka u stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 11
     },
     {
         "id": 160,
@@ -2717,7 +2938,8 @@
         "lector": null,
         "location": "Stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 17
     },
     {
         "id": 161,
@@ -2734,7 +2956,8 @@
         "lector": null,
         "location": "Stage",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 17
     },
     {
         "id": 162,
@@ -2751,7 +2974,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 163,
@@ -2768,7 +2992,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 164,
@@ -2785,7 +3010,8 @@
         "lector": null,
         "location": "Zelená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 19
     },
     {
         "id": 165,
@@ -2802,7 +3028,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 166,
@@ -2819,7 +3046,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 167,
@@ -2836,7 +3064,8 @@
         "lector": null,
         "location": "Žlutá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 22
     },
     {
         "id": 168,
@@ -2853,7 +3082,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 169,
@@ -2870,7 +3100,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 170,
@@ -2887,7 +3118,8 @@
         "lector": null,
         "location": "Modrá louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 13
     },
     {
         "id": 171,
@@ -2904,7 +3136,8 @@
         "lector": null,
         "location": "Červená louka",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 20
     },
     {
         "id": 172,
@@ -2921,7 +3154,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 173,
@@ -2938,7 +3172,8 @@
         "lector": null,
         "location": "Plaza",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 15
     },
     {
         "id": 174,
@@ -2955,7 +3190,8 @@
         "lector": null,
         "location": "Les",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 9
     },
     {
         "id": 175,
@@ -2972,7 +3208,8 @@
         "lector": null,
         "location": "Chillzóna",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 2
     },
     {
         "id": 176,
@@ -2989,7 +3226,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 177,
@@ -3006,7 +3244,8 @@
         "lector": null,
         "location": "Iluzivní brány",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 7
     },
     {
         "id": 178,
@@ -3023,7 +3262,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 179,
@@ -3040,7 +3280,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 180,
@@ -3057,7 +3298,8 @@
         "lector": null,
         "location": "Velké šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 18
     },
     {
         "id": 181,
@@ -3074,7 +3316,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 182,
@@ -3091,7 +3334,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 183,
@@ -3108,7 +3352,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 184,
@@ -3125,7 +3370,8 @@
         "lector": null,
         "location": "Malé šapitó",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 12
     },
     {
         "id": 185,
@@ -3142,7 +3388,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 186,
@@ -3159,7 +3406,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 187,
@@ -3176,7 +3424,8 @@
         "lector": null,
         "location": "Programový stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 16
     },
     {
         "id": 188,
@@ -3193,7 +3442,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 189,
@@ -3210,7 +3460,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 190,
@@ -3227,7 +3478,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 191,
@@ -3244,7 +3496,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 192,
@@ -3261,7 +3514,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 193,
@@ -3278,7 +3532,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 194,
@@ -3295,7 +3550,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 195,
@@ -3312,7 +3568,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 196,
@@ -3329,7 +3586,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 197,
@@ -3346,7 +3604,8 @@
         "lector": null,
         "location": "Dopro - aktivity celou dobu",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 3
     },
     {
         "id": 198,
@@ -3363,7 +3622,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 199,
@@ -3380,7 +3640,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 200,
@@ -3397,7 +3658,8 @@
         "lector": null,
         "location": "Dopro hudební stan",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 4
     },
     {
         "id": 201,
@@ -3414,7 +3676,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 202,
@@ -3431,7 +3694,8 @@
         "lector": null,
         "location": "Kostel",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 8
     },
     {
         "id": 203,
@@ -3448,7 +3712,8 @@
         "lector": null,
         "location": "Náměstí",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 14
     },
     {
         "id": 204,
@@ -3465,6 +3730,7 @@
         "lector": null,
         "location": "Škola",
         "perex": null,
-        "tools": null
+        "tools": null,
+        "placeId": 21
     }
 ]

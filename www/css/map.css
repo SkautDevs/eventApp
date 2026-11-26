@@ -78,13 +78,59 @@ div.map iframe {
 	height: var(--screen-height);
 }
 
-/* zoomed by its width (www/js/map/plan.js), never by a transform, so the box's own
-   scrolling pans it and the browser knows how large it is */
+/* the full width of its canvas, which www/js/map/plan.js zooms by its width, never by a
+   transform, so the box's own scrolling pans it and the browser knows how large it is */
 .plan-img {
 	display: block;
 	width: 100%;
 	max-width: none;
 	height: auto;
+}
+
+/* The image and its markers share one box, so a marker's left/top (its place's share of
+   the plan's width and height, from map.planBounds) land on the drawing at every zoom:
+   the script widens this box, and the image fills it */
+.plan-canvas {
+	position: relative;
+	width: 100%;
+}
+
+.plan-canvas .plan-img {
+	width: 100%;
+}
+
+/* A place on the plan: filled like an action, ringed in that fill's own ink, so it
+   stands out on a drawing whose colours are anything. Hidden unless the address names
+   it (?misto=); scroll-margin keeps the no-JS #misto-<id> jump off the box's edge. */
+.plan-marker {
+	position: absolute;
+	width: 18px;
+	height: 18px;
+	margin: -9px 0 0 -9px;
+	border-radius: 50%;
+	background-color: var(--action);
+	border: 2px solid var(--on-action);
+	scroll-margin: 40vh 40vw;
+}
+
+/* the place's name above it, on the bars' ground like the zoom pair */
+.plan-marker-label {
+	position: absolute;
+	left: 50%;
+	bottom: calc(100% + 4px);
+	transform: translateX(-50%);
+	white-space: nowrap;
+	padding: 2px 8px;
+	border-radius: var(--radius-pill);
+	background-color: var(--structure);
+	color: var(--on-structure);
+	border: var(--edge-width) solid var(--edge);
+	font-size: var(--fs-sm);
+	font-weight: 700;
+}
+
+.plan-marker[hidden] {
+	display: none;
 }
 
 .plan-zoom {

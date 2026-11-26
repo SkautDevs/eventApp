@@ -1,0 +1,38 @@
+[
+    {
+        "id": 1,
+        "name": "Elektrárna Štěchovice",
+        "lat": 49.89713,
+        "lng": 18.168524
+    },
+    {
+        "id": 2,
+        "name": "Kemp",
+        "lat": 49.895575,
+        "lng": 18.169044
+    },
+    {
+        "id": 3,
+        "name": "Přístaviště u kempu",
+        "lat": 49.895482,
+        "lng": 18.167688
+    },
+    {
+        "id": 4,
+        "name": "Rozhledny za přehradou",
+        "lat": 49.897346,
+        "lng": 18.165959
+    },
+    {
+        "id": 5,
+        "name": "Slapy – u kempu",
+        "lat": 49.896294,
+        "lng": 18.168245
+    },
+    {
+        "id": 6,
+        "name": "Zámek Konopiště",
+        "lat": 49.896363,
+        "lng": 18.168996
+    }
+]

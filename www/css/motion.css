@@ -8,8 +8,9 @@
 
    One duration for the whole app — --motion, which an event may retune through
    --theme-motion — and a plain ease curve. The sheet still slides in from
-   its edge and the tab indicator still travels; nothing else animates,
-   so switching view and pressing a card land immediately.
+   its edge, the tab indicator still travels and a photo fades in over its
+   placeholder once it has loaded; nothing else animates, so switching view
+   and pressing a card land immediately.
    ------------------------------------------------------------------------- */
 
 /* Without a script nothing removes a server toast (www/js/shell/toast.js does, after
@@ -49,6 +50,11 @@
 
 	.sheet-card {
 		transition: transform var(--motion) ease;
+	}
+
+	/* a loaded photo over its placeholder (programs.css: transparent until is-loaded) */
+	[data-photo] {
+		transition: opacity var(--motion) ease;
 	}
 
 	.tabs-indicator {

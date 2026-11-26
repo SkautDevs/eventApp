@@ -56,6 +56,14 @@ final class ProgramListTest extends AppTestCase
         return $rows;
     }
 
+    /** The markup of programme $id's row in the view, from `<article` to `</article>`. */
+    private static function article(string $view, int $id): string
+    {
+        self::assertSame(1, preg_match('#<article class="pl-item[^"]*" data-key="' . $id . '".*?</article>#s', $view, $m), "no row for programme {$id}");
+
+        return $m[0];
+    }
+
     public function testPrehledListsEveryProgrammeAndDimsWhatIsNotTheParticipants(): void
     {
         $overview = self::view($this->loggedInScreen(), 'overview');
@@ -268,5 +276,48 @@ final class ProgramListTest extends AppTestCase
 
         self::assertStringNotContainsString('class="pl-day"', self::view($html, 'list'));
         self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+    }
+
+    /**
+     * korbo26's Vzduchovky (programme 13) has three demo photos: its row carries the first
+     * one's thumbnail, once, in a frame over the event's placeholder, keyed for the morph,
+     * which leaves its loaded mark alone.
+     */
+    public function testARowWithPhotosHasOneThumbnail(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/programy/prehled')->getBody();
+        $row = self::article(self::view($html, 'overview'), 13);
+
+        self::assertStringStartsWith('<article class="pl-item has-thumb" data-key="13"', $row);
+        self::assertSame(1, substr_count($row, '<span class="pl-thumb-frame" data-key="thumb" aria-hidden="true">'));
+        self::assertSame(1, substr_count($row, 'class="pl-thumb"'));
+        self::assertStringContainsString(
+            '<img class="pl-thumb" src="/events/korbo26/demo/strelba-1-thumb.webp" alt="" loading="lazy" decoding="async" crossorigin="anonymous" data-photo data-morph-keep="class">',
+            $row,
+        );
+        self::assertStringContainsString('class="photo-mark', $row, 'the placeholder under the thumbnail');
+    }
+
+    /** A programme without photos (korbo26's programme 2) has no frame at all. */
+    public function testARowWithoutPhotosHasNoFrame(): void
+    {
+        $html = (string) $this->request($this->createApp('korbo26'), 'GET', '/programy/prehled')->getBody();
+        $row = self::article(self::view($html, 'overview'), 2);
+
+        self::assertStringNotContainsString('has-thumb', $row);
+        self::assertStringNotContainsString('pl-thumb', $row);
+        self::assertStringNotContainsString('photo-mark', $row);
+    }
+
+    /** Moje's rows are the same component: the participant's Speed dating (programme 5) carries its thumbnail. */
+    public function testMojeShowsTheThumbnailToo(): void
+    {
+        $app = $this->createApp('korbo26');
+        $this->loginAs($app, 1);
+        $html = (string) $this->request($app, 'GET', '/programy/moje')->getBody();
+        $row = self::article(self::view($html, 'list'), 5);
+
+        self::assertStringStartsWith('<article class="pl-item is-registered has-thumb" data-key="5"', $row);
+        self::assertStringContainsString('<img class="pl-thumb" src="/events/korbo26/demo/seznamka-1-thumb.webp"', $row);
     }
 }

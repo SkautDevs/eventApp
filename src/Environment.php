@@ -207,6 +207,31 @@ final readonly class Environment
     }
 
     /**
+     * The origin of PROGRAM_PROVIDER_<SLUG>: its scheme and host, lower-cased, and its port
+     * when the URL names one other than the scheme's default (`https://Kissj.Example:8443/sub/`
+     * → `https://kissj.example:8443`, `https://kissj.example:443` → `https://kissj.example`,
+     * as a browser's `URL.origin` spells them); null for `local`. The kissj provider keeps only photos on this origin, so the CSP and
+     * the service worker read the same value. Validated as programSource() validates it.
+     *
+     * @throws \RuntimeException naming the variable, as programSource()
+     */
+    public function programOrigin(string $slug): ?string
+    {
+        $source = $this->programSource($slug);
+        if ($source === null) {
+            return null;
+        }
+        $parts = parse_url($source);
+        // programSource() accepted it only with an http(s) scheme and a host
+        \assert(is_array($parts) && isset($parts['scheme'], $parts['host']));
+        $scheme = strtolower($parts['scheme']);
+        // the scheme's default port is no port, as a browser's URL.origin spells it
+        $port = isset($parts['port']) && $parts['port'] !== ($scheme === 'https' ? 443 : 80) ? ':' . $parts['port'] : '';
+
+        return $scheme . '://' . strtolower($parts['host']) . $port;
+    }
+
+    /**
      * VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY and VAPID_SUBJECT as set, '' where not; the
      * sender validates them.
      *

@@ -591,6 +591,38 @@
 	grid-row: 1 / span 4;
 }
 
+/* A programme with photos shows the first one's thumbnail in a third column, top right,
+   so the time and the name stay in the first two exactly as in every other row. The frame
+   is `tonal` with the event's logo in it (_photo_mark.twig), which the thumbnail covers once
+   it has loaded, as the sheet's gallery frames are; the row paints nothing of its own, so
+   the frame sits on the ground. With a script the thumbnail stays transparent until
+   gallery.js marks it is-loaded (the `[data-photo]` rule by the gallery's, below). */
+.pl-item.has-thumb {
+	grid-template-columns: 3.25em minmax(0, 1fr) 56px;
+}
+
+.pl-item > .pl-thumb-frame {
+	grid-column: 3;
+	grid-row: 1 / span 4;
+	align-self: start;
+	position: relative;
+	width: 56px;
+	height: 56px;
+	display: grid;
+	place-items: center;
+	border-radius: var(--radius-card);
+	overflow: hidden;
+	background-color: var(--tonal);
+}
+
+.pl-thumb {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
 /* "now" in Můj program, from the reader's clock (www/js/programs/nowline.js): what is running
    carries a "probíhá" chip, and the next thing to start has the current-time line
    above it with a "teď" chip. Both chips are small fills of --now under on-action ink
@@ -622,6 +654,12 @@
 	content: "probíhá";
 	top: 12px;
 	right: 14px;
+}
+
+/* the chip and a thumbnail both sit at the row's top right: the chip moves to the
+   frame's left, past the row's padding, the frame and the column gap */
+.pl-item.has-thumb[data-now="running"]::after {
+	right: calc(14px + 56px + 10px);
 }
 
 .pl-item[data-now="next"] {
@@ -798,6 +836,80 @@
 	display: block;
 }
 
+/* The photos, above the name: one frame per photo in a strip that snaps frame by frame.
+   Each frame is 3:2 on `tonal` with the event's logo in its middle (.photo-mark,
+   _photo_mark.twig), which the photo covers once it has loaded; one that fails leaves the
+   logo. With a script a photo stays transparent until gallery.js marks it is-loaded, and
+   motion.css fades it in; without one it shows as it loads. */
+.gallery {
+	margin: 0 0 16px;
+}
+
+.gallery-strip {
+	display: flex;
+	overflow-x: auto;
+	scroll-snap-type: x mandatory;
+	overscroll-behavior-x: contain;
+	border-radius: var(--radius-card);
+}
+
+.gallery-frame {
+	position: relative;
+	flex: 0 0 100%;
+	aspect-ratio: 3 / 2;
+	scroll-snap-align: start;
+	display: grid;
+	place-items: center;
+	background-color: var(--tonal);
+	overflow: hidden;
+}
+
+.photo-mark {
+	width: 33%;
+	height: auto;
+	max-height: 60%;
+	object-fit: contain;
+}
+
+.gallery-photo {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+:root.js [data-photo]:not(.is-loaded) {
+	opacity: 0;
+}
+
+/* Where the strip is: one dot per photo, the shown one in the sheet's full ink, the
+   others in the same ink faded, so the pair reads on the sheet (.sheet-card rebinds
+   surface/on-surface) in every role set; `edge` would not, being obrok27's ink itself in
+   light mode and 1.4:1 on its dark sheet. Only the script moves it. */
+.gallery-dots {
+	display: flex;
+	justify-content: center;
+	gap: 6px;
+	margin-top: 8px;
+}
+
+.gallery-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background-color: var(--on-surface);
+	opacity: 0.4;
+}
+
+.gallery-dot[data-active] {
+	opacity: 1;
+}
+
+:root:not(.js) .gallery-dots {
+	display: none;
+}
+
 /* the name, with the section as a chip under it */
 .sheet-head {
 	display: flex;
@@ -849,6 +961,20 @@
 .sheet-facts dd {
 	margin: 0;
 	overflow-wrap: anywhere;
+}
+
+/* Kde as a pin to the place on Místa (Programs\ShowAction::placeHref()): link ink on the
+   sheet's own surface, which every event's light and dark sets hold to AA
+   (ThemingTest::testAccentInkClearsAAOnItsGrounds), and a 44px target even for a
+   three-letter place */
+.place-pin {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-height: 44px;
+	min-width: 44px;
+	color: var(--action-link);
+	font-weight: 700;
 }
 
 /* the star carries the accent here; the primary would be a poor read on the

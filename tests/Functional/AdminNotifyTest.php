@@ -505,6 +505,11 @@ final class AdminNotifyTest extends AppTestCase
                 return $this->stub->getSections();
             }
 
+            public function getPlaces(): array
+            {
+                return [];
+            }
+
             public function getRegistrationWindow(): \App\Program\RegistrationWindow
             {
                 return $this->stub->getRegistrationWindow();
@@ -894,6 +899,11 @@ final class AdminNotifyTest extends AppTestCase
             }
 
             public function getSections(): array
+            {
+                return [];
+            }
+
+            public function getPlaces(): array
             {
                 return [];
             }

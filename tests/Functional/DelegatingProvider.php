@@ -25,6 +25,11 @@ abstract class DelegatingProvider implements ProgramProviderInterface
         return $this->inner->getSections();
     }
 
+    public function getPlaces(): array
+    {
+        return $this->inner->getPlaces();
+    }
+
     public function getRegistrationWindow(): RegistrationWindow
     {
         return $this->inner->getRegistrationWindow();

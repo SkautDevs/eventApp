@@ -1,0 +1,134 @@
+[
+    {
+        "id": 1,
+        "name": "Celý tábor",
+        "lat": null,
+        "lng": null
+    },
+    {
+        "id": 2,
+        "name": "Chillzóna",
+        "lat": 50.337679,
+        "lng": 15.936415
+    },
+    {
+        "id": 3,
+        "name": "Dopro - aktivity celou dobu",
+        "lat": 50.340708,
+        "lng": 15.936759
+    },
+    {
+        "id": 4,
+        "name": "Dopro hudební stan",
+        "lat": 50.338009,
+        "lng": 15.936196
+    },
+    {
+        "id": 5,
+        "name": "Dopro kreativní stan",
+        "lat": 50.3383,
+        "lng": 15.9356
+    },
+    {
+        "id": 6,
+        "name": "FoodCourt stan",
+        "lat": 50.338211,
+        "lng": 15.936293
+    },
+    {
+        "id": 7,
+        "name": "Iluzivní brány",
+        "lat": 50.339866,
+        "lng": 15.935911
+    },
+    {
+        "id": 8,
+        "name": "Kostel",
+        "lat": 50.3387,
+        "lng": 15.9355
+    },
+    {
+        "id": 9,
+        "name": "Les",
+        "lat": 50.3413,
+        "lng": 15.93535
+    },
+    {
+        "id": 10,
+        "name": "Les 1/2",
+        "lat": 50.34095,
+        "lng": 15.9355
+    },
+    {
+        "id": 11,
+        "name": "Louka u stage",
+        "lat": 50.34055,
+        "lng": 15.9355
+    },
+    {
+        "id": 12,
+        "name": "Malé šapitó",
+        "lat": 50.340033,
+        "lng": 15.936104
+    },
+    {
+        "id": 13,
+        "name": "Modrá louka",
+        "lat": 50.3375,
+        "lng": 15.9353
+    },
+    {
+        "id": 14,
+        "name": "Náměstí",
+        "lat": 50.3393,
+        "lng": 15.9364
+    },
+    {
+        "id": 15,
+        "name": "Plaza",
+        "lat": 50.34165,
+        "lng": 15.93515
+    },
+    {
+        "id": 16,
+        "name": "Programový stan",
+        "lat": 50.339541,
+        "lng": 15.93559
+    },
+    {
+        "id": 17,
+        "name": "Stage",
+        "lat": 50.340314,
+        "lng": 15.935103
+    },
+    {
+        "id": 18,
+        "name": "Velké šapitó",
+        "lat": 50.34082,
+        "lng": 15.936138
+    },
+    {
+        "id": 19,
+        "name": "Zelená louka",
+        "lat": 50.3379,
+        "lng": 15.935
+    },
+    {
+        "id": 20,
+        "name": "Červená louka",
+        "lat": 50.33895,
+        "lng": 15.9365
+    },
+    {
+        "id": 21,
+        "name": "Škola",
+        "lat": 50.338251,
+        "lng": 15.934668
+    },
+    {
+        "id": 22,
+        "name": "Žlutá louka",
+        "lat": 50.3397,
+        "lng": 15.937
+    }
+]

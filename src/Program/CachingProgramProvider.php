@@ -13,8 +13,8 @@ use App\Time\Zone;
 use Psr\Clock\ClockInterface;
 
 /**
- * kissj's answers, kept on disk: the `list` entry (sections, programmes and the
- * registration window, from one list response) and one `session-…` entry per device
+ * kissj's answers, kept on disk: the `list` entry (sections, programmes, the registration
+ * window and the places, from one list response) and one `session-…` entry per device
  * session (the participant and their programmes). A fresh entry is served without
  * asking; an expired or missing one is fetched and rewritten; an expired one is served —
  * however old — when kissj fails, and the failure goes to Sentry instead of the reader.
@@ -66,7 +66,7 @@ use Psr\Clock\ClockInterface;
  */
 final class CachingProgramProvider implements ProgramProviderInterface
 {
-    /** sections, programmes and the registration window together, as one list response brings them */
+    /** sections, programmes, the registration window and the places together, as one list response brings them */
     public const string LIST_KEY = 'list';
 
     /** how long after a failure an expired entry is served without asking kissj */
@@ -159,6 +159,12 @@ final class CachingProgramProvider implements ProgramProviderInterface
         }
 
         return $sections;
+    }
+
+    /** From the `list` entry; an entry written before places were cached has none. */
+    public function getPlaces(): array
+    {
+        return Places::fromKissj($this->list()['places']);
     }
 
     public function getRegistrationWindow(): RegistrationWindow
@@ -376,21 +382,29 @@ final class CachingProgramProvider implements ProgramProviderInterface
         return array_all($rows, static fn(mixed $row): bool => is_array($row) && Programme::fromArray($row) !== null);
     }
 
-    /** @return array{sections: array<mixed>, programmes: mixed, registration: array{start: ?string, end: ?string}} */
+    /**
+     * The `places` key came with contract 3.1: an entry written before it, without the key,
+     * stays usable and has no places, so a stale copy served during an outage still shows
+     * the programme. A `places` that is there must be a list of rows (Place::toArray()).
+     *
+     * @return array{sections: array<mixed>, programmes: mixed, registration: array{start: ?string, end: ?string}, places: array<mixed>}
+     */
     private function list(): array
     {
         $list = $this->read(
             self::LIST_KEY,
-            // the inner provider memoises its list response: one HTTP request for all three
+            // the inner provider memoises its list response: one HTTP request for all four
             function (): array {
                 $sections = $this->inner->getSections();
                 $programmes = $this->inner->getPrograms();
                 $window = $this->inner->getRegistrationWindow();
+                $places = $this->inner->getPlaces();
 
                 return [
                     'sections' => array_map(static fn(Section $section): array => $section->toArray(), $sections),
                     'programmes' => self::rows($programmes),
                     'registration' => ['start' => $window->start?->format(\DATE_ATOM), 'end' => $window->end?->format(\DATE_ATOM)],
+                    'places' => array_values(array_map(static fn(Place $place): array => $place->toArray(), $places)),
                 ];
             },
             static fn(mixed $data): bool => is_array($data)
@@ -399,7 +413,11 @@ final class CachingProgramProvider implements ProgramProviderInterface
                 && is_array($data['programmes'] ?? null) && self::programmeRows($data['programmes'])
                 && is_array($data['registration'] ?? null)
                 && array_key_exists('start', $data['registration']) && self::storedInstant($data['registration']['start'])
-                && array_key_exists('end', $data['registration']) && self::storedInstant($data['registration']['end']),
+                && array_key_exists('end', $data['registration']) && self::storedInstant($data['registration']['end'])
+                && (!array_key_exists('places', $data) || (
+                    is_array($data['places']) && array_is_list($data['places'])
+                    && array_all($data['places'], static fn(mixed $row): bool => is_array($row))
+                )),
         );
         $sections = $list['sections'];
         $registration = $list['registration'];
@@ -410,7 +428,13 @@ final class CachingProgramProvider implements ProgramProviderInterface
         // the usable check above (storedInstant()), or the fetch's DATE_ATOM or null
         \assert(($start === null || is_string($start)) && ($end === null || is_string($end)), 'the entry was checked as usable');
 
-        return ['sections' => $sections, 'programmes' => $list['programmes'], 'registration' => ['start' => $start, 'end' => $end]];
+        return [
+            'sections' => $sections,
+            'programmes' => $list['programmes'],
+            'registration' => ['start' => $start, 'end' => $end],
+            // the usable check above lets an entry without places through
+            'places' => is_array($list['places'] ?? null) ? $list['places'] : [],
+        ];
     }
 
     /**

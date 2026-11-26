@@ -10,10 +10,12 @@ use App\Program\Participant;
 use App\Program\ProgramProviderInterface;
 use App\Program\RegistrationWindow;
 
-/** Delegates to a real provider and counts the personal calls — "did it reach kissj?" — and the reads of the programme list. */
+/** Delegates to a real provider and counts the personal calls — "did it reach kissj?" — the reads of the programme list and of the places. */
 final class CountingProgramProvider implements ProgramProviderInterface
 {
     public int $programReads = 0;
+
+    public int $placeReads = 0;
 
     public int $participantCalls = 0;
 
@@ -38,6 +40,13 @@ final class CountingProgramProvider implements ProgramProviderInterface
     public function getSections(): array
     {
         return $this->inner->getSections();
+    }
+
+    public function getPlaces(): array
+    {
+        $this->placeReads++;
+
+        return $this->inner->getPlaces();
     }
 
     public function getRegistrationWindow(): RegistrationWindow

@@ -16,8 +16,8 @@ use Slim\Views\Twig;
  * handed to the templates as the `cspNonce` global — and nothing inline runs without it.
  * Styles are not: the timeline's per-programme `style` attributes cannot be hashed and
  * cannot move to JavaScript without breaking the no-JS layout, and an inline style can
- * neither run code nor read data. kissj is called by PHP, never by the browser, so it has
- * no place here.
+ * neither run code nor read data. kissj's API is called by PHP, never by the browser; only
+ * its image origin, where the programmes' photos live, is in `img-src`.
  */
 final class CspMiddleware implements MiddlewareInterface
 {
@@ -42,18 +42,23 @@ final class CspMiddleware implements MiddlewareInterface
     public function __construct(private readonly Twig $twig, private readonly array $extras = []) {}
 
     /**
-     * What an event adds: its map's origin when the map is on and published, and
-     * whatever its config's `csp` key names.
+     * What an event adds: its map's origin when the map is on and published, its program
+     * provider's origin to `img-src` when it has one (Environment::programOrigin(), null for
+     * `local`), and whatever its config's `csp` key names.
      *
      * @return array<string, list<string>>
      */
-    public static function extrasFor(EventConfig $event): array
+    public static function extrasFor(EventConfig $event, ?string $imageOrigin = null): array
     {
         /** @var array<string, list<string>> $extras */
         $extras = [];
 
-        $embedUrl = $event->map?->embedUrl;
-        if ($event->isEnabled('map') && $embedUrl !== null && !str_contains($embedUrl, 'REPLACE-ME')) {
+        if ($imageOrigin !== null) {
+            $extras['img-src'][] = $imageOrigin;
+        }
+
+        $embedUrl = $event->map?->usableEmbedUrl();
+        if ($event->isEnabled('map') && $embedUrl !== null) {
             $mapOrigin = self::origin($embedUrl);
             if ($mapOrigin !== null) {
                 $extras['frame-src'][] = $mapOrigin;
