@@ -87,7 +87,7 @@ final class ProviderFailureTest extends AppTestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertStringNotContainsString('tab-avatar', $html);
-        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+        self::assertStringContainsString('class="link-card is-highlight pair-card"', $html);
         // the same toast as Domů says why, and the worker keeps the page out of the offline copy
         self::assertStringContainsString('<p><strong>Odhlášeno</strong><span>Propojení s KissJ už neplatí, přihlas se znovu.</span></p>', $html);
         self::assertSame('1', $response->getHeaderLine('X-Toast'));

@@ -270,7 +270,7 @@ final class ProgramsTest extends AppTestCase
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
-        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+        self::assertStringContainsString('Přihlas se údaji ze své registrace', $html);
         foreach (['Přihlaste', 'uvidíte', 'nemáte', 'Váš program', 'zkuste'] as $vy) {
             self::assertStringNotContainsString($vy, $html);
         }

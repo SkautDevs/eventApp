@@ -145,7 +145,7 @@
 		{# --- Moje: only the programmes the logged-in participant is registered for --- #}
 		<div class="view view-list" id="pg-view-list" role="tabpanel" aria-labelledby="pg-tab-list">
 			{% if not isLogged %}
-				<p class="empty"><a href="{{ url_for('profile') }}">Pro svůj program se přihlas kódem z KissJ.</a></p>
+				{% include '_pair_card.twig' with {eventName: event.shortName ?? event.name} %}
 			{% elseif not mineRead %}
 				{# the notice above says the personal list could not be read; "nothing registered" would be a guess #}
 			{% elseif days is empty %}

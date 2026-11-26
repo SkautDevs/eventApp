@@ -221,6 +221,11 @@
 	flex: 1 0 auto;
 }
 
+/* logged out, Moje holds Domů's login card (its look is in home.css), in the 8px gutter */
+.view-list > .pair-card {
+	margin: 16px 8px;
+}
+
 /* --- timeline ------------------------------------------------------------ */
 
 /* The timeline pages: one day at a time, stepped with ‹ ›. The personal

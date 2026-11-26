@@ -235,19 +235,18 @@ final class ProgramListTest extends AppTestCase
 
         self::assertStringNotContainsString('class="pl-day"', self::view($html, 'list'));
         self::assertStringNotContainsString('data-pg-pager="list"', $html);
-        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+        self::assertStringContainsString('class="link-card is-highlight pair-card"', self::view($html, 'list'));
         // Přehled is everybody's
         self::assertStringContainsString('class="pl-day"', self::view($html, 'overview'));
         self::assertStringContainsString('data-pg-pager="overview"', $html);
     }
 
-    /** Logged out, the list sends the reader to Profil, where the pairing starts: no form of its own. */
+    /** Logged out, the list holds Domů's login card, which sends the reader to Profil: no form of its own. */
     public function testLoggedOutTheListLinksToProfil(): void
     {
         $html = (string) $this->request($this->createApp(), 'GET', '/programy')->getBody();
 
-        // with the gutter of the other empty states, not flush against the column's edge
-        self::assertStringContainsString('<p class="empty"><a href="/obrok19/profil">Pro svůj program se přihlas kódem z KissJ.</a></p>', $html);
+        self::assertStringContainsString('<section class="link-card is-highlight pair-card" data-key="pair"><h2>Už jsi registrovaný na Obrok 19?</h2><p>Přihlas se údaji ze své registrace, ať nepřijdeš o notifikace, výběr programů a upozornění v průběhu akce!</p><a class="btn btn-primary" href="/obrok19/profil">Přihlásit se</a></section>', self::view($html, 'list'));
         self::assertStringNotContainsString('<input type="hidden" name="return"', $html);
         self::assertStringNotContainsString('<input type="text"', $html);
     }
@@ -275,7 +274,7 @@ final class ProgramListTest extends AppTestCase
         $html = (string) $this->request($app, 'GET', '/programy')->getBody();
 
         self::assertStringNotContainsString('class="pl-day"', self::view($html, 'list'));
-        self::assertStringContainsString('Pro svůj program se přihlas kódem z KissJ.', $html);
+        self::assertStringContainsString('class="link-card is-highlight pair-card"', self::view($html, 'list'));
     }
 
     /**

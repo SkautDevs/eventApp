@@ -19,7 +19,7 @@
 
 	{# logged out, in every phase: the way in #}
 	{% if not home.paired %}
-		<section class="link-card is-highlight pair-card" data-key="pair"><h2>Už jsi registrovaný na {{ eventName }}?</h2><p>Přihlas se údaji ze své registrace, ať nepřijdeš o notifikace, výběr programů a upozornění v průběhu akce!</p><a class="btn btn-primary" href="{{ url_for('profile') }}">Přihlásit se</a></section>
+		{% include '_pair_card.twig' %}
 	{% endif %}
 
 	{% if home.phase == 'before' %}
