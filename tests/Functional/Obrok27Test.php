@@ -138,19 +138,38 @@ final class Obrok27Test extends AppTestCase
     public function testBothBarsCarryTheHradbaStep(): void
     {
         $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/style.css');
+        $hradba = '/clip-path:\s*polygon\((?=[^;]*var\(--o27-step\))([^;]*,){5}[^;]*\);/';
 
-        foreach (['.appbar', '.tabbar'] as $bar) {
-            // the fill is a clipped layer, so the notch shows the bar's own ground and never the content under it
-            self::assertMatchesRegularExpression('/clip-path:\s*polygon\((?=[^;]*var\(--o27-step\))([^;]*,){5}[^;]*\);/', self::rulesOf($css, $bar . '::before'), $bar);
-            self::assertStringContainsString('background-color: var(--ground);', self::rulesOf($css, $bar), $bar);
-            self::assertStringNotContainsString('clip-path', self::rulesOf($css, $bar), $bar);
-        }
+        // the app bar's fill is a clipped layer, so the notch shows the bar's own ground and never the content under it
+        self::assertMatchesRegularExpression($hradba, self::rulesOf($css, '.appbar::before'));
+        self::assertStringContainsString('background-color: var(--ground);', self::rulesOf($css, '.appbar'));
+        self::assertStringNotContainsString('clip-path', self::rulesOf($css, '.appbar'));
+
+        // the tab bar is clipped whole, so the active tab fills its column from the step to the edge;
+        // over the step a strip of the ground (under the docked switcher) keeps the content out of the notch
+        self::assertMatchesRegularExpression($hradba, self::rulesOf($css, '.tabbar'));
+        self::assertSame('', self::rulesOf($css, '.tabbar::before'));
+        self::assertStringContainsString('background-color: var(--ground);', self::rulesOf($css, 'body::after'));
+        self::assertStringContainsString('height: var(--o27-step);', self::rulesOf($css, 'body::after'));
+        self::assertStringContainsString('z-index: 14;', self::rulesOf($css, 'body::after'));
 
         // the step is cut out of each bar's own box, so the heights stay what www/js/programs/ and --screen-height assume
         self::assertStringContainsString('padding-bottom: var(--o27-step);', self::rulesOf($css, '.appbar'));
-        self::assertStringContainsString('padding-top: var(--o27-step);', self::rulesOf($css, '.tabbar'));
-        self::assertStringContainsString('min-height: calc(var(--tabbar-height) - var(--o27-step));', self::rulesOf($css, '.tab'));
+        self::assertStringContainsString('min-height: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));', self::rulesOf($css, '.tab'));
+        self::assertStringContainsString('padding-top: calc(6px + var(--o27-step));', self::rulesOf($css, '.tab'));
         self::assertMatchesRegularExpression('/--o27-step:\s*8px;/', $css);
+    }
+
+    /** The docked switcher runs down behind the tab bar to the step, keeping the column's height. */
+    public function testTheViewSwitcherMeetsTheTabBar(): void
+    {
+        $css = (string) file_get_contents(dirname(__DIR__, 2) . '/www/events/obrok27/style.css');
+
+        self::assertStringContainsString('margin-bottom: calc(-1 * var(--o27-step));', self::rulesOf($css, '.tabs-wrap'));
+        self::assertStringContainsString('height: calc(var(--tabs-height) + var(--o27-step));', self::rulesOf($css, '.tabs'));
+        // the selected segment's foot and the active tab's top are straight, so the two fills meet
+        self::assertStringContainsString('clip-path: var(--o27-indicator-shape);', self::rulesOf($css, '.tabs-indicator'));
+        self::assertStringContainsString('clip-path: var(--o27-tab-shape);', self::rulesOf($css, '.tab.is-active'));
     }
 
     /** The declarations of every rule whose selector list names $selector exactly, comments stripped. */

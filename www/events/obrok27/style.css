@@ -9,6 +9,9 @@
 	--o27-button-shape: polygon(3px 0, 100% 2px, calc(100% - 2px) 100%, 0 calc(100% - 3px));
 	--o27-button-shape-b: polygon(0 2px, calc(100% - 3px) 0, 100% calc(100% - 2px), 2px 100%);
 	--o27-chip-shape: polygon(1.5px 0, 100% 1px, calc(100% - 1px) 100%, 0 calc(100% - 1.5px));
+	/* the chip with a straight top, for the two selected fills that meet across the step */
+	--o27-tab-shape: polygon(0 0, 100% 0, calc(100% - 1px) 100%, 0 calc(100% - 1.5px));
+	--o27-indicator-shape: polygon(1.5px 0, 100% 1px, 100% 100%, 0 100%);
 }
 
 /* --- type ---------------------------------------------------------------- */
@@ -48,15 +51,13 @@ textarea,
 	opacity: 1;
 }
 
-/* --- both bars: the fill is a clipped layer over the page ground, so the notch never shows content scrolling under the bar --- */
+/* --- app bar: the fill is a clipped layer over the page ground, so the notch never shows content scrolling under the bar --- */
 
-.appbar,
-.tabbar {
+.appbar {
 	background-color: var(--ground);
 }
 
-.appbar::before,
-.tabbar::before {
+.appbar::before {
 	content: '';
 	position: absolute;
 	inset: 0;
@@ -92,14 +93,13 @@ textarea,
 	box-shadow: none;
 }
 
-/* --- tab bar: a hradba whose left half steps down ------------------------- */
+/* --- tab bar: a hradba whose left half steps down -------------------------
+   The whole bar is clipped to the hradba, so the active tab fills its column from the step
+   to the screen's edge, the safe area included, and meets a selected view segment above it. */
 
 .tabbar {
-	padding-top: var(--o27-step);
+	padding-bottom: 0;
 	border-top: none;
-}
-
-.tabbar::before {
 	background-color: var(--role-tabbar, var(--structure));
 	clip-path: polygon(0 var(--o27-step), calc(50% - 1px) calc(var(--o27-step) - 1px), 50% 0, 100% 2px, 100% 100%, 0 100%);
 }
@@ -110,12 +110,55 @@ textarea,
 }
 
 .tab, .tab:visited {
-	min-height: calc(var(--tabbar-height) - var(--o27-step));
+	min-height: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px));
+	padding-top: calc(6px + var(--o27-step));
+	padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
 	color: var(--role-on-tabbar, var(--on-structure));
 }
 
 .tab.is-active, .tab.is-active:visited {
-	clip-path: var(--o27-chip-shape);
+	clip-path: var(--o27-tab-shape);
+}
+
+/* --- view switcher: docked one step lower, so no ground shows between it and the tab bar ---
+   Above the hradba the clipped tab bar paints nothing, and the switcher's foot runs down
+   behind it to the hradba: the plain fill and the selected segment both meet the step with no
+   strip of the ground between the rows, and a selected segment meets the active tab under it. Where no switcher is docked, a strip of the ground
+   under the switcher (14 < 15) and over the screen fills the step, so content never shows
+   through the notch. The negative margin keeps the column's height, so --tabs-height (which
+   the screens read) is unchanged, and the labels stay centred in the 48px above the step. */
+
+body::after {
+	content: '';
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) - var(--o27-step));
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--app-width);
+	height: var(--o27-step);
+	z-index: 14;
+	background-color: var(--ground);
+	pointer-events: none;
+}
+
+.tabs-wrap {
+	bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height) - var(--o27-step));
+	margin-bottom: calc(-1 * var(--o27-step));
+}
+
+.tabs {
+	height: calc(var(--tabs-height) + var(--o27-step));
+}
+
+.tabs-tab {
+	padding-bottom: calc(8px + var(--o27-step));
+}
+
+/* its foot is straight, so it meets the active tab's straight top */
+.tabs-indicator {
+	clip-path: var(--o27-indicator-shape);
 }
 
 /* --- cards and notices: jittered corners, the outline drawn by the box under the fill --- */
@@ -188,8 +231,7 @@ div.news p strong {
 	clip-path: var(--o27-button-shape-b);
 }
 
-.day-chip,
-.tabs-indicator {
+.day-chip {
 	clip-path: var(--o27-chip-shape);
 }
 
