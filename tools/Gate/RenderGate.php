@@ -115,7 +115,10 @@ final class RenderGate extends BrowserTestCase
     /**
      * The page is settled: loaded, fonts loaded, every Program screen wired, every image
      * of a visible screen complete, every map iframe that is rendered loaded (see
-     * instrument()), and nothing animating.
+     * instrument()), and nothing animating. Only images that are rendered and near the
+     * viewport are waited for: an image that is not rendered, or a lazy image more than two
+     * viewport heights below the top, is not waited for, because Chrome may never load it
+     * and the layout does not depend on it.
      */
     private const string SETTLED = <<<'JS'
         if (document.readyState !== 'complete' || document.fonts.status !== 'loaded') {
@@ -125,7 +128,8 @@ final class RenderGate extends BrowserTestCase
         const scopes = visible.length > 0 ? visible : [document];
         return scopes.every(scope =>
             Array.from(scope.querySelectorAll('[data-pg-root]')).every(root => root.dataset.pgReady === '1')
-            && Array.from(scope.querySelectorAll('img')).every(img => img.complete)
+            && Array.from(scope.querySelectorAll('img')).every(img => img.complete || img.getClientRects().length === 0
+                || (img.loading === 'lazy' && img.getBoundingClientRect().top > innerHeight * 2))
             && Array.from(scope.querySelectorAll('[data-map] iframe')).every(iframe =>
                 iframe.getClientRects().length === 0 || iframe.__gateLoaded === true)
         ) && document.getAnimations().length === 0;

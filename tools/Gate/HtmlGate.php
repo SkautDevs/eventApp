@@ -208,7 +208,12 @@ final class HtmlGate
         $this->save(5, 'pair-start', $this->request('POST', '/profil/propojit', 'reader', $same));
         $this->save(5, 'pair-profil', $this->request('GET', '/profil', 'reader'));
         $poll = $this->save(5, 'pair-poll', $this->request('GET', '/profil/propojit/stav', 'reader'));
-        $this->check(json_decode($poll['body'], true) === ['status' => 'approved'], 5, 'the poll does not answer {"status":"approved"}');
+        $answer = json_decode($poll['body'], true);
+        $this->check(
+            is_array($answer) && ($answer['status'] ?? null) === 'approved' && is_string($answer['next'] ?? null) && $answer['next'] !== '',
+            5,
+            'the poll does not answer {"status":"approved","next":"<page>"}',
+        );
 
         // 6: paired
         $this->pages(6);

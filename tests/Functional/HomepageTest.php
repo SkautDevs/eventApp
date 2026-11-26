@@ -148,7 +148,7 @@ final class HomepageTest extends AppTestCase
         $html = (string) $this->request($this->fixture($slug), 'GET', '/')->getBody();
         $name = \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug)->shortName ?? \App\EventConfig::load(dirname(__DIR__) . '/fixtures/events', $slug)->name;
 
-        self::assertStringContainsString(self::PAIR_CARD . '<h2>Už jsi registrovaný na ' . htmlspecialchars($name) . '?</h2><p>Přihlas se údaji ze své registrace, ať nepřijdeš o novinky, výběr programů a upozornění v průběhu akce!</p><a class="btn btn-primary" href="/' . $slug . '/profil">Přihlásit se</a></section>', $html);
+        self::assertStringContainsString(self::PAIR_CARD . '<h2>Už jsi registrovaný na ' . htmlspecialchars($name) . '?</h2><p>Přihlas se údaji ze své registrace, ať nepřijdeš o notifikace, výběr programů a upozornění v průběhu akce!</p><a class="btn btn-primary" href="/' . $slug . '/profil">Přihlásit se</a></section>', $html);
         // under the logo
         self::assertGreaterThan(strpos($html, 'mainLogo'), strpos($html, self::PAIR_CARD));
     }
