@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version-file: .github/php-version
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version-file: .github/php-version
@@ -54,7 +54,7 @@ jobs:
       - run: composer install --no-progress --prefer-dist --no-interaction
       - run: vendor/bin/php-cs-fixer fix --dry-run --diff
       - run: vendor/bin/phpstan analyse --memory-limit=1G
-      - run: docker run --rm -v "$PWD":/code -w /code ghcr.io/biomejs/biome:2.6.8 ci
+      - run: docker run --rm -v "$PWD":/code -w /code ghcr.io/biomejs/biome:2.6.9 ci
 
   # Its own job so an advisory shows up as a distinct failed check rather than
   # being lost at the tail of a test run. No `|| true` and no continue-on-error:
@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version-file: .github/php-version

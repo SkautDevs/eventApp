@@ -12,7 +12,7 @@ stan:
 
 # Lint the scripts and stylesheets, and check formatting where it is enabled.
 biome:
-    docker run --rm -v "{{justfile_directory()}}":/code -w /code ghcr.io/biomejs/biome:2.6.8 ci
+    docker run --rm -v "{{justfile_directory()}}":/code -w /code ghcr.io/biomejs/biome:2.6.9 ci
 
 # Run all three linters.
 lint: cs stan biome
