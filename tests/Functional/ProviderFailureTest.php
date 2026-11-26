@@ -61,7 +61,7 @@ final class ProviderFailureTest extends AppTestCase
 
     public function testAMalformedPairingAnswerDegradesLikeAnOutage(): void
     {
-        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $this->failingStart(new ProgramDataException('kissj sent no pairing for v3/programme/pairing/start'))]);
+        $app = $this->createApp(overrides: [ProgramProviderInterface::class => $this->failingStart(new ProgramDataException('kissj sent no pairing for v3/device/pairing/start'))]);
 
         $start = $this->request($app, 'POST', '/profil/propojit');
 

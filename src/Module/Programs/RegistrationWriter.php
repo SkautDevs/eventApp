@@ -30,8 +30,10 @@ use App\Toast\Toasts;
 final class RegistrationWriter
 {
     /**
-     * The toast title for each of kissj's refusal codes (kissj's API contract 3.0); a code
-     * not listed here is REFUSED.
+     * The toast title for each refusal code the provider reports: kissj's codes, with kissj
+     * 4.0's `alreadyEnrolled` and `notEnrolled` under eventApp's names `alreadyRegistered`
+     * and `notRegistered` (KissjProgramProvider renames them); a code not listed here is
+     * REFUSED.
      */
     private const array REFUSALS = [
         'notPaid' => 'Přihlašování na programy je možné až po zaplacení.',

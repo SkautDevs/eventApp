@@ -387,7 +387,7 @@ final class LocalProgramProviderTest extends TestCase
         }
         foreach (glob(dirname(__DIR__) . '/fixtures/kissj/*/participant.json') ?: [] as $path) {
             $checked++;
-            self::assertNotContains(true, array_column(json_decode((string) file_get_contents($path), true)['programmes'], 'isPreregistered'), $path);
+            self::assertNotContains(true, array_column(json_decode((string) file_get_contents($path), true)['programmes'], 'isAutoenrolled'), $path);
         }
         self::assertGreaterThan(5, $checked);
     }

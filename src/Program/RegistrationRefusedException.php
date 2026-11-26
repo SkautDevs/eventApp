@@ -7,7 +7,8 @@ namespace App\Program;
 /**
  * kissj said no to a register or unregister, with one of the contract's machine codes
  * (`notPaid`, `closed`, `notFound`, `notPossible`, `wrongRole`, `alreadyRegistered`,
- * `notRegistered`, `conflict`, `full`). An answer, not an outage.
+ * `notRegistered`, `conflict`, `full`; kissj 4.0 sends the two of them as `alreadyEnrolled`
+ * and `notEnrolled`, which KissjProgramProvider renames). An answer, not an outage.
  */
 final class RegistrationRefusedException extends \RuntimeException
 {

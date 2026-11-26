@@ -13,7 +13,7 @@
             "placeId": 13,
             "start": "2026-11-14T09:00:00+01:00",
             "end": "2026-11-14T10:00:00+01:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist",
                 "pl"
@@ -35,7 +35,7 @@
             "placeId": 12,
             "start": "2026-11-14T10:15:00+01:00",
             "end": "2026-11-14T11:15:00+01:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist",
                 "pl"
@@ -51,7 +51,7 @@
             "placeId": 1,
             "start": "2026-11-14T11:30:00+01:00",
             "end": "2026-11-14T12:30:00+01:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist",
                 "pl"
@@ -67,7 +67,7 @@
             "placeId": 2,
             "start": "2026-11-14T13:45:00+01:00",
             "end": "2026-11-14T15:30:00+01:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist",
                 "pl"
@@ -83,7 +83,7 @@
             "placeId": 13,
             "start": "2026-11-14T15:45:00+01:00",
             "end": "2026-11-14T16:45:00+01:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist",
                 "pl"

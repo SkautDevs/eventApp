@@ -17,7 +17,7 @@ use Tools\Fixtures\AllDayClamp;
 
 /**
  * The committed demo events (bin/demo-media.php, then bin/kissj-fixtures.php): the kissj
- * fixtures are contract 3.1, every photo the served fixtures name is on disk within the
+ * fixtures are contract 4.0, every photo the served fixtures name is on disk within the
  * size budget, and the served places and times are the provider's own mapping.
  */
 final class DemoFixturesTest extends TestCase
@@ -54,14 +54,18 @@ final class DemoFixturesTest extends TestCase
     }
 
     #[DataProvider('events')]
-    public function testTheKissjFixturesAreContractThreeOne(string $slug): void
+    public function testTheKissjFixturesAreContractFourZero(string $slug): void
     {
         $list = self::json('tests/fixtures/kissj/' . $slug . '/programme-list.json');
         $keys = array_keys($list);
+        self::assertContains('enrolment', $keys);
+        self::assertNotContains('registration', $keys, 'the 3.x name of the window');
         $sections = array_search('sections', $keys, true);
         self::assertIsInt($sections);
         self::assertSame('places', $keys[$sections + 1] ?? null, 'places right after sections');
         foreach ($list['programmes'] as $programme) {
+            self::assertArrayHasKey('isAutoenrolled', $programme, 'programme ' . $programme['id']);
+            self::assertArrayNotHasKey('isPreregistered', $programme, 'programme ' . $programme['id']);
             self::assertArrayHasKey('placeId', $programme, 'programme ' . $programme['id']);
             self::assertArrayHasKey('images', $programme, 'programme ' . $programme['id']);
         }
@@ -69,6 +73,8 @@ final class DemoFixturesTest extends TestCase
         $participant = self::json('tests/fixtures/kissj/' . $slug . '/participant.json');
         self::assertArrayNotHasKey('places', $participant);
         foreach ($participant['programmes'] as $programme) {
+            self::assertArrayHasKey('isAutoenrolled', $programme, 'participant programme ' . $programme['id']);
+            self::assertArrayNotHasKey('isPreregistered', $programme, 'participant programme ' . $programme['id']);
             self::assertArrayHasKey('placeId', $programme, 'participant programme ' . $programme['id']);
             self::assertArrayHasKey('images', $programme, 'participant programme ' . $programme['id']);
         }

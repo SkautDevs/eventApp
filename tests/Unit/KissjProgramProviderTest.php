@@ -28,7 +28,7 @@ final class KissjProgramProviderTest extends TestCase
 {
     private const array SECTIONS = [['id' => 10, 'name' => 'Putování'], ['id' => 1, 'name' => 'Hlavní program']];
 
-    private const array REGISTRATION = ['start' => '2027-03-15T18:00:00+01:00', 'end' => '2027-05-19T00:00:00+02:00'];
+    private const array ENROLMENT = ['start' => '2027-03-15T18:00:00+01:00', 'end' => '2027-05-19T00:00:00+02:00'];
 
     /** a device session token as kissj mints them: 64 hex */
     private const string TOKEN = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
@@ -66,12 +66,12 @@ final class KissjProgramProviderTest extends TestCase
         return new Response($status, ['Content-Type' => 'application/json'], (string) json_encode($body));
     }
 
-    /** A list response; every part can be replaced, and a null registration leaves the key out. */
-    private static function listBody(array $programmes = [], array $sections = self::SECTIONS, ?array $registration = self::REGISTRATION): string
+    /** A list response; every part can be replaced, and a null enrolment window leaves the key out. */
+    private static function listBody(array $programmes = [], array $sections = self::SECTIONS, ?array $enrolment = self::ENROLMENT): string
     {
         $body = ['sections' => $sections, 'programmes' => $programmes];
-        if ($registration !== null) {
-            $body = ['registration' => $registration] + $body;
+        if ($enrolment !== null) {
+            $body = ['enrolment' => $enrolment] + $body;
         }
 
         return (string) json_encode($body);
@@ -87,7 +87,7 @@ final class KissjProgramProviderTest extends TestCase
             'place' => 'Sraz u brány',
             'start' => '2027-06-03T08:00:00+02:00',
             'end' => '2027-06-03T12:00:00+02:00',
-            'isPreregistered' => false,
+            'isAutoenrolled' => false,
             'targetRoles' => ['ist', 'guest'],
         ];
     }
@@ -137,15 +137,17 @@ final class KissjProgramProviderTest extends TestCase
         ], $programs[0]->toArray());
     }
 
-    public function testAPreregisteredProgrammeSaysSo(): void
+    /** kissj's `isAutoenrolled` is eventApp's `preregistered`; the 3.x key `isPreregistered` is read no more. */
+    public function testAnAutoenrolledProgrammeIsPreregistered(): void
     {
         $programs = $this->answering(new Response(200, [], self::listBody([
-            self::programme(['isPreregistered' => true]),
-            self::programme(['id' => 6, 'isPreregistered' => false]),
-            array_diff_key(self::programme(['id' => 7]), ['isPreregistered' => true]),
+            self::programme(['isAutoenrolled' => true]),
+            self::programme(['id' => 6, 'isAutoenrolled' => false]),
+            array_diff_key(self::programme(['id' => 7]), ['isAutoenrolled' => true]),
+            array_diff_key(self::programme(['id' => 8, 'isPreregistered' => true]), ['isAutoenrolled' => true]),
         ])))->getPrograms();
 
-        self::assertSame([true, false, false], array_column($programs, 'preregistered'));
+        self::assertSame([true, false, false, false], array_column($programs, 'preregistered'));
     }
 
     public function testGetProgramsCallsTheListEndpointWithTheApiKey(): void
@@ -208,8 +210,8 @@ final class KissjProgramProviderTest extends TestCase
     /** Either end null means "not set"; the window is still a valid answer. */
     public function testAWindowWithAMissingEndIsNotSet(): void
     {
-        foreach ([['start' => null, 'end' => null], ['start' => '2027-03-15T18:00:00+01:00', 'end' => null]] as $registration) {
-            $window = $this->answering(new Response(200, [], self::listBody(registration: $registration)))->getRegistrationWindow();
+        foreach ([['start' => null, 'end' => null], ['start' => '2027-03-15T18:00:00+01:00', 'end' => null]] as $enrolment) {
+            $window = $this->answering(new Response(200, [], self::listBody(enrolment: $enrolment)))->getRegistrationWindow();
 
             self::assertSame('none', $window->state(new \DateTimeImmutable('2027-04-01T12:00:00+02:00')));
         }
@@ -218,12 +220,13 @@ final class KissjProgramProviderTest extends TestCase
     public function testAListWithoutAUsableWindowIsAProviderError(): void
     {
         $bodies = [
-            'no registration key' => self::listBody(registration: null),
-            'registration not an object' => self::listBody(registration: ['2027-03-15T18:00:00+01:00']),
-            'registration a string' => (string) json_encode(['registration' => 'open', 'sections' => self::SECTIONS, 'programmes' => []]),
-            'no start key' => self::listBody(registration: ['end' => null]),
-            'a number for a datetime' => self::listBody(registration: ['start' => 20270315, 'end' => null]),
-            'an unparseable datetime' => self::listBody(registration: ['start' => 'soon', 'end' => null]),
+            'no enrolment key' => self::listBody(enrolment: null),
+            'enrolment not an object' => self::listBody(enrolment: ['2027-03-15T18:00:00+01:00']),
+            'enrolment a string' => (string) json_encode(['enrolment' => 'open', 'sections' => self::SECTIONS, 'programmes' => []]),
+            'only the 3.x registration key' => (string) json_encode(['registration' => self::ENROLMENT, 'sections' => self::SECTIONS, 'programmes' => []]),
+            'no start key' => self::listBody(enrolment: ['end' => null]),
+            'a number for a datetime' => self::listBody(enrolment: ['start' => 20270315, 'end' => null]),
+            'an unparseable datetime' => self::listBody(enrolment: ['start' => 'soon', 'end' => null]),
         ];
 
         foreach ($bodies as $label => $body) {
@@ -297,24 +300,24 @@ final class KissjProgramProviderTest extends TestCase
     {
         $list = static fn(array $programmes): string => self::listBody($programmes);
         $withSections = static fn(mixed $sections): string => (string) json_encode([
-            'registration' => self::REGISTRATION, 'sections' => $sections, 'programmes' => [],
+            'enrolment' => self::ENROLMENT, 'sections' => $sections, 'programmes' => [],
         ]);
         $bodies = [
             'bare list of scalars' => json_encode([1, 2, 3]),
             'bare list of programmes' => json_encode([self::programme()]),
             'not JSON' => '<html>maintenance</html>',
             'empty body' => '',
-            'no programmes key' => json_encode(['registration' => self::REGISTRATION, 'sections' => self::SECTIONS, 'programs' => [self::programme()]]),
-            'programmes not a list' => json_encode(['registration' => self::REGISTRATION, 'sections' => self::SECTIONS, 'programmes' => 'none']),
-            'programmes a map' => json_encode(['registration' => self::REGISTRATION, 'sections' => self::SECTIONS, 'programmes' => ['a' => self::programme()]]),
+            'no programmes key' => json_encode(['enrolment' => self::ENROLMENT, 'sections' => self::SECTIONS, 'programs' => [self::programme()]]),
+            'programmes not a list' => json_encode(['enrolment' => self::ENROLMENT, 'sections' => self::SECTIONS, 'programmes' => 'none']),
+            'programmes a map' => json_encode(['enrolment' => self::ENROLMENT, 'sections' => self::SECTIONS, 'programmes' => ['a' => self::programme()]]),
             'record without id' => $list([['name' => 'Bez id', 'sectionId' => 1]]),
             'record without name' => $list([['id' => 1, 'sectionId' => 1]]),
             'record without sectionId' => $list([array_diff_key(self::programme(), ['sectionId' => true])]),
             'non-int sectionId' => $list([self::programme(['sectionId' => '10'])]),
             'null sectionId' => $list([self::programme(['sectionId' => null])]),
-            'non-bool isPreregistered' => $list([self::programme(['isPreregistered' => 'yes'])]),
-            'no sections key' => json_encode(['registration' => self::REGISTRATION, 'programmes' => [self::programme()]]),
-            'no registration key' => self::listBody([self::programme()], registration: null),
+            'non-bool isAutoenrolled' => $list([self::programme(['isAutoenrolled' => 'yes'])]),
+            'no sections key' => json_encode(['enrolment' => self::ENROLMENT, 'programmes' => [self::programme()]]),
+            'no enrolment key' => self::listBody([self::programme()], enrolment: null),
             'sections not a list' => $withSections('none'),
             'sections a map' => $withSections(['a' => self::SECTIONS[0]]),
             'section not an object' => $withSections([10]),
@@ -344,7 +347,7 @@ final class KissjProgramProviderTest extends TestCase
             'sectionId' => 1,
             'start' => '2027-06-03T15:00:00+02:00',
             'end' => '2027-06-03T16:00:00+02:00',
-            'isPreregistered' => true,
+            'isAutoenrolled' => true,
         ])]))->getParticipant(self::TOKEN);
 
         $request = $this->lastRequest();
@@ -521,7 +524,7 @@ final class KissjProgramProviderTest extends TestCase
 
         $request = $this->lastRequest();
         self::assertSame('POST', $request->getMethod());
-        self::assertSame('/v3/programme/pairing/start', $request->getUri()->getPath());
+        self::assertSame('/v3/device/pairing/start', $request->getUri()->getPath());
         self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'));
         self::assertSame(['deviceId' => $deviceId], $this->lastJsonBody());
         self::assertStringContainsString('application/json', $request->getHeaderLine('Content-Type'));
@@ -592,7 +595,7 @@ final class KissjProgramProviderTest extends TestCase
 
         $request = $this->lastRequest();
         self::assertSame('POST', $request->getMethod());
-        self::assertSame('/v3/programme/pairing/poll', $request->getUri()->getPath());
+        self::assertSame('/v3/device/pairing/poll', $request->getUri()->getPath());
         self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'));
         self::assertSame(['deviceCode' => '0123456789abcdef0123456789abcdef'], $this->lastJsonBody());
     }
@@ -632,30 +635,43 @@ final class KissjProgramProviderTest extends TestCase
         }
     }
 
+    /** eventApp's register is kissj's enrol, its unregister kissj's withdraw. */
     public function testRegisterAndUnregisterPostNoBodyUnderBothHeaders(): void
     {
-        foreach (['register', 'unregister'] as $verb) {
+        foreach (['register' => 'enrol', 'unregister' => 'withdraw'] as $verb => $wire) {
             $result = $this->answering(self::json(['ok' => true]))->$verb(self::TOKEN, 42);
 
             self::assertNull($result, $verb);
             $request = $this->lastRequest();
             self::assertSame('POST', $request->getMethod(), $verb);
-            self::assertSame('/v3/programme/42/' . $verb, $request->getUri()->getPath(), $verb);
+            self::assertSame('/v3/programme/42/' . $wire, $request->getUri()->getPath(), $verb);
             self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'), $verb);
             self::assertSame(self::TOKEN, $request->getHeaderLine(self::SESSION_HEADER), $verb);
             self::assertSame('', (string) $request->getBody(), $verb);
         }
     }
 
-    public function testARefusalCarriesKissjsCode(): void
+    /**
+     * kissj's `alreadyEnrolled` and `notEnrolled` arrive under eventApp's own names
+     * `alreadyRegistered` and `notRegistered`; every other code, whatever it is, as kissj sent it.
+     */
+    public function testARefusalCarriesKissjsCodeInEventAppsWords(): void
     {
-        foreach (['register' => 'full', 'unregister' => 'notRegistered'] as $verb => $code) {
+        foreach ([
+            ['register', 'alreadyEnrolled', 'alreadyRegistered'],
+            ['unregister', 'notEnrolled', 'notRegistered'],
+            ['register', 'full', 'full'],
+            ['unregister', 'closed', 'closed'],
+            ['register', 'alreadyRegistered', 'alreadyRegistered'],
+            ['register', 'somethingNew', 'somethingNew'],
+        ] as [$verb, $sent, $surfaced]) {
+            $label = $verb . ' ' . $sent;
             try {
-                $this->answering(self::json(['error' => $code], 400))->$verb(self::TOKEN, 42);
-                self::fail(sprintf('%s: a refusal did not throw', $verb));
+                $this->answering(self::json(['error' => $sent], 400))->$verb(self::TOKEN, 42);
+                self::fail(sprintf('%s: a refusal did not throw', $label));
             } catch (RegistrationRefusedException $e) {
-                self::assertSame($code, $e->refusal, $verb);
-                self::assertSame('kissj refused the registration: ' . $code, $e->getMessage(), $verb);
+                self::assertSame($surfaced, $e->refusal, $label);
+                self::assertSame('kissj refused the registration: ' . $surfaced, $e->getMessage(), $label);
             }
         }
     }
@@ -673,7 +689,7 @@ final class KissjProgramProviderTest extends TestCase
                 $this->answering($answer)->register(self::TOKEN, 42);
                 self::fail(sprintf('no failure for %s', $label));
             } catch (KissjTransferException $e) {
-                self::assertSame('kissj answered HTTP 400 on the register endpoint', $e->getMessage(), $label);
+                self::assertSame('kissj answered HTTP 400 on the enrol endpoint', $e->getMessage(), $label);
             }
         }
     }
@@ -696,7 +712,7 @@ final class KissjProgramProviderTest extends TestCase
 
         $request = $this->lastRequest();
         self::assertSame('POST', $request->getMethod());
-        self::assertSame('/v3/programme/session/revoke', $request->getUri()->getPath());
+        self::assertSame('/v3/device/session/revoke', $request->getUri()->getPath());
         self::assertSame('Bearer secret-key', $request->getHeaderLine('Authorization'));
         self::assertSame(self::TOKEN, $request->getHeaderLine(self::SESSION_HEADER));
         self::assertSame('', (string) $request->getBody());
@@ -707,7 +723,7 @@ final class KissjProgramProviderTest extends TestCase
     {
         foreach ([
             'HTTP 500' => [new Response(500), KissjTransferException::class],
-            'timeout' => [new ConnectException('down', new Request('POST', 'v3/programme/session/revoke')), KissjTransferException::class],
+            'timeout' => [new ConnectException('down', new Request('POST', 'v3/device/session/revoke')), KissjTransferException::class],
             'not JSON' => [new Response(200, [], 'ok'), ProgramDataException::class],
         ] as $label => [$answer, $expected]) {
             try {
@@ -737,8 +753,8 @@ final class KissjProgramProviderTest extends TestCase
         return ['url' => $url, 'thumbUrl' => $url . '/thumb', 'alt' => $alt];
     }
 
-    /** Review Focus 1: a kissj that still answers 3.0 shows the programme as before. */
-    public function testAThreeZeroListHasNoPlacesAndNoImages(): void
+    /** Review Focus 1: a list without the 3.1 additions (`places`, `placeId`, `images`) shows the programme as before. */
+    public function testAListWithoutTheThreeOneAdditionsHasNoPlacesAndNoImages(): void
     {
         $provider = $this->answering(new Response(200, [], self::listBody([self::programme(), self::programme(['id' => 6])])));
 

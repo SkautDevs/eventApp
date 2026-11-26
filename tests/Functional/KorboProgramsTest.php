@@ -23,7 +23,7 @@ final class KorboProgramsTest extends AppTestCase
     /** kissj's session read lists real registrations only: none of the preregistered 3, 36 and 51 */
     private const array MINE_IDS = [5, 10, 26, 31, 45, 50];
 
-    /** isPreregistered in the Korbo list: everybody's as far as eventApp can tell, so never dimmed */
+    /** isAutoenrolled in the Korbo list: everybody's as far as eventApp can tell, so never dimmed */
     private const array PREREGISTERED_IDS = [3, 36, 51];
 
     /**

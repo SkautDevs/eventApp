@@ -382,9 +382,10 @@ final class CachingProgramProviderTest extends TestCase
     }
 
     /**
-     * kissj refusing a register as alreadyRegistered, or an unregister as notRegistered,
-     * says the cached participant is not what kissj holds: the entry and the memo go, so
-     * the redirect shows kissj's state. Every other refusal keeps both.
+     * A register refused as alreadyRegistered, or an unregister as notRegistered (kissj's
+     * alreadyEnrolled and notEnrolled, renamed by KissjProgramProvider), says the cached
+     * participant is not what kissj holds: the entry and the memo go, so the redirect shows
+     * kissj's state. Every other refusal keeps both.
      */
     public function testARefusalThatProvesTheEntryStaleForgetsIt(): void
     {

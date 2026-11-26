@@ -119,15 +119,15 @@ final class KissjKorboFixtureTest extends TestCase
     }
 
     /**
-     * `isPreregistered` and `targetRoles` are in every record, and three records carry
-     * `isPreregistered: true`. The first becomes `preregistered`; `targetRoles` is not in
+     * `isAutoenrolled` and `targetRoles` are in every record, and three records carry
+     * `isAutoenrolled: true`. The first becomes `preregistered`; `targetRoles` is not in
      * the internal shape, so it does not reach the screen. Contract 3.1's `placeId` and
      * `images` (the demo overlay's, bin/demo-media.php) follow only where they are set.
      */
     public function testOnlyTheContractsFieldsReachTheInternalShape(): void
     {
         $raw = KorboResponses::decoded(KorboResponses::LIST)['programmes'];
-        self::assertCount(3, array_filter($raw, static fn(array $p): bool => $p['isPreregistered'] === true));
+        self::assertCount(3, array_filter($raw, static fn(array $p): bool => $p['isAutoenrolled'] === true));
 
         $preregistered = [];
         foreach ($this->programmesById() as $id => $program) {

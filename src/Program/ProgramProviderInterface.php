@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Program;
 
 /**
- * Where an event's programme comes from: kissj (its API contract 3.1; a kissj that still
- * answers 3.0 is read too, without places or photos) or the event's local fixture files.
+ * Where an event's programme comes from: kissj (its API contract 4.0) or the event's local
+ * fixture files.
  * Every method may throw ProgramUnavailableException or ProgramDataException when the
  * source fails; the personal ones throw SessionExpiredException when the device session
  * is no longer valid, which logs the reader out.
@@ -28,7 +28,7 @@ interface ProgramProviderInterface
      * The event's places, which a programme names by its placeId (contract 3.1).
      *
      * @return array<int, Place> keyed by id, in the source's order (kissj sends them sorted
-     *                          by name); empty from a source that sends none (kissj 3.0)
+     *                          by name); empty from a source that sends none
      */
     public function getPlaces(): array;
 

@@ -8,7 +8,7 @@ if ($path === '/ready') {
 
     return true;
 }
-if ($path === '/v3/programme/pairing/start') {
+if ($path === '/v3/device/pairing/start') {
     header('Content-Type: application/json');
     echo json_encode([
         'deviceCode' => str_repeat('a', 32),

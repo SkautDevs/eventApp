@@ -13,11 +13,14 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Talks to kissj's programme API, as kissj's API contract 3.1 describes it: the
+ * Talks to kissj's programme and device API, as kissj's API contract 4.0 describes it: the
  * list (with its places), the device pairing, the participant behind a device session, the
- * write endpoints and the revoke. Everything that arrives is validated here rather than
- * trusted: 3.0 fields strict, 3.1 additions lenient. A kissj that still answers 3.0 sends
- * no `places`, `placeId` or `images`, and its list reads as before, without them. A
+ * write endpoints and the revoke. kissj's names stop here: its `enrol` and `withdraw` are
+ * register() and unregister(), its `enrolment` window the RegistrationWindow, its
+ * `isAutoenrolled` a programme's `preregistered`, and its refusals `alreadyEnrolled` and
+ * `notEnrolled` are `alreadyRegistered` and `notRegistered` (REFUSALS). Everything that
+ * arrives is validated here rather than trusted: the 3.0 fields strict, the 3.1 additions
+ * lenient. A list without `places`, `placeId` or `images` reads without them. A
  * `places` value that is not a list, a `placeId` that is not a positive integer or a
  * malformed image is dropped, never a failed list (a `places` that is no list is logged
  * as `kissj.places-invalid`). A photo is kept only when its `url` and `thumbUrl` are both
@@ -25,8 +28,8 @@ use Psr\Log\NullLogger;
  * `kissj.images-dropped`, with the count and the first one's origin, never a URL.
  *
  * Failures: a `401` with an empty body on a call that carries a device session is
- * SessionExpiredException; a `400` with the contract's `{"error": code}` on register or
- * unregister is RegistrationRefusedException; every other non-200, and a kissj that never
+ * SessionExpiredException; a `400` with the contract's `{"error": code}` on enrol or
+ * withdraw is RegistrationRefusedException; every other non-200, and a kissj that never
  * answers, is a KissjTransferException that names the endpoint in words and chains nothing,
  * so neither a token nor Guzzle's message (which names the URI and quotes the body)
  * reaches logs or Sentry.
@@ -35,6 +38,9 @@ final class KissjProgramProvider implements ProgramProviderInterface
 {
     /** the contract's header for a device session token, sent beside the API key */
     public const string SESSION_HEADER = 'X-Kissj-Device-Session';
+
+    /** kissj's refusal codes that eventApp knows by its own names; every other code passes as sent */
+    private const array REFUSALS = ['alreadyEnrolled' => 'alreadyRegistered', 'notEnrolled' => 'notRegistered'];
 
     /**
      * @var array{sections: array<int, Section>, programmes: list<Programme>, registration: RegistrationWindow, places: array<int, Place>}|null
@@ -73,7 +79,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return $this->list()['sections'];
     }
 
-    /** From the same list response as the programmes; none from a kissj that answers 3.0. */
+    /** From the same list response as the programmes; none when the list has no `places`. */
     public function getPlaces(): array
     {
         return $this->list()['places'];
@@ -143,11 +149,11 @@ final class KissjProgramProvider implements ProgramProviderInterface
         $where = 'the pairing start endpoint';
         $data = $this->request(
             'POST',
-            'v3/programme/pairing/start',
+            'v3/device/pairing/start',
             [],
             ['deviceId' => $deviceId],
             'kissj.pairing-start',
-            'POST v3/programme/pairing/start',
+            'POST v3/device/pairing/start',
             $where,
         );
 
@@ -176,11 +182,11 @@ final class KissjProgramProvider implements ProgramProviderInterface
         $where = 'the pairing poll endpoint';
         $data = $this->request(
             'POST',
-            'v3/programme/pairing/poll',
+            'v3/device/pairing/poll',
             [],
             ['deviceCode' => $deviceCode],
             'kissj.pairing-poll',
-            'POST v3/programme/pairing/poll',
+            'POST v3/device/pairing/poll',
             $where,
         );
 
@@ -202,12 +208,12 @@ final class KissjProgramProvider implements ProgramProviderInterface
 
     public function register(string $sessionToken, int $programmeId): void
     {
-        $this->write('register', $sessionToken, $programmeId);
+        $this->write('enrol', $sessionToken, $programmeId);
     }
 
     public function unregister(string $sessionToken, int $programmeId): void
     {
-        $this->write('unregister', $sessionToken, $programmeId);
+        $this->write('withdraw', $sessionToken, $programmeId);
     }
 
     public function revokeSession(string $sessionToken): void
@@ -215,17 +221,17 @@ final class KissjProgramProvider implements ProgramProviderInterface
         $where = 'the revoke endpoint';
         $data = $this->request(
             'POST',
-            'v3/programme/session/revoke',
+            'v3/device/session/revoke',
             [self::SESSION_HEADER => $sessionToken],
             null,
             'kissj.revoke',
-            'POST v3/programme/session/revoke',
+            'POST v3/device/session/revoke',
             $where,
         );
         self::requireOk($data, $where);
     }
 
-    /** @param 'register'|'unregister' $verb */
+    /** @param 'enrol'|'withdraw' $verb kissj's name of the write */
     private function write(string $verb, string $sessionToken, int $programmeId): void
     {
         $where = sprintf('the %s endpoint', $verb);
@@ -243,7 +249,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * `programmes`, `sections`, `registration` and `places` arrive in one response and a
+     * `programmes`, `sections`, `enrolment` and `places` arrive in one response and a
      * request asks for all of them, so the list is fetched and validated once, as a whole,
      * for the provider's lifetime — which is one request.
      *
@@ -260,7 +266,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
             $this->list = [
                 'sections' => Sections::fromKissj($data['sections']),
                 'programmes' => $this->programmes($data, $where),
-                'registration' => self::registration($data['registration'] ?? null, $where),
+                'registration' => self::enrolmentWindow($data['enrolment'] ?? null, $where),
                 'places' => $this->places($data),
             ];
         }
@@ -269,9 +275,8 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * The list's `places` (contract 3.1): none when the key is missing, as from a kissj
-     * that answers 3.0; none and a warning when it is not a list. A list's bad records
-     * are skipped by Places::fromKissj().
+     * The list's `places` (contract 3.1): none when the key is missing; none and a
+     * warning when it is not a list. A list's bad records are skipped by Places::fromKissj().
      *
      * @param array<mixed> $data
      * @return array<int, Place>
@@ -290,16 +295,16 @@ final class KissjProgramProvider implements ProgramProviderInterface
         return Places::fromKissj($data['places']);
     }
 
-    /** @param mixed $raw the list's `registration`, trusted for nothing */
-    private static function registration(mixed $raw, string $where): RegistrationWindow
+    /** @param mixed $raw the list's `enrolment`, trusted for nothing */
+    private static function enrolmentWindow(mixed $raw, string $where): RegistrationWindow
     {
         if (!is_array($raw) || !array_key_exists('start', $raw) || !array_key_exists('end', $raw)) {
-            throw new ProgramDataException(sprintf('kissj sent no registration window for %s', $where));
+            throw new ProgramDataException(sprintf('kissj sent no enrolment window for %s', $where));
         }
 
         return new RegistrationWindow(
-            self::instant($raw['start'], 'registration start', $where),
-            self::instant($raw['end'], 'registration end', $where),
+            self::instant($raw['start'], 'enrolment start', $where),
+            self::instant($raw['end'], 'enrolment end', $where),
         );
     }
 
@@ -381,7 +386,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
             if ($status === 400 && $refusable) {
                 $refusal = json_decode($answer, true);
                 if (is_array($refusal) && is_string($refusal['error'] ?? null) && $refusal['error'] !== '') {
-                    throw new RegistrationRefusedException($refusal['error']);
+                    throw new RegistrationRefusedException(self::REFUSALS[$refusal['error']] ?? $refusal['error']);
                 }
             }
             throw KissjTransferException::on($where, $status, $e);
@@ -439,7 +444,7 @@ final class KissjProgramProvider implements ProgramProviderInterface
     }
 
     /**
-     * Maps one kissj programme onto a Programme — see kissj's API contract 3.1. The 3.0
+     * Maps one kissj programme onto a Programme — see kissj's API contract 4.0. The 3.0
      * fields are strict; `placeId` (a positive integer, else none) and `images` (malformed
      * elements and photos off the provider's origin left out) are lenient.
      * Fields the contract does not map (`targetRoles`, whatever comes later) are ignored.
@@ -463,9 +468,9 @@ final class KissjProgramProvider implements ProgramProviderInterface
         if (!isset($kissj['sectionId']) || !is_int($kissj['sectionId'])) {
             throw new ProgramDataException('kissj program record has no integer sectionId');
         }
-        $preregistered = $kissj['isPreregistered'] ?? false;
+        $preregistered = $kissj['isAutoenrolled'] ?? false;
         if (!is_bool($preregistered)) {
-            throw new ProgramDataException('kissj program record has an isPreregistered that is not a boolean');
+            throw new ProgramDataException('kissj program record has an isAutoenrolled that is not a boolean');
         }
 
         return new Programme(

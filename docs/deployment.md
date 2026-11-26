@@ -284,11 +284,13 @@ Per event, each name suffixed with the slug in upper case and `-` turned into `_
 **The deployed instance reads kissj staging for now**: every event kissj staging has is
 `PROGRAM_PROVIDER_<SLUG>=https://staging.kissj.net` with that event's
 `KISSJ_API_KEY_<SLUG>`; `obrok19`, which kissj does not have, is `local`. A missing
-line stops that event from booting. kissj must implement contract **3.0**
-(kissj's API contract 3.0, "Versions"): a kissj on 1.0 sends no participant id and has
-no revoke, so pairing an event to it fails. Sending a notification to one programme
-asks kissj's `GET /v3/programme/{id}/participants` for the ids of the participants the
-message goes to.
+line stops that event from booting. kissj must implement contract **4.0**
+(kissj's API contract 4.0, "Versions"): a kissj on 3.x names the enrolment window
+`registration` and serves the writes and the pairing at other paths, so the programme
+does not load and pairing fails; a kissj on 1.0 sends no participant id and has no
+revoke either. Sending a notification to one programme asks kissj's
+`GET /v3/programme/{id}/participants` for the ids of the participants the message goes
+to.
 
 Per-event variables by event (`KISSJ_API_KEY_<SLUG>` is only needed once an event reads a
 kissj URL):

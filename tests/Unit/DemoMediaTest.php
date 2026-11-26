@@ -24,7 +24,7 @@ final class DemoMediaTest extends TestCase
             'place' => $place,
             'start' => '2027-05-19T12:00:00+02:00',
             'end' => '2027-05-19T13:00:00+02:00',
-            'isPreregistered' => false,
+            'isAutoenrolled' => false,
             'targetRoles' => ['ist'],
         ];
     }
@@ -32,7 +32,7 @@ final class DemoMediaTest extends TestCase
     private static function list(): array
     {
         return [
-            'registration' => ['start' => null, 'end' => null],
+            'enrolment' => ['start' => null, 'end' => null],
             'sections' => [['id' => 1, 'name' => 'S', 'subtitle' => null]],
             'programmes' => [
                 self::programme(1, 'B'),
@@ -47,14 +47,14 @@ final class DemoMediaTest extends TestCase
     {
         $out = DemoMedia::apply(self::list(), ['places' => ['A' => ['lat' => 50.1, 'lng' => 15.2]], 'images' => []], 'x');
 
-        self::assertSame(['registration', 'sections', 'places', 'programmes'], array_keys($out));
+        self::assertSame(['enrolment', 'sections', 'places', 'programmes'], array_keys($out));
         self::assertSame([
             ['id' => 1, 'name' => 'A', 'lat' => 50.1, 'lng' => 15.2],
             ['id' => 2, 'name' => 'B', 'lat' => null, 'lng' => null],
         ], $out['places']);
         self::assertSame([2, 1, null, 2], array_column($out['programmes'], 'placeId'));
         self::assertSame(
-            ['id', 'name', 'sectionId', 'description', 'place', 'placeId', 'start', 'end', 'isPreregistered', 'targetRoles', 'images'],
+            ['id', 'name', 'sectionId', 'description', 'place', 'placeId', 'start', 'end', 'isAutoenrolled', 'targetRoles', 'images'],
             array_keys($out['programmes'][0]),
         );
         self::assertSame([], $out['programmes'][0]['images']);

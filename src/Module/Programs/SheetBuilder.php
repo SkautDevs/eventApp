@@ -41,7 +41,7 @@ final class SheetBuilder
             page: $pageOfProgram[$program->id] ?? null,
             sectionId: $program->sectionId,
             registered: isset($registeredIds[$program->id]),
-            // kissj's isPreregistered: fixed for its roles, never in a participant's own list
+            // kissj's isAutoenrolled: fixed for its roles, never in a participant's own list
             preregistered: $program->preregistered,
             images: $program->images,
             placeId: $program->placeId,

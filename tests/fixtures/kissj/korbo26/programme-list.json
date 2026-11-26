@@ -1,5 +1,5 @@
 {
-    "registration": {
+    "enrolment": {
         "start": "2020-01-01T00:00:00+01:00",
         "end": "2099-01-01T00:00:00+01:00"
     },
@@ -82,7 +82,7 @@
             "placeId": 6,
             "start": "2026-09-16T00:00:00+02:00",
             "end": "2026-09-16T23:59:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -108,7 +108,7 @@
             "placeId": null,
             "start": "2026-09-16T00:00:00+02:00",
             "end": "2026-09-18T23:59:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -123,7 +123,7 @@
             "placeId": null,
             "start": "2026-09-16T10:00:00+02:00",
             "end": "2026-09-16T16:00:00+02:00",
-            "isPreregistered": true,
+            "isAutoenrolled": true,
             "targetRoles": [
                 "ist"
             ],
@@ -138,7 +138,7 @@
             "placeId": 1,
             "start": "2026-09-16T16:00:00+02:00",
             "end": "2026-09-16T18:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -153,7 +153,7 @@
             "placeId": null,
             "start": "2026-09-16T20:00:00+02:00",
             "end": "2026-09-16T21:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -174,7 +174,7 @@
             "placeId": null,
             "start": "2026-09-16T21:00:00+02:00",
             "end": "2026-09-16T22:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -189,7 +189,7 @@
             "placeId": 2,
             "start": "2026-09-16T22:00:00+02:00",
             "end": "2026-09-16T22:15:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -204,7 +204,7 @@
             "placeId": 2,
             "start": "2026-09-16T23:45:00+02:00",
             "end": "2026-09-17T00:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -219,7 +219,7 @@
             "placeId": 6,
             "start": "2026-09-17T00:00:00+02:00",
             "end": "2026-09-17T23:59:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -234,7 +234,7 @@
             "placeId": 1,
             "start": "2026-09-17T08:00:00+02:00",
             "end": "2026-09-17T12:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -249,7 +249,7 @@
             "placeId": 3,
             "start": "2026-09-17T09:00:00+02:00",
             "end": "2026-09-17T10:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -270,7 +270,7 @@
             "placeId": 5,
             "start": "2026-09-17T09:00:00+02:00",
             "end": "2026-09-17T10:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -285,7 +285,7 @@
             "placeId": 2,
             "start": "2026-09-17T10:00:00+02:00",
             "end": "2026-09-17T11:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -316,7 +316,7 @@
             "placeId": 1,
             "start": "2026-09-17T11:00:00+02:00",
             "end": "2026-09-17T12:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -331,7 +331,7 @@
             "placeId": null,
             "start": "2026-09-17T11:00:00+02:00",
             "end": "2026-09-17T12:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -346,7 +346,7 @@
             "placeId": null,
             "start": "2026-09-17T13:00:00+02:00",
             "end": "2026-09-17T14:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -361,7 +361,7 @@
             "placeId": 1,
             "start": "2026-09-17T13:00:00+02:00",
             "end": "2026-09-17T17:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -376,7 +376,7 @@
             "placeId": null,
             "start": "2026-09-17T14:00:00+02:00",
             "end": "2026-09-17T15:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -391,7 +391,7 @@
             "placeId": 3,
             "start": "2026-09-17T15:00:00+02:00",
             "end": "2026-09-17T16:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -406,7 +406,7 @@
             "placeId": 6,
             "start": "2026-09-17T15:00:00+02:00",
             "end": "2026-09-17T17:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -421,7 +421,7 @@
             "placeId": null,
             "start": "2026-09-17T16:00:00+02:00",
             "end": "2026-09-17T17:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -436,7 +436,7 @@
             "placeId": null,
             "start": "2026-09-17T16:30:00+02:00",
             "end": "2026-09-17T18:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -451,7 +451,7 @@
             "placeId": 2,
             "start": "2026-09-17T22:00:00+02:00",
             "end": "2026-09-17T22:15:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -466,7 +466,7 @@
             "placeId": 2,
             "start": "2026-09-17T23:45:00+02:00",
             "end": "2026-09-18T00:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -481,7 +481,7 @@
             "placeId": 6,
             "start": "2026-09-18T00:00:00+02:00",
             "end": "2026-09-18T23:59:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -496,7 +496,7 @@
             "placeId": 5,
             "start": "2026-09-18T09:00:00+02:00",
             "end": "2026-09-18T10:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -511,7 +511,7 @@
             "placeId": null,
             "start": "2026-09-18T09:30:00+02:00",
             "end": "2026-09-18T11:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -526,7 +526,7 @@
             "placeId": 2,
             "start": "2026-09-18T10:00:00+02:00",
             "end": "2026-09-18T11:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -541,7 +541,7 @@
             "placeId": 3,
             "start": "2026-09-18T12:00:00+02:00",
             "end": "2026-09-18T13:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -556,7 +556,7 @@
             "placeId": null,
             "start": "2026-09-18T12:00:00+02:00",
             "end": "2026-09-18T13:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -571,7 +571,7 @@
             "placeId": null,
             "start": "2026-09-18T14:00:00+02:00",
             "end": "2026-09-18T15:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -586,7 +586,7 @@
             "placeId": 6,
             "start": "2026-09-18T15:00:00+02:00",
             "end": "2026-09-18T17:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -601,7 +601,7 @@
             "placeId": null,
             "start": "2026-09-18T15:30:00+02:00",
             "end": "2026-09-18T16:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -616,7 +616,7 @@
             "placeId": null,
             "start": "2026-09-18T16:00:00+02:00",
             "end": "2026-09-18T17:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -631,7 +631,7 @@
             "placeId": 3,
             "start": "2026-09-18T17:00:00+02:00",
             "end": "2026-09-18T18:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -646,7 +646,7 @@
             "placeId": 1,
             "start": "2026-09-18T17:00:00+02:00",
             "end": "2026-09-18T19:00:00+02:00",
-            "isPreregistered": true,
+            "isAutoenrolled": true,
             "targetRoles": [
                 "ist"
             ],
@@ -661,7 +661,7 @@
             "placeId": null,
             "start": "2026-09-18T18:00:00+02:00",
             "end": "2026-09-18T19:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -676,7 +676,7 @@
             "placeId": 2,
             "start": "2026-09-18T21:00:00+02:00",
             "end": "2026-09-18T22:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -691,7 +691,7 @@
             "placeId": 2,
             "start": "2026-09-18T22:00:00+02:00",
             "end": "2026-09-18T22:15:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -706,7 +706,7 @@
             "placeId": 2,
             "start": "2026-09-18T23:45:00+02:00",
             "end": "2026-09-19T00:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -721,7 +721,7 @@
             "placeId": 6,
             "start": "2026-09-19T00:00:00+02:00",
             "end": "2026-09-19T23:59:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -736,7 +736,7 @@
             "placeId": 5,
             "start": "2026-09-19T09:00:00+02:00",
             "end": "2026-09-19T10:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -751,7 +751,7 @@
             "placeId": 4,
             "start": "2026-09-19T10:00:00+02:00",
             "end": "2026-09-19T11:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -766,7 +766,7 @@
             "placeId": null,
             "start": "2026-09-19T10:00:00+02:00",
             "end": "2026-09-19T11:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -781,7 +781,7 @@
             "placeId": 5,
             "start": "2026-09-19T11:00:00+02:00",
             "end": "2026-09-19T15:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -796,7 +796,7 @@
             "placeId": 4,
             "start": "2026-09-19T13:00:00+02:00",
             "end": "2026-09-19T14:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -811,7 +811,7 @@
             "placeId": 4,
             "start": "2026-09-19T14:00:00+02:00",
             "end": "2026-09-19T15:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -826,7 +826,7 @@
             "placeId": null,
             "start": "2026-09-19T15:00:00+02:00",
             "end": "2026-09-19T16:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -841,7 +841,7 @@
             "placeId": 6,
             "start": "2026-09-19T15:00:00+02:00",
             "end": "2026-09-19T17:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -856,7 +856,7 @@
             "placeId": null,
             "start": "2026-09-19T16:00:00+02:00",
             "end": "2026-09-19T17:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -871,7 +871,7 @@
             "placeId": null,
             "start": "2026-09-19T17:00:00+02:00",
             "end": "2026-09-19T19:00:00+02:00",
-            "isPreregistered": true,
+            "isAutoenrolled": true,
             "targetRoles": [
                 "ist"
             ],
@@ -886,7 +886,7 @@
             "placeId": null,
             "start": "2026-09-19T18:30:00+02:00",
             "end": "2026-09-19T19:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -901,7 +901,7 @@
             "placeId": null,
             "start": "2026-09-19T19:00:00+02:00",
             "end": "2026-09-19T21:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -916,7 +916,7 @@
             "placeId": 5,
             "start": "2026-09-19T20:00:00+02:00",
             "end": "2026-09-19T22:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -931,7 +931,7 @@
             "placeId": 2,
             "start": "2026-09-19T21:00:00+02:00",
             "end": "2026-09-19T22:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -946,7 +946,7 @@
             "placeId": 2,
             "start": "2026-09-19T22:00:00+02:00",
             "end": "2026-09-19T22:15:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -961,7 +961,7 @@
             "placeId": 2,
             "start": "2026-09-19T23:45:00+02:00",
             "end": "2026-09-20T00:00:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -976,7 +976,7 @@
             "placeId": 6,
             "start": "2026-09-20T00:00:00+02:00",
             "end": "2026-09-20T23:59:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
@@ -991,7 +991,7 @@
             "placeId": 5,
             "start": "2026-09-20T09:00:00+02:00",
             "end": "2026-09-20T10:30:00+02:00",
-            "isPreregistered": false,
+            "isAutoenrolled": false,
             "targetRoles": [
                 "ist"
             ],
