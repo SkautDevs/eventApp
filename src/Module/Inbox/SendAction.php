@@ -13,23 +13,27 @@ use App\Inbox\InboxWriter;
 use App\Inbox\Kind;
 use App\Inbox\Submission;
 use App\Inbox\WriteOutcome;
+use App\Module\Info\InfoScreen;
 use App\Toast\Toasts;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Slim\Routing\RouteContext;
+use Slim\Views\Twig;
 
 /**
- * POST /zpravy, the send of Napiš organizátorům. A cross-site form or a reader who is not
- * paired gets a page of its own (403); a form that does not validate comes back filled with
- * what was typed under its errors (422), and so does a send over the hourly limit (429).
+ * POST /informace/zpravy, the send of Napiš organizátorům. A cross-site form or a reader
+ * who is not paired gets a page of its own (403); a form that does not validate comes back
+ * filled with what was typed under its errors (422), and so does a send over the hourly
+ * limit (429), each as the whole Informace screen on its Zprávy view (Info\InfoScreen).
  * Otherwise InboxWriter stores the message, or recognises a repeat of one just stored, and
- * both leave the same toast and send the reader to Informace (WriteResponse: a redirect, or
- * `{"next"}` for the script), where www/js/inbox/ reads SENT_HASH as the confirmed send.
- * The identity comes from the session alone; the send never calls kissj.
+ * both leave the same toast and send the reader back to the Zprávy view (WriteResponse: a
+ * redirect, or `{"next"}` for the script), where www/js/inbox/ reads SENT_HASH as the
+ * confirmed send. The identity comes from the session alone; the send never calls kissj
+ * (only re-rendering a refused form reads the participant, for the screen's notifications).
  */
 final class SendAction
 {
-    /** The hash of the landing on Informace after a confirmed send. */
+    /** The hash of the landing on the Zprávy view after a confirmed send. */
     private const string SENT_HASH = '#odeslano';
 
     /** The 403 page's message for a cross-site form. */
@@ -44,8 +48,9 @@ final class SendAction
         private readonly RefusalPage $refusal,
         private readonly Authenticator $auth,
         private readonly InboxWriter $writer,
-        private readonly FormPage $form,
+        private readonly InfoScreen $screen,
         private readonly Toasts $toasts,
+        private readonly Twig $twig,
     ) {}
 
     /** @param array<string, string> $args */
@@ -63,18 +68,32 @@ final class SendAction
         $submission = Submission::fromForm((array) $request->getParsedBody());
         $errors = $submission->errors();
         if ($errors !== []) {
-            return $this->form->render($response->withStatus(422), $identity, $submission, $errors);
+            $this->nameTheInformaceScreen($routes->urlFor('info'));
+
+            return $this->screen->render($request, $response->withStatus(422), 'inbox', $submission, $errors);
         }
 
         $outcome = $this->writer->write($this->event->slug, $identity->participantId, $identity->nickname, $submission);
         if ($outcome === WriteOutcome::Throttled) {
             $limit = sprintf('Za hodinu můžeš poslat nejvýš %d zpráv. Zkus to později.', InboxWriter::PER_HOUR);
+            $this->nameTheInformaceScreen($routes->urlFor('info'));
 
-            return $this->form->render($response->withStatus(429), $identity, $submission, [$limit]);
+            return $this->screen->render($request, $response->withStatus(429), 'inbox', $submission, [$limit]);
         }
         // a repeat is the same send arriving twice, so it answers as the success it was
         $this->toasts->put(self::SENT, $submission->kind === Kind::Help ? $this->event->inboxPromise() : null);
 
-        return WriteResponse::redirect($request, $response, $routes->urlFor('info') . self::SENT_HASH);
+        return WriteResponse::redirect($request, $response, $routes->urlFor('inbox') . self::SENT_HASH);
+    }
+
+    /**
+     * The refused form is the Informace screen, so its section names that screen, as
+     * ScreenAliasMiddleware names it for GET /informace/zpravy. Set here and not as the
+     * route's `screen` argument, which would name it on the 403 refusal pages too, and the
+     * loader would file such a page as Informace.
+     */
+    private function nameTheInformaceScreen(string $screen): void
+    {
+        $this->twig->getEnvironment()->addGlobal('screenPath', $screen);
     }
 }

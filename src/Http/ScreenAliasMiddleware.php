@@ -14,10 +14,11 @@ use Slim\Views\Twig;
 
 /**
  * Names the screen a view address belongs to. A route whose argument `screen` is set
- * (`/programy/prehled` and `/programy/moje` name `/programy`, `/mapa/plan` names `/mapa`)
- * is another address of that screen, so the Twig global `screenPath` becomes the base path
- * plus `screen`: the section's data-screen is the same on every address, and the loader
- * keeps one screen for all of them. A route without the argument leaves `screenPath` as
+ * (`/programy/prehled` and `/programy/moje` name `/programy`, `/mapa/plan` names `/mapa`,
+ * `/informace/zpravy` names `/informace`) is another address of that screen,
+ * so the Twig global `screenPath` becomes the base path plus `screen`: the section's
+ * data-screen is the same on every address, and the loader keeps one screen for all of
+ * them. A route without the argument leaves `screenPath` as
  * ScreenMiddleware set it, the request's path.
  *
  * It is not part of ScreenMiddleware because that one cannot see the route: it sits

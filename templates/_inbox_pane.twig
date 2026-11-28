@@ -1,0 +1,41 @@
+{# The Zprávy view of Informace (Napiš organizátorům), rendered with `inbox` (InboxPage):
+   the login card for a reader who is not logged in, else the form. The form keeps
+   data-inbox-form and its field names: www/js/inbox/ keeps the draft by them. #}
+		<h2>Napiš organizátorům</h2>
+		{% if inbox.sender is null %}
+			<p class="inbox-login">Napsat můžeš po přihlášení.</p>
+			{% include '_pair_card.twig' with {eventName: event.shortName ?? event.name} %}
+		{% else %}
+			{# urgent cases are a call, not a message read later: the numbers the Informace view
+			   shows, here too (the screen is precached, and a tel: link dials offline); none
+			   without a contact #}
+			{% if inbox.emergency.contacts ?? false %}
+				<section class="emergency inbox-urgent" aria-labelledby="inbox-urgent-title">
+					<p class="inbox-urgent-title" id="inbox-urgent-title">Když jde o zdraví nebo bezpečí, nepiš a zavolej:</p>
+					{% include '_emergency_contacts.twig' with {contacts: inbox.emergency.contacts} only %}
+				</section>
+			{% endif %}
+			<p class="inbox-sender">Píšeš jako {{ inbox.sender }}.</p>
+			{% for error in inbox.errors %}
+				<p class="notice" role="alert">{{ error }}</p>
+			{% endfor %}
+			{% set values = inbox.values %}
+			{% set promise = inbox.promise %}
+			{% set kind = values.kind ? values.kind.value : '' %}
+			<form method="post" action="{{ url_for('inbox-send') }}" class="stacked-form inbox-form" data-write data-inbox-form>
+				<fieldset class="inbox-kinds">
+					<legend>O co jde?</legend>
+					<label class="inbox-kind"><input type="radio" name="kind" value="help"{{ promise is not null ? ' aria-describedby="inbox-promise"' }}{{ kind == 'help' ? ' checked' }}> <span>Potřebuju poradit nebo něco nefunguje</span></label>
+					{% if promise is not null %}
+						<p class="inbox-promise" id="inbox-promise">{{ promise }}</p>
+					{% endif %}
+					<label class="inbox-kind"><input type="radio" name="kind" value="idea"{{ kind == 'idea' ? ' checked' }}> <span>Mám nápad nebo zpětnou vazbu</span></label>
+				</fieldset>
+				<label for="inbox-body">Zpráva</label>
+				<textarea name="body" id="inbox-body" rows="6" required maxlength="{{ constant('App\\Inbox\\Submission::BODY_MAX') }}">{{ values.body }}</textarea>
+				<label for="inbox-contact">Telefon nebo e-mail, když chceš odpověď <small class="inbox-optional">nepovinné</small></label>
+				<input type="text" name="contact" id="inbox-contact" maxlength="{{ constant('App\\Inbox\\Submission::CONTACT_MAX') }}" value="{{ values.contact }}">
+				<p class="inbox-privacy">Zprávu a kontakt uvidí organizátoři akce.</p>
+				<button type="submit" class="btn btn-primary">Odeslat</button>
+			</form>
+		{% endif %}

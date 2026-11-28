@@ -85,8 +85,8 @@ final class EventConfigTest extends TestCase
     public function testInboxWithoutInfoRefusesToBoot(): void
     {
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Event config "broken" enables inbox without info: its card is on Informace');
-        $this->loadInboxEvent(['push', 'inbox'], "<?php return ['promise' => 'Zprávy čteme ráno a večer.'];");
+        $this->expectExceptionMessage('Event config "broken" enables inbox without info: its form is a view of Informace');
+        $this->inboxPromiseOf(['push', 'inbox'], "<?php return ['promise' => 'Zprávy čteme ráno a večer.'];");
     }
 
     /** @return array<string, array{?string}> */
@@ -99,11 +99,9 @@ final class EventConfigTest extends TestCase
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('missingPromises')]
-    public function testInboxWithoutAPromiseRefusesToBoot(?string $promiseFile): void
+    public function testInboxWithoutAPromiseBootsWithNoPromise(?string $promiseFile): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Event config "broken" enables inbox without a promise in content/inbox.php');
-        $this->loadInboxEvent(['info', 'push', 'inbox'], $promiseFile);
+        self::assertNull($this->inboxPromiseOf(['info', 'push', 'inbox'], $promiseFile));
     }
 
     public function testInboxPromiseIsTheContentFilesSentence(): void
@@ -111,16 +109,17 @@ final class EventConfigTest extends TestCase
         $fixtures = dirname(__DIR__) . '/fixtures/events';
 
         self::assertSame('Zprávy čteme ráno a večer.', EventConfig::load($fixtures, 'inbox')->inboxPromise());
-        self::assertSame('', EventConfig::load($fixtures, 'emergency')->inboxPromise());
+        self::assertNull(EventConfig::load($fixtures, 'emergency')->inboxPromise());
     }
 
     /**
-     * Loads the event "broken" with these features and, unless null, this content/inbox.php;
-     * the temp dir is always removed.
+     * Loads the event "broken" with these features and, unless null, this content/inbox.php,
+     * and reads its inboxPromise() while the file is still there; the temp dir is always
+     * removed.
      *
      * @param list<string> $features
      */
-    private function loadInboxEvent(array $features, ?string $promiseFile): EventConfig
+    private function inboxPromiseOf(array $features, ?string $promiseFile): ?string
     {
         $dir = sys_get_temp_dir() . '/eventconfig-' . uniqid();
         mkdir($dir . '/broken/content', 0o777, true);
@@ -134,7 +133,7 @@ final class EventConfigTest extends TestCase
         }
 
         try {
-            return EventConfig::load($dir, 'broken');
+            return EventConfig::load($dir, 'broken')->inboxPromise();
         } finally {
             @unlink($dir . '/broken/content/inbox.php');
             @rmdir($dir . '/broken/content');

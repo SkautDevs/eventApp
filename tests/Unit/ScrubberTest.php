@@ -102,7 +102,7 @@ final class ScrubberTest extends TestCase
     {
         $event = Event::createEvent();
         $event->setRequest([
-            'url' => 'https://app.example/obrok27/zpravy',
+            'url' => 'https://app.example/obrok27/informace/zpravy',
             'method' => 'POST',
             'data' => ['kind' => 'help', 'body' => 'Ztratil jsem spacak', 'contact' => '777 123 456'],
         ]);
@@ -114,7 +114,7 @@ final class ScrubberTest extends TestCase
     {
         $event = Event::createEvent();
         $event->setRequest([
-            'url' => 'https://app.example/obrok27/zpravy',
+            'url' => 'https://app.example/obrok27/informace/zpravy',
             'method' => 'POST',
             'data' => 'kind=help&body=Ztratil+jsem+spacak&contact=777123456',
         ]);

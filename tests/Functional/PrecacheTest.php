@@ -33,7 +33,7 @@ final class PrecacheTest extends AppTestCase
     public function testTheListNamesEveryScreenOfTheEvent(): void
     {
         self::assertSame(
-            ['/obrok19/', '/obrok19/programy', '/obrok19/mapa', '/obrok19/informace', '/obrok19/profil', '/obrok19/zpravy', '/obrok19/offline'],
+            ['/obrok19/', '/obrok19/programy', '/obrok19/mapa', '/obrok19/informace', '/obrok19/profil', '/obrok19/offline'],
             $this->listFor('obrok19')['documents'],
         );
         self::assertSame(
@@ -50,6 +50,7 @@ final class PrecacheTest extends AppTestCase
                 '/obrok19/programy/prehled' => '/obrok19/programy',
                 '/obrok19/programy/moje' => '/obrok19/programy',
                 '/obrok19/mapa/plan' => '/obrok19/mapa',
+                '/obrok19/informace/zpravy' => '/obrok19/informace',
             ],
             $this->listFor('obrok19')['aliases'],
         );
@@ -238,14 +239,19 @@ final class PrecacheTest extends AppTestCase
         self::assertSame([], $this->listFor('korbo26')['optional']);
     }
 
-    /** The form page opens from the worker's copy, after the tabs and before the offline page. */
-    public function testAnEventWithInboxKeepsTheFormPage(): void
+    /**
+     * The Zprávy view opens offline from the Informace copy: its address is an alias of the
+     * Informace screen, not a document of its own, and an event without the inbox has neither.
+     */
+    public function testAnEventWithInboxKeepsTheZpravyViewUnderInformace(): void
     {
-        self::assertSame(
-            ['/inbox/', '/inbox/informace', '/inbox/profil', '/inbox/zpravy', '/inbox/offline'],
-            $this->listFor('inbox', fixtureEvent: true)['documents'],
-        );
-        self::assertNotContains('/emergency/zpravy', $this->listFor('emergency', fixtureEvent: true)['documents']);
+        $inbox = $this->listFor('inbox', fixtureEvent: true);
+        self::assertSame(['/inbox/', '/inbox/informace', '/inbox/profil', '/inbox/offline'], $inbox['documents']);
+        self::assertSame(['/inbox/informace/zpravy' => '/inbox/informace'], $inbox['aliases']);
+
+        $emergency = $this->listFor('emergency', fixtureEvent: true);
+        self::assertSame(['/emergency/', '/emergency/informace', '/emergency/profil', '/emergency/offline'], $emergency['documents']);
+        self::assertSame([], $emergency['aliases']);
     }
 
     public function testTheVersionChangesExactlyWhenAnAssetsContentDoes(): void

@@ -77,25 +77,38 @@ final class TouchTargetTest extends BrowserTestCase
     }
 
     /**
-     * Napiš organizátorům on obrok19: the form page's two kinds (the whole label is the
-     * target), its button, and on the admin page a message's `Vyřízeno` and the `Smazat…`
-     * summary that reveals the delete. The message is sent through the form first.
+     * Napiš organizátorům on obrok19: Informace's two view pills, the Zprávy view's two
+     * kinds (the whole label is the target), its button, and on the admin page a message's
+     * `Vyřízeno` and the `Smazat…` summary that reveals the delete. The message is sent
+     * through the form first. Then obrok27's Zprávy view, for the call button of its crisis
+     * contact.
      */
-    public function testTheMessageFormAndTheAdminInboxControlsAreAtLeast44By44(): void
+    public function testTheViewPillsTheMessageFormAndTheAdminInboxControlsAreAtLeast44By44(): void
     {
         self::pair('obrok19');
-        self::visit('/obrok19/zpravy');
-        self::waitFor('return document.readyState === "complete" && document.querySelector("form[data-inbox-form]") !== null;');
-        self::assertSame([], self::script(self::SMALL, [['.inbox-kind', 'form[data-inbox-form] .btn', '.tab']]));
+        self::visit('/obrok19/informace');
+        self::waitFor('const r = document.querySelector("[data-info-root]"); return r !== null && r.dataset.infoReady === "1";');
+        self::assertSame(2, self::script('return document.querySelectorAll(".infoview .tabs-tab").length;'));
+        self::assertSame([], self::script(self::SMALL, [['.infoview .tabs-tab', '.tab']]));
+
+        self::tap('#info-tab-inbox');
+        self::waitFor('return location.pathname === "/obrok19/informace/zpravy" && document.querySelector("form[data-inbox-form]").getClientRects().length > 0;');
+        self::assertSame([], self::script(self::SMALL, [['.infoview .tabs-tab', '.inbox-kind', 'form[data-inbox-form] .btn', '.tab']]));
 
         self::tap('input[name="kind"][value="help"]');
         self::$browser->findElement(WebDriverBy::cssSelector('#inbox-body'))->sendKeys('Změřit tlačítka');
         self::tap('form[data-inbox-form] button[type="submit"]');
-        self::waitFor('return location.pathname === "/obrok19/informace" && document.querySelector("[data-toast]") !== null;');
+        self::waitFor('return location.pathname === "/obrok19/informace/zpravy" && document.querySelector("[data-toast]") !== null;');
 
         self::visit('/obrok19/admin/notify?token=' . self::ADMIN_TOKEN);
         self::waitFor('return document.readyState === "complete" && document.querySelector("#inbox .inbox-message") !== null;');
         self::assertSame([], self::script(self::SMALL, [['#inbox .inbox-message .btn', '#inbox .inbox-delete > summary']]));
+
+        // obrok19 has no crisis contact; obrok27's Zprávy view puts its Zavolat button above the form
+        self::pair('obrok27');
+        self::visit('/obrok27/informace/zpravy');
+        self::waitFor('return document.readyState === "complete" && document.querySelector(".inbox-urgent .emergency-call") !== null && document.querySelector(".inbox-urgent .emergency-call").getClientRects().length > 0;');
+        self::assertSame([], self::script(self::SMALL, [['.inbox-urgent .emergency-call', '.infoview .tabs-tab']]));
     }
 
     /** @return array<string, string> */

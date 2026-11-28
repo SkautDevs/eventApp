@@ -1,19 +1,24 @@
 /**
- * Napiš organizátorům (/zpravy): the unsent message as a draft in localStorage, one per
- * event. The form itself is a plain POST (shell/write.js sends it). Typing saves the draft;
- * a later visit fills the form from it, but only a form the server rendered empty, so the
- * echo of a refused send (422, 429) wins. The landing of a confirmed send, Informace with
- * SENT_HASH, forgets it. /zpravy is no tab, so it is always a full navigation and
- * DOMContentLoaded is where this starts, on every page, since every module's script loads
- * on every page.
+ * The Zprávy view of Informace (/informace/zpravy): the two views (views.js), and the
+ * unsent message as a draft in localStorage, one per event. The form itself is a plain POST
+ * (shell/write.js sends it). Typing saves the draft; the form is filled from it when its
+ * screen is wired, but only a form the server rendered empty, so the echo of a refused send
+ * (422, 429) wins. The landing of a confirmed send, the Zprávy view with SENT_HASH, forgets
+ * it. Informace is one of the loader's screens: each [data-info-root] is wired once
+ * (data-info-ready), at evaluation for the document's own screen and on screen:shown for
+ * one the loader inserted, the warm-up's hidden copy included.
  *
  * The draft names its owner, the participant id of the push-identity meta, because a
  * logout leaves localStorage as it is and the next reader of the browser must not get the
  * text and contact of the last one: any page whose identity is not the owner's, a logged
- * out one included, removes it. A login or a logout is a full navigation, so it is seen.
+ * out one included, removes it when this module evaluates. A login or a logout is a full
+ * navigation, so it is seen, and the identity of a document never changes.
  */
 
-/** The hash of the landing on Informace after a confirmed send (Module/Inbox/SendAction.php). */
+import {onScreenShown} from '../events.js';
+import {setupViews} from './views.js';
+
+/** The hash of the landing on the Zprávy view after a confirmed send (Module/Inbox/SendAction.php). */
 export const SENT_HASH = '#odeslano';
 
 const EMPTY = {owner: '', kind: '', body: '', contact: ''};
@@ -96,40 +101,89 @@ function fill(form, draft) {
 	}
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-	const storage = localStore();
-	const meta = document.querySelector('meta[name="event-base"]');
-	const key = draftKey(meta ? meta.getAttribute('content') : '/');
-	const who = document.querySelector('meta[name="push-identity"]');
-	const identity = who ? who.getAttribute('content') || '' : '';
+/**
+ * Makes what the form holds the reader's own: a value set from a script marks its field
+ * dirty, as typing does, so a background morph to the server's empty form (after a push)
+ * writes the textarea's text and the inputs' value and checked attributes without reaching
+ * the values. Without it the echo of a refused send (422, 429), which is rendered and not
+ * typed, would empty itself on the next revalidation.
+ */
+function adopt(form) {
+	fill(form, fieldsOf(form));
+}
 
-	// the hash is read once and taken away, as shell/toast.js does with #offline, so a
-	// reload does not read it again; the loader's state object is passed through
-	if (location.hash === SENT_HASH) {
-		if (storage) {
-			writeDraft(storage, key, EMPTY);
-		}
-		history.replaceState(history.state, '', location.pathname + location.search);
-	}
-
-	if (!storage) {
-		return;
-	}
-	const draft = readDraft(storage, key);
-	const kept = keepDraft(draft, identity);
-	if (!kept) {
-		writeDraft(storage, key, EMPTY);
-	}
-	const form = document.querySelector('form[data-inbox-form]');
+/**
+ * Fills the form of `root` from the reader's draft when the server rendered it empty, adopts
+ * what it then holds, and saves the draft on every input and change. The listeners sit on
+ * the root, which the morph never replaces.
+ */
+export function setupDraft(root, storage, key, identity) {
+	const form = root.querySelector('form[data-inbox-form]');
 	if (!form) {
 		return;
 	}
-	if (kept && shouldRestore(fieldsOf(form))) {
+	const draft = storage ? readDraft(storage, key) : null;
+	if (keepDraft(draft, identity) && shouldRestore(fieldsOf(form))) {
 		fill(form, draft);
+	} else {
+		adopt(form);
 	}
-	const save = () => {
-		writeDraft(storage, key, {owner: identity, ...fieldsOf(form)});
+	if (!storage) {
+		return;
+	}
+	const save = event => {
+		const target = event.target.closest && event.target.closest('form[data-inbox-form]');
+		if (target) {
+			writeDraft(storage, key, {owner: identity, ...fieldsOf(target)});
+		}
 	};
-	form.addEventListener('input', save);
-	form.addEventListener('change', save);
+	root.addEventListener('input', save);
+	root.addEventListener('change', save);
+}
+
+// the page's storage, its event's key and its reader, read once: none of them changes
+// without a full navigation
+const pageStorage = localStore();
+const base = document.querySelector('meta[name="event-base"]');
+const pageKey = draftKey(base ? base.getAttribute('content') : '/');
+const who = document.querySelector('meta[name="push-identity"]');
+const pageIdentity = who ? who.getAttribute('content') || '' : '';
+
+/**
+ * The landing of a confirmed send: the draft is removed and the hash taken away, as
+ * shell/toast.js does with #offline, so a reload does not read it again; the loader's
+ * state object is passed through.
+ */
+function takeSent() {
+	if (location.hash !== SENT_HASH) {
+		return;
+	}
+	if (pageStorage) {
+		writeDraft(pageStorage, pageKey, EMPTY);
+	}
+	history.replaceState(history.state, '', location.pathname + location.search);
+}
+
+function init(root) {
+	if (!root || root.dataset.infoReady === '1') {
+		return;
+	}
+	root.dataset.infoReady = '1';
+	takeSent();
+	setupViews(root);
+	setupDraft(root, pageStorage, pageKey, pageIdentity);
+}
+
+function initAll(scope) {
+	scope.querySelectorAll('[data-info-root]').forEach(init);
+}
+
+// the owner rule, on every page
+if (pageStorage && !keepDraft(readDraft(pageStorage, pageKey), pageIdentity)) {
+	writeDraft(pageStorage, pageKey, EMPTY);
+}
+initAll(document);
+onScreenShown(scope => {
+	takeSent();
+	initAll(scope);
 });

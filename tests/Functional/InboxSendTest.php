@@ -12,9 +12,10 @@ use Psr\Http\Message\ResponseInterface;
 use Slim\App;
 
 /**
- * POST /zpravy, the send of Napiš organizátorům on the `inbox` fixture event: the checks in
- * the spec's order (same origin, identity, validation, the throttle), the repeat answered
- * as a success, and the toast the redirect to Informace lands on.
+ * POST /informace/zpravy, the send of Napiš organizátorům on the `inbox` fixture event: the
+ * checks in the spec's order (same origin, identity, validation, the throttle), the repeat
+ * answered as a success, the toast the redirect to the Zprávy view lands on, and a refused
+ * form re-rendered as the whole Informace screen on that view.
  */
 final class InboxSendTest extends AppTestCase
 {
@@ -32,7 +33,7 @@ final class InboxSendTest extends AppTestCase
     /** @param array<string, string> $body @param array<string, string> $headers */
     private function send(App $app, array $body = self::VALID, array $headers = []): ResponseInterface
     {
-        return $this->request($app, 'POST', '/zpravy', $body, $headers);
+        return $this->request($app, 'POST', '/informace/zpravy', $body, $headers);
     }
 
     /** @return list<InboxMessage> */
@@ -55,7 +56,7 @@ final class InboxSendTest extends AppTestCase
         $response = $this->send($app);
 
         self::assertSame(302, $response->getStatusCode());
-        self::assertSame('/inbox/informace#odeslano', $response->getHeaderLine('Location'));
+        self::assertSame('/inbox/informace/zpravy#odeslano', $response->getHeaderLine('Location'));
         $rows = $this->rows();
         self::assertCount(1, $rows);
         self::assertSame(42, $rows[0]->participantId);
@@ -64,15 +65,16 @@ final class InboxSendTest extends AppTestCase
         self::assertSame('Neteče sprcha v sektoru 3', $rows[0]->body);
         self::assertNull($rows[0]->contact);
 
-        $page = $this->request($app, 'GET', '/informace');
+        $page = $this->request($app, 'GET', '/informace/zpravy');
         self::assertStringContainsString(
             '<p><strong>Zpráva odeslána, díky!</strong><span>Zprávy čteme ráno a večer.</span></p>',
             (string) self::toast((string) $page->getBody()),
         );
         self::assertSame('1', $page->getHeaderLine('X-Toast'));
+        self::assertStringContainsString('data-view="inbox"', (string) $page->getBody());
 
         // said once
-        $again = $this->request($app, 'GET', '/informace');
+        $again = $this->request($app, 'GET', '/informace/zpravy');
         self::assertNull(self::toast((string) $again->getBody()));
         self::assertSame('', $again->getHeaderLine('X-Toast'));
     }
@@ -86,7 +88,35 @@ final class InboxSendTest extends AppTestCase
 
         self::assertStringContainsString(
             '<p><strong>Zpráva odeslána, díky!</strong></p>',
-            (string) self::toast((string) $this->request($app, 'GET', '/informace')->getBody()),
+            (string) self::toast((string) $this->request($app, 'GET', '/informace/zpravy')->getBody()),
+        );
+    }
+
+    /** The loader's warm-up and the worker's fill of the Zprávy address leave the toast for the reader's own page. */
+    public function testAFragmentOrTheWorkersFillOfTheLandingLeavesTheToast(): void
+    {
+        $app = $this->app();
+        $this->loginAs($app, 42, 'Kája');
+        self::assertSame(302, $this->send($app)->getStatusCode());
+
+        foreach (['X-Screen', \App\Toast\Toasts::WORKER_FILL_HEADER] as $header) {
+            self::assertNull(self::toast((string) $this->request($app, 'GET', '/informace/zpravy', null, [$header => '1'])->getBody()), $header);
+        }
+
+        self::assertNotNull(self::toast((string) $this->request($app, 'GET', '/informace/zpravy')->getBody()));
+    }
+
+    public function testWithoutAPromiseTheHelpToastHasNoSecondLine(): void
+    {
+        // obrok19 enables the inbox without content/inbox.php
+        $app = $this->createApp('obrok19', [\PDO::class => self::memoryDb()]);
+        $this->loginAs($app, 42, 'Kája');
+
+        self::assertSame(302, $this->send($app)->getStatusCode());
+
+        self::assertStringContainsString(
+            '<p><strong>Zpráva odeslána, díky!</strong></p>',
+            (string) self::toast((string) $this->request($app, 'GET', '/informace/zpravy')->getBody()),
         );
     }
 
@@ -98,7 +128,7 @@ final class InboxSendTest extends AppTestCase
         $response = $this->send($app, self::VALID, ['X-Write' => '1']);
 
         self::assertSame(200, $response->getStatusCode());
-        self::assertSame('{"next":"/inbox/informace#odeslano"}', (string) $response->getBody());
+        self::assertSame('{"next":"/inbox/informace/zpravy#odeslano"}', (string) $response->getBody());
         self::assertCount(1, $this->rows());
     }
 
@@ -111,6 +141,8 @@ final class InboxSendTest extends AppTestCase
 
         self::assertSame(403, $response->getStatusCode());
         self::assertStringContainsString('Zprávu se nepodařilo odeslat. Načti stránku a zkus to znovu.', (string) $response->getBody());
+        self::assertStringContainsString('<a class="highlight" href="/inbox/informace/zpravy">Zpět na formulář</a>', (string) $response->getBody());
+        $this->assertNotTheInformaceScreen((string) $response->getBody());
         self::assertSame([], $this->rows());
     }
 
@@ -124,6 +156,7 @@ final class InboxSendTest extends AppTestCase
         self::assertSame(403, $response->getStatusCode());
         self::assertStringContainsString('<p>Zprávu můžeš poslat až po přihlášení.</p>', $html);
         self::assertStringContainsString('<a class="highlight" href="/inbox/profil">Přihlásit se</a>', $html);
+        $this->assertNotTheInformaceScreen($html);
         self::assertSame([], $this->rows());
     }
 
@@ -152,6 +185,7 @@ final class InboxSendTest extends AppTestCase
         self::assertSame(1, substr_count($html, 'role="alert"'), 'only the one error');
         self::assertStringContainsString('Píšeš jako Kája.', $html);
         $this->assertTheFormHolds($html, $body);
+        $this->assertTheInformaceScreenOnTheZpravyView($html);
         self::assertSame([], $this->rows());
     }
 
@@ -170,6 +204,7 @@ final class InboxSendTest extends AppTestCase
         self::assertSame(429, $response->getStatusCode());
         self::assertStringContainsString('<p class="notice" role="alert">Za hodinu můžeš poslat nejvýš 5 zpráv. Zkus to později.</p>', $html);
         $this->assertTheFormHolds($html, $sixth);
+        $this->assertTheInformaceScreenOnTheZpravyView($html);
         self::assertCount(5, $this->rows());
     }
 
@@ -183,7 +218,7 @@ final class InboxSendTest extends AppTestCase
 
         self::assertSame(302, $first->getStatusCode());
         self::assertSame(302, $second->getStatusCode());
-        self::assertSame('/inbox/informace#odeslano', $second->getHeaderLine('Location'));
+        self::assertSame('/inbox/informace/zpravy#odeslano', $second->getHeaderLine('Location'));
         self::assertCount(1, $this->rows());
     }
 
@@ -202,6 +237,30 @@ final class InboxSendTest extends AppTestCase
         self::assertSame(1499, mb_strlen($typed));
         self::assertSame(1000, mb_strlen($rows[0]->body));
         self::assertSame(str_replace("\r\n", "\n", $typed), $rows[0]->body);
+    }
+
+    /**
+     * A 403 refusal is a page of its own, not the Informace screen: the loader files a
+     * section under its data-screen, and a refusal filed as Informace would stand in for it.
+     */
+    private function assertNotTheInformaceScreen(string $html): void
+    {
+        self::assertStringNotContainsString('data-screen="/inbox/informace"', $html);
+        self::assertStringContainsString('data-screen="/inbox/informace/zpravy"', $html, 'the request\'s own path');
+        self::assertStringNotContainsString('data-info-root', $html);
+    }
+
+    /** A refused form comes back as the whole Informace screen, painted on its Zprávy view. */
+    private function assertTheInformaceScreenOnTheZpravyView(string $html): void
+    {
+        self::assertStringContainsString('<!doctype html>', strtolower($html));
+        self::assertStringContainsString('data-screen="/inbox/informace"', $html);
+        self::assertStringContainsString('<div class="infoview" data-info-root data-view="inbox" data-morph-keep="data-view">', $html);
+        self::assertMatchesRegularExpression('#<a class="tabs-tab" role="tab" id="info-tab-inbox" [^>]*aria-selected="true"[^>]* aria-current="page"#', $html);
+        // the Informace view is there too, behind the form
+        self::assertStringContainsString('Krizový kontakt akce', $html);
+        self::assertStringContainsString('<h2>Notifikace</h2>', $html);
+        self::assertStringContainsString('class="tab is-active" href="/inbox/informace"', $html);
     }
 
     /**

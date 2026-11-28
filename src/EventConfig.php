@@ -113,14 +113,8 @@ final readonly class EventConfig
         if (in_array('info', $features, true) && !in_array('push', $features, true)) {
             throw new \RuntimeException(sprintf('Event config "%s" enables info without push: Informace lists the sent notifications', $slug));
         }
-        if (in_array('inbox', $features, true)) {
-            if (!in_array('info', $features, true)) {
-                throw new \RuntimeException(sprintf('Event config "%s" enables inbox without info: its card is on Informace', $slug));
-            }
-            // no team gets an inbox without having said how fast it reads it
-            if (self::promiseIn(self::contentIn(dirname($file), 'inbox')) === '') {
-                throw new \RuntimeException(sprintf('Event config "%s" enables inbox without a promise in content/inbox.php', $slug));
-            }
+        if (in_array('inbox', $features, true) && !in_array('info', $features, true)) {
+            throw new \RuntimeException(sprintf('Event config "%s" enables inbox without info: its form is a view of Informace', $slug));
         }
 
         $colors = self::stringMap($data['colors'], $slug, 'colors');
@@ -245,12 +239,16 @@ final readonly class EventConfig
     }
 
     /**
-     * The inbox's promise line, the one sentence on how fast the organisers read the `help`
-     * messages: `content/inbox.php`'s `promise`, trimmed; '' for an event without the file.
+     * The inbox's optional promise line, the one sentence on how fast the organisers read
+     * the `help` messages: `content/inbox.php`'s `promise`, trimmed; null without the file
+     * or when the promise is missing or blank.
      */
-    public function inboxPromise(): string
+    public function inboxPromise(): ?string
     {
-        return self::promiseIn($this->content('inbox'));
+        $promise = $this->content('inbox')['promise'] ?? null;
+        $promise = is_string($promise) ? trim($promise) : '';
+
+        return $promise === '' ? null : $promise;
     }
 
     public function isEnabled(string $feature): bool
@@ -303,18 +301,6 @@ final readonly class EventConfig
     }
 
     /**
-     * The trimmed `promise` of a `content/inbox.php` array, or '' without one.
-     *
-     * @param array<mixed>|null $content
-     */
-    private static function promiseIn(?array $content): string
-    {
-        $promise = $content['promise'] ?? null;
-
-        return is_string($promise) ? trim($promise) : '';
-    }
-
-    /**
      * The array an event's `content/<name>.php` returns, or null without the file (or when
      * it returns no array).
      *
@@ -322,17 +308,7 @@ final readonly class EventConfig
      */
     private function content(string $name): ?array
     {
-        return self::contentIn($this->dir, $name);
-    }
-
-    /**
-     * content() for an event's directory, which load() reads before the event exists.
-     *
-     * @return array<mixed>|null
-     */
-    private static function contentIn(string $dir, string $name): ?array
-    {
-        $file = $dir . '/content/' . $name . '.php';
+        $file = $this->dir . '/content/' . $name . '.php';
         if (!is_file($file)) {
             return null;
         }

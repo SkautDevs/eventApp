@@ -18,5 +18,6 @@ import './programs.test.js';
 import './write.test.js';
 import './pairing.test.js';
 import './inbox.test.js';
+import './inbox-views.test.js';
 
 finish();

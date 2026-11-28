@@ -1,12 +1,59 @@
 @charset "utf-8";
-/* Napiš organizátorům (/zpravy): the form a participant writes the organisers with. */
+/* Napiš organizátorům: the Zprávy view of Informace (/informace/zpravy), the form a
+   participant writes the organisers with, and the switch between the two views. */
+
+/* --- two views: Informace and Zprávy -------------------------------------- */
+
+/* The Program screen's column (programs.css, .screen[data-tab="programs"]): the screen
+   drops the shared top padding and keeps exactly the bottom chrome's height below the
+   column, so the docked pill's in-flow position at the foot of a long pane coincides with
+   its docked one on top of the tab bar. Only a screen with the pills; an event without the
+   inbox keeps the shared padding. */
+.screen[data-tab="info"]:has(.infoview) {
+	padding: 0 0 calc(var(--tabbar-height) + env(safe-area-inset-bottom, 0px) + var(--netstate-height));
+}
+
+/* the shown view takes the height, the pill docks in flow at the bottom; a hidden pane stays
+   in the document (display: none), so a half-typed text survives a switch */
+.infoview {
+	display: flex;
+	flex-direction: column;
+	min-height: var(--screen-height);
+}
+
+/* the shared padding of a screen, inside the pane: the top, and the gap that keeps the last
+   line off the pill */
+.info-pane {
+	display: none;
+	flex: 1 0 auto;
+	padding: 8px 0 16px;
+}
+
+.infoview[data-view="info"] #info-view-info,
+.infoview[data-view="inbox"] #info-view-inbox {
+	display: block;
+}
+
+.infoview[data-view="inbox"] .tabs-indicator {
+	transform: translateX(100%);
+}
+
+/* --- the form ------------------------------------------------------------- */
 
 /* a form to fill in reads from the left, like the fields it stacks (body centres).
-   The fields and the button keep .stacked-form's 8px gutter; the text takes the same. */
-.inbox-urgent,
+   The fields and the button keep .stacked-form's 8px gutter; the text takes the same,
+   and so does the logged-out line above the login card. */
+.inbox-login,
 .inbox-sender {
 	margin: 0 8px 12px;
 	text-align: left;
+}
+
+/* the crisis numbers above the form: info.css's .emergency box and list (every sheet is
+   linked on every page, and an event with inbox has info), with this line for a heading */
+.inbox-urgent-title {
+	margin: 0 0 4px;
+	font-weight: 700;
 }
 
 .inbox-form {

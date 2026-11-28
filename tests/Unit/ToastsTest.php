@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
+use App\Http\WriteResponse;
 use App\Session;
 use App\Toast\Toast;
 use App\Toast\Toasts;
@@ -45,11 +46,12 @@ final class ToastsTest extends TestCase
         self::assertFalse($this->session->has('toast'));
     }
 
-    public function testAFragmentAndTheWorkersOwnFetchTakeNothing(): void
+    public function testAFragmentAWriteFetchAndTheWorkersOwnFetchTakeNothing(): void
     {
         $this->toasts->put('Odhlášeno', null);
         self::assertNull($this->toasts->take($this->documentRequest(['X-Screen' => '1'])));
         self::assertNull($this->toasts->take($this->documentRequest([Toasts::WORKER_FILL_HEADER => '1'])));
+        self::assertNull($this->toasts->take($this->documentRequest([WriteResponse::HEADER => '1'])));
         self::assertToast('Odhlášeno', null, $this->toasts->take($this->documentRequest()));
     }
 

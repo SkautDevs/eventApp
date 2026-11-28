@@ -8,10 +8,11 @@ use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
- * The form page's draft (www/js/inbox/index.js) in the running app, on obrok19, paired:
- * a send with no signal comes back from the worker's copy of the form page with the
- * offline toast and the typed message put back, a confirmed send forgets it, a reload
- * keeps it, and a logout or another reader's draft leaves nothing for the next reader.
+ * The Zprávy view's draft (www/js/inbox/index.js) in the running app, on obrok19, paired:
+ * a send with no signal comes back from the worker's copy of Informace with the offline
+ * toast and the typed message put back, a confirmed send forgets it, a reload keeps it, a
+ * switch to the Informace view and back keeps the text in the form, and a logout or
+ * another reader's draft leaves nothing for the next reader.
  * The network is taken away by stopping the PHP server, as in OfflineTest. With the
  * script on, the admin page remembers the Podpis typed on a message's `Vyřízeno` form;
  * the admin link opens with this class's own ADMIN_TOKEN_OBROK19.
@@ -21,7 +22,10 @@ final class InboxDraftTest extends BrowserTestCase
 {
     private const string SLUG = 'obrok19';
 
-    private const string FORM = '/obrok19/zpravy';
+    private const string FORM = '/obrok19/informace/zpravy';
+
+    /** The worker stores the Zprávy view under the Informace screen's key. */
+    private const string SCREEN = '/obrok19/informace';
 
     /** The draft's key: 'inboxDraft:' plus the event-base meta, which ends in a slash. */
     private const string KEY = 'inboxDraft:/obrok19/';
@@ -48,8 +52,8 @@ final class InboxDraftTest extends BrowserTestCase
         $cache = self::waitForPrecache(self::SLUG);
         self::pair(self::SLUG);
         self::openEmptyForm();
-        // the worker's copy of the form page is the paired one, with the form in it
-        self::waitForCachedPage($cache, self::FORM, 'data-inbox-form');
+        // the worker's copy of Informace is the paired one, with the form in it
+        self::waitForCachedPage($cache, self::SCREEN, 'data-inbox-form');
 
         self::stopServer();
         self::tap('input[name="kind"][value="help"]');
@@ -59,6 +63,7 @@ final class InboxDraftTest extends BrowserTestCase
         self::waitFor('const t = document.querySelector("[data-toast]"); return t !== null && t.textContent.includes(arguments[0]);', ['Akci není možné provést, protože jsi offline.']);
         self::assertSame(self::FORM, self::script('return location.pathname;'));
         self::assertSame('', self::script('return location.hash;'), 'no #offline left behind');
+        self::assertTrue(self::script('return document.querySelector("#inbox-body").getClientRects().length > 0;'), 'on the Zprávy view');
         self::assertSame('Nefunguje mi přihlášení na program.', self::script('return document.querySelector("#inbox-body").value;'), 'the text is back');
         self::assertTrue(self::script('return document.querySelector(\'input[name="kind"][value="help"]\').checked;'), 'the kind is still chosen');
     }
@@ -74,9 +79,10 @@ final class InboxDraftTest extends BrowserTestCase
 
         self::tap('form[data-inbox-form] button[type="submit"]');
 
-        self::waitFor('const t = document.querySelector("[data-toast]"); return location.pathname === arguments[1] && t !== null && t.textContent.includes(arguments[0]);', ['Zpráva odeslána, díky!', '/obrok19/informace']);
+        self::waitFor('const t = document.querySelector("[data-toast]"); return location.pathname === arguments[1] && t !== null && t.textContent.includes(arguments[0]);', ['Zpráva odeslána, díky!', self::FORM]);
         self::waitFor('return location.hash === "";');
-        self::assertStringEndsWith('/obrok19/informace', (string) self::script('return location.href;'), 'no hash left in the address');
+        self::assertStringEndsWith(self::FORM, (string) self::script('return location.href;'), 'no hash left in the address');
+        self::assertTrue(self::script('return document.querySelector("#inbox-body").getClientRects().length > 0;'), 'the landing is the Zprávy view');
         self::assertNull(self::script('return localStorage.getItem(arguments[0]);', [self::KEY]), 'the draft is gone');
 
         self::visit(self::FORM);
@@ -98,6 +104,68 @@ final class InboxDraftTest extends BrowserTestCase
         self::waitFor('return document.readyState === "complete" && document.querySelector("form[data-inbox-form]") !== null;');
 
         self::assertSame('Rozepsaná zpráva', self::script('return document.querySelector("#inbox-body").value;'));
+    }
+
+    /** The text typed on the Zprávy view is still in the form after a look at the Informace view. */
+    public function testTheTextSurvivesASwitchToInformaceAndBack(): void
+    {
+        self::pair(self::SLUG);
+        self::openEmptyForm();
+        self::script('window.inboxDraftMark = 1;');
+        self::tap('input[name="kind"][value="idea"]');
+        self::type('#inbox-body', 'Napíšu to po obědě');
+
+        self::tap('#info-tab-info');
+        self::waitFor('return location.pathname === arguments[0] && document.querySelector("#inbox-body").getClientRects().length === 0;', [self::SCREEN]);
+        self::tap('#info-tab-inbox');
+        self::waitFor('return location.pathname === arguments[0] && document.querySelector("#inbox-body").getClientRects().length > 0;', [self::FORM]);
+
+        self::assertSame(1, self::script('return window.inboxDraftMark;'), 'both switches stayed in the document');
+        self::assertSame('Napíšu to po obědě', self::script('return document.querySelector("#inbox-body").value;'));
+        self::assertTrue(self::script('return document.querySelector(\'input[name="kind"][value="idea"]\').checked;'));
+    }
+
+    /** Review Focus 4: a background revalidation of Informace keeps the typed message, with no field focused, and the Zprávy view. */
+    public function testATypedMessageSurvivesABackgroundRevalidation(): void
+    {
+        self::pair(self::SLUG);
+        self::openEmptyForm();
+        self::tap('input[name="kind"][value="idea"]');
+        self::type('#inbox-body', 'Rozepsaná před pushem');
+        self::type('#inbox-contact', 'kaja@example.com');
+
+        self::revalidateUnfocused();
+
+        self::assertTheZpravyView();
+        self::assertSame(
+            ['Rozepsaná před pushem', 'kaja@example.com', true],
+            self::script('return [document.querySelector("#inbox-body").value, document.querySelector("#inbox-contact").value, document.querySelector(\'input[name="kind"][value="idea"]\').checked];'),
+        );
+    }
+
+    /**
+     * Review Focus 4: the echo of a refused send (422: a text, no kind) is rendered, not
+     * typed, and a background revalidation to the empty form must not take it away.
+     */
+    public function testTheEchoOfARefusedSendSurvivesABackgroundRevalidation(): void
+    {
+        self::pair(self::SLUG);
+        self::openEmptyForm();
+        self::type('#inbox-body', 'Zapomněl jsem vybrat druh');
+        self::type('#inbox-contact', 'kaja@example.com');
+        self::tap('form[data-inbox-form] button[type="submit"]');
+        // write.js sends a refused answer again as the plain form: a full 422 document
+        self::waitFor('const n = document.querySelector(\'.notice[role="alert"]\'); return document.readyState === "complete" && n !== null && n.textContent.includes(arguments[0]);', ['Vyber, o co jde.']);
+        self::assertSame(self::FORM, self::script('return location.pathname;'));
+
+        self::revalidateUnfocused();
+
+        self::assertTheZpravyView();
+        self::assertSame(
+            ['Zapomněl jsem vybrat druh', 'kaja@example.com'],
+            self::script('return [document.querySelector("#inbox-body").value, document.querySelector("#inbox-contact").value];'),
+            'the echo is still in the form',
+        );
     }
 
     /** A participant's draft is theirs: a logout removes it, and a draft of another participant is neither shown nor kept. */
@@ -137,7 +205,7 @@ final class InboxDraftTest extends BrowserTestCase
         self::tap('input[name="kind"][value="help"]');
         self::type('#inbox-body', $text);
         self::tap('form[data-inbox-form] button[type="submit"]');
-        self::waitFor('const t = document.querySelector("[data-toast]"); return location.pathname === arguments[1] && t !== null && t.textContent.includes(arguments[0]);', ['Zpráva odeslána, díky!', '/obrok19/informace']);
+        self::waitFor('const t = document.querySelector("[data-toast]"); return location.pathname === arguments[1] && t !== null && t.textContent.includes(arguments[0]);', ['Zpráva odeslána, díky!', self::FORM]);
 
         self::visit('/' . self::SLUG . '/admin/notify?token=' . self::ADMIN_TOKEN);
         self::waitFor('return document.readyState === "complete" && location.pathname === arguments[0];', ['/obrok19/admin/notify']);
@@ -159,7 +227,7 @@ final class InboxDraftTest extends BrowserTestCase
         self::assertSame(array_fill(0, count($values), 'Lung'), $values, 'every Podpis field is filled');
     }
 
-    /** The form page with no draft from an earlier test: the key removed, then the page loaded again. */
+    /** The Zprávy view with no draft from an earlier test: the key removed, then the page loaded again. */
     private static function openEmptyForm(): void
     {
         self::visit(self::FORM);
@@ -168,6 +236,26 @@ final class InboxDraftTest extends BrowserTestCase
         self::visit(self::FORM);
         self::waitFor('return document.readyState === "complete" && document.querySelector("form[data-inbox-form]") !== null;');
         self::assertSame('', self::script('return document.querySelector("#inbox-body").value;'));
+    }
+
+    /**
+     * Takes the focus out of the form and tells the loader the worker has a newer Informace,
+     * as after a push; waits for the morph. The server's copy is `/informace` with an empty
+     * form, so the morph does reach the form.
+     */
+    private static function revalidateUnfocused(): void
+    {
+        self::script('document.activeElement.blur(); window.__morphs = 0; document.addEventListener("screen:morphed", () => { window.__morphs++; });');
+        self::assertSame('BODY', self::script('return document.activeElement.tagName;'), 'no field focused');
+        self::script("navigator.serviceWorker.dispatchEvent(new MessageEvent('message', {data: {type: 'screen-updated', path: arguments[0]}}));", [self::SCREEN]);
+        self::waitFor('return window.__morphs > 0;');
+    }
+
+    private static function assertTheZpravyView(): void
+    {
+        self::assertSame(self::FORM, self::script('return location.pathname;'));
+        self::assertSame('inbox', self::script('return document.querySelector("[data-info-root]").dataset.view;'));
+        self::assertTrue(self::script('return document.querySelector("#inbox-body").getClientRects().length > 0;'), 'the Zprávy view is on show');
     }
 
     /** Types into a field as a reader does, so its input events save the draft. */

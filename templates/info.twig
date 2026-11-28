@@ -8,40 +8,25 @@
 	{% if toast ?? null %}
 		{% include '_toast.twig' with {title: toast.title, line: toast.line} only %}
 	{% endif %}
+	{%~ if inbox %}
+	{# With `inbox` the screen has two views, switched like Místa's: this content (/informace)
+	   and the message form (/informace/zpravy). Both panes are always in the markup, the
+	   server paints the view the address names, and after that data-view is the reader's,
+	   not the server's. The Informace pane's content keeps its indentation, so an event
+	   without the inbox renders it as before. #}
+	<div class="infoview" data-info-root data-view="{{ view }}" data-morph-keep="data-view">
+	<div class="info-pane" id="info-view-info" role="tabpanel" aria-labelledby="info-tab-info">
+	{%~ endif %}
 	{# The one block that must work with no signal: Informace is in the worker's precache,
 	   and a tel: link needs no network to dial. #}
 	{% if emergency.contacts ?? false %}
 		<section class="emergency info-contact" aria-labelledby="info-contact-title">
 			<h2 id="info-contact-title">Krizový kontakt akce</h2>
-			<ul class="emergency-list">
-				{% for contact in emergency.contacts %}
-					<li class="emergency-contact">
-						<span class="emergency-label">{{ contact.label }}</span>
-						<span class="emergency-number">{{ contact.phone }}</span>
-						{% if contact.note ?? false %}<span class="emergency-note">{{ contact.note }}</span>{% endif %}
-						<a class="btn btn-primary emergency-call" href="{{ 'tel:' ~ contact.phone|replace({' ': ''}) }}">
-							Zavolat<span class="sr-only"> {{ contact.label }}</span>
-						</a>
-					</li>
-				{% endfor %}
-			</ul>
+			{% include '_emergency_contacts.twig' with {contacts: emergency.contacts} only %}
 			{% for line in emergency.info ?? [] %}
 				<p class="emergency-info">{{ line }}</p>
 			{% endfor %}
 		</section>
-	{% endif %}
-
-	{# the way to the message form (/zpravy), right under the contact it defers to; logged out
-	   it leads to Profil, where the reader logs in. An ordinary navigation, not a screen. #}
-	{% if inbox %}
-		{% set who = auth_identity() %}
-		<a class="link-card info-inbox" data-key="inbox-card" href="{{ url_for(who ? 'inbox' : 'profile') }}">
-			<span class="link-card-text">
-				Napiš organizátorům
-				<span class="link-card-note">Dotaz, problém nebo nápad. Když jde o zdraví nebo bezpečí, volej krizový kontakt.</span>
-				{% if not who %}<span class="link-card-note">Napsat můžeš po přihlášení.</span>{% endif %}
-			</span>
-		</a>
 	{% endif %}
 
 	<h2>Notifikace</h2>
@@ -91,4 +76,23 @@
 		{% endfor %}
 	</ul>
 	{% endif %}
+	{%~ if inbox %}
+	</div>
+	<div class="info-pane" id="info-view-inbox" role="tabpanel" aria-labelledby="info-tab-inbox">
+		{% include '_inbox_pane.twig' %}
+	</div>
+	{# Each pill is a link to its view's address, so a reader without JavaScript switches
+	   views too (a full page load); www/js/inbox/views.js takes a plain click, shows the
+	   pane and pushes the address instead. The shown pill is selected and the current page;
+	   both are the reader's once the script runs, so a background morph leaves them alone
+	   (data-morph-keep). No tabindex here: views.js puts the roving tabindex on at wiring. #}
+	<div class="tabs-wrap" data-key="tabs">
+		<div class="tabs" role="tablist" aria-label="Zobrazení informací">
+			<span class="tabs-indicator" aria-hidden="true"></span>
+			<a class="tabs-tab" role="tab" id="info-tab-info" href="{{ url_for('info') }}" aria-controls="info-view-info" aria-selected="{{ view == 'info' ? 'true' : 'false' }}" data-info-view="info"{% if view == 'info' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="fas fa-info-circle" aria-hidden="true"></i> <span class="tabs-label">Informace</span></a>
+			<a class="tabs-tab" role="tab" id="info-tab-inbox" href="{{ url_for('inbox') }}" aria-controls="info-view-inbox" aria-selected="{{ view == 'inbox' ? 'true' : 'false' }}" data-info-view="inbox"{% if view == 'inbox' %} aria-current="page"{% endif %} data-morph-keep="aria-selected aria-current"><i class="fas fa-envelope" aria-hidden="true"></i> <span class="tabs-label">Zprávy</span></a>
+		</div>
+	</div>
+	</div>
+	{%~ endif %}
 {% endblock %}

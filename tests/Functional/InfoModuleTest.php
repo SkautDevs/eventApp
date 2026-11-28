@@ -257,51 +257,129 @@ final class InfoModuleTest extends AppTestCase
         self::assertStringNotContainsString('tab-avatar', $html, 'the page itself renders logged out');
     }
 
-    public function testAnEventWithoutInboxHasNoCard(): void
+    /** @return array{string, string} the Informace pane and the Zprávy pane of a page with both views */
+    private static function panes(string $html): array
+    {
+        self::assertSame(1, preg_match('#<div class="info-pane" id="info-view-info" role="tabpanel" aria-labelledby="info-tab-info">(.*?)<div class="info-pane" id="info-view-inbox" role="tabpanel" aria-labelledby="info-tab-inbox">(.*?)<div class="tabs-wrap"#s', $html, $panes), 'both panes, then the pills');
+
+        return [$panes[1], $panes[2]];
+    }
+
+    /** @return array{string, string} the Informace pill and the Zprávy pill */
+    private static function pills(string $html): array
+    {
+        self::assertSame(1, preg_match('#<div class="tabs" role="tablist" aria-label="Zobrazení informací">\s*<span class="tabs-indicator" aria-hidden="true"></span>\s*(<a class="tabs-tab"[^>]*>.*?</a>)\s*(<a class="tabs-tab"[^>]*>.*?</a>)\s*</div>#s', $html, $pills), 'the two pills');
+
+        return [$pills[1], $pills[2]];
+    }
+
+    /** One screen, two addresses: /informace paints the Informace view, /informace/zpravy the Zprávy view. */
+    public function testBothAddressesAreTheOneInformaceScreenOnTheirOwnView(): void
+    {
+        $app = $this->app('obrok19');
+
+        foreach (['/informace' => 'info', '/informace/zpravy' => 'inbox'] as $path => $view) {
+            $response = $this->request($app, 'GET', $path);
+            $html = (string) $response->getBody();
+
+            self::assertSame(200, $response->getStatusCode(), $path);
+            self::assertStringContainsString('data-screen="/obrok19/informace"', $html, $path);
+            self::assertStringContainsString('<div class="infoview" data-info-root data-view="' . $view . '" data-morph-keep="data-view">', $html, $path);
+            self::assertSame(1, substr_count($html, 'data-info-root'), $path);
+            [$info, $inbox] = self::panes($html);
+            self::assertStringContainsString('<h2>Notifikace</h2>', $info, $path);
+            self::assertStringContainsString('Napiš organizátorům</h2>', $inbox, $path);
+
+            [$infoPill, $inboxPill] = self::pills($html);
+            $shown = $view === 'info' ? $infoPill : $inboxPill;
+            $other = $view === 'info' ? $inboxPill : $infoPill;
+            self::assertStringContainsString('aria-selected="true"', $shown, $path);
+            self::assertStringContainsString('aria-current="page"', $shown, $path);
+            self::assertStringContainsString('aria-selected="false"', $other, $path);
+            self::assertStringNotContainsString('aria-current="page"', $other, $path);
+            // the Informace tab is lit on both
+            self::assertStringContainsString('class="tab is-active" href="/obrok19/informace"', $html, $path);
+        }
+    }
+
+    /** The pills are links to the two addresses, so a reader without JavaScript switches views too. */
+    public function testThePillsAreLinksToTheTwoAddresses(): void
+    {
+        [$info, $inbox] = self::pills((string) $this->request($this->app('obrok19'), 'GET', '/informace')->getBody());
+
+        self::assertMatchesRegularExpression('#^<a class="tabs-tab" role="tab" id="info-tab-info" href="/obrok19/informace" aria-controls="info-view-info" aria-selected="true" data-info-view="info" aria-current="page" data-morph-keep="aria-selected aria-current">#', $info);
+        self::assertStringContainsString('<i class="fas fa-info-circle" aria-hidden="true"></i> <span class="tabs-label">Informace</span>', $info);
+        self::assertMatchesRegularExpression('#^<a class="tabs-tab" role="tab" id="info-tab-inbox" href="/obrok19/informace/zpravy" aria-controls="info-view-inbox" aria-selected="false" data-info-view="inbox" data-morph-keep="aria-selected aria-current">#', $inbox);
+        self::assertStringContainsString('<i class="fas fa-envelope" aria-hidden="true"></i> <span class="tabs-label">Zprávy</span>', $inbox);
+        foreach ([$info, $inbox] as $pill) {
+            self::assertStringNotContainsString('tabindex', $pill, 'the roving tabindex is the script\'s');
+        }
+    }
+
+    /**
+     * /informace itself carries the paired reader's form in its Zprávy pane: the script's
+     * in-place switch shows that pane without a fetch, and offline /informace/zpravy opens
+     * from the worker's copy of either address.
+     */
+    public function testTheInformaceAddressCarriesTheFormOfAPairedReader(): void
+    {
+        // participant 1 is the one obrok19's fixture knows, so the screen's read keeps them logged in
+        $app = $this->app('obrok19');
+        $this->loginAs($app, 1, 'Kája');
+
+        $html = (string) $this->request($app, 'GET', '/informace')->getBody();
+
+        self::assertStringContainsString('data-view="info"', $html);
+        [, $inbox] = self::panes($html);
+        self::assertMatchesRegularExpression('#<form method="post" action="/obrok19/informace/zpravy" class="stacked-form inbox-form" data-write data-inbox-form>#', $inbox);
+        self::assertStringContainsString('Píšeš jako Kája.', $inbox);
+    }
+
+    public function testTheInformaceTabDeclaresTheZpravyAddress(): void
+    {
+        $html = (string) $this->request($this->app('obrok19'), 'GET', '/programy')->getBody();
+
+        self::assertMatchesRegularExpression('#<a class="tab" href="/obrok19/informace" data-screen-aliases="/obrok19/informace/zpravy">#', $html);
+    }
+
+    /** The pill is the only way to the form: the card that used to lead there is gone. */
+    public function testThereIsNoCardToTheForm(): void
+    {
+        $inbox = $this->createApp('inbox', [MessageRepository::class => $this->messages], fixtureEvent: true);
+        foreach ([[$this->app('obrok19'), '/informace'], [$this->app('obrok19'), '/informace/zpravy'], [$inbox, '/informace']] as [$app, $path]) {
+            $html = (string) $this->request($app, 'GET', $path)->getBody();
+
+            self::assertStringNotContainsString('info-inbox', $html, $path);
+            self::assertStringNotContainsString('inbox-card', $html, $path);
+            self::assertStringNotContainsString('Dotaz, problém nebo nápad.', $html, $path);
+        }
+    }
+
+    /** An event without the inbox keeps the one view it always had: no root, no pills, no second address. */
+    public function testAnEventWithoutInboxHasOneViewAndNoPills(): void
     {
         $app = $this->createApp('emergency', [MessageRepository::class => $this->messages], fixtureEvent: true);
         $html = (string) $this->request($app, 'GET', '/informace')->getBody();
 
-        self::assertStringContainsString('Krizový kontakt akce', $html, 'the event has the contact the card would follow');
-
-        self::assertStringNotContainsString('data-key="inbox-card"', $html);
+        self::assertStringContainsString('Krizový kontakt akce', $html);
+        self::assertStringNotContainsString('data-info-root', $html);
+        self::assertStringNotContainsString('info-pane', $html);
+        self::assertStringNotContainsString('tabs-tab', $html);
+        self::assertStringNotContainsString('data-screen-aliases', $html);
+        self::assertSame(404, $this->request($app, 'GET', '/informace/zpravy')->getStatusCode());
+        self::assertSame(404, $this->request($app, 'GET', '/zpravy')->getStatusCode());
     }
 
-    /** @return string the inbox card's `<a>` element, asserted to be the only one */
-    private static function inboxCard(string $html): string
+    /** The view switcher docks at the foot of the column, so the toast stays above both panes. */
+    public function testTheToastSitsAboveBothViews(): void
     {
-        self::assertSame(1, preg_match_all('#<a class="link-card[^"]*"[^>]*data-key="inbox-card"[^>]*>.*?</a>#s', $html, $cards));
+        $app = $this->app('obrok19');
+        self::leaveToast($app);
 
-        return $cards[0][0];
-    }
+        $html = (string) $this->request($app, 'GET', '/informace/zpravy')->getBody();
 
-    public function testTheInboxCardFollowsTheCrisisContactAndLeadsToTheForm(): void
-    {
-        $app = $this->createApp('inbox', [MessageRepository::class => $this->messages], fixtureEvent: true);
-        $this->loginAs($app, 42, 'Kája');
-
-        $html = (string) $this->request($app, 'GET', '/informace')->getBody();
-        $card = self::inboxCard($html);
-
-        self::assertStringContainsString('href="/inbox/zpravy"', $card);
-        self::assertStringContainsString('Napiš organizátorům', $card);
-        self::assertStringContainsString('<span class="link-card-note">Dotaz, problém nebo nápad. Když jde o zdraví nebo bezpečí, volej krizový kontakt.</span>', $card);
-        self::assertStringNotContainsString('Napsat můžeš po přihlášení.', $card);
-        $at = strpos($html, 'data-key="inbox-card"');
-        self::assertGreaterThan((int) strpos($html, 'id="info-contact-title"'), $at);
-        self::assertLessThan((int) strpos($html, '<h2>Notifikace</h2>'), $at);
-    }
-
-    public function testLoggedOutTheInboxCardLeadsToProfil(): void
-    {
-        $app = $this->createApp('inbox', [MessageRepository::class => $this->messages], fixtureEvent: true);
-
-        $card = self::inboxCard((string) $this->request($app, 'GET', '/informace')->getBody());
-
-        self::assertStringContainsString('href="/inbox/profil"', $card);
-        self::assertStringContainsString('Napiš organizátorům', $card);
-        self::assertStringContainsString('<span class="link-card-note">Dotaz, problém nebo nápad. Když jde o zdraví nebo bezpečí, volej krizový kontakt.</span>', $card);
-        self::assertStringContainsString('<span class="link-card-note">Napsat můžeš po přihlášení.</span>', $card);
+        self::assertNotNull(self::toast($html));
+        self::assertLessThan((int) strpos($html, 'data-info-root'), (int) strpos($html, 'data-toast'));
     }
 
     public function testNovinkyAndOdkazyAreGone(): void
@@ -320,19 +398,21 @@ final class InfoModuleTest extends AppTestCase
         preg_match_all('#<a class="tab[^"]*" href="([^"]+)"[^>]*>.*?<span>([^<]+)</span>#s', $nav[1], $tabs);
         self::assertSame(['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil'], $tabs[1]);
         self::assertSame(['Program', 'Místa', 'Informace', 'Profil'], array_slice($tabs[2], 1));
-        self::assertStringContainsString('class="tab is-active" href="/obrok27/informace" aria-current="page"', $html);
+        self::assertStringContainsString('class="tab is-active" href="/obrok27/informace" data-screen-aliases="/obrok27/informace/zpravy" aria-current="page"', $html);
         self::assertStringContainsString('<i class="fas fa-info-circle" aria-hidden="true"></i>', $nav[1]);
         // logged out, the Profil tab holds the person icon
         self::assertMatchesRegularExpression('#<a class="tab tab-profile" href="/obrok27/profil">\s*<i class="fas fa-user-circle" aria-hidden="true"></i>#', $nav[1]);
     }
 
-    public function testThePrecacheNamesTheFourScreensProfilTheMessageFormAndOffline(): void
+    /** The Zprávy view is an address of Informace, kept under its copy, not a document of its own. */
+    public function testThePrecacheNamesTheFourScreensProfilAndOffline(): void
     {
         $list = json_decode((string) $this->request($this->app(), 'GET', '/precache.json')->getBody(), true);
 
         self::assertSame(
-            ['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil', '/obrok27/zpravy', '/obrok27/offline'],
+            ['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil', '/obrok27/offline'],
             $list['documents'],
         );
+        self::assertSame('/obrok27/informace', $list['aliases']['/obrok27/informace/zpravy']);
     }
 }

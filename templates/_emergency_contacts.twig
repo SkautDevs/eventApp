@@ -1,0 +1,15 @@
+{# The crisis contacts, each with its own Zavolat button: a tel: link needs no network to
+   dial. Informace's contact box and its Zprávy view's form include it with `contacts`.
+   The lines keep the indentation they have in info.twig, so Informace renders as before. #}
+<ul class="emergency-list">
+				{% for contact in contacts %}
+					<li class="emergency-contact">
+						<span class="emergency-label">{{ contact.label }}</span>
+						<span class="emergency-number">{{ contact.phone }}</span>
+						{% if contact.note ?? false %}<span class="emergency-note">{{ contact.note }}</span>{% endif %}
+						<a class="btn btn-primary emergency-call" href="{{ 'tel:' ~ contact.phone|replace({' ': ''}) }}">
+							Zavolat<span class="sr-only"> {{ contact.label }}</span>
+						</a>
+					</li>
+				{% endfor %}
+			</ul>

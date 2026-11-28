@@ -8,39 +8,34 @@ use App\Auth\Identity;
 use App\EventConfig;
 use App\Inbox\Submission;
 use App\Module\Inbox\View\InboxPage;
-use App\View\TemplateContext;
-use Psr\Http\Message\ResponseInterface;
-use Slim\Views\Twig;
 
 /**
- * templates/inbox.twig for one reader: the form signed with their nickname (or their
- * participant number without one), filled with `$values` under `$errors`, or the login card
- * for a reader who is not paired. ShowAction renders it empty, SendAction with what a
- * refused send typed and the status of the refusal.
+ * The Zprávy view of Informace (templates/_inbox_pane.twig) for one reader: the form signed
+ * with their nickname (or their participant number without one), filled with `$values`
+ * under `$errors` and below the event's crisis numbers, or the login card for a reader who
+ * is not paired. Info\InfoScreen builds it empty for both addresses of the screen, and
+ * with what a refused send typed for SendAction.
  */
 final class FormPage
 {
-    public function __construct(
-        private readonly EventConfig $event,
-        private readonly Twig $twig,
-    ) {}
+    public function __construct(private readonly EventConfig $event) {}
 
     /** @param list<string> $errors */
-    public function render(ResponseInterface $response, ?Identity $identity, Submission $values, array $errors): ResponseInterface
+    public function pane(?Identity $identity, Submission $values, array $errors): InboxPage
     {
         $nickname = trim($identity->nickname ?? '');
 
-        $page = new InboxPage(
+        return new InboxPage(
             sender: match (true) {
                 $identity === null => null,
                 $nickname !== '' => $nickname,
                 default => 'účastník č. ' . $identity->participantId,
             },
             promise: $this->event->inboxPromise(),
+            // optional: without content/emergency.php the form offers no number to call
+            emergency: $this->event->emergency(),
             values: $values,
             errors: $errors,
         );
-
-        return $this->twig->render($response, 'inbox.twig', TemplateContext::of($page));
     }
 }

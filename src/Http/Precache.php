@@ -29,9 +29,9 @@ final class Precache
      */
     public static function build(EventConfig $event, RouteParserInterface $routes, AssetVersion $versions, ScriptVersion $scripts, array $stylesheets, array $menu, string $docroot, ?string $imageOrigin = null): array
     {
-        // every tab, Domů first and Profil last, then the message form of an event with `inbox`
-        // and the offline page; a tab's other addresses (MenuItem::$aliases) are no documents
-        // of their own: the worker finds them under the tab's own copy
+        // every tab, Domů first and Profil last, then the offline page; a tab's other addresses
+        // (MenuItem::$aliases: Program's and Místa's views, Informace's Zprávy) are no
+        // documents of their own: the worker finds them under the tab's own copy
         $documents = [];
         $aliases = [];
         foreach ($menu as $item) {
@@ -40,10 +40,6 @@ final class Precache
             foreach ($item->aliases as $alias) {
                 $aliases[$routes->urlFor($alias)] = $screen;
             }
-        }
-        // the message form is no tab, but it should open with no signal like one
-        if ($event->isEnabled('inbox')) {
-            $documents[] = $routes->urlFor('inbox');
         }
         $documents[] = $routes->urlFor('offline');
 

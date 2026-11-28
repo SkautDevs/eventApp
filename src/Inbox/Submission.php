@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Inbox;
 
 /**
- * What the form on /zpravy sent, normalised: the kind (null when missing or unknown), the
- * text and the contact, both trimmed, with every line ending as `\n`. Lengths are counted
- * in characters, not bytes, after that normalisation, so the textarea's `maxlength` and
- * the server agree. The form page renders it back after a failed send.
+ * What the Zprávy form (/informace/zpravy) sent, normalised: the kind (null when missing or
+ * unknown), the text and the contact, both trimmed, with every line ending as `\n`. Lengths
+ * are counted in characters, not bytes, after that normalisation, so the textarea's
+ * `maxlength` and the server agree. The form renders it back after a failed send.
  */
 final readonly class Submission
 {

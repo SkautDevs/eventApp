@@ -11,9 +11,10 @@ use Sentry\Event;
  * URL (old links still carry it), a token in a form body, a whole push
  * subscribe body (endpoint and keys together are the credential to push to a device),
  * a whole admin form (the message, its Podpis and the CSRF token), a whole participant's
- * message to the organisers (its text and contact), the Authorization and Cookie headers, and every stack frame's
- * vars (its arguments: a session token or a device code is one). The exception message is never touched — nothing secret is
- * put there in the first place.
+ * message to the organisers (its text and contact: any body sent to a path that ends in
+ * /zpravy, the send being POST /informace/zpravy), the Authorization and Cookie headers,
+ * and every stack frame's vars (its arguments: a session token or a device code is one).
+ * The exception message is never touched — nothing secret is put there in the first place.
  */
 final class Scrubber
 {

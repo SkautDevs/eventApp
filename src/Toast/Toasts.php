@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Toast;
 
 use App\Auth\PairingState;
+use App\Http\WriteResponse;
 use App\Session;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -17,8 +18,10 @@ use Psr\Http\Message\ServerRequestInterface;
  * The server's ones wait in the session under `toast` (`['title', 'line', 'at' => <the clock's timestamp>]`,
  * plus a `tag` for a write's success): put() leaves one, take() takes it on the next full
  * document the reader asks for — never a fragment (`X-Screen`, which the loader's warm-up
- * sends) nor the worker's own fill and refill fetches (`X-Worker-Fill: 1`,
- * WORKER_FILL_HEADER), which would swallow it before the reader sees anything — and drops
+ * sends), a write's own fetch (`X-Write: 1`, WriteResponse::HEADER: a refused send re-renders
+ * the screen for it and the script throws that body away) nor the worker's own fill and
+ * refill fetches (`X-Worker-Fill: 1`, WORKER_FILL_HEADER), which would swallow it before
+ * the reader sees anything — and drops
  * one older than 60 s (SECONDS) unsaid. A request with no toast pending never opens the
  * session.
  *
@@ -121,7 +124,8 @@ final class Toasts
     /**
      * The pending toast taken out of the session, or null. Only a full document the reader
      * asked for takes it. A fragment (X-Screen) leaves it, because the loader's warm-up
-     * reads every screen as a fragment; so does the worker's own fetch of a whole document
+     * reads every screen as a fragment; so does a write's fetch (WriteResponse::HEADER), whose
+     * refused answer is a re-rendered screen the script throws away; so does the worker's own fetch of a whole document
      * (WORKER_FILL_HEADER), because its fill and refill read every screen as a page and as
      * a fragment and would swallow it before the reader sees anything. One older than a
      * minute is dropped unsaid. A request without one never opens the session, so a
@@ -131,6 +135,7 @@ final class Toasts
     {
         if ($request->getHeaderLine('X-Screen') === '1'
             || $request->getHeaderLine(self::WORKER_FILL_HEADER) === '1'
+            || $request->getHeaderLine(WriteResponse::HEADER) === '1'
             || !$this->session->has(self::SESSION_KEY)
         ) {
             return null;
