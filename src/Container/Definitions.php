@@ -108,6 +108,7 @@ final class Definitions
             },
             \App\Push\SubscriptionRepository::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
             \App\Push\MessageRepository::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
+            \App\Inbox\InboxRepository::class => \DI\autowire()->lazy()->constructorParameter('clock', \DI\get(ClockInterface::class)),
             // the built-in push services plus PUSH_ENDPOINT_HOSTS (a test's or a dev setup's)
             \App\Push\EndpointPolicy::class => fn(Environment $environment): \App\Push\EndpointPolicy => new \App\Push\EndpointPolicy([
                 ...\App\Push\EndpointPolicy::DEFAULT_HOSTS,

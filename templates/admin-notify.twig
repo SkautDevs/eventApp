@@ -3,6 +3,10 @@
 {% set pageTitle = 'Odeslat notifikaci' %}
 
 {% block content %}
+	{% if inbox %}
+		<p><a href="#inbox">Zprávy od účastníků ({{ inbox.countLabel }})</a></p>
+	{% endif %}
+
 	{% if result %}
 		<p><strong>Odesláno: {{ result.sent }}</strong>, odstraněno neplatných odběrů: {{ result.removed }}{% if result.failed > 0 %}, nedoručeno: {{ result.failed }}{% endif %}{% if result.unreached is not null %}, přihlášených bez notifikací: {{ result.unreached }}{% endif %}</p>
 	{% endif %}
@@ -40,6 +44,10 @@
 		<input type="text" id="signature" name="signature" maxlength="40" required value="{{ values.signature }}">
 		<button type="submit" class="btn btn-primary">Odeslat</button>
 	</form>
+
+	{% if inbox %}
+		{% include '_admin_inbox.twig' %}
+	{% endif %}
 
 	<h2>Odeslané zprávy</h2>
 	{% for entry in log %}
@@ -88,14 +96,27 @@
 					}
 				});
 			}
-			var form = document.getElementById('notify-form');
-			if (form) {
-				form.addEventListener('submit', function () {
+			// every form with a Podpis remembers it: the send, the hide toggles, the inbox's actions
+			document.querySelectorAll('form').forEach(function (signed) {
+				var field = signed.elements.signature;
+				if (!field) {
+					return;
+				}
+				signed.addEventListener('submit', function () {
+					var value = field.value.trim();
+					if (value === '') {
+						return;
+					}
 					try {
-						localStorage.setItem('notifySignature', form.elements.signature.value);
+						localStorage.setItem('notifySignature', value);
 					} catch (e) {
 						// storage blocked: nothing to remember
 					}
+				});
+			});
+			var form = document.getElementById('notify-form');
+			if (form) {
+				form.addEventListener('submit', function () {
 					// a second tap while the first send runs would be a second message
 					var submit = form.querySelector('button[type="submit"]');
 					if (submit) {

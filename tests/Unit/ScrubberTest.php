@@ -86,6 +86,42 @@ final class ScrubberTest extends TestCase
         self::assertSame('<admin form redacted>', Scrubber::scrub($event)->getRequest()['data']);
     }
 
+    public function testAnInboxActionBodyIsReplacedWhole(): void
+    {
+        $event = Event::createEvent();
+        $event->setRequest([
+            'url' => 'https://app.example/obrok27/admin/inbox/3/delete',
+            'method' => 'POST',
+            'data' => ['csrf' => str_repeat('a', 32), 'signature' => 'Jana Novakova', 'page' => '1', 'inbox' => '2'],
+        ]);
+
+        self::assertSame('<admin form redacted>', Scrubber::scrub($event)->getRequest()['data']);
+    }
+
+    public function testAParticipantMessageBodyIsReplacedWhole(): void
+    {
+        $event = Event::createEvent();
+        $event->setRequest([
+            'url' => 'https://app.example/obrok27/zpravy',
+            'method' => 'POST',
+            'data' => ['kind' => 'help', 'body' => 'Ztratil jsem spacak', 'contact' => '777 123 456'],
+        ]);
+
+        self::assertSame('<message redacted>', Scrubber::scrub($event)->getRequest()['data']);
+    }
+
+    public function testAParticipantMessageSentAsAStringIsReplacedWhole(): void
+    {
+        $event = Event::createEvent();
+        $event->setRequest([
+            'url' => 'https://app.example/obrok27/zpravy',
+            'method' => 'POST',
+            'data' => 'kind=help&body=Ztratil+jsem+spacak&contact=777123456',
+        ]);
+
+        self::assertSame('<message redacted>', Scrubber::scrub($event)->getRequest()['data']);
+    }
+
     public function testAnUnrelatedRouteKeepsItsNonSensitiveFields(): void
     {
         $event = Event::createEvent();

@@ -42,11 +42,11 @@ The loader and the worker: `revalidate()` sends `cache: 'no-cache'` and `load()`
 
 ## Toasts
 
-**Toasts.** One component, `templates/_toast.twig` (`<div class="toast" role="status" data-toast data-key="toast">`: a title, an optional second line, a `✕` `[data-toast-close]` with `aria-label="Zavřít"`), a `structure`-filled banner with a hairline at the top of the screen, gone after 6 s on display (`TOAST_MS` in `shell/toast.js`, which arms a server toast only once its screen is shown) or on the close tap. The server's toasts are `Toast\Toasts`: where one waits, which request takes it, and how a response that carries one is marked `X-Toast: 1` so the worker keeps it out of the offline copy, is in its docblock. Profil takes the login and logout toasts, Program the registration ones. The shell's own toast is the offline one (below). A toast that leaves while its `✕` has the focus hands the focus to the visible screen — or, with the programme sheet open, to the sheet's card (`removeToast()`). Without JavaScript the `✕` is hidden and the toast leaves by CSS after the same 6 s ("Without JavaScript", below).
+**Toasts.** One component, `templates/_toast.twig` (`<div class="toast" role="status" data-toast data-key="toast">`: a title, an optional second line, a `✕` `[data-toast-close]` with `aria-label="Zavřít"`), a `structure`-filled banner with a hairline at the top of the screen, gone after 6 s on display (`TOAST_MS` in `shell/toast.js`, which arms a server toast only once its screen is shown) or on the close tap. The server's toasts are `Toast\Toasts`: where one waits, which request takes it, and how a response that carries one is marked `X-Toast: 1` so the worker keeps it out of the offline copy, is in its docblock. Profil takes the login and logout toasts, Program the registration ones, and Informace the sent message's (`Zpráva odeslána, díky!`, [inbox.md](inbox.md)). The shell's own toast is the offline one (below). A toast that leaves while its `✕` has the focus hands the focus to the visible screen — or, with the programme sheet open, to the sheet's card (`removeToast()`). Without JavaScript the `✕` is hidden and the toast leaves by CSS after the same 6 s ("Without JavaScript", below).
 
 ## The modules
 
-The scripts are native ES modules under `www/js/`, one directory per concern, and no file is an IIFE or sets a `window` global as an entry point. A module whose screen has behaviour returns its entry from `ModuleInterface::script()`, always `<dir>/index.js`; Home, Profile, Programs, Map and Push have one, the shell's is `shell/index.js`, and Info, Handbook and Admin return null.
+The scripts are native ES modules under `www/js/`, one directory per concern, and no file is an IIFE or sets a `window` global as an entry point. A module whose screen has behaviour returns its entry from `ModuleInterface::script()`, always `<dir>/index.js`; Home, Profile, Programs, Map, Push and Inbox have one, the shell's is `shell/index.js`, and Info, Handbook and Admin return null.
 
 | Directory | What it holds |
 |---|---|
@@ -59,6 +59,7 @@ The scripts are native ES modules under `www/js/`, one directory per concern, an
 | `map/` | Místa ([map.md](map.md)) |
 | `programs/` | the Program screen ([programs.md](programs.md)) |
 | `push/` | the notifications opt-in ([push.md](push.md)) |
+| `inbox/` | the message form's draft in `localStorage` (`inboxDraft:<event base>`) with its owner, the `push-identity` participant id; restored into an empty form for its owner only, removed on any page of another identity or none (a logout), and removed when a page loads with `#odeslano`, the landing of a confirmed send, whose hash it strips ([inbox.md](inbox.md)) |
 
 **`events.js`** holds the names `screen:shown`, `screen:hidden`, `screen:morphed`, `screen:freshness`, `screen:loading`, `screen:loaded`, `sheet:closed` and `pg:tick`. Every other module listens through its `on…()` helpers and dispatches through its `emit…()` helpers, and `JsModuleGraphTest` fails when any other file spells a name. The names are part of the page's contract: the browser tests dispatch `pg:tick` and listen for `screen:morphed` by name.
 

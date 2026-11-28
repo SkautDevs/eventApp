@@ -1,0 +1,68 @@
+{# The participants' messages on the admin page (View\InboxSection), between the send form and the log. #}
+{% macro message(message, csrf, page, inboxPage) %}
+	<article class="inbox-message">
+		<p><strong>{{ message.sentAt|date('j. n. Y H:i') }}</strong> · {{ message.sender }}</p>
+		<p class="inbox-body">{{ message.body }}</p>
+		{% if message.contact is not null %}
+			<p>Kontakt: {{ message.contact }}</p>
+		{% endif %}
+		{% if message.handled %}
+			<p>Vyřízeno: {{ message.handledBy }}, {{ message.handledAt|date('j. n. Y H:i') }}</p>
+		{% endif %}
+		<form method="post" action="{{ url_for('admin-inbox-handled', {id: message.id}) }}" class="stacked-form">
+			<input type="hidden" name="csrf" value="{{ csrf }}">
+			<input type="hidden" name="page" value="{{ page }}">
+			<input type="hidden" name="inbox" value="{{ inboxPage }}">
+			<input type="hidden" name="handled" value="{{ message.handled ? '0' : '1' }}">
+			<label for="inbox-handled-{{ message.id }}">Podpis</label>
+			<input type="text" id="inbox-handled-{{ message.id }}" name="signature" maxlength="40" required>
+			<button type="submit" class="btn">{{ message.handled ? 'Vrátit mezi nevyřízené' : 'Vyřízeno' }}</button>
+		</form>
+		<details class="inbox-delete">
+			<summary>Smazat…</summary>
+			<form method="post" action="{{ url_for('admin-inbox-delete', {id: message.id}) }}" class="stacked-form">
+				<input type="hidden" name="csrf" value="{{ csrf }}">
+				<input type="hidden" name="page" value="{{ page }}">
+				<input type="hidden" name="inbox" value="{{ inboxPage }}">
+				<label for="inbox-delete-{{ message.id }}">Podpis</label>
+				<input type="text" id="inbox-delete-{{ message.id }}" name="signature" maxlength="40" required>
+				<button type="submit" class="btn">Opravdu smazat</button>
+			</form>
+		</details>
+	</article>
+{% endmacro %}
+{% import _self as inboxView %}
+<section id="inbox">
+	<h2>Zprávy od účastníků</h2>
+	<p>Zprávy obsahují osobní údaje a samy se nemažou. Nepotřebné smazat.</p>
+
+	{% for group in [
+		{heading: 'Potřebují poradit nebo něco nefunguje', messages: inbox.help},
+		{heading: 'Nápady a zpětná vazba', messages: inbox.ideas},
+	] %}
+		{% if group.messages is not empty %}
+			<h3>{{ group.heading }}</h3>
+			{% for message in group.messages %}
+				{{ inboxView.message(message, csrf, page, inbox.handledPage) }}
+			{% endfor %}
+		{% endif %}
+	{% endfor %}
+	{% if inbox.unhandled == 0 %}
+		<p>Žádné nevyřízené zprávy.</p>
+	{% endif %}
+
+	{% if inbox.handledCount > 0 %}
+		<details class="inbox-handled"{% if inbox.open %} open{% endif %}>
+			<summary>Vyřízené ({{ inbox.handledCount }})</summary>
+			{% for message in inbox.handled %}
+				{{ inboxView.message(message, csrf, page, inbox.handledPage) }}
+			{% endfor %}
+			{% if inbox.handledPage > 1 or inbox.hasOlderHandled %}
+				<p>
+					{% if inbox.handledPage > 1 %}<a class="btn" href="{{ url_for('admin-notify', {}, {page: page, inbox: inbox.handledPage - 1}) }}#inbox">Novější</a>{% endif %}
+					{% if inbox.hasOlderHandled %}<a class="btn" href="{{ url_for('admin-notify', {}, {page: page, inbox: inbox.handledPage + 1}) }}#inbox">Starší</a>{% endif %}
+				</p>
+			{% endif %}
+		</details>
+	{% endif %}
+</section>

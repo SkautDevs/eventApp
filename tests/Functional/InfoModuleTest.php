@@ -7,6 +7,7 @@ namespace Tests\Functional;
 use App\Program\ProgramProviderInterface;
 use App\Program\LocalProgramProvider;
 use App\Push\MessageRepository;
+use App\Toast\Toasts;
 
 /** Informace: the crisis contact, every notification under day headings, and the quick links. */
 final class InfoModuleTest extends AppTestCase
@@ -184,6 +185,125 @@ final class InfoModuleTest extends AppTestCase
         self::assertStringNotContainsString('Propojení s KissJ už neplatí', (string) $this->request($app, 'GET', '/profil')->getBody());
     }
 
+    /** The toast markup of a page, or null when it carries none. */
+    private static function toast(string $html): ?string
+    {
+        return preg_match('#<div class="toast" role="status" data-toast data-key="toast">.*?</div>#s', $html, $m) === 1 ? $m[0] : null;
+    }
+
+    /** Leaves a toast in the test's session, as a write does before its redirect. */
+    private static function leaveToast(\Slim\App $app): void
+    {
+        $toasts = $app->getContainer()?->get(Toasts::class);
+        self::assertInstanceOf(Toasts::class, $toasts);
+        $toasts->put('Uloženo', 'Druhý řádek');
+    }
+
+    /**
+     * The loader's warm-up (X-Screen) and the worker's fill (X-Worker-Fill) read Informace
+     * too, the worker because it is in the precache; neither is the reader looking, so the
+     * toast waits for the next full page.
+     */
+    public function testAFragmentOrTheWorkersFillLeavesTheToastForTheNextFullPage(): void
+    {
+        $app = $this->app();
+        self::leaveToast($app);
+
+        foreach (['X-Screen', Toasts::WORKER_FILL_HEADER] as $header) {
+            $response = $this->request($app, 'GET', '/informace', null, [$header => '1']);
+            self::assertSame(200, $response->getStatusCode(), $header);
+            self::assertNull(self::toast((string) $response->getBody()), $header);
+            self::assertSame('', $response->getHeaderLine(Toasts::HEADER), $header);
+        }
+
+        self::assertStringContainsString('<strong>Uloženo</strong><span>Druhý řádek</span>', (string) self::toast((string) $this->request($app, 'GET', '/informace')->getBody()));
+    }
+
+    /** Any write's toast, not only a sent message's, is said on the first full Informace, once. */
+    public function testAnotherWritesToastIsShownOnceOnTheFirstFullPage(): void
+    {
+        $app = $this->app();
+        $toasts = $app->getContainer()?->get(Toasts::class);
+        self::assertInstanceOf(Toasts::class, $toasts);
+        $toasts->loggedIn();
+
+        $first = $this->request($app, 'GET', '/informace');
+        self::assertStringContainsString('<p><strong>Jsi přihlášen</strong></p>', (string) self::toast((string) $first->getBody()));
+        self::assertSame('1', $first->getHeaderLine(Toasts::HEADER));
+
+        $second = $this->request($app, 'GET', '/informace');
+        self::assertNull(self::toast((string) $second->getBody()));
+        self::assertSame('', $second->getHeaderLine(Toasts::HEADER));
+    }
+
+    /**
+     * The toast is taken before the participant read: a read that finds the session gone
+     * clears whatever waits in the session, and the toast the write left must still be said.
+     */
+    public function testAToastWaitingWhenTheSessionIsGoneIsStillShown(): void
+    {
+        $provider = $this->failingAfterPairing('korbo26');
+        $app = $this->app('korbo26', [ProgramProviderInterface::class => $provider]);
+        $this->pair($app);
+        $this->request($app, 'GET', '/programy'); // the login's own toast, said
+        $provider->failure = new \App\Program\SessionExpiredException();
+        self::leaveToast($app);
+
+        $response = $this->request($app, 'GET', '/informace');
+        $html = (string) $response->getBody();
+
+        self::assertStringContainsString('<strong>Uloženo</strong><span>Druhý řádek</span>', (string) self::toast($html));
+        self::assertSame('1', $response->getHeaderLine(Toasts::HEADER));
+        self::assertStringNotContainsString('tab-avatar', $html, 'the page itself renders logged out');
+    }
+
+    public function testAnEventWithoutInboxHasNoCard(): void
+    {
+        $app = $this->createApp('emergency', [MessageRepository::class => $this->messages], fixtureEvent: true);
+        $html = (string) $this->request($app, 'GET', '/informace')->getBody();
+
+        self::assertStringContainsString('Krizový kontakt akce', $html, 'the event has the contact the card would follow');
+
+        self::assertStringNotContainsString('data-key="inbox-card"', $html);
+    }
+
+    /** @return string the inbox card's `<a>` element, asserted to be the only one */
+    private static function inboxCard(string $html): string
+    {
+        self::assertSame(1, preg_match_all('#<a class="link-card[^"]*"[^>]*data-key="inbox-card"[^>]*>.*?</a>#s', $html, $cards));
+
+        return $cards[0][0];
+    }
+
+    public function testTheInboxCardFollowsTheCrisisContactAndLeadsToTheForm(): void
+    {
+        $app = $this->createApp('inbox', [MessageRepository::class => $this->messages], fixtureEvent: true);
+        $this->loginAs($app, 42, 'Kája');
+
+        $html = (string) $this->request($app, 'GET', '/informace')->getBody();
+        $card = self::inboxCard($html);
+
+        self::assertStringContainsString('href="/inbox/zpravy"', $card);
+        self::assertStringContainsString('Napiš organizátorům', $card);
+        self::assertStringContainsString('<span class="link-card-note">Dotaz, problém nebo nápad. Když jde o zdraví nebo bezpečí, volej krizový kontakt.</span>', $card);
+        self::assertStringNotContainsString('Napsat můžeš po přihlášení.', $card);
+        $at = strpos($html, 'data-key="inbox-card"');
+        self::assertGreaterThan((int) strpos($html, 'id="info-contact-title"'), $at);
+        self::assertLessThan((int) strpos($html, '<h2>Notifikace</h2>'), $at);
+    }
+
+    public function testLoggedOutTheInboxCardLeadsToProfil(): void
+    {
+        $app = $this->createApp('inbox', [MessageRepository::class => $this->messages], fixtureEvent: true);
+
+        $card = self::inboxCard((string) $this->request($app, 'GET', '/informace')->getBody());
+
+        self::assertStringContainsString('href="/inbox/profil"', $card);
+        self::assertStringContainsString('Napiš organizátorům', $card);
+        self::assertStringContainsString('<span class="link-card-note">Dotaz, problém nebo nápad. Když jde o zdraví nebo bezpečí, volej krizový kontakt.</span>', $card);
+        self::assertStringContainsString('<span class="link-card-note">Napsat můžeš po přihlášení.</span>', $card);
+    }
+
     public function testNovinkyAndOdkazyAreGone(): void
     {
         $app = $this->app();
@@ -206,12 +326,12 @@ final class InfoModuleTest extends AppTestCase
         self::assertMatchesRegularExpression('#<a class="tab tab-profile" href="/obrok27/profil">\s*<i class="fas fa-user-circle" aria-hidden="true"></i>#', $nav[1]);
     }
 
-    public function testThePrecacheNamesTheFourScreensProfilAndOffline(): void
+    public function testThePrecacheNamesTheFourScreensProfilTheMessageFormAndOffline(): void
     {
         $list = json_decode((string) $this->request($this->app(), 'GET', '/precache.json')->getBody(), true);
 
         self::assertSame(
-            ['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil', '/obrok27/offline'],
+            ['/obrok27/', '/obrok27/programy', '/obrok27/mapa', '/obrok27/informace', '/obrok27/profil', '/obrok27/zpravy', '/obrok27/offline'],
             $list['documents'],
         );
     }

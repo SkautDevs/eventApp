@@ -8,6 +8,7 @@ use App\EventConfig;
 use App\Module\Admin\AdminModule;
 use App\Module\Handbook\HandbookModule;
 use App\Module\Home\HomeModule;
+use App\Module\Inbox\InboxModule;
 use App\Module\Info\InfoModule;
 use App\Module\Map\MapModule;
 use App\Module\Profile\ProfileModule;
@@ -30,6 +31,7 @@ final class ModuleRegistry
     public const array ORDER = [
         ShellModule::class,
         InfoModule::class,
+        InboxModule::class,
         HomeModule::class,
         ProfileModule::class,
         MapModule::class,
@@ -50,6 +52,7 @@ final class ModuleRegistry
     /** @var array<string, class-string<ModuleInterface>> */
     private const array MODULES = [
         'info' => InfoModule::class,
+        'inbox' => InboxModule::class,
         'map' => MapModule::class,
         'handbook' => HandbookModule::class,
         'programs' => ProgramsModule::class,

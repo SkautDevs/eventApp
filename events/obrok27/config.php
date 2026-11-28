@@ -11,7 +11,7 @@ return [
     'shortName' => 'Obrok 27',
     'listed' => true,
     'dates' => ['start' => '2027-05-19', 'end' => '2027-05-23'],
-    'features' => ['map', 'programs', 'handbook', 'info', 'push'],
+    'features' => ['map', 'programs', 'handbook', 'info', 'push', 'inbox'],
 
     // The palette keys are only what a role falls back to; the screens read 'roles'.
     'colors' => [

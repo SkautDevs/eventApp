@@ -50,15 +50,41 @@ final class MigratorTest extends TestCase
         return $pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")->fetchAll(\PDO::FETCH_COLUMN);
     }
 
-    public function testAFreshDatabaseReachesVersionOneWithExactlyTheFourTables(): void
+    public function testAFreshDatabaseIsAtVersionTwoWithTheInboxTable(): void
     {
         $pdo = Database::open(':memory:');
 
         (new Migrator())->migrate($pdo);
 
-        self::assertSame(1, Migrator::VERSION);
-        self::assertSame(1, Migrator::version($pdo));
-        self::assertSame(['messages', 'pairing_attempts', 'subscribe_attempts', 'subscriptions'], self::tables($pdo));
+        self::assertSame(2, Migrator::VERSION);
+        self::assertSame(2, Migrator::version($pdo));
+        self::assertSame(['inbox_messages', 'messages', 'pairing_attempts', 'subscribe_attempts', 'subscriptions'], self::tables($pdo));
+        self::assertSame(
+            ['id', 'event', 'sent_at', 'participant_id', 'nickname', 'kind', 'body', 'contact', 'handled', 'handled_at', 'handled_by'],
+            self::columns($pdo, 'inbox_messages'),
+        );
+        self::assertSame(['event', 'handled', 'sent_at'], $pdo->query('PRAGMA index_info(inbox_messages_list)')->fetchAll(\PDO::FETCH_COLUMN, 2));
+        self::assertSame(['event', 'participant_id', 'sent_at'], $pdo->query('PRAGMA index_info(inbox_messages_sender)')->fetchAll(\PDO::FETCH_COLUMN, 2));
+    }
+
+    /** A production file that ran step 1 before step 2 existed. */
+    public function testAVersionOneDatabaseMovesToTwoAndKeepsItsRows(): void
+    {
+        $pdo = Database::open($this->path);
+        // step1 is private; calling it through reflection builds exactly the shipped schema
+        (new \ReflectionMethod(Migrator::class, 'step1'))->invoke(new Migrator(), $pdo);
+        $pdo->exec('PRAGMA user_version = 1');
+        $pdo->exec("INSERT INTO messages (event, sent_at, target_label, title, body, signature) VALUES ('korbo26', '2026-10-02 14:05:00', 'Všem', 'Změna', 'text', 'Lung')");
+        $pdo->exec("INSERT INTO subscriptions (event, endpoint, public_key, auth_token, created_at) VALUES ('korbo26', 'https://push.example/a', 'k', 'a', '2026-01-01')");
+        $messages = $pdo->query('SELECT * FROM messages')->fetchAll(\PDO::FETCH_ASSOC);
+        $subscriptions = $pdo->query('SELECT * FROM subscriptions')->fetchAll(\PDO::FETCH_ASSOC);
+
+        (new Migrator())->migrate($pdo);
+
+        self::assertSame(2, Migrator::version($pdo));
+        self::assertSame($messages, $pdo->query('SELECT * FROM messages')->fetchAll(\PDO::FETCH_ASSOC));
+        self::assertSame($subscriptions, $pdo->query('SELECT * FROM subscriptions')->fetchAll(\PDO::FETCH_ASSOC));
+        self::assertContains('inbox_messages', self::tables($pdo));
     }
 
     public function testVersionIsTheHighestStep(): void
@@ -66,7 +92,7 @@ final class MigratorTest extends TestCase
         // STEPS is private; reading it through reflection leaves its visibility alone
         $steps = (new \ReflectionClassConstant(Migrator::class, 'STEPS'))->getValue();
 
-        self::assertSame([1 => 'step1'], $steps);
+        self::assertSame([1 => 'step1', 2 => 'step2'], $steps);
         self::assertSame(max(array_keys($steps)), Migrator::VERSION);
     }
 

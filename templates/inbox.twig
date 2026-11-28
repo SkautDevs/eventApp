@@ -1,0 +1,34 @@
+{% extends fragment ? "_screen.twig" : "_layout.twig" %}
+
+{% set pageTitle = 'Napiš organizátorům' %}
+{# no tab of its own: the way in is the card on Informace #}
+{% set activeTab = 'info' %}
+
+{% block content %}
+	<h2>Napiš organizátorům</h2>
+	{% if sender is null %}
+		{% include '_pair_card.twig' with {eventName: event.shortName ?? event.name} %}
+	{% else %}
+		{# urgent cases go to the phone line on Informace, not into a message read later #}
+		<p class="inbox-urgent"><a href="{{ url_for('info') }}">Když jde o zdraví nebo bezpečí, nepiš a volej krizový kontakt.</a></p>
+		<p class="inbox-sender">Píšeš jako {{ sender }}.</p>
+		{% for error in errors %}
+			<p class="notice" role="alert">{{ error }}</p>
+		{% endfor %}
+		{% set kind = values.kind ? values.kind.value : '' %}
+		<form method="post" action="{{ url_for('inbox') }}" class="stacked-form inbox-form" data-write data-inbox-form>
+			<fieldset class="inbox-kinds">
+				<legend>O co jde?</legend>
+				<label class="inbox-kind"><input type="radio" name="kind" value="help" aria-describedby="inbox-promise"{{ kind == 'help' ? ' checked' }}> <span>Potřebuju poradit nebo něco nefunguje</span></label>
+				<p class="inbox-promise" id="inbox-promise">{{ promise }}</p>
+				<label class="inbox-kind"><input type="radio" name="kind" value="idea"{{ kind == 'idea' ? ' checked' }}> <span>Mám nápad nebo zpětnou vazbu</span></label>
+			</fieldset>
+			<label for="inbox-body">Zpráva</label>
+			<textarea name="body" id="inbox-body" rows="6" required maxlength="{{ constant('App\\Inbox\\Submission::BODY_MAX') }}">{{ values.body }}</textarea>
+			<label for="inbox-contact">Telefon nebo e-mail, když chceš odpověď <small class="inbox-optional">nepovinné</small></label>
+			<input type="text" name="contact" id="inbox-contact" maxlength="{{ constant('App\\Inbox\\Submission::CONTACT_MAX') }}" value="{{ values.contact }}">
+			<p class="inbox-privacy">Zprávu a kontakt uvidí organizátoři akce.</p>
+			<button type="submit" class="btn btn-primary">Odeslat</button>
+		</form>
+	{% endif %}
+{% endblock %}

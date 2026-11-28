@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Browser;
 
 use Facebook\WebDriver\Exception\StaleElementReferenceException;
+use Facebook\WebDriver\Exception\UnknownErrorException;
 use Facebook\WebDriver\WebDriverBy;
 use Facebook\WebDriver\WebDriverElement;
 use PHPUnit\Framework\Attributes\Group;
@@ -87,6 +88,13 @@ abstract class NoJsTestCase extends BrowserTestCase
                     $root->getTagName();
                 } catch (StaleElementReferenceException) {
                     return true;
+                } catch (UnknownErrorException $e) {
+                    // asked while the old document is being replaced, Chrome may answer this
+                    // instead of a stale reference
+                    if (str_contains($e->getMessage(), 'does not belong to the document')) {
+                        return true;
+                    }
+                    throw $e;
                 }
 
                 return self::$browser->getCurrentURL() !== $before;

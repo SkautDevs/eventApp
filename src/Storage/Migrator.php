@@ -19,9 +19,10 @@ final class Migrator
     /** step number => method; the highest number is VERSION */
     private const array STEPS = [
         1 => 'step1',
+        2 => 'step2',
     ];
 
-    public const int VERSION = 1;
+    public const int VERSION = 2;
 
     public function migrate(\PDO $pdo): void
     {
@@ -75,7 +76,7 @@ final class Migrator
     }
 
     /**
-     * The whole schema, fresh: the push subscriptions (each with the participant id of the
+     * The schema as it first shipped: the push subscriptions (each with the participant id of the
      * session that saved it, and WebPushSender's strike count), the message log (counts NULL
      * until the send returns, so a message is on the list even if the send dies), and the two
      * per-(event, address) counters, Push\SubscribeThrottle's and Auth\PairingThrottle's.
@@ -88,6 +89,29 @@ final class Migrator
         $pdo->exec('CREATE INDEX subscribe_attempts_lookup ON subscribe_attempts (event, ip, attempted_at)');
         $pdo->exec('CREATE TABLE pairing_attempts (event TEXT NOT NULL, ip TEXT NOT NULL, attempted_at TEXT NOT NULL)');
         $pdo->exec('CREATE INDEX pairing_attempts_lookup ON pairing_attempts (event, ip, attempted_at)');
+    }
+
+    /**
+     * The participants' messages to the organisers (Inbox\InboxRepository), with one index for
+     * the admin list and one for the per-sender throttle and repeat check.
+     */
+    private function step2(\PDO $pdo): void
+    {
+        $pdo->exec('CREATE TABLE inbox_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event TEXT NOT NULL,
+            sent_at TEXT NOT NULL,
+            participant_id INTEGER NOT NULL,
+            nickname TEXT NULL,
+            kind TEXT NOT NULL,
+            body TEXT NOT NULL,
+            contact TEXT NULL,
+            handled INTEGER NOT NULL DEFAULT 0,
+            handled_at TEXT NULL,
+            handled_by TEXT NULL
+        )');
+        $pdo->exec('CREATE INDEX inbox_messages_list ON inbox_messages (event, handled, sent_at)');
+        $pdo->exec('CREATE INDEX inbox_messages_sender ON inbox_messages (event, participant_id, sent_at)');
     }
 
     private static function messagesTable(): string

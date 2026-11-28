@@ -11,6 +11,7 @@ return [
         'handbook',
         'info',
         'push',
+        'inbox',
     ],
 
     // Palette — values taken from the old www/style.css :root

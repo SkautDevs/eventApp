@@ -4,6 +4,10 @@
 {% set activeTab = 'info' %}
 
 {% block content %}
+	{# a sent message's toast, once (Toasts::take()) #}
+	{% if toast ?? null %}
+		{% include '_toast.twig' with {title: toast.title, line: toast.line} only %}
+	{% endif %}
 	{# The one block that must work with no signal: Informace is in the worker's precache,
 	   and a tel: link needs no network to dial. #}
 	{% if emergency.contacts ?? false %}
@@ -25,6 +29,19 @@
 				<p class="emergency-info">{{ line }}</p>
 			{% endfor %}
 		</section>
+	{% endif %}
+
+	{# the way to the message form (/zpravy), right under the contact it defers to; logged out
+	   it leads to Profil, where the reader logs in. An ordinary navigation, not a screen. #}
+	{% if inbox %}
+		{% set who = auth_identity() %}
+		<a class="link-card info-inbox" data-key="inbox-card" href="{{ url_for(who ? 'inbox' : 'profile') }}">
+			<span class="link-card-text">
+				Napiš organizátorům
+				<span class="link-card-note">Dotaz, problém nebo nápad. Když jde o zdraví nebo bezpečí, volej krizový kontakt.</span>
+				{% if not who %}<span class="link-card-note">Napsat můžeš po přihlášení.</span>{% endif %}
+			</span>
+		</a>
 	{% endif %}
 
 	<h2>Notifikace</h2>

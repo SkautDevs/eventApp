@@ -9,6 +9,7 @@ use App\EventConfig;
 use App\Module\Info\View\InfoPage;
 use App\Push\MessageRepository;
 use App\Push\NotificationList;
+use App\Toast\Toasts;
 use App\View\TemplateContext;
 use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -24,7 +25,8 @@ use Slim\Views\Twig;
  * out only on `SessionExpiredException`), and in that programme's sheet on `/programy` for
  * everyone. A session kissj no longer knows logs the reader out (Profil says why), and an
  * outage logs nobody out and is not explained here, so the list simply shows what
- * everybody sees.
+ * everybody sees. A toast a write left (a message sent from /zpravy) is said once, on top.
+ * An event with `inbox` puts a card to that form under the crisis contact.
  */
 final class ShowAction
 {
@@ -33,6 +35,7 @@ final class ShowAction
         private readonly ClockInterface $clock,
         private readonly MessageRepository $messages,
         private readonly CurrentParticipant $participant,
+        private readonly Toasts $toasts,
         private readonly Twig $twig,
     ) {}
 
@@ -42,6 +45,9 @@ final class ShowAction
         $event = $this->event;
         $now = $this->clock->now();
         $messages = $this->messages->visible($event->slug);
+        // a sent message's, once; taken before the participant read, which clears a waiting
+        // toast when it finds the session gone (Profil, not this page, says why)
+        $toast = $this->toasts->take($request);
 
         // programme id => its current name, for the participant's own programmes only
         $mine = [];
@@ -54,8 +60,10 @@ final class ShowAction
             emergency: $event->emergency(),
             groups: NotificationList::groups(NotificationList::items($messages, $mine, $now)),
             links: $event->links(),
+            toast: $toast,
+            inbox: $event->isEnabled('inbox'),
         );
 
-        return $this->twig->render($response, 'info.twig', TemplateContext::of($page));
+        return $this->toasts->mark($this->twig->render($response, 'info.twig', TemplateContext::of($page)), $toast);
     }
 }

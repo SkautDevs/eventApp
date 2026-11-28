@@ -33,7 +33,7 @@ final class PrecacheTest extends AppTestCase
     public function testTheListNamesEveryScreenOfTheEvent(): void
     {
         self::assertSame(
-            ['/obrok19/', '/obrok19/programy', '/obrok19/mapa', '/obrok19/informace', '/obrok19/profil', '/obrok19/offline'],
+            ['/obrok19/', '/obrok19/programy', '/obrok19/mapa', '/obrok19/informace', '/obrok19/profil', '/obrok19/zpravy', '/obrok19/offline'],
             $this->listFor('obrok19')['documents'],
         );
         self::assertSame(
@@ -236,6 +236,16 @@ final class PrecacheTest extends AppTestCase
         self::assertSame([], $this->listFor('obrok27')['optional']);
         // korbo26 has no handbook at all
         self::assertSame([], $this->listFor('korbo26')['optional']);
+    }
+
+    /** The form page opens from the worker's copy, after the tabs and before the offline page. */
+    public function testAnEventWithInboxKeepsTheFormPage(): void
+    {
+        self::assertSame(
+            ['/inbox/', '/inbox/informace', '/inbox/profil', '/inbox/zpravy', '/inbox/offline'],
+            $this->listFor('inbox', fixtureEvent: true)['documents'],
+        );
+        self::assertNotContains('/emergency/zpravy', $this->listFor('emergency', fixtureEvent: true)['documents']);
     }
 
     public function testTheVersionChangesExactlyWhenAnAssetsContentDoes(): void

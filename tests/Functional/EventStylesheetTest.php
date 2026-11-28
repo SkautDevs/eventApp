@@ -34,7 +34,7 @@ final class EventStylesheetTest extends AppTestCase
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
         preg_match_all('~<link rel="stylesheet" href="(?!/vendor/)([^"?]+)\?v=[0-9a-f]{8}">~', $html, $links);
         self::assertSame(
-            ['css/base.css', 'css/shell.css', 'css/info.css', 'css/home.css', 'css/profile.css', 'css/map.css', 'css/programs.css', 'css/admin.css', 'css/motion.css', 'events/obrok27/style.css'],
+            ['css/base.css', 'css/shell.css', 'css/info.css', 'css/inbox.css', 'css/home.css', 'css/profile.css', 'css/map.css', 'css/programs.css', 'css/admin.css', 'css/motion.css', 'events/obrok27/style.css'],
             $links[1],
         );
     }

@@ -59,7 +59,7 @@ final class JsModuleGraphTest extends AppTestCase
     {
         $html = (string) $this->request($this->createApp('obrok27'), 'GET', '/')->getBody();
         preg_match_all('#<script type="module" src="/js/[0-9a-f]{8}/([a-z]+)/index\.js"></script>#', $html, $entries);
-        self::assertSame(['shell', 'home', 'profile', 'map', 'programs', 'push'], $entries[1]);
+        self::assertSame(['shell', 'inbox', 'home', 'profile', 'map', 'programs', 'push'], $entries[1]);
     }
 
     public function testTheEventNamesLiveInOneFile(): void

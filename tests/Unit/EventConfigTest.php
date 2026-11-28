@@ -82,6 +82,68 @@ final class EventConfigTest extends TestCase
         }
     }
 
+    public function testInboxWithoutInfoRefusesToBoot(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Event config "broken" enables inbox without info: its card is on Informace');
+        $this->loadInboxEvent(['push', 'inbox'], "<?php return ['promise' => 'Zprávy čteme ráno a večer.'];");
+    }
+
+    /** @return array<string, array{?string}> */
+    public static function missingPromises(): array
+    {
+        return [
+            'no file' => [null],
+            'an empty promise' => ["<?php return ['promise' => '  '];"],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('missingPromises')]
+    public function testInboxWithoutAPromiseRefusesToBoot(?string $promiseFile): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Event config "broken" enables inbox without a promise in content/inbox.php');
+        $this->loadInboxEvent(['info', 'push', 'inbox'], $promiseFile);
+    }
+
+    public function testInboxPromiseIsTheContentFilesSentence(): void
+    {
+        $fixtures = dirname(__DIR__) . '/fixtures/events';
+
+        self::assertSame('Zprávy čteme ráno a večer.', EventConfig::load($fixtures, 'inbox')->inboxPromise());
+        self::assertSame('', EventConfig::load($fixtures, 'emergency')->inboxPromise());
+    }
+
+    /**
+     * Loads the event "broken" with these features and, unless null, this content/inbox.php;
+     * the temp dir is always removed.
+     *
+     * @param list<string> $features
+     */
+    private function loadInboxEvent(array $features, ?string $promiseFile): EventConfig
+    {
+        $dir = sys_get_temp_dir() . '/eventconfig-' . uniqid();
+        mkdir($dir . '/broken/content', 0o777, true);
+        file_put_contents($dir . '/broken/config.php', '<?php return ' . var_export([
+            'name' => 'Broken',
+            'features' => $features,
+            'colors' => (require dirname(__DIR__) . '/fixtures/events/minimal/config.php')['colors'],
+        ], true) . ';');
+        if ($promiseFile !== null) {
+            file_put_contents($dir . '/broken/content/inbox.php', $promiseFile);
+        }
+
+        try {
+            return EventConfig::load($dir, 'broken');
+        } finally {
+            @unlink($dir . '/broken/content/inbox.php');
+            @rmdir($dir . '/broken/content');
+            @unlink($dir . '/broken/config.php');
+            @rmdir($dir . '/broken');
+            @rmdir($dir);
+        }
+    }
+
     public function testEveryRealEventLoads(): void
     {
         // the palette check runs at boot, so this is what stops a half-themed event shipping

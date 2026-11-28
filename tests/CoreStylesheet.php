@@ -17,6 +17,7 @@ final class CoreStylesheet
         'css/base.css',
         'css/shell.css',
         'css/info.css',
+        'css/inbox.css',
         'css/home.css',
         'css/profile.css',
         'css/map.css',
@@ -26,7 +27,7 @@ final class CoreStylesheet
     ];
 
     /**
-     * The nine files, as paths under www/, in link order.
+     * The ten files, as paths under www/, in link order.
      *
      * @return list<string>
      */
@@ -35,7 +36,7 @@ final class CoreStylesheet
         return self::FILES;
     }
 
-    /** The nine files' contents, joined with "\n" in link order. */
+    /** The ten files' contents, joined with "\n" in link order. */
     public static function read(string $www = __DIR__ . '/../www'): string
     {
         $parts = [];

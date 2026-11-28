@@ -10,7 +10,8 @@ use Sentry\Event;
  * Takes this app's secrets out of every event before it leaves: the admin token in a
  * URL (old links still carry it), a token in a form body, a whole push
  * subscribe body (endpoint and keys together are the credential to push to a device),
- * a whole admin form (the message, its Podpis and the CSRF token), the Authorization and Cookie headers, and every stack frame's
+ * a whole admin form (the message, its Podpis and the CSRF token), a whole participant's
+ * message to the organisers (its text and contact), the Authorization and Cookie headers, and every stack frame's
  * vars (its arguments: a session token or a device code is one). The exception message is never touched — nothing secret is
  * put there in the first place.
  */
@@ -21,6 +22,8 @@ final class Scrubber
     public const string SUBSCRIPTION_REDACTED = '<subscription redacted>';
 
     public const string ADMIN_REDACTED = '<admin form redacted>';
+
+    public const string MESSAGE_REDACTED = '<message redacted>';
 
     private const array BODY_FIELDS = ['token'];
 
@@ -44,8 +47,10 @@ final class Scrubber
             $path = is_string($request['url'] ?? null) ? (string) parse_url($request['url'], \PHP_URL_PATH) : '';
             if (array_key_exists('data', $request) && str_ends_with($path, '/push/subscribe')) {
                 $request['data'] = self::SUBSCRIPTION_REDACTED;
-            } elseif (array_key_exists('data', $request) && (str_ends_with($path, '/admin/notify') || str_contains($path, '/admin/notify/'))) {
+            } elseif (array_key_exists('data', $request) && str_contains($path, '/admin/')) {
                 $request['data'] = self::ADMIN_REDACTED;
+            } elseif (array_key_exists('data', $request) && str_ends_with(rtrim($path, '/'), '/zpravy')) {
+                $request['data'] = self::MESSAGE_REDACTED;
             } elseif (is_array($request['data'] ?? null)) {
                 foreach (self::BODY_FIELDS as $field) {
                     if (array_key_exists($field, $request['data'])) {

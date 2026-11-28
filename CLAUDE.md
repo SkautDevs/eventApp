@@ -35,7 +35,7 @@ Before running, copy `.env.example` to `.env`, set `APP_DEBUG=1` for dev, keep a
 
 ## Modules
 
-One row per screen, as the code stands on 2026-11-18. A screen is one name in three places: a PHP module under `src/Module/<Name>/` (the module class registers its routes, relative to `/<slug>`, each route an action class in the same directory), a script directory `www/js/<name>/` whose `index.js` is the module's `script()`, and a sheet `www/css/<name>.css`, its `stylesheet()`. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`; `www/js/shell/` and `www/css/shell.css` on every page), `Push\PushModule` (`POST /push/subscribe`, `www/js/push/`) and `Handbook\HandbookModule` (the handbook PDF). The routes are in each screen's document.
+One row per screen, as the code stands on 2026-11-18. A screen is one name in three places: a PHP module under `src/Module/<Name>/` (the module class registers its routes, relative to `/<slug>`, each route an action class in the same directory), a script directory `www/js/<name>/` whose `index.js` is the module's `script()`, and a sheet `www/css/<name>.css`, its `stylesheet()`. Three modules serve no screen: `Shell\ShellModule` (`/offline`, `/precache.json`; `www/js/shell/` and `www/css/shell.css` on every page), `Push\PushModule` (`POST /push/subscribe`, `www/js/push/`) and `Handbook\HandbookModule` (the handbook PDF). `Inbox\InboxModule` has a page but no tab: `Napiš organizátorům`, the message form at `/zpravy` (`www/js/inbox/`, `www/css/inbox.css`, `inbox.twig`) that a card on Informace leads to, with its section on the admin page. The routes are in each screen's document.
 
 | Screen | PHP | JS | CSS | Template |
 |---|---|---|---|---|
@@ -73,8 +73,9 @@ One row per screen, as the code stands on 2026-11-18. A screen is one name in th
 - `docs/architecture/home.md`: Domů in its three phases.
 - `docs/architecture/programs.md`: the Program screen, its three views, day chips, the sheet and registration.
 - `docs/architecture/map.md`: Místa, the Google map and the site plan.
-- `docs/architecture/info.md`: Informace, notifications for readers, quick links, the crisis contact.
+- `docs/architecture/info.md`: Informace, notifications for readers, quick links, the crisis contact, the card to the message form and its toast.
 - `docs/architecture/push.md`: the admin page, the message log, storage and migrations, subscriptions, sending, the opt-in.
+- `docs/architecture/inbox.md`: Napiš organizátorům, the participants' messages: the feature and its promise, the card, the form and its send, the draft, the table, the admin section.
 - `docs/architecture/tests.md`: the test classes of each suite and the base classes behind them.
 
 ## Rules that are easy to break

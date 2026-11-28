@@ -1,0 +1,76 @@
+@charset "utf-8";
+/* Napiš organizátorům (/zpravy): the form a participant writes the organisers with. */
+
+/* a form to fill in reads from the left, like the fields it stacks (body centres).
+   The fields and the button keep .stacked-form's 8px gutter; the text takes the same. */
+.inbox-urgent,
+.inbox-sender {
+	margin: 0 8px 12px;
+	text-align: left;
+}
+
+.inbox-form {
+	text-align: left;
+}
+
+.inbox-form > label,
+.inbox-kinds,
+.inbox-privacy {
+	margin-left: 8px;
+	margin-right: 8px;
+}
+
+.inbox-kinds {
+	margin-top: 10px;
+	margin-bottom: 0;
+	padding: 0;
+	border: 0;
+}
+
+.inbox-kinds legend {
+	margin: 0 0 4px;
+	padding: 0;
+}
+
+/* the whole line is the radio's target, and at least a fingertip tall */
+.stacked-form .inbox-kind {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 44px;
+	margin: 0;
+	cursor: pointer;
+}
+
+/* .stacked-form stretches every input across the column; a radio keeps its own size */
+.stacked-form .inbox-kind input[type="radio"] {
+	display: inline-block;
+	flex: none;
+	width: 20px;
+	height: 20px;
+	margin: 0;
+	accent-color: var(--action);
+}
+
+/* the promise line is the help kind's note, indented under its label's text */
+.inbox-promise {
+	margin: 0 0 4px 30px;
+	font-size: var(--fs-sm);
+}
+
+.inbox-optional {
+	font-size: var(--fs-sm);
+	opacity: 0.8;
+}
+
+.inbox-form textarea {
+	resize: vertical;
+}
+
+.inbox-privacy {
+	font-size: var(--fs-sm);
+}
+
+.inbox-form .btn {
+	margin-bottom: 16px;
+}

@@ -6,8 +6,12 @@ namespace App\Module\Admin;
 
 use App\EventConfig;
 use App\Http\FormField;
+use App\Inbox\InboxMessage;
+use App\Inbox\InboxRepository;
+use App\Inbox\Kind;
 use App\Module\Admin\View\AdminPage;
 use App\Module\Admin\View\FormValues;
+use App\Module\Admin\View\InboxSection;
 use App\Module\Admin\View\NotifyResult;
 use App\Module\Admin\View\ProgrammeGroup;
 use App\Module\Admin\View\ProgrammeOption;
@@ -24,15 +28,19 @@ use Psr\Http\Message\ServerRequestInterface;
 use Slim\Views\Twig;
 
 /**
- * The admin page as the three admin actions render it (View\AdminPage): the send form
- * (with a fresh one-time nonce), the result a send flashed, the programme picker grouped by
- * day, and the message log fifty to a page; and the 403 page of a refused POST, which hands
- * back what was typed.
+ * The admin page as the admin actions render it (View\AdminPage): the send form (with a
+ * fresh one-time nonce), the result a send flashed, the programme picker grouped by day,
+ * the participants' messages for an event with `inbox` (View\InboxSection), and the
+ * message log fifty to a page; and the 403 page of a refused POST, which hands back what
+ * was typed.
  */
 final class AdminPageRenderer
 {
     /** The message log's page size. */
     private const int LOG_PAGE = 50;
+
+    /** The page size of the handled participants' messages, paged by `inbox`. */
+    public const int INBOX_PAGE = 20;
 
     public const string SIGNATURE_ERROR = 'Podpis je povinný a smí mít nejvýš 40 znaků.';
 
@@ -40,6 +48,7 @@ final class AdminPageRenderer
         private readonly EventConfig $event,
         private readonly AdminSession $admin,
         private readonly MessageRepository $messages,
+        private readonly InboxRepository $inbox,
         private readonly ProgramProviderInterface $provider,
         private readonly Twig $twig,
         private readonly ClockInterface $clock,
@@ -81,6 +90,7 @@ final class AdminPageRenderer
             log: $this->messages->page($slug, $page, self::LOG_PAGE),
             page: $page,
             hasOlder: $this->messages->count($slug) > $page * self::LOG_PAGE,
+            inbox: $this->event->isEnabled('inbox') ? $this->inboxSection($params) : null,
         );
 
         return $this->twig->render($response, 'admin-notify.twig', TemplateContext::of($view));
@@ -89,7 +99,8 @@ final class AdminPageRenderer
     /**
      * A refused POST (the day is up, or the CSRF token no longer matches) says so in words
      * and hands back what was typed, because Back cannot: the admin page is no-store, and
-     * its GET is refused for the same reason. The hide/show forms carry no text to return.
+     * its GET is refused for the same reason. The hide/show forms and the inbox's forms carry
+     * no text to return.
      */
     public function refused(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
     {
@@ -122,6 +133,38 @@ final class AdminPageRenderer
     public static function signatureValid(string $signature): bool
     {
         return $signature !== '' && mb_strlen($signature) <= 40;
+    }
+
+    /**
+     * The participants' messages: every unhandled one by kind, and the page of handled ones
+     * that `inbox` names (at most the last page there is), which starts open when the
+     * parameter was given.
+     *
+     * @param array<mixed> $params the request's query, or a re-rendered form's fields
+     */
+    private function inboxSection(array $params): InboxSection
+    {
+        $slug = $this->event->slug;
+        $unhandled = $this->inbox->unhandled($slug);
+        $handledCount = $this->inbox->countHandled($slug);
+        // an action keeps `inbox`, so deleting or returning the last message of the last page
+        // would land on a page past the end: the last page that exists is shown instead
+        $lastPage = max(1, intdiv($handledCount + self::INBOX_PAGE - 1, self::INBOX_PAGE));
+        $page = min(max(1, FormField::int($params, 'inbox', 1)), $lastPage);
+        $ofKind = static fn(Kind $kind): array => array_values(
+            array_filter($unhandled, static fn(InboxMessage $message): bool => $message->kind === $kind),
+        );
+
+        return new InboxSection(
+            help: $ofKind(Kind::Help),
+            ideas: $ofKind(Kind::Idea),
+            unhandled: count($unhandled),
+            handled: $this->inbox->handledPage($slug, $page, self::INBOX_PAGE),
+            handledCount: $handledCount,
+            handledPage: $page,
+            hasOlderHandled: $handledCount > $page * self::INBOX_PAGE,
+            open: array_key_exists('inbox', $params),
+        );
     }
 
     /**

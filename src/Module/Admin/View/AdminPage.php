@@ -10,8 +10,9 @@ use App\Push\Message;
  * Everything templates/admin-notify.twig is rendered with, one property per template
  * variable: the CSRF token and the form's one-time nonce, a notice, the last send's result
  * (null when none was flashed), the form's errors and values, the programme picker by day
- * and whether the programmes could not be read, and one page of the message log with its
- * number and whether an older page exists. AdminPageRenderer renders get_object_vars() of it.
+ * and whether the programmes could not be read, one page of the message log with its
+ * number and whether an older page exists, and the participants' messages (null for an
+ * event without `inbox`). AdminPageRenderer renders get_object_vars() of it.
  */
 final readonly class AdminPage
 {
@@ -32,5 +33,6 @@ final readonly class AdminPage
         public array $log,
         public int $page,
         public bool $hasOlder,
+        public ?InboxSection $inbox,
     ) {}
 }

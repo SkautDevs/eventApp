@@ -1,5 +1,5 @@
 @charset "utf-8";
-/* Informace: the crisis contact and the list of quick links. */
+/* Informace: the crisis contact, the card to the message form and the list of quick links. */
 
 /* --- the crisis contact (Informace) ---------------------------------------- */
 
@@ -70,6 +70,15 @@
 .emergency-info {
 	margin: 8px 0 0;
 	font-size: var(--fs-sm);
+}
+
+/* --- the card to the message form (Informace, an event with `inbox`) ------- */
+
+/* a lone card, outside the quick links' list: it takes the list's gutter and
+   keeps the contact's distance from the Notifikace heading */
+.info-inbox {
+	margin: 0 8px 16px;
+	text-align: left;
 }
 
 /* --- the quick links (Informace): one card per link ----------------------- */

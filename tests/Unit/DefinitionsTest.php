@@ -33,13 +33,13 @@ final class DefinitionsTest extends TestCase
             \App\Http\AssetVersion::class, \App\Http\ScriptVersion::class, \App\Http\ScriptGraph::class, \App\Session::class, \App\Auth\Authenticator::class,
             \App\Auth\PairingState::class, \App\Toast\Toasts::class, \App\Auth\PairingThrottle::class,
             \App\Push\SubscribeThrottle::class, \PDO::class, \App\Push\SubscriptionRepository::class,
-            \App\Push\MessageRepository::class, \App\Push\EndpointPolicy::class, \App\Http\ClientIp::class,
+            \App\Push\MessageRepository::class, \App\Inbox\InboxRepository::class, \App\Push\EndpointPolicy::class, \App\Http\ClientIp::class,
             \Psr\Log\LoggerInterface::class, Kernel::ERRORS_LOGGER, \App\Push\PushSenderInterface::class,
             Twig::class,
         ] as $key) {
             self::assertArrayHasKey($key, $definitions, $key);
         }
-        self::assertCount(24, $definitions);
+        self::assertCount(25, $definitions);
         self::assertSame($event, $definitions[EventConfig::class]);
         self::assertSame($environment, $definitions[Environment::class]);
     }

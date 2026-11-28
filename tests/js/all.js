@@ -17,5 +17,6 @@ import './map.test.js';
 import './programs.test.js';
 import './write.test.js';
 import './pairing.test.js';
+import './inbox.test.js';
 
 finish();

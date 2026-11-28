@@ -18,7 +18,7 @@ use App\Event\Link;
  * typed properties for every key the app reads, with the maps (`colors`, `theme`, the role
  * sets) in the config's own key order, since the layout emits them into the inline
  * `<style>` in that order. It is the `event` Twig global as it is. Its per-event content
- * files under `content/` are read by links() and emergency().
+ * files under `content/` are read by links(), emergency() and inboxPromise().
  */
 final readonly class EventConfig
 {
@@ -112,6 +112,15 @@ final readonly class EventConfig
 
         if (in_array('info', $features, true) && !in_array('push', $features, true)) {
             throw new \RuntimeException(sprintf('Event config "%s" enables info without push: Informace lists the sent notifications', $slug));
+        }
+        if (in_array('inbox', $features, true)) {
+            if (!in_array('info', $features, true)) {
+                throw new \RuntimeException(sprintf('Event config "%s" enables inbox without info: its card is on Informace', $slug));
+            }
+            // no team gets an inbox without having said how fast it reads it
+            if (self::promiseIn(self::contentIn(dirname($file), 'inbox')) === '') {
+                throw new \RuntimeException(sprintf('Event config "%s" enables inbox without a promise in content/inbox.php', $slug));
+            }
         }
 
         $colors = self::stringMap($data['colors'], $slug, 'colors');
@@ -235,6 +244,15 @@ final readonly class EventConfig
         return $content === null ? null : Emergency::fromArray($content);
     }
 
+    /**
+     * The inbox's promise line, the one sentence on how fast the organisers read the `help`
+     * messages: `content/inbox.php`'s `promise`, trimmed; '' for an event without the file.
+     */
+    public function inboxPromise(): string
+    {
+        return self::promiseIn($this->content('inbox'));
+    }
+
     public function isEnabled(string $feature): bool
     {
         return in_array($feature, $this->features, true);
@@ -285,6 +303,18 @@ final readonly class EventConfig
     }
 
     /**
+     * The trimmed `promise` of a `content/inbox.php` array, or '' without one.
+     *
+     * @param array<mixed>|null $content
+     */
+    private static function promiseIn(?array $content): string
+    {
+        $promise = $content['promise'] ?? null;
+
+        return is_string($promise) ? trim($promise) : '';
+    }
+
+    /**
      * The array an event's `content/<name>.php` returns, or null without the file (or when
      * it returns no array).
      *
@@ -292,7 +322,17 @@ final readonly class EventConfig
      */
     private function content(string $name): ?array
     {
-        $file = $this->dir . '/content/' . $name . '.php';
+        return self::contentIn($this->dir, $name);
+    }
+
+    /**
+     * content() for an event's directory, which load() reads before the event exists.
+     *
+     * @return array<mixed>|null
+     */
+    private static function contentIn(string $dir, string $name): ?array
+    {
+        $file = $dir . '/content/' . $name . '.php';
         if (!is_file($file)) {
             return null;
         }

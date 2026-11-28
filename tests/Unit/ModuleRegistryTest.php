@@ -7,6 +7,7 @@ namespace Tests\Unit;
 use App\EventConfig;
 use App\Module\Admin\AdminModule;
 use App\Module\Handbook\HandbookModule;
+use App\Module\Inbox\InboxModule;
 use App\Module\Info\InfoModule;
 use App\Module\Map\MapModule;
 use App\Module\ModuleRegistry;
@@ -47,13 +48,13 @@ final class ModuleRegistryTest extends TestCase
         ModuleRegistry::classFor('admin');
     }
 
-    /** obrok27 lists map, programs, handbook, info, push: the modules come in ORDER instead. */
+    /** obrok27 lists map, programs, handbook, info, push, inbox: the modules come in ORDER instead. */
     public function testAnEventsModulesComeInTheRegistrysOrder(): void
     {
         $event = EventConfig::load(dirname(__DIR__, 2) . '/events', 'obrok27');
 
         self::assertSame(
-            [InfoModule::class, MapModule::class, ProgramsModule::class, PushModule::class, HandbookModule::class, AdminModule::class],
+            [InfoModule::class, InboxModule::class, MapModule::class, ProgramsModule::class, PushModule::class, HandbookModule::class, AdminModule::class],
             ModuleRegistry::classesFor($event),
         );
     }
@@ -64,5 +65,15 @@ final class ModuleRegistryTest extends TestCase
         $event = EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'programs');
 
         self::assertSame([ProgramsModule::class], ModuleRegistry::classesFor($event));
+    }
+
+    public function testInboxIsAFeatureThatFollowsInformace(): void
+    {
+        self::assertSame(InboxModule::class, ModuleRegistry::classFor('inbox'));
+
+        $modules = ModuleRegistry::modulesFor(EventConfig::load(dirname(__DIR__) . '/fixtures/events', 'inbox'));
+        $info = array_search(InfoModule::class, $modules, true);
+        self::assertIsInt($info);
+        self::assertSame(InboxModule::class, $modules[$info + 1] ?? null);
     }
 }

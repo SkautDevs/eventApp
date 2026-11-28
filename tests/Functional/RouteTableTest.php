@@ -34,6 +34,9 @@ final class RouteTableTest extends AppTestCase
             'GET /programy programs',
             'GET /programy/moje programs-mine',
             'GET /programy/prehled programs-overview',
+            'GET /zpravy inbox',
+            'POST /admin/inbox/{id:[0-9]+}/delete admin-inbox-delete',
+            'POST /admin/inbox/{id:[0-9]+}/handled admin-inbox-handled',
             'POST /admin/notify -',
             'POST /admin/notify/{id:[0-9]+}/hidden admin-notify-hidden',
             'POST /profil/kontrola pairing-check',
@@ -42,6 +45,7 @@ final class RouteTableTest extends AppTestCase
             'POST /programy/{id:[0-9]+}/odhlasit program-unregister',
             'POST /programy/{id:[0-9]+}/prihlasit program-register',
             'POST /push/subscribe push-subscribe',
+            'POST /zpravy inbox-send',
         ], $routes);
         self::assertSame('/obrok27', $this->createApp('obrok27')->getBasePath());
     }

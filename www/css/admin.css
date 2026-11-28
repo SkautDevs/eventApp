@@ -9,3 +9,22 @@
 .notify-log-body {
 	white-space: pre-line;
 }
+
+/* the participants' messages: a message keeps its line breaks, and a long word or address
+   breaks instead of widening the page */
+.inbox-message {
+	margin: 24px 0;
+}
+
+.inbox-body {
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+
+/* a summary is a control here (the delete's first step, the handled list): a fingertip tall */
+.inbox-delete > summary,
+.inbox-handled > summary {
+	min-height: 44px;
+	line-height: 44px;
+	cursor: pointer;
+}

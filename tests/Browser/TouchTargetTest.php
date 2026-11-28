@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
+use Facebook\WebDriver\WebDriverBy;
 use PHPUnit\Framework\Attributes\Group;
 
 #[Group('browser')]
 final class TouchTargetTest extends BrowserTestCase
 {
+    /** obrok19's admin link for this class, so the admin page's inbox controls can be measured. */
+    private const string ADMIN_TOKEN = 'touch-target-admin-token';
+
     private const string SMALL = <<<'JS'
         const small = [];
         arguments[0].forEach(selector => document.querySelectorAll(selector).forEach(el => {
@@ -70,6 +74,34 @@ final class TouchTargetTest extends BrowserTestCase
         self::script('document.querySelector(\'[data-pg-view="list"]\').click();');
         self::waitFor('return document.querySelector(\'[data-pg-root]\').dataset.view === "list";');
         self::assertSame([], self::script(self::SMALL, [['.day-chip']]));
+    }
+
+    /**
+     * Napiš organizátorům on obrok19: the form page's two kinds (the whole label is the
+     * target), its button, and on the admin page a message's `Vyřízeno` and the `Smazat…`
+     * summary that reveals the delete. The message is sent through the form first.
+     */
+    public function testTheMessageFormAndTheAdminInboxControlsAreAtLeast44By44(): void
+    {
+        self::pair('obrok19');
+        self::visit('/obrok19/zpravy');
+        self::waitFor('return document.readyState === "complete" && document.querySelector("form[data-inbox-form]") !== null;');
+        self::assertSame([], self::script(self::SMALL, [['.inbox-kind', 'form[data-inbox-form] .btn', '.tab']]));
+
+        self::tap('input[name="kind"][value="help"]');
+        self::$browser->findElement(WebDriverBy::cssSelector('#inbox-body'))->sendKeys('Změřit tlačítka');
+        self::tap('form[data-inbox-form] button[type="submit"]');
+        self::waitFor('return location.pathname === "/obrok19/informace" && document.querySelector("[data-toast]") !== null;');
+
+        self::visit('/obrok19/admin/notify?token=' . self::ADMIN_TOKEN);
+        self::waitFor('return document.readyState === "complete" && document.querySelector("#inbox .inbox-message") !== null;');
+        self::assertSame([], self::script(self::SMALL, [['#inbox .inbox-message .btn', '#inbox .inbox-delete > summary']]));
+    }
+
+    /** @return array<string, string> */
+    protected static function serverEnvironment(): array
+    {
+        return ['ADMIN_TOKEN_OBROK19' => self::ADMIN_TOKEN] + parent::serverEnvironment();
     }
 
     /**
